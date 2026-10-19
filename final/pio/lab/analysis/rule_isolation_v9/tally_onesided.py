@@ -1,7 +1,7 @@
 """Tally of the readers' verdicts on the one-sided differences (onesided/verdicts.json, from the workflow's journal).
 Checks that every case of onesided/key.json has exactly one verdict and that no unknown case id appears.
 
-  python -B tally_onesided.py <journal.jsonl>
+  python -B tally_onesided.py <journal.jsonl> [folder]   (folder: onesided (v9, default) or onesided_v10r)
 """
 import json
 import sys
@@ -15,7 +15,8 @@ SHORT = {"covered: the other run missed it": "missed", "not covered: the listing
 
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
-    key = json.loads((HERE / "onesided" / "key.json").read_text(encoding="utf-8"))
+    folder = HERE / (sys.argv[2] if len(sys.argv) > 2 else "onesided")
+    key = json.loads((folder / "key.json").read_text(encoding="utf-8"))
     texts = json.loads((HERE / "rule_texts.json").read_text(encoding="utf-8"))
     got = {}
     for l in Path(sys.argv[1]).read_text(encoding="utf-8").splitlines():
@@ -53,7 +54,7 @@ def main():
         for e in ex[(rid, ph)][:3]:
             print("       unclear:", e)
         rows.append({"rule": rid, "title": texts[rid]["title"], "wording": ph, **c, "unclear examples": ex[(rid, ph)]})
-    (HERE / "onesided" / "tally.json").write_text(json.dumps({"total": tot, "per wording": rows, "missing": missing},
+    (folder / "tally.json").write_text(json.dumps({"total": tot, "per wording": rows, "missing": missing},
                                                              indent=1, ensure_ascii=False), encoding="utf-8")
 
 

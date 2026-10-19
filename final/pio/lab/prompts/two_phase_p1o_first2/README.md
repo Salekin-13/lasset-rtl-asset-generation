@@ -1,0 +1,1 @@
+# two_phase_p1o_first2: A + the debug-register bar with the fixed port wording (halt and reset request outputs keep their own concept and primary label), Phase 1 copy FIRST, Phase 2 copy last bar before the keep blocks (built 2026-10-19; make_p1_fix.py; PLAN_P1_ORDER.md section 10; run waits for the Tier 3 result)

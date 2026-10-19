@@ -126,7 +126,41 @@ def user_message(version: str, phase: int, m: str, concepts=None) -> str:
             "closed_set": json.dumps(json.loads(x["closed_set.json"]), separators=(",", ":"))}
     if phase == 2:
         vals["concepts"] = concepts if isinstance(concepts, str) else json.dumps(concepts, indent=1, ensure_ascii=False)
+        if "{located}" in t:
+            vals["located"] = "{}" if isinstance(concepts, str) else json.dumps(located(m, concepts), indent=1, ensure_ascii=False)
     return t.format(**vals)
+
+
+def located(m: str, concepts) -> dict:
+    """The LOCATED input of Phase 2 (versions whose phase2_user.md has a {located} slot; two_phase_v9m, 2026-10-18): for each
+    concept of Phase 1's list, the closed-set elements its entry locates: the names in its Enters Through and Leaves Through
+    that are closed-set names, and every closed-set element one of whose assignment lines (the "lines" of its counterparts
+    under gets value from, decided by, reset by and clocked by, over every entity carrying the name) is one of the entry's Held
+    Lines. Keys as written ("Concept ID", "Enters Through", "Leaves Through", "Held Lines") or the v5 keys ("id",
+    "enters through", "leaves through", "held lines"). Deterministic: concept order kept, names sorted."""
+    cn = closed_names(m)
+    names = {x for (_, x) in cn}
+    assign: dict[str, set] = {}
+    for (_, x), fx in cn.items():
+        ls = assign.setdefault(x, set())
+        for key in ("gets value from", "decided by", "reset by", "clocked by"):
+            for c in (fx.get("counterparts") or {}).get(key, []) or []:
+                if isinstance(c, dict):
+                    ls.update(int(l) for l in (c.get("lines") or []) if isinstance(l, int) or (isinstance(l, str) and l.isdigit()))
+
+    def lst(v):
+        return v if isinstance(v, list) else ([v] if isinstance(v, str) else [])
+    out = {}
+    for c in concepts or []:
+        if not isinstance(c, dict):
+            continue
+        cid = c.get("Concept ID", c.get("id"))
+        if not cid:
+            continue
+        ports = [p for p in lst(c.get("Enters Through", c.get("enters through"))) + lst(c.get("Leaves Through", c.get("leaves through"))) if isinstance(p, str)]
+        held = {int(l) for l in lst(c.get("Held Lines", c.get("held lines"))) if isinstance(l, int) or (isinstance(l, str) and l.isdigit())}
+        out[str(cid)] = sorted({p for p in ports if p in names} | {x for x, ls in assign.items() if ls & held})
+    return out
 
 
 def closed_names(m: str) -> dict[tuple[str, str], dict]:
@@ -464,12 +498,18 @@ def from_format_phase2(obj, text: str = "", concept_ids=None) -> tuple[object, l
         names_here = set()
         for j, x in enumerate(wa):
             aw = f"{where} asset {x.get('Asset RTL')!r}" if isinstance(x, dict) and x.get("Asset RTL") else f"{where} asset {j + 1}"
+            conf0 = x.pop("Confidence", None) if isinstance(x, dict) else None
             probs += _shape(aw, x, F2_ASSET)
+            if conf0 is not None:
+                x["Confidence"] = conf0
             if not isinstance(x, dict):
                 sas.append(x)
                 continue
             names_here.add((x.get("Entity"), x.get("Asset RTL")))
+            conf = x.pop("Confidence", None)                  # optional key (two_phase_v9n_conf, 2026-10-18); absent elsewhere
             v5 = {"concept id": cid, **_rename(x, F2_ASSET_V5)}
+            if conf is not None:
+                v5["confidence"] = conf
             if "Secondary To" in x:
                 links = x["Secondary To"]
                 if isinstance(links, list):
@@ -552,6 +592,8 @@ def to_assets(m: str, phase2: dict, concepts: list[dict]) -> dict:
                 skipped += 1
                 continue
             r = rows.setdefault((ent, n), {"letters": set(), "Concepts": [], "Points": []})
+            if a.get("confidence") is not None:
+                r["Confidence"] = "sure" if (r.get("Confidence") == "sure" or a.get("confidence") == "sure") else str(a.get("confidence"))
             r["letters"] |= letters
             if cid not in r["Concepts"]:
                 r["Concepts"].append(cid)
@@ -559,8 +601,11 @@ def to_assets(m: str, phase2: dict, concepts: list[dict]) -> dict:
     out = []
     for (ent, n), r in rows.items():
         letter = next((x for x in ("C", "I", "A") if x in r["letters"]), "")
-        out.append({"Asset RTL": n, "Entity": ent, "Security Objective": WORD.get(letter, ""),
-                    "Objectives": sorted(r["letters"]), "Concepts": r["Concepts"], "Points": r["Points"]})
+        row = {"Asset RTL": n, "Entity": ent, "Security Objective": WORD.get(letter, ""),
+               "Objectives": sorted(r["letters"]), "Concepts": r["Concepts"], "Points": r["Points"]}
+        if "Confidence" in r:
+            row["Confidence"] = r["Confidence"]
+        out.append(row)
     invalid = sorted(f"{e}:{n}" for (e, n) in rows if (e, n) not in names)
     return {"IP": m, "Assets": out, "_invalid": invalid, "_skipped": skipped}
 

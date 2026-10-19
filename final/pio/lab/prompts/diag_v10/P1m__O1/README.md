@@ -1,0 +1,3 @@
+# P1m__O1
+
+Stage A cell (PLAN_MERGED.md 4c): v11's phase1.md; phase2.md = v10 with Operation selectors and the bus record-port sentence moved to the end of step 4 in order O1 (BUS -> OS -> SENT).

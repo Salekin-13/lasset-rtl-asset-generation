@@ -74,6 +74,8 @@ def load(root_fn):
             continue
         for f in base.glob("P*/*/*.json"):
             rec = json.loads(f.read_text(encoding="utf-8"))
+            if "facts reply" in rec:                      # facts format: map again with the current isolation.from_facts
+                rec["reply"] = ISO.from_facts(rec["facts reply"])
             if isinstance(rec.get("reply"), dict):
                 out[(rec["rule"], rec["phase"], rec["module"], rec["rep"])] = rec["reply"]
     return out

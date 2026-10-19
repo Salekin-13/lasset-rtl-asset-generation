@@ -1,0 +1,1 @@
+# two_phase_v9n_place2: A plus: a unit port, a hand-off or an element a block below names is never the path of an internal element (built 2026-10-18; analysis/v10_diagnosis/make_v9n.py; PLAN_ISOLATE_CLUSTER_ORDER.md section 19)

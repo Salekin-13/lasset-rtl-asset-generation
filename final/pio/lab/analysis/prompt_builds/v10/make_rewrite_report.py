@@ -38,8 +38,8 @@ def main():
          "Built 2026-10-15 by the rewrite workflow (writer, skeptic, reviser per group of rules; evidence in dossiers/), then",
          "trimmed in code: \"Criteria:\" means all criteria must hold, \"Criteria (any of):\" marks alternatives, and an empty",
          "\"Exceptions\" slot is left out. Every text passes the project prompt check (check_rule_draft.py, 0 blockers).\n",
-         "Shared procedure (once per phase, in the test context; " + str(len(MV.PROC_P1.split())) + " words):\n",
-         "> " + MV.PROC_P1 + "\n"]
+         "Shared procedure (once per phase, in the test context; " + str(len(MV.PROC_V10R_P1.split())) + " words):\n",
+         "> " + MV.PROC_V10R_P1 + "\n"]
     tot = [0, 0, 0, 0]
     rows = []
     for g, rules in MD.GROUPS.items():

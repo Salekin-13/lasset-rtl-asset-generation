@@ -1,0 +1,1 @@
+# two_phase_v9n_cfg: v9j with the Phase 1 bar Tuning settings (reference convention) as the last rule block (built 2026-10-18; analysis/v10_diagnosis/make_v9n.py; PLAN_ISOLATE_CLUSTER_ORDER.md section 19)

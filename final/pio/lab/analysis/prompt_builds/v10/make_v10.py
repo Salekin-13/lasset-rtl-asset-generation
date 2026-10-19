@@ -34,9 +34,21 @@ import chain as CH  # noqa: E402
 SRC = LAB / "prompts" / "two_phase_v9"
 DST = LAB / "prompts" / "two_phase_v10"
 FILES = ("common.md", "phase1.md", "phase2.md")
-PROC = ("Check its scope, then each criterion, then each exception, in that order. Its outcome follows only for an element "
-        "in scope that meets every criterion (one, where marked \"any of\") and that no exception covers; a criterion that "
-        "the RTL, or the evidence the rule names, does not show is not met.")
+# The procedure the v10r isolation test read (make_v10r_texts.py and make_rewrite_report.py use it; keep it unchanged so
+# the stored v10r requests keep rebuilding).
+PROC_V10R = ("Check its scope, then each criterion, then each exception, in that order. Its outcome follows only for an "
+             "element in scope that meets every criterion (one, where marked \"any of\") and that no exception covers; a "
+             "criterion that the RTL, or the evidence the rule names, does not show is not met.")
+PROC_V10R_P1 = "- Reading a rule. " + PROC_V10R
+PROC_V10R_P2 = "Reading a rule below: " + PROC_V10R[0].lower() + PROC_V10R[1:]
+# 2026-10-16 (user "use the merged procedure"): the v10r procedure without its last clause (decision E2), with "each
+# exception it lists" (11 of the 13 v10r rules keep an Exceptions slot, the 4 facts-first rules have none) and the v10f
+# procedure's full check for "only" / "every" / "one element" (worded "check", as the reply has no facts slot, G3).
+# Tested alone first: isolation variant "v10m" (E3).
+PROC = ("Check its scope, then each criterion, then each exception it lists, in that order, against the RTL; where a "
+        "criterion says \"only\", \"every\" or \"one element\", check every assignment or use, not one. Its outcome follows "
+        "only for an element in scope that meets every criterion (one, where marked \"any of\") and that no listed "
+        "exception covers.")
 PROC_P1 = "- Reading a rule. " + PROC
 PROC_P2 = "Reading a rule below: " + PROC[0].lower() + PROC[1:]
 
@@ -52,6 +64,17 @@ def finals():
             if rid in out:
                 raise SystemExit(f"{rid} appears in two final files")
             out[rid] = d
+    # adopted later wordings (current_rules.json: rule id -> final file relative to this folder). 2026-10-15, user
+    # "apply" G1: Sequencing state and Port options take their facts-first wording (v10f); later Clocks and resets and
+    # Slices (v10f), and 2026-10-16 the E1 fix to Buffer and engine status bits (e1/). G3 (2026-10-16): no facts reply
+    # format; the shared procedure is PROC (merged, E3).
+    cur = HERE / "current_rules.json"
+    if cur.exists():
+        for rid, rel in json.loads(cur.read_text(encoding="utf-8")).items():
+            if rid.startswith("_"):
+                continue
+            new = json.loads((HERE / rel).read_text(encoding="utf-8"))[rid]
+            out[rid] = {**out.get(rid, {}), **new}         # keeps v10's "P2_replaces" where the later file has none
     return out
 
 

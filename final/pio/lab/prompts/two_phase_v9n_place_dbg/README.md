@@ -1,0 +1,3 @@
+# two_phase_v9n_place_dbg: A (one primary per place) plus the paired Debug module registers bar: Phase 1 copy after the control-unit bar, Phase 2 copy as the last bar before the keep blocks (reference convention, D95) (built 2026-10-18; analysis/v10_diagnosis/make_v9n.py; PLAN_ISOLATE_CLUSTER_ORDER.md section 19)
+
+**Result (D96):** held-out 26, three runs: 450 / 672 / 561 -> recall 0.802, precision 0.670 (A 0.843 / 0.662). The bar fired in the debug module (9 / 10 / 7 names against A's 20 / 22 / 24, reference entries kept) but recall fell elsewhere; not adopted, two_phase_v9n_place stays the working version.

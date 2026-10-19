@@ -1,0 +1,3 @@
+# two_phase_v9l: v9j with the primary precedence written into Phase 2 step 4's core sentence (stored or computed counts at the entry's held lines; elsewhere on the walk the element is a path); no separate bar; Phase 1 unchanged (built 2026-10-18; analysis/v10_diagnosis/make_v9l.py; PLAN_ISOLATE_CLUSTER_ORDER.md section 17)
+
+**Run 2026-10-18, all 41 x 3 (D89): GATE FAIL.** tuning_v2 0.845 / 0.587 against v9j 0.853 / 0.593; the precedence was followed (about 100 primary rows cite held lines per run) but the false positives moved to the elements assigned at Phase 1's held lines, and 8 reference entries were lost. Not the working version.

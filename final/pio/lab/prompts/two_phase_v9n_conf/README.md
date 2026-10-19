@@ -1,0 +1,1 @@
+# two_phase_v9n_conf: v9j with a Confidence key on each asset row (sure / possible), scored sure-only and all (built 2026-10-18; analysis/v10_diagnosis/make_v9n.py; PLAN_ISOLATE_CLUSTER_ORDER.md section 19)

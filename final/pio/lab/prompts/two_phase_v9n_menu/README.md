@@ -1,0 +1,1 @@
+# two_phase_v9n_menu: v9m with LOCATED as a bound, one primary per place among its elements, and blocks below deciding even outside it (built 2026-10-18; analysis/v10_diagnosis/make_v9n.py; PLAN_ISOLATE_CLUSTER_ORDER.md section 19)

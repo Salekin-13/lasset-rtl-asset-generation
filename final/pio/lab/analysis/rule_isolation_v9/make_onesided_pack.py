@@ -8,6 +8,8 @@ Each case gives the rule text, the barring run's quoted words, reason and lines,
 and where the RTL and closed set are.
 
   python -B make_onesided_pack.py
+  python -B make_onesided_pack.py v10r   (2026-10-15: the re-test of the rewritten rules; the same rule wordings the v9
+                                         reader round judged, where the rule was rewritten; written to onesided_v10r/)
 """
 import json
 import sys
@@ -29,12 +31,20 @@ def entry(reply, key, e):
     return [x for x in reply.get(key) or [] if isinstance(x, dict) and x.get("element") and A.covered(e, {x["element"]})]
 
 
-def main():
+def main(variant="v9"):
+    global OUT
+    only = None
+    if variant != "v9":
+        k9 = json.loads((OUT / "key.json").read_text(encoding="utf-8"))
+        ISO.use(variant)
+        OUT = HERE / f"onesided_{variant}"
     R = A.load(lambda r: ISO.run_root(rep=r))
-    texts = json.loads((HERE / "rule_texts.json").read_text(encoding="utf-8"))
+    texts = json.loads(ISO.texts_file().read_text(encoding="utf-8"))
+    if variant != "v9":
+        only = {(v["rule"], v["phase"]) for v in k9.values() if v["rule"] in texts}
     sel = []
     for rid in sorted({k[0] for k in R}):
-        if rid in NINE:
+        if (rid in NINE and only is None) or (only is not None and rid not in texts):
             continue
         for ph in ("P1", "P2"):
             mods = sorted({k[2] for k in R if k[0] == rid and k[1] == ph and k[3] == 0} & {k[2] for k in R if k[0] == rid and k[1] == ph and k[3] == 1})
@@ -46,7 +56,7 @@ def main():
                     for e in sorted(D[a]):
                         if not A.covered(e, D[b]):
                             cands[m].append((0 if not D[b] else 1, e, a, b, len(D[b])))
-            if len(cands) < 3:
+            if (only is None and len(cands) < 3) or (only is not None and (rid, ph) not in only) or not cands:
                 continue
             picked, rnd = [], 0
             while len(picked) < 5 and rnd < 2:
@@ -85,6 +95,15 @@ def main():
                     L.append(f"- Run {a} listed `{x['element']}` under \"{dkey}\": rule words \"{x.get('rule words')}\"; lines {x.get('lines')}; why: {x.get('why')}")
                 L.append(f"- Run {b}: applies = {rb.get('applies')!r}; listed {nb} signals under \"{dkey}\" in this module"
                          + (f"; mentions this signal elsewhere: {other}" if other else "; does not mention this signal anywhere") + "\n")
+                if ISO.facts_variant():                # the facts each run wrote for this signal, and its decision
+                    for rr in (a, b):
+                        fr = json.loads(ISO.path(rid, ph, m, rr).read_text(encoding="utf-8")).get("facts reply") or {}
+                        for d in fr.get("decisions") or []:
+                            if isinstance(d, dict) and d.get("element") and A.covered(e, {d["element"]}):
+                                fs = "; ".join(f"{f.get('part')}: {f.get('fact')} (lines {f.get('lines')}, holds {f.get('holds')})"
+                                               for f in d.get("facts") or [] if isinstance(f, dict))
+                                L.append(f"  - run {rr} facts for `{d['element']}`: {fs} -> {d.get('decision')} / {d.get('effect')}")
+                    L.append("")
         (OUT / f"group_{g + 1}.md").write_text("\n".join(L), encoding="utf-8")
     (OUT / "key.json").write_text(json.dumps(key, indent=1, ensure_ascii=False), encoding="utf-8")
     print(f"{len(sel)} wordings, {len(key)} cases, {len(groups)} groups:",
@@ -92,4 +111,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1] if len(sys.argv) > 1 else "v9")

@@ -49,10 +49,10 @@ def main():
         out[rid] = t
     c1 = (HERE / "context_p1.md").read_text(encoding="utf-8").split("\n")
     i = next(k for k, l in enumerate(c1) if l.startswith("- Precedence."))
-    c1.insert(i + 1, MV.PROC_P1)
+    c1.insert(i + 1, MV.PROC_V10R_P1)
     c2 = (HERE / "context_p2.md").read_text(encoding="utf-8").split("\n")
     j = next(k for k, l in enumerate(c2) if l.startswith("4. Primary."))
-    c2[j] = c2[j] + " " + MV.PROC_P2
+    c2[j] = c2[j] + " " + MV.PROC_V10R_P2
     print("rewritten rules:", len(out), "| wordings:", sum(bool(t["P1"]) for t in out.values()) + sum(bool(t["P2"]) for t in out.values()))
     for b in bad:
         print("PROBLEM", b)

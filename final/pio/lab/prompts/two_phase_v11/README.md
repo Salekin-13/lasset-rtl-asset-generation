@@ -1,0 +1,3 @@
+# two_phase_v11: v10 + the carried fixes (built 2026-10-17)
+
+PLAN_MERGED.md has the fixes, the readings (set before the run) and the costs. phase1.md: v10 with Forwarded transactions (lines 44-55) = new_rules/rule_texts_v11p.json P1-05 P1 and Access command fields (lines 157-168) = carried_P1-23.json. phase2.md: v10 with Operation selectors (lines 139-145) and the bus record-port sentence (end of line 41) moved to the end of step 4, order O1 (BUS -> OS -> SENT), chosen by Stage A (analysis/v10_diagnosis/v11_stagea.json). common.md and the user templates are v10's. Built by analysis/v10_diagnosis/v11.py.

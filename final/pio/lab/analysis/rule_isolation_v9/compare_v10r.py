@@ -188,13 +188,18 @@ def main():
     for key, inst in pats.items():
         rids = [r for r in PC.MAP[key] if r in rules]
         for ph in ("P1", "P2"):
-            c9 = sum(1 for m, n in inst if any(both(R9, r, ph, m, n) for r in rids))
-            c10 = sum(1 for m, n in inst if any(both(R10, r, ph, m, n) for r in rids))
+            # only modules where both tests stored both runs of the rule (a missing reply is no loss)
+            ok = [(m, n) for m, n in inst if all(both(RR, r, ph, m, n) is not None for RR in (R9, R10) for r in rids)]
+            c9 = sum(1 for m, n in ok if any(both(R9, r, ph, m, n) for r in rids))
+            c10 = sum(1 for m, n in ok if any(both(R10, r, ph, m, n) for r in rids))
             if c9 or c10:
-                r3[f"{PC.LABEL[key]} ({ph})"] = {"v9": c9, "v10r": c10, "of": len(inst), "R3 pass": c10 >= c9 - 1}
+                r3[f"{PC.LABEL[key]} ({ph})"] = {"v9": c9, "v10r": c10, "of": len(ok), "skipped (a reply missing)": len(inst) - len(ok),
+                                                 "R3 pass": c10 >= c9 - 1}
     out["R3 patterns barred in both runs"] = r3
     r5 = {"D8 sys enable_i barred by Pacing pulses P1 (runs v9, v10r)": [
         sum(A.covered("enable_i", A.names(R.get(("P1-04", "P1", "neorv32_sys", r), {}), "barred")) for r in (0, 1)) for R in (R9, R10)],
+          "D2 merged bus responses barred in both runs by Forwarded transactions P1 (v9, v10r; None = a reply missing)": [
+        [both(R, "P1-05", "P1", m, n) for m, n in sorted(pats.get(("P2", "T5"), set()))].count(True) if all(both(R, "P1-05", "P1", m, n) is not None for m, n in pats.get(("P2", "T5"), set())) else None for R in (R9, R10)],
           "D2 merged bus responses barred in both runs by Forwarded transactions P2 (v9, v10r)": [
         sum(1 for m, n in pats.get(("P2", "T5"), set()) if both(R, "P1-05", "P2", m, n)) for R in (R9, R10)],
           "D3 Working values phase contradictions (v9, v10r)": [m9["P1-08"]["phase contradictions"], m10.get("P1-08", {}).get("phase contradictions")]}
