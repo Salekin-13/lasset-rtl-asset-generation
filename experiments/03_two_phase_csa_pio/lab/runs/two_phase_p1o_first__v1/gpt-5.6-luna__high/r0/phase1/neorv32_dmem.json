@@ -1,0 +1,166 @@
+{
+ "module": "neorv32_dmem",
+ "prompt version": "two_phase_p1o_first",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "b4c962e16261",
+ "user sha": "800930abaadd",
+ "usage": {
+  "in": 24840,
+  "out": 10540,
+  "reasoning": 9213,
+  "cached": 20474,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_060a7fc02cdd5cc0006ad59bd056d087d19e94a4a1d7641ab9",
+  "request key": "69c668512ddc"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_dmem\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"Data-memory contents\",\n      \"Unit\": \"neorv32_dmem\",\n      \"Information\": \"The byte-lane memory contents hold data written by requests and supply data for subsequent reads; correct operation depends on preserving and returning these words. The contents enter through bus_req_i.data and leave through bus_rsp_o.data.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The memory contents may contain integrator-sensitive data and are exposed through bus_rsp_o.data at line 129, using the read words produced at lines 75-78 and 106-109. The contents are sensitive state that can be modified by request data written at lines 63-72 and 92-101.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could issue reads to disclose stored words or issue writes that replace selected byte lanes with attacker-controlled data.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        63,\n        66,\n        69,\n        72,\n        92,\n        95,\n        98,\n        101\n      ],\n      \"Held Lines\": [\n        75,\n        76,\n        77,\n        78,\n        106,\n        107,\n        108,\n        109\n      ],\n      \"Exit Lines\": [\n        129\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"Memory access address\",\n      \"Unit\": \"neorv32_dmem\",\n      \"Information\": \"The word index derived from the request address selects which data-memory word is read or written, so access correctness depends on targeting the intended location. It enters through bus_req_i.addr and has no independent output because it only indexes internal memory.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The address is a sensitive access-control input whose alteration can redirect reads or writes to the wrong memory word: line 113 derives addr from bus_req_i.addr, and addr indexes the memory at lines 63-78 and 92-109.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could alter the request address to overwrite or read a memory location different from the one intended.\",\n      \"Enters Through\": [\n        \"bus_req_i.addr\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        113\n      ],\n      \"Held Lines\": [\n        113\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"Memory read-data release enable\",\n      \"Unit\": \"neorv32_dmem\",\n      \"Information\": \"The registered read-enable decision controls whether the internally read memory word is returned on bus_rsp_o.data. It is computed inside the unit from request command fields and has no separate boundary port.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"This control decision affects the integrity of returned reads because line 124 derives rden from the request and line 129 uses it to select the response data. It can affect availability because the same gate can withhold the memory word and instead return zeros at line 129.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could inject request commands that cause rden to suppress required read data or enable a response for an unintended read operation.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        121,\n        124\n      ],\n      \"Exit Lines\": []\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Bus access command fields\",\n      \"Candidate Unit\": \"neorv32_dmem\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The strobe, direction and byte-enable fields are access command fields folded into the access rather than pieces of information of their own; only the derived read-data gate is kept separately.\"\n    },\n    {\n      \"Candidate Name\": \"Bus response handshake and error status\",\n      \"Candidate Unit\": \"neorv32_dmem\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The acknowledge is transfer-handshake information, while the error field is tied to a constant at line 130, so neither forms an independent conceptual asset.\"\n    },\n    {\n      \"Candidate Name\": \"Read-data staging copy\",\n      \"Candidate Unit\": \"neorv32_dmem\",\n      \"Merged Into\": \"C1\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Registered address copy\",\n      \"Candidate Unit\": \"neorv32_dmem\",\n      \"Merged Into\": \"C2\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Clock and reset timing\",\n      \"Candidate Unit\": \"neorv32_dmem\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"Clock and reset inputs and the state they time or reset are excluded as conceptual assets by the clock-and-reset rule.\"\n    },\n    {\n      \"Candidate Name\": \"Configured memory size and RAM implementation style\",\n      \"Candidate Unit\": \"neorv32_dmem\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"DMEM_SIZE and alt_style_c are build-time values that cannot be changed or withheld at run time.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_dmem",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_dmem",
+    "concept": "Data-memory contents",
+    "information": "The byte-lane memory contents hold data written by requests and supply data for subsequent reads; correct operation depends on preserving and returning these words. The contents enter through bus_req_i.data and leave through bus_rsp_o.data.",
+    "rubric reason": "The memory contents may contain integrator-sensitive data and are exposed through bus_rsp_o.data at line 129, using the read words produced at lines 75-78 and 106-109. The contents are sensitive state that can be modified by request data written at lines 63-72 and 92-101.",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "attack": "An attacker could issue reads to disclose stored words or issue writes that replace selected byte lanes with attacker-controlled data.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     63,
+     66,
+     69,
+     72,
+     92,
+     95,
+     98,
+     101
+    ],
+    "held lines": [
+     75,
+     76,
+     77,
+     78,
+     106,
+     107,
+     108,
+     109
+    ],
+    "exit lines": [
+     129
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_dmem",
+    "concept": "Memory access address",
+    "information": "The word index derived from the request address selects which data-memory word is read or written, so access correctness depends on targeting the intended location. It enters through bus_req_i.addr and has no independent output because it only indexes internal memory.",
+    "rubric reason": "The address is a sensitive access-control input whose alteration can redirect reads or writes to the wrong memory word: line 113 derives addr from bus_req_i.addr, and addr indexes the memory at lines 63-78 and 92-109.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could alter the request address to overwrite or read a memory location different from the one intended.",
+    "enters through": [
+     "bus_req_i.addr"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     113
+    ],
+    "held lines": [
+     113
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_dmem",
+    "concept": "Memory read-data release enable",
+    "information": "The registered read-enable decision controls whether the internally read memory word is returned on bus_rsp_o.data. It is computed inside the unit from request command fields and has no separate boundary port.",
+    "rubric reason": "This control decision affects the integrity of returned reads because line 124 derives rden from the request and line 129 uses it to select the response data. It can affect availability because the same gate can withhold the memory word and instead return zeros at line 129.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could inject request commands that cause rden to suppress required read data or enable a response for an unintended read operation.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     121,
+     124
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_dmem",
+    "concept": "Bus access command fields",
+    "reason": "The strobe, direction and byte-enable fields are access command fields folded into the access rather than pieces of information of their own; only the derived read-data gate is kept separately.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_dmem",
+    "concept": "Bus response handshake and error status",
+    "reason": "The acknowledge is transfer-handshake information, while the error field is tied to a constant at line 130, so neither forms an independent conceptual asset.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_dmem",
+    "concept": "Read-data staging copy",
+    "reason": "merged into C1",
+    "merged into": "C1"
+   },
+   {
+    "unit": "neorv32_dmem",
+    "concept": "Registered address copy",
+    "reason": "merged into C2",
+    "merged into": "C2"
+   },
+   {
+    "unit": "neorv32_dmem",
+    "concept": "Clock and reset timing",
+    "reason": "Clock and reset inputs and the state they time or reset are excluded as conceptual assets by the clock-and-reset rule.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_dmem",
+    "concept": "Configured memory size and RAM implementation style",
+    "reason": "DMEM_SIZE and alt_style_c are build-time values that cannot be changed or withheld at run time.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

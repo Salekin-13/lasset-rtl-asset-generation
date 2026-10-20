@@ -1,0 +1,301 @@
+{
+ "module": "neorv32_wdt",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "be3b3faab49b",
+ "user sha": "a506dd2baf66",
+ "usage": {
+  "in": 19536,
+  "out": 15602,
+  "reasoning": 12929,
+  "cached": 19533,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_01657d79ce852983006ace2f3e469487d19e84c2ade0445b29",
+  "request key": "d9564443b189"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_wdt\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"Watchdog enable setting\",\n      \"Unit\": \"neorv32_wdt\",\n      \"Information\": \"The enable setting determines whether watchdog counting and timeout reset operation are active, and drives the clock-generator enable output. The watchdog configuration and its read-back depend on this setting.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"It is mutable watchdog configuration written by an unlocked bus access at line 94, so unauthorized modification can alter watchdog operation at lines 130-132 and 155. Clearing it can disable the watchdog and its clock-enable output, as shown at lines 130-132 and 140.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"Issue an unlocked bus write that clears the enable bit, disabling watchdog servicing and the associated clock-enable output.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\",\n        \"clkgen_en_o\"\n      ],\n      \"Entry Lines\": [\n        94\n      ],\n      \"Held Lines\": [\n        75,\n        94\n      ],\n      \"Exit Lines\": [\n        109,\n        140\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"Watchdog configuration lock state\",\n      \"Unit\": \"neorv32_wdt\",\n      \"Information\": \"The lock state controls whether watchdog configuration writes are accepted. The IP depends on it to prevent later modification of the enable, strictness, and timeout settings.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The lock is written from bus data at line 95 and controls acceptance of subsequent configuration writes at lines 93-100, so unauthorized modification can defeat configuration protection. A set lock blocks configuration use of the bus request and can cause a forced-reset path on later accesses, as shown at lines 93-100.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"Write the lock state or exploit its locked-access behavior to prevent required configuration changes or repeatedly trigger the access-reset path.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        95\n      ],\n      \"Held Lines\": [\n        76,\n        95\n      ],\n      \"Exit Lines\": [\n        110\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"Watchdog timeout limit\",\n      \"Unit\": \"neorv32_wdt\",\n      \"Information\": \"The timeout limit is the stored threshold against which the watchdog count is compared. It determines when the watchdog generates a timeout reset.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The threshold is mutable configuration written from bus data at line 97 and is used in the timeout comparison at line 144, so unauthorized modification can change the reset deadline. The threshold determines whether and when the timeout reset path reaches rstn_o through lines 144-161, so an attacker can withhold or prematurely cause system operation.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"Write an excessively large or small timeout value to suppress the watchdog reset or cause an unexpected reset.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        97\n      ],\n      \"Held Lines\": [\n        78,\n        97\n      ],\n      \"Exit Lines\": [\n        113\n      ]\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"Watchdog counting state\",\n      \"Unit\": \"neorv32_wdt\",\n      \"Information\": \"The stored count and started state represent watchdog progress toward the configured timeout. Watchdog behavior depends on this internal state even though no port carries the count itself.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The clocked counter state is cleared, started, and incremented by internal control paths at lines 130-134, so unauthorized alteration can corrupt watchdog progress. Corrupting or repeatedly clearing this state can prevent the required timeout reset, while an incorrect count can cause premature reset, as shown at lines 131-135.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"Cause the counter to be repeatedly cleared or otherwise corrupt its progress so that watchdog expiration is withheld or occurs at the wrong time.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        126,\n        127,\n        130,\n        132,\n        134\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"Watchdog expiration decision\",\n      \"Unit\": \"neorv32_wdt\",\n      \"Information\": \"This decision is the comparison of an active watchdog count with the stored timeout limit. It determines whether the watchdog timeout-reset path is asserted.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The equality decision at line 144 directly controls the registered timeout-reset request at line 155, so altering the decision compromises reset integrity. Because that decision reaches rstn_o through lines 155 and 161, it can either block recovery or reset the system unexpectedly.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"Manipulate the count, start state, or timeout comparison so the expiration decision suppresses a required reset or asserts one unexpectedly.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"rstn_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        144\n      ],\n      \"Exit Lines\": [\n        161\n      ]\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Concept Name\": \"Watchdog reset password\",\n      \"Unit\": \"neorv32_wdt\",\n      \"Information\": \"The fixed reset password is the credential compared with a bus write to authorize a watchdog restart. It has no direct entry or exit port because the expected value is a fixed internal constant and only the comparison effects are externally observable.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"no\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The fixed credential can be inferred through the distinct reset behavior selected by the comparison at lines 102-105 and observed through the reset output or reset-cause read-back at lines 111 and 161.\",\n      \"Objectives At Risk\": [\n        \"C\"\n      ],\n      \"Attack\": \"Probe candidate passwords and observe whether the watchdog-restart or access-reset behavior occurs to infer the fixed credential.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        35\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C7\",\n      \"Concept Name\": \"Watchdog reset-password match decision\",\n      \"Unit\": \"neorv32_wdt\",\n      \"Information\": \"The match decision determines whether a password write restarts the watchdog or an invalid access records a forced-reset request. It is an internal control decision with no port carrying the decision itself.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The fixed-value comparison at line 102 selects the reset-wdt or reset-force actions at lines 103-105, so an incorrect match decision compromises authorization integrity. The selected action can clear the watchdog count or drive the access-reset path through lines 131 and 156-161, affecting availability.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"Submit crafted bus data to induce the wrong match outcome, repeatedly restart the watchdog, or trigger the forced-reset path.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        102\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C8\",\n      \"Concept Name\": \"Reset-cause status\",\n      \"Unit\": \"neorv32_wdt\",\n      \"Information\": \"The reset-cause state records whether the most recent cause was debug reset, watchdog timeout, or access reset. Software depends on the stored status returned in the bus response to identify the reset reason.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The reset-identifier process can change the cause state based on reset inputs and internal reset events at lines 168-177, and the result is exposed in the bus response at line 111, so unauthorized alteration can provide an incorrect reset diagnosis.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"Induce or interfere with a reset-cause update so software reads a false explanation for the system reset.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        169,\n        172,\n        174,\n        176\n      ],\n      \"Exit Lines\": [\n        111\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Strict violation-reset policy\",\n      \"Candidate Unit\": \"neorv32_wdt\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The strict setting only chooses whether a refused or invalid access requests a reset, which the reset-only violation rule excludes apart from its read-back, as shown at lines 156-161.\"\n    },\n    {\n      \"Candidate Name\": \"Prescaler tick and counter-increment pulse\",\n      \"Candidate Unit\": \"neorv32_wdt\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"These signals only pace watchdog counting and timeout evaluation, so they are covered by the pacing-pulse rule at lines 129-141.\"\n    },\n    {\n      \"Candidate Name\": \"Bus access command and handshake\",\n      \"Candidate Unit\": \"neorv32_wdt\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The strobe, direction, and address only select or qualify register accesses while the acknowledge repeats the request strobe, so access-command fields and handshake copies are not independent information, as shown at lines 83 and 90-93.\"\n    },\n    {\n      \"Candidate Name\": \"Reset-chain requests and output reset\",\n      \"Candidate Unit\": \"neorv32_wdt\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The registered reset requests and rstn_o only combine, register, and pass reset causes to the reset output, which the reset-chain rule excludes, as shown at lines 155-161.\"\n    },\n    {\n      \"Candidate Name\": \"Watchdog reset action pulses\",\n      \"Candidate Unit\": \"neorv32_wdt\",\n      \"Merged Into\": \"C7\",\n      \"Why Not Kept\": \"\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_wdt",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_wdt",
+    "concept": "Watchdog enable setting",
+    "information": "The enable setting determines whether watchdog counting and timeout reset operation are active, and drives the clock-generator enable output. The watchdog configuration and its read-back depend on this setting.",
+    "rubric reason": "It is mutable watchdog configuration written by an unlocked bus access at line 94, so unauthorized modification can alter watchdog operation at lines 130-132 and 155. Clearing it can disable the watchdog and its clock-enable output, as shown at lines 130-132 and 140.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "Issue an unlocked bus write that clears the enable bit, disabling watchdog servicing and the associated clock-enable output.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data",
+     "clkgen_en_o"
+    ],
+    "entry lines": [
+     94
+    ],
+    "held lines": [
+     75,
+     94
+    ],
+    "exit lines": [
+     109,
+     140
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_wdt",
+    "concept": "Watchdog configuration lock state",
+    "information": "The lock state controls whether watchdog configuration writes are accepted. The IP depends on it to prevent later modification of the enable, strictness, and timeout settings.",
+    "rubric reason": "The lock is written from bus data at line 95 and controls acceptance of subsequent configuration writes at lines 93-100, so unauthorized modification can defeat configuration protection. A set lock blocks configuration use of the bus request and can cause a forced-reset path on later accesses, as shown at lines 93-100.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "Write the lock state or exploit its locked-access behavior to prevent required configuration changes or repeatedly trigger the access-reset path.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     95
+    ],
+    "held lines": [
+     76,
+     95
+    ],
+    "exit lines": [
+     110
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_wdt",
+    "concept": "Watchdog timeout limit",
+    "information": "The timeout limit is the stored threshold against which the watchdog count is compared. It determines when the watchdog generates a timeout reset.",
+    "rubric reason": "The threshold is mutable configuration written from bus data at line 97 and is used in the timeout comparison at line 144, so unauthorized modification can change the reset deadline. The threshold determines whether and when the timeout reset path reaches rstn_o through lines 144-161, so an attacker can withhold or prematurely cause system operation.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "Write an excessively large or small timeout value to suppress the watchdog reset or cause an unexpected reset.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     97
+    ],
+    "held lines": [
+     78,
+     97
+    ],
+    "exit lines": [
+     113
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_wdt",
+    "concept": "Watchdog counting state",
+    "information": "The stored count and started state represent watchdog progress toward the configured timeout. Watchdog behavior depends on this internal state even though no port carries the count itself.",
+    "rubric reason": "The clocked counter state is cleared, started, and incremented by internal control paths at lines 130-134, so unauthorized alteration can corrupt watchdog progress. Corrupting or repeatedly clearing this state can prevent the required timeout reset, while an incorrect count can cause premature reset, as shown at lines 131-135.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "Cause the counter to be repeatedly cleared or otherwise corrupt its progress so that watchdog expiration is withheld or occurs at the wrong time.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     126,
+     127,
+     130,
+     132,
+     134
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_wdt",
+    "concept": "Watchdog expiration decision",
+    "information": "This decision is the comparison of an active watchdog count with the stored timeout limit. It determines whether the watchdog timeout-reset path is asserted.",
+    "rubric reason": "The equality decision at line 144 directly controls the registered timeout-reset request at line 155, so altering the decision compromises reset integrity. Because that decision reaches rstn_o through lines 155 and 161, it can either block recovery or reset the system unexpectedly.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "Manipulate the count, start state, or timeout comparison so the expiration decision suppresses a required reset or asserts one unexpectedly.",
+    "enters through": [],
+    "leaves through": [
+     "rstn_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     144
+    ],
+    "exit lines": [
+     161
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C6",
+    "unit": "neorv32_wdt",
+    "concept": "Watchdog reset password",
+    "information": "The fixed reset password is the credential compared with a bus write to authorize a watchdog restart. It has no direct entry or exit port because the expected value is a fixed internal constant and only the comparison effects are externally observable.",
+    "rubric reason": "The fixed credential can be inferred through the distinct reset behavior selected by the comparison at lines 102-105 and observed through the reset output or reset-cause read-back at lines 111 and 161.",
+    "objectives": [
+     "C"
+    ],
+    "attack": "Probe candidate passwords and observe whether the watchdog-restart or access-reset behavior occurs to infer the fixed credential.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     35
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "no",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C7",
+    "unit": "neorv32_wdt",
+    "concept": "Watchdog reset-password match decision",
+    "information": "The match decision determines whether a password write restarts the watchdog or an invalid access records a forced-reset request. It is an internal control decision with no port carrying the decision itself.",
+    "rubric reason": "The fixed-value comparison at line 102 selects the reset-wdt or reset-force actions at lines 103-105, so an incorrect match decision compromises authorization integrity. The selected action can clear the watchdog count or drive the access-reset path through lines 131 and 156-161, affecting availability.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "Submit crafted bus data to induce the wrong match outcome, repeatedly restart the watchdog, or trigger the forced-reset path.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     102
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C8",
+    "unit": "neorv32_wdt",
+    "concept": "Reset-cause status",
+    "information": "The reset-cause state records whether the most recent cause was debug reset, watchdog timeout, or access reset. Software depends on the stored status returned in the bus response to identify the reset reason.",
+    "rubric reason": "The reset-identifier process can change the cause state based on reset inputs and internal reset events at lines 168-177, and the result is exposed in the bus response at line 111, so unauthorized alteration can provide an incorrect reset diagnosis.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "Induce or interfere with a reset-cause update so software reads a false explanation for the system reset.",
+    "enters through": [],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [],
+    "held lines": [
+     169,
+     172,
+     174,
+     176
+    ],
+    "exit lines": [
+     111
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_wdt",
+    "concept": "Strict violation-reset policy",
+    "reason": "The strict setting only chooses whether a refused or invalid access requests a reset, which the reset-only violation rule excludes apart from its read-back, as shown at lines 156-161.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_wdt",
+    "concept": "Prescaler tick and counter-increment pulse",
+    "reason": "These signals only pace watchdog counting and timeout evaluation, so they are covered by the pacing-pulse rule at lines 129-141.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_wdt",
+    "concept": "Bus access command and handshake",
+    "reason": "The strobe, direction, and address only select or qualify register accesses while the acknowledge repeats the request strobe, so access-command fields and handshake copies are not independent information, as shown at lines 83 and 90-93.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_wdt",
+    "concept": "Reset-chain requests and output reset",
+    "reason": "The registered reset requests and rstn_o only combine, register, and pass reset causes to the reset output, which the reset-chain rule excludes, as shown at lines 155-161.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_wdt",
+    "concept": "Watchdog reset action pulses",
+    "reason": "merged into C7",
+    "merged into": "C7"
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

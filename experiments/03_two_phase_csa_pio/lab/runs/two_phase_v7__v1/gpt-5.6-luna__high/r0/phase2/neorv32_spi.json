@@ -1,0 +1,2241 @@
+{
+ "module": "neorv32_spi",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 2,
+ "system sha": "6e414c09e397",
+ "user sha": "356a3e1843d3",
+ "usage": {
+  "in": 31154,
+  "out": 26151,
+  "reasoning": 11188,
+  "cached": 15151,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_07085c2bf6c30c36006ace2fbaca2887d1b60fa969e808eb32",
+  "request key": "0d9397adfb55"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_spi\",\n  \"Concept Walks\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Points\": [\n        {\n          \"Point\": \"tx_fifo.wdata\",\n          \"Reached By\": \"bus_req_i ==> tx_fifo.wdata carries bus_req_i.data.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            213\n          ],\n          \"Answer Reason\": \"The bus data directly sets the transmit FIFO write data, so it can modify the payload, but this internal write-data point has no readout.\"\n        },\n        {\n          \"Point\": \"tx_fifo_inst\",\n          \"Reached By\": \"tx_fifo.wdata ==> tx_fifo_inst carries the transmit write data through the FIFO input.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            202,\n            213\n          ],\n          \"Answer Reason\": \"Under the black-box FIFO assumption, the write data can alter the stored transmit word and the FIFO returns it on rdata_o, but the instance has no direct external payload observation.\"\n        },\n        {\n          \"Point\": \"tx_fifo.re\",\n          \"Reached By\": \"Backward influence from tx_fifo_inst follows tx_fifo.re ==> tx_fifo_inst, whose read control selects whether the payload is returned.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"This signal only controls FIFO reading and does not itself expose or modify the payload under the objectives listed for this concept.\"\n        },\n        {\n          \"Point\": \"transceiver\",\n          \"Reached By\": \"tx_fifo_inst ==> transceiver carries tx_fifo.rdata into the transceiver.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            292,\n            318,\n            343\n          ],\n          \"Answer Reason\": \"The FIFO word is loaded into and shifted through sreg, which can be read through spi_dat_o and can be changed by the transceiver's load and shift assignments.\"\n        },\n        {\n          \"Point\": \"spi_dat_o\",\n          \"Reached By\": \"transceiver ==> spi_dat_o carries rtx_engine.sreg to the output assignment.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            343\n          ],\n          \"Answer Reason\": \"The output directly exposes the current transmit shift-register bit; this assignment provides observation but no external write mechanism.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"spi_dat_o\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"a\"\n            }\n          ],\n          \"Functionality\": \"Carries the bus-written transmit payload into the transmit FIFO path.\",\n          \"Justification\": \"It is a bus-request record field barred from being primary, but its value flows through the transmit path to the primary serial output.\",\n          \"Asset Lines\": [\n            25,\n            213\n          ]\n        },\n        {\n          \"Asset RTL\": \"tx_fifo.wdata\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"tx_fifo.wdata\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"spi_dat_o\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"a\"\n            }\n          ],\n          \"Functionality\": \"Carries the bus payload and command bit into the transmit FIFO instance.\",\n          \"Justification\": \"The FIFO write-data wire is a forwarding path to the serial output and is not the stored or computed target itself.\",\n          \"Asset Lines\": [\n            202,\n            213\n          ]\n        },\n        {\n          \"Asset RTL\": \"tx_fifo.rdata\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"tx_fifo_inst\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"spi_dat_o\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"a\"\n            }\n          ],\n          \"Functionality\": \"Carries the stored transmit word from the FIFO instance to the transceiver.\",\n          \"Justification\": \"It is an instance output carrying the payload onward, not the unit's stored or computed payload target.\",\n          \"Asset Lines\": [\n            207,\n            289,\n            290,\n            292\n          ]\n        },\n        {\n          \"Asset RTL\": \"rtx_engine.sreg\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"transceiver\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"spi_dat_o\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"a\"\n            }\n          ],\n          \"Functionality\": \"Temporarily holds and shifts the transmit word before presenting its most significant bit.\",\n          \"Justification\": \"The serial data shift register is a forwarding buffer while the payload moves to the boundary and is barred from primary status by the serial-shift rule.\",\n          \"Asset Lines\": [\n            272,\n            292,\n            318,\n            343\n          ]\n        },\n        {\n          \"Asset RTL\": \"spi_dat_o\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"spi_dat_o\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"Returns the serialized transmit payload across the unit boundary.\",\n          \"Justification\": \"This non-record output crosses the boundary with the payload value unmixed and is directly observable.\",\n          \"Asset Lines\": [\n            30,\n            343\n          ]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Points\": [\n        {\n          \"Point\": \"transceiver\",\n          \"Reached By\": \"spi_dat_i ==> transceiver carries the serial input into the receive sampling logic.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            310,\n            318,\n            244\n          ],\n          \"Answer Reason\": \"The serial input is sampled into sdi_sync and shifted into sreg, which is later stored in the receive FIFO and returned through the bus response.\"\n        },\n        {\n          \"Point\": \"rx_fifo.wdata\",\n          \"Reached By\": \"transceiver ==> rx_fifo.wdata carries rtx_engine.sreg into the receive FIFO write-data logic.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            244\n          ],\n          \"Answer Reason\": \"The received shift-register value is assigned to the FIFO write data and can therefore be changed by the sampled serial input and later read out.\"\n        },\n        {\n          \"Point\": \"rx_fifo_inst\",\n          \"Reached By\": \"rx_fifo.wdata ==> rx_fifo_inst carries the received word through the FIFO input.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            234,\n            239\n          ],\n          \"Answer Reason\": \"Under the black-box FIFO assumption, the write data is stored and returned by rdata_o, so the received payload can be altered at the input and observed through the return path.\"\n        },\n        {\n          \"Point\": \"rx_fifo.re\",\n          \"Reached By\": \"Backward influence from rx_fifo_inst follows bus_req_i --> rx_fifo.re and rx_fifo.re ==> rx_fifo_inst, where the read control selects the returned data.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"The read-enable logic controls when the FIFO word is consumed but does not itself expose or alter the received payload.\"\n        },\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"rx_fifo_inst ==> bus_access carries rx_fifo.rdata into the bus response logic.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            174\n          ],\n          \"Answer Reason\": \"The receive FIFO data is copied into bus_rsp_o.data, providing a direct software-visible observation path without a payload modification at this block.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"spi_dat_i\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"transceiver\"\n          ],\n          \"Security Objectives\": [\n            \"C\",\n            \"I\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"Carries each received serial payload bit across the unit boundary.\",\n          \"Justification\": \"This non-record serial data input crosses the boundary one bit per step and is the source of the received payload.\",\n          \"Asset Lines\": [\n            31,\n            310\n          ]\n        },\n        {\n          \"Asset RTL\": \"rtx_engine.sdi_sync\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"transceiver\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"spi_dat_i\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"a\"\n            }\n          ],\n          \"Functionality\": \"Samples the serial input bit before it is shifted into the receive word.\",\n          \"Justification\": \"It is a synchronizer stage carrying the primary serial input and is barred from primary status.\",\n          \"Asset Lines\": [\n            273,\n            310,\n            318\n          ]\n        },\n        {\n          \"Asset RTL\": \"rtx_engine.sreg\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"transceiver\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"spi_dat_i\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"a\"\n            }\n          ],\n          \"Functionality\": \"Accumulates sampled receive bits into the received word.\",\n          \"Justification\": \"The serial shift register carries the received input while it moves to the FIFO and is barred from primary status as a moving serial buffer.\",\n          \"Asset Lines\": [\n            292,\n            318,\n            343\n          ]\n        },\n        {\n          \"Asset RTL\": \"rx_fifo.wdata\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"rx_fifo.wdata\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"spi_dat_i\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"a\"\n            }\n          ],\n          \"Functionality\": \"Carries the completed received word into the receive FIFO.\",\n          \"Justification\": \"It is a FIFO input forwarding the received value and is not a primary storage or computation target.\",\n          \"Asset Lines\": [\n            234,\n            244\n          ]\n        },\n        {\n          \"Asset RTL\": \"rx_fifo.rdata\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"rx_fifo_inst\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"spi_dat_i\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"a\"\n            }\n          ],\n          \"Functionality\": \"Carries the received FIFO word to the bus access process.\",\n          \"Justification\": \"It is the FIFO's returned copy of the received payload on the path to the bus response.\",\n          \"Asset Lines\": [\n            174,\n            239\n          ]\n        },\n        {\n          \"Asset RTL\": \"rx_fifo.re\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"rx_fifo.re\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"spi_dat_i\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Controls when the receive FIFO releases and consumes a received word.\",\n          \"Justification\": \"It is a read-release control for the path carrying the primary serial input to the bus response.\",\n          \"Asset Lines\": [\n            238,\n            246\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_rsp_o.data\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"spi_dat_i\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"a\"\n            }\n          ],\n          \"Functionality\": \"Carries the received FIFO word to the unit's bus response boundary.\",\n          \"Justification\": \"This response-record field carries the primary received value but is barred from primary status.\",\n          \"Asset Lines\": [\n            26,\n            174\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.addr\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"spi_dat_i\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Selects the receive-data read path and therefore whether the payload is released.\",\n          \"Justification\": \"It decides the bus response assignment that exposes the received payload.\",\n          \"Asset Lines\": [\n            152,\n            174,\n            246\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.rw\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"spi_dat_i\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Selects a read rather than a write for the receive-data response path.\",\n          \"Justification\": \"It decides whether the assignment releasing the received payload is executed.\",\n          \"Asset Lines\": [\n            138,\n            174,\n            246\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.stb\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"spi_dat_i\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Enables the bus transaction that releases and consumes received data.\",\n          \"Justification\": \"It gates the response assignment and receive FIFO read operation.\",\n          \"Asset Lines\": [\n            137,\n            174,\n            246\n          ]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Points\": [\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"bus_req_i ==> bus_access carries bus_req_i.data into the control-register write logic.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            120,\n            140\n          ],\n          \"Answer Reason\": \"A bus write stores ctrl.enable, and reset or a value of zero can clear the state that enables SPI operation.\"\n        },\n        {\n          \"Point\": \"rx_fifo.clear\",\n          \"Reached By\": \"bus_access ==> rx_fifo.clear carries ctrl.enable through the clear assignment.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            211,\n            243\n          ],\n          \"Answer Reason\": \"The inverted enable directly drives FIFO clear inputs, so changing the enable state can clear or disable queued transfer data.\"\n        },\n        {\n          \"Point\": \"tx_fifo.clear\",\n          \"Reached By\": \"bus_access ==> tx_fifo.clear carries ctrl.enable through the clear assignment.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            198,\n            211\n          ],\n          \"Answer Reason\": \"The inverted enable directly drives the transmit FIFO clear input, allowing the enable state to clear pending transmit data.\"\n        },\n        {\n          \"Point\": \"rx_fifo_inst\",\n          \"Reached By\": \"rx_fifo.clear ==> rx_fifo_inst carries the enable-derived clear control into the receive FIFO.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            230,\n            243\n          ],\n          \"Answer Reason\": \"Under the black-box FIFO assumption, the clear input can reset or block the receive FIFO state when enable is removed.\"\n        },\n        {\n          \"Point\": \"tx_fifo_inst\",\n          \"Reached By\": \"tx_fifo.clear ==> tx_fifo_inst carries the enable-derived clear control into the transmit FIFO.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            198,\n            211\n          ],\n          \"Answer Reason\": \"Under the black-box FIFO assumption, the clear input can reset or block the transmit FIFO state when enable is removed.\"\n        },\n        {\n          \"Point\": \"clock_generator\",\n          \"Reached By\": \"bus_access --> clock_generator carries ctrl.enable as a condition controlling clock generation.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            369,\n            370,\n            373\n          ],\n          \"Answer Reason\": \"The enable condition clears the divider and prevents spi_clk_en from being generated, blocking SPI operation.\"\n        },\n        {\n          \"Point\": \"transceiver\",\n          \"Reached By\": \"bus_access ==> transceiver carries ctrl.enable into the transceiver state assignment.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            281\n          ],\n          \"Answer Reason\": \"ctrl.enable directly sets a state bit, so a bus write can change the engine mode and disable normal transfer sequencing.\"\n        },\n        {\n          \"Point\": \"irq_generator\",\n          \"Reached By\": \"bus_access ==> irq_generator carries ctrl.enable into the interrupt-enable expression.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            255\n          ],\n          \"Answer Reason\": \"The enable is an outer gate on irq_o, so clearing it can suppress interrupt activity needed for operation.\"\n        },\n        {\n          \"Point\": \"clkgen_en_o\",\n          \"Reached By\": \"bus_access ==> clkgen_en_o reaches the concurrent output assignment.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"This output reflects the enable state but the output assignment itself provides no additional observation or influence mechanism.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"ctrl.enable\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Supplies the bus write bit that changes the stored enable state.\",\n          \"Justification\": \"The request-record data field is barred from primary status but can modify the primary enable register through line 140.\",\n          \"Asset Lines\": [\n            25,\n            140\n          ]\n        },\n        {\n          \"Asset RTL\": \"ctrl.enable\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores the run-time enable setting for the SPI engine.\",\n          \"Justification\": \"It is the register that holds and makes the conceptual enable decision.\",\n          \"Asset Lines\": [\n            120,\n            140,\n            211,\n            243,\n            255,\n            281,\n            369,\n            383\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_rsp_o.data\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"ctrl.enable\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Returns the stored enable bit in the bus status word.\",\n          \"Justification\": \"It is a response-record field and cannot be primary, but it is the readback path through which the enable setting leaves the unit.\",\n          \"Asset Lines\": [\n            153\n          ]\n        },\n        {\n          \"Asset RTL\": \"clkgen_en_o\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"clkgen_en_o\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"Exports the stored enable state to the clock-generation integration logic.\",\n          \"Justification\": \"The non-record output crosses the boundary with the enable value unmixed.\",\n          \"Asset Lines\": [\n            27,\n            383\n          ]\n        },\n        {\n          \"Asset RTL\": \"rx_fifo.clear\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"rx_fifo.clear\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"ctrl.enable\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Converts the enable state into the receive FIFO clear control.\",\n          \"Justification\": \"This derived wire controls clearing of a functional storage element when enable is low.\",\n          \"Asset Lines\": [\n            230,\n            243\n          ]\n        },\n        {\n          \"Asset RTL\": \"tx_fifo.clear\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"tx_fifo.clear\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"ctrl.enable\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Converts the enable state into the transmit FIFO clear control.\",\n          \"Justification\": \"This derived wire controls clearing of pending transmit data when enable is low.\",\n          \"Asset Lines\": [\n            198,\n            211\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.addr\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"ctrl.enable\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Selects whether the bus write reaches the enable register.\",\n          \"Justification\": \"It decides the assignment that modifies the enable primary, while the record field itself is barred from primary status.\",\n          \"Asset Lines\": [\n            139\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.rw\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"ctrl.enable\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Selects the write operation that can update the enable register.\",\n          \"Justification\": \"It decides whether the bus request performs the modifying assignment.\",\n          \"Asset Lines\": [\n            138\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.stb\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"ctrl.enable\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Enables the bus transaction that writes the enable register.\",\n          \"Justification\": \"It gates the assignment that can modify or disable the primary enable state.\",\n          \"Asset Lines\": [\n            137\n          ]\n        },\n        {\n          \"Asset RTL\": \"clk_i\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"ctrl.enable\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Times updates to the stored enable state.\",\n          \"Justification\": \"Stalling the clock can prevent an enable change from being captured and thereby block operation.\",\n          \"Asset Lines\": [\n            130\n          ]\n        },\n        {\n          \"Asset RTL\": \"rstn_i\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"ctrl.enable\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Resets the enable register to zero.\",\n          \"Justification\": \"The reset path can clear the primary enable state and disable the SPI function.\",\n          \"Asset Lines\": [\n            118\n          ]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Points\": [\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"bus_req_i ==> bus_access carries bus_req_i.data into the clock-configuration register writes.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            123,\n            124,\n            125,\n            143,\n            144,\n            145\n          ],\n          \"Answer Reason\": \"Bus writes store the prescaler, divider and high-speed settings, and an unsuitable value can later prevent correctly paced operation.\"\n        },\n        {\n          \"Point\": \"clock_generator\",\n          \"Reached By\": \"bus_access --> clock_generator carries ctrl.cdiv, ctrl.enable, ctrl.highspeed and ctrl.prsc as clock-generation controls.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            371,\n            372,\n            373,\n            376\n          ],\n          \"Answer Reason\": \"The configuration controls the divider comparison and the generation of spi_clk_en, so the clock-generation logic can stall or mispace transfer steps.\"\n        },\n        {\n          \"Point\": \"transceiver\",\n          \"Reached By\": \"clock_generator --> transceiver carries spi_clk_en as the pacing condition for transfer states.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            299,\n            308,\n            317\n          ],\n          \"Answer Reason\": \"The generated enable gates state advancement and serial clock updates, so its absence prevents the configured transfer pacing from operating.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"ctrl.prsc\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"ctrl.cdiv\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"ctrl.highspeed\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Supplies the bus write fields that configure prescaling, division and high-speed operation.\",\n          \"Justification\": \"The request-record data field is barred from primary status but can modify all three configuration registers.\",\n          \"Asset Lines\": [\n            25,\n            143,\n            144,\n            145\n          ]\n        },\n        {\n          \"Asset RTL\": \"ctrl.prsc\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores the prescaler selection used to index clkgen_i.\",\n          \"Justification\": \"It is a configuration register holding the prescaler portion of the conceptual asset.\",\n          \"Asset Lines\": [\n            123,\n            143,\n            156,\n            371\n          ]\n        },\n        {\n          \"Asset RTL\": \"ctrl.cdiv\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores the divider limit used to generate the SPI pacing enable.\",\n          \"Justification\": \"It is the configuration register holding the divider portion of the conceptual asset.\",\n          \"Asset Lines\": [\n            124,\n            144,\n            157,\n            372\n          ]\n        },\n        {\n          \"Asset RTL\": \"ctrl.highspeed\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores the high-speed override used by the clock generator.\",\n          \"Justification\": \"It is the configuration register holding the high-speed portion of the conceptual asset.\",\n          \"Asset Lines\": [\n            125,\n            145,\n            158,\n            371\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_rsp_o.data\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"ctrl.prsc\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"ctrl.cdiv\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"ctrl.highspeed\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Returns the clock configuration fields in the bus readback word.\",\n          \"Justification\": \"The response-record field is barred from primary status but carries the configuration readback.\",\n          \"Asset Lines\": [\n            156,\n            157,\n            158\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.addr\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"ctrl.prsc\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"ctrl.cdiv\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"ctrl.highspeed\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Selects the control-register address used for clock-configuration writes.\",\n          \"Justification\": \"It decides whether the configuration registers are assigned.\",\n          \"Asset Lines\": [\n            139\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.rw\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"ctrl.prsc\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"ctrl.cdiv\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"ctrl.highspeed\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Selects a write operation for the clock-configuration registers.\",\n          \"Justification\": \"It decides whether the bus access can modify the primary settings.\",\n          \"Asset Lines\": [\n            138\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.stb\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"ctrl.prsc\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"ctrl.cdiv\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"ctrl.highspeed\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Enables the bus transaction that writes the clock settings.\",\n          \"Justification\": \"It gates the assignments that can modify the three primary configuration fields.\",\n          \"Asset Lines\": [\n            137\n          ]\n        },\n        {\n          \"Asset RTL\": \"clkgen_i\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"clock_generator\"\n          ],\n          \"Security Objectives\": [\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"ctrl.prsc\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"ctrl.cdiv\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"ctrl.highspeed\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Provides the selected clock-generator tick source used to apply the configuration.\",\n          \"Justification\": \"The external clock-generator input gates application of the configuration and can therefore block paced operation.\",\n          \"Asset Lines\": [\n            28,\n            371\n          ]\n        },\n        {\n          \"Asset RTL\": \"clk_i\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"ctrl.prsc\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"ctrl.cdiv\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"ctrl.highspeed\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Times capture of the clock-rate configuration registers.\",\n          \"Justification\": \"Stalling the clock can prevent configuration updates or clock-generator progress.\",\n          \"Asset Lines\": [\n            130,\n            367\n          ]\n        },\n        {\n          \"Asset RTL\": \"rstn_i\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"ctrl.prsc\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"ctrl.cdiv\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"ctrl.highspeed\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Resets the clock-rate configuration fields to zero.\",\n          \"Justification\": \"The reset path clears the primary settings and can prevent the configured rate from being retained.\",\n          \"Asset Lines\": [\n            118,\n            364\n          ]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Points\": [\n        {\n          \"Point\": \"tx_fifo.wdata\",\n          \"Reached By\": \"bus_req_i ==> tx_fifo.wdata carries the command data into the transmit FIFO.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            213\n          ],\n          \"Answer Reason\": \"The bus command word directly sets the FIFO input, allowing the selected target or active state to be changed or made ineffective.\"\n        },\n        {\n          \"Point\": \"tx_fifo_inst\",\n          \"Reached By\": \"tx_fifo.wdata ==> tx_fifo_inst carries the chip-select command into the FIFO instance.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            202,\n            213\n          ],\n          \"Answer Reason\": \"Under the black-box FIFO assumption, the command can be stored incorrectly and returned to the transceiver, selecting the wrong or no target.\"\n        },\n        {\n          \"Point\": \"transceiver\",\n          \"Reached By\": \"tx_fifo_inst ==> transceiver carries tx_fifo.rdata to the chip-select command decode.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            288,\n            289,\n            290,\n            332\n          ],\n          \"Answer Reason\": \"The queued command conditionally loads cs_ctrl, while the other-state branch clears it, so the transceiver can select the wrong device or no device.\"\n        },\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"transceiver ==> bus_access carries rtx_engine.cs_ctrl into the selected-device readback.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"This block only reports cs_ctrl in the response word and does not itself alter the selected-device state.\"\n        },\n        {\n          \"Point\": \"chip_select\",\n          \"Reached By\": \"transceiver --> chip_select carries rtx_engine.cs_ctrl as the selection condition and index.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            350,\n            352,\n            353,\n            354\n          ],\n          \"Answer Reason\": \"The process drives all chip-selects inactive and asserts the indexed line only when cs_ctrl(3) is set, so selection can be wrong, absent, or reset.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rtx_engine.cs_ctrl\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"spi_csn_o\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Carries the chip-select command bit and index into the transmit command path.\",\n          \"Justification\": \"The request-record data field is barred from primary status but can alter the primary stored selection and resulting output.\",\n          \"Asset Lines\": [\n            25,\n            213\n          ]\n        },\n        {\n          \"Asset RTL\": \"tx_fifo.wdata\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"tx_fifo.wdata\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rtx_engine.cs_ctrl\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"spi_csn_o\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Carries the chip-select command into the transmit FIFO.\",\n          \"Justification\": \"It is a forwarding FIFO input that can be changed before the primary selection is stored.\",\n          \"Asset Lines\": [\n            202,\n            213\n          ]\n        },\n        {\n          \"Asset RTL\": \"tx_fifo.rdata\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"tx_fifo_inst\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rtx_engine.cs_ctrl\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"spi_csn_o\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Carries the queued chip-select command to the transceiver.\",\n          \"Justification\": \"It is the FIFO's forwarding output and is not the unit's stored selection decision.\",\n          \"Asset Lines\": [\n            207,\n            289,\n            290\n          ]\n        },\n        {\n          \"Asset RTL\": \"rtx_engine.cs_ctrl\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"transceiver\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores whether chip select is active and which chip-select index is selected.\",\n          \"Justification\": \"It is the internal register holding the selected-device decision.\",\n          \"Asset Lines\": [\n            275,\n            290,\n            332,\n            353,\n            354\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_rsp_o.data\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rtx_engine.cs_ctrl\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Returns the active chip-select state in the bus status word.\",\n          \"Justification\": \"The response-record field is barred from primary status but carries a readback of cs_ctrl.\",\n          \"Asset Lines\": [\n            171\n          ]\n        },\n        {\n          \"Asset RTL\": \"spi_csn_o\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"chip_select\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"Drives the selected SPI peripheral's active-low chip-select line.\",\n          \"Justification\": \"This output is the decoded selected-device result crossing the unit boundary.\",\n          \"Asset Lines\": [\n            32,\n            350,\n            352,\n            353,\n            354\n          ]\n        },\n        {\n          \"Asset RTL\": \"tx_fifo.avail\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rtx_engine.cs_ctrl\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Decides whether a queued command is available to load into cs_ctrl.\",\n          \"Justification\": \"The FIFO availability status gates the assignment that updates the selected-device decision.\",\n          \"Asset Lines\": [\n            208,\n            288\n          ]\n        },\n        {\n          \"Asset RTL\": \"rtx_engine.state\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rtx_engine.cs_ctrl\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Selects the transceiver phase in which the chip-select command is consumed or cleared.\",\n          \"Justification\": \"Although sequencing state is barred from primary status, it decides the cs_ctrl assignments and can gate selected-device behavior.\",\n          \"Asset Lines\": [\n            282,\n            332\n          ]\n        },\n        {\n          \"Asset RTL\": \"clk_i\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rtx_engine.cs_ctrl\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"spi_csn_o\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Times updates to the stored chip-select command and output.\",\n          \"Justification\": \"Clock stalling can prevent the selected-device state or output from being updated.\",\n          \"Asset Lines\": [\n            276,\n            351\n          ]\n        },\n        {\n          \"Asset RTL\": \"rstn_i\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rtx_engine.cs_ctrl\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"spi_csn_o\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Clears the stored selection and deasserts all chip-select outputs.\",\n          \"Justification\": \"Reset can clear the primary selection or force no peripheral to be selected.\",\n          \"Asset Lines\": [\n            268,\n            349\n          ]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Points\": [\n        {\n          \"Point\": \"irq_generator\",\n          \"Reached By\": \"holding block; bus_access, rx_fifo_inst, tx_fifo_inst and rtx_engine.busy feed the interrupt expression.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            253,\n            255,\n            256,\n            257,\n            258,\n            259\n          ],\n          \"Answer Reason\": \"The process computes and registers irq_o from enable, interrupt-selection bits, FIFO status and engine busy state, so those conditions can create or suppress an interrupt.\"\n        },\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"Backward influence follows bus_access ==> irq_generator for the interrupt-selection and enable fields.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            140,\n            146,\n            147,\n            148,\n            149\n          ],\n          \"Answer Reason\": \"Bus writes change ctrl.enable and the interrupt-selection registers, allowing interrupt generation to be altered or disabled.\"\n        },\n        {\n          \"Point\": \"rx_fifo_inst\",\n          \"Reached By\": \"Backward influence follows rx_fifo_inst ==> irq_generator for rx_fifo.avail.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            240,\n            256\n          ],\n          \"Answer Reason\": \"Under the black-box FIFO assumption, its availability output affects the interrupt condition and can therefore make the indication incorrect or absent.\"\n        },\n        {\n          \"Point\": \"tx_fifo_inst\",\n          \"Reached By\": \"Backward influence follows tx_fifo_inst ==> irq_generator for tx_fifo.avail and tx_fifo.half.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            199,\n            208,\n            257,\n            258\n          ],\n          \"Answer Reason\": \"Under the black-box FIFO assumption, its empty and half-full outputs determine interrupt conditions and can cause or suppress the indication.\"\n        },\n        {\n          \"Point\": \"rtx_engine.busy\",\n          \"Reached By\": \"Backward influence follows rtx_engine.busy ==> irq_generator for the idle-interrupt condition.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            259,\n            340\n          ],\n          \"Answer Reason\": \"The derived busy state is an operand of the idle interrupt condition, so an incorrect busy value can produce a spurious or missing interrupt.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"irq_o\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"irq_generator\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"Exports the interrupt indication to the integrating system.\",\n          \"Justification\": \"This non-record output is the computed interrupt result crossing the unit boundary.\",\n          \"Asset Lines\": [\n            33,\n            253,\n            255\n          ]\n        },\n        {\n          \"Asset RTL\": \"ctrl.enable\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Gates whether any interrupt condition can assert irq_o.\",\n          \"Justification\": \"It is a stored control input to the interrupt computation and can suppress the primary indication.\",\n          \"Asset Lines\": [\n            140,\n            255\n          ]\n        },\n        {\n          \"Asset RTL\": \"ctrl.irq_rx_avail\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Enables the receive-available interrupt term.\",\n          \"Justification\": \"It controls whether rx_fifo.avail contributes to the primary interrupt output.\",\n          \"Asset Lines\": [\n            146,\n            256\n          ]\n        },\n        {\n          \"Asset RTL\": \"ctrl.irq_tx_empty\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Enables the transmit-empty interrupt term.\",\n          \"Justification\": \"It controls whether the transmit FIFO empty condition contributes to irq_o.\",\n          \"Asset Lines\": [\n            147,\n            257\n          ]\n        },\n        {\n          \"Asset RTL\": \"ctrl.irq_tx_nhalf\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Enables the transmit-not-half-full interrupt term.\",\n          \"Justification\": \"It controls whether the FIFO half-full status contributes to irq_o.\",\n          \"Asset Lines\": [\n            148,\n            258\n          ]\n        },\n        {\n          \"Asset RTL\": \"ctrl.irq_idle\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Enables the idle-transmitter interrupt term.\",\n          \"Justification\": \"It controls whether the idle condition contributes to the primary interrupt output.\",\n          \"Asset Lines\": [\n            149,\n            259\n          ]\n        },\n        {\n          \"Asset RTL\": \"rx_fifo.avail\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"rx_fifo_inst\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Reports receive-data availability to the interrupt generator.\",\n          \"Justification\": \"The FIFO status is an operand that can directly change or suppress irq_o.\",\n          \"Asset Lines\": [\n            240,\n            256\n          ]\n        },\n        {\n          \"Asset RTL\": \"tx_fifo.avail\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"tx_fifo_inst\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Reports transmit FIFO availability for empty and idle interrupt terms.\",\n          \"Justification\": \"It is an operand of two interrupt conditions and can change or suppress the primary indication.\",\n          \"Asset Lines\": [\n            208,\n            257,\n            259\n          ]\n        },\n        {\n          \"Asset RTL\": \"tx_fifo.half\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"tx_fifo_inst\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Reports transmit FIFO half-full status for the interrupt condition.\",\n          \"Justification\": \"It is an operand that can alter or suppress the primary interrupt output.\",\n          \"Asset Lines\": [\n            199,\n            258\n          ]\n        },\n        {\n          \"Asset RTL\": \"rtx_engine.busy\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"rtx_engine.busy\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Reports whether the transceiver is busy for the idle interrupt term.\",\n          \"Justification\": \"The derived busy operand directly controls the idle contribution to irq_o.\",\n          \"Asset Lines\": [\n            340,\n            259\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Supplies bus-written interrupt-enable and master-enable bits.\",\n          \"Justification\": \"The request-record data field is barred from primary status but can modify the interrupt controls.\",\n          \"Asset Lines\": [\n            25,\n            140,\n            146,\n            147,\n            148,\n            149\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.addr\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Selects whether a bus write reaches the interrupt-control registers.\",\n          \"Justification\": \"It decides the assignments that alter the interrupt computation.\",\n          \"Asset Lines\": [\n            139\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.rw\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Selects the write operation that can change interrupt controls.\",\n          \"Justification\": \"It decides whether the interrupt-selection assignments execute.\",\n          \"Asset Lines\": [\n            138\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.stb\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Enables the bus transaction that changes interrupt controls.\",\n          \"Justification\": \"It gates the assignments that can create or suppress the primary interrupt indication.\",\n          \"Asset Lines\": [\n            137\n          ]\n        },\n        {\n          \"Asset RTL\": \"clk_i\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Times registration of irq_o.\",\n          \"Justification\": \"Clock stalling can prevent the interrupt indication from updating or being delivered.\",\n          \"Asset Lines\": [\n            254\n          ]\n        },\n        {\n          \"Asset RTL\": \"rstn_i\",\n          \"Entity\": \"neorv32_spi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_spi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Clears irq_o during reset.\",\n          \"Justification\": \"Reset can clear or suppress the primary interrupt indication.\",\n          \"Asset Lines\": [\n            252\n          ]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    }\n  ],\n  \"Notes\": [\n    \"C1 and C2 have empty Held Lines in CONCEPTS even though the RTL stores their values in rtx_engine.sreg and the FIFO paths at lines 244, 292 and 318.\",\n    \"The bus request and response record fields are reported as structural secondaries where they carry or control a conceptual asset, but their record nature prevents primary status.\"\n  ]\n}",
+ "reply": {
+  "module name": "neorv32_spi",
+  "notes": [
+   "C1 and C2 have empty Held Lines in CONCEPTS even though the RTL stores their values in rtx_engine.sreg and the FIFO paths at lines 244, 292 and 318.",
+   "The bus request and response record fields are reported as structural secondaries where they carry or control a conceptual asset, but their record nature prevents primary status."
+  ],
+  "points": [
+   {
+    "concept id": "C1",
+    "point": "tx_fifo.wdata",
+    "reached by": "bus_req_i ==> tx_fifo.wdata carries bus_req_i.data.",
+    "lines": [
+     213
+    ],
+    "reason": "The bus data directly sets the transmit FIFO write data, so it can modify the payload, but this internal write-data point has no readout.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "tx_fifo_inst",
+    "reached by": "tx_fifo.wdata ==> tx_fifo_inst carries the transmit write data through the FIFO input.",
+    "lines": [
+     202,
+     213
+    ],
+    "reason": "Under the black-box FIFO assumption, the write data can alter the stored transmit word and the FIFO returns it on rdata_o, but the instance has no direct external payload observation.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "tx_fifo.re",
+    "reached by": "Backward influence from tx_fifo_inst follows tx_fifo.re ==> tx_fifo_inst, whose read control selects whether the payload is returned.",
+    "lines": [],
+    "reason": "This signal only controls FIFO reading and does not itself expose or modify the payload under the objectives listed for this concept.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "transceiver",
+    "reached by": "tx_fifo_inst ==> transceiver carries tx_fifo.rdata into the transceiver.",
+    "lines": [
+     292,
+     318,
+     343
+    ],
+    "reason": "The FIFO word is loaded into and shifted through sreg, which can be read through spi_dat_o and can be changed by the transceiver's load and shift assignments.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "spi_dat_o",
+    "reached by": "transceiver ==> spi_dat_o carries rtx_engine.sreg to the output assignment.",
+    "lines": [
+     343
+    ],
+    "reason": "The output directly exposes the current transmit shift-register bit; this assignment provides observation but no external write mechanism.",
+    "confidentiality": "yes",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "transceiver",
+    "reached by": "spi_dat_i ==> transceiver carries the serial input into the receive sampling logic.",
+    "lines": [
+     310,
+     318,
+     244
+    ],
+    "reason": "The serial input is sampled into sdi_sync and shifted into sreg, which is later stored in the receive FIFO and returned through the bus response.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "rx_fifo.wdata",
+    "reached by": "transceiver ==> rx_fifo.wdata carries rtx_engine.sreg into the receive FIFO write-data logic.",
+    "lines": [
+     244
+    ],
+    "reason": "The received shift-register value is assigned to the FIFO write data and can therefore be changed by the sampled serial input and later read out.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "rx_fifo_inst",
+    "reached by": "rx_fifo.wdata ==> rx_fifo_inst carries the received word through the FIFO input.",
+    "lines": [
+     234,
+     239
+    ],
+    "reason": "Under the black-box FIFO assumption, the write data is stored and returned by rdata_o, so the received payload can be altered at the input and observed through the return path.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "rx_fifo.re",
+    "reached by": "Backward influence from rx_fifo_inst follows bus_req_i --> rx_fifo.re and rx_fifo.re ==> rx_fifo_inst, where the read control selects the returned data.",
+    "lines": [],
+    "reason": "The read-enable logic controls when the FIFO word is consumed but does not itself expose or alter the received payload.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "bus_access",
+    "reached by": "rx_fifo_inst ==> bus_access carries rx_fifo.rdata into the bus response logic.",
+    "lines": [
+     174
+    ],
+    "reason": "The receive FIFO data is copied into bus_rsp_o.data, providing a direct software-visible observation path without a payload modification at this block.",
+    "confidentiality": "yes",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "bus_access",
+    "reached by": "bus_req_i ==> bus_access carries bus_req_i.data into the control-register write logic.",
+    "lines": [
+     120,
+     140
+    ],
+    "reason": "A bus write stores ctrl.enable, and reset or a value of zero can clear the state that enables SPI operation.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "rx_fifo.clear",
+    "reached by": "bus_access ==> rx_fifo.clear carries ctrl.enable through the clear assignment.",
+    "lines": [
+     211,
+     243
+    ],
+    "reason": "The inverted enable directly drives FIFO clear inputs, so changing the enable state can clear or disable queued transfer data.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "tx_fifo.clear",
+    "reached by": "bus_access ==> tx_fifo.clear carries ctrl.enable through the clear assignment.",
+    "lines": [
+     198,
+     211
+    ],
+    "reason": "The inverted enable directly drives the transmit FIFO clear input, allowing the enable state to clear pending transmit data.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "rx_fifo_inst",
+    "reached by": "rx_fifo.clear ==> rx_fifo_inst carries the enable-derived clear control into the receive FIFO.",
+    "lines": [
+     230,
+     243
+    ],
+    "reason": "Under the black-box FIFO assumption, the clear input can reset or block the receive FIFO state when enable is removed.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "tx_fifo_inst",
+    "reached by": "tx_fifo.clear ==> tx_fifo_inst carries the enable-derived clear control into the transmit FIFO.",
+    "lines": [
+     198,
+     211
+    ],
+    "reason": "Under the black-box FIFO assumption, the clear input can reset or block the transmit FIFO state when enable is removed.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "clock_generator",
+    "reached by": "bus_access --> clock_generator carries ctrl.enable as a condition controlling clock generation.",
+    "lines": [
+     369,
+     370,
+     373
+    ],
+    "reason": "The enable condition clears the divider and prevents spi_clk_en from being generated, blocking SPI operation.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "transceiver",
+    "reached by": "bus_access ==> transceiver carries ctrl.enable into the transceiver state assignment.",
+    "lines": [
+     281
+    ],
+    "reason": "ctrl.enable directly sets a state bit, so a bus write can change the engine mode and disable normal transfer sequencing.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "irq_generator",
+    "reached by": "bus_access ==> irq_generator carries ctrl.enable into the interrupt-enable expression.",
+    "lines": [
+     255
+    ],
+    "reason": "The enable is an outer gate on irq_o, so clearing it can suppress interrupt activity needed for operation.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "clkgen_en_o",
+    "reached by": "bus_access ==> clkgen_en_o reaches the concurrent output assignment.",
+    "lines": [],
+    "reason": "This output reflects the enable state but the output assignment itself provides no additional observation or influence mechanism.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "bus_access",
+    "reached by": "bus_req_i ==> bus_access carries bus_req_i.data into the clock-configuration register writes.",
+    "lines": [
+     123,
+     124,
+     125,
+     143,
+     144,
+     145
+    ],
+    "reason": "Bus writes store the prescaler, divider and high-speed settings, and an unsuitable value can later prevent correctly paced operation.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "clock_generator",
+    "reached by": "bus_access --> clock_generator carries ctrl.cdiv, ctrl.enable, ctrl.highspeed and ctrl.prsc as clock-generation controls.",
+    "lines": [
+     371,
+     372,
+     373,
+     376
+    ],
+    "reason": "The configuration controls the divider comparison and the generation of spi_clk_en, so the clock-generation logic can stall or mispace transfer steps.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "transceiver",
+    "reached by": "clock_generator --> transceiver carries spi_clk_en as the pacing condition for transfer states.",
+    "lines": [
+     299,
+     308,
+     317
+    ],
+    "reason": "The generated enable gates state advancement and serial clock updates, so its absence prevents the configured transfer pacing from operating.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C5",
+    "point": "tx_fifo.wdata",
+    "reached by": "bus_req_i ==> tx_fifo.wdata carries the command data into the transmit FIFO.",
+    "lines": [
+     213
+    ],
+    "reason": "The bus command word directly sets the FIFO input, allowing the selected target or active state to be changed or made ineffective.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C5",
+    "point": "tx_fifo_inst",
+    "reached by": "tx_fifo.wdata ==> tx_fifo_inst carries the chip-select command into the FIFO instance.",
+    "lines": [
+     202,
+     213
+    ],
+    "reason": "Under the black-box FIFO assumption, the command can be stored incorrectly and returned to the transceiver, selecting the wrong or no target.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C5",
+    "point": "transceiver",
+    "reached by": "tx_fifo_inst ==> transceiver carries tx_fifo.rdata to the chip-select command decode.",
+    "lines": [
+     288,
+     289,
+     290,
+     332
+    ],
+    "reason": "The queued command conditionally loads cs_ctrl, while the other-state branch clears it, so the transceiver can select the wrong device or no device.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C5",
+    "point": "bus_access",
+    "reached by": "transceiver ==> bus_access carries rtx_engine.cs_ctrl into the selected-device readback.",
+    "lines": [],
+    "reason": "This block only reports cs_ctrl in the response word and does not itself alter the selected-device state.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C5",
+    "point": "chip_select",
+    "reached by": "transceiver --> chip_select carries rtx_engine.cs_ctrl as the selection condition and index.",
+    "lines": [
+     350,
+     352,
+     353,
+     354
+    ],
+    "reason": "The process drives all chip-selects inactive and asserts the indexed line only when cs_ctrl(3) is set, so selection can be wrong, absent, or reset.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "irq_generator",
+    "reached by": "holding block; bus_access, rx_fifo_inst, tx_fifo_inst and rtx_engine.busy feed the interrupt expression.",
+    "lines": [
+     253,
+     255,
+     256,
+     257,
+     258,
+     259
+    ],
+    "reason": "The process computes and registers irq_o from enable, interrupt-selection bits, FIFO status and engine busy state, so those conditions can create or suppress an interrupt.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "bus_access",
+    "reached by": "Backward influence follows bus_access ==> irq_generator for the interrupt-selection and enable fields.",
+    "lines": [
+     140,
+     146,
+     147,
+     148,
+     149
+    ],
+    "reason": "Bus writes change ctrl.enable and the interrupt-selection registers, allowing interrupt generation to be altered or disabled.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "rx_fifo_inst",
+    "reached by": "Backward influence follows rx_fifo_inst ==> irq_generator for rx_fifo.avail.",
+    "lines": [
+     240,
+     256
+    ],
+    "reason": "Under the black-box FIFO assumption, its availability output affects the interrupt condition and can therefore make the indication incorrect or absent.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "tx_fifo_inst",
+    "reached by": "Backward influence follows tx_fifo_inst ==> irq_generator for tx_fifo.avail and tx_fifo.half.",
+    "lines": [
+     199,
+     208,
+     257,
+     258
+    ],
+    "reason": "Under the black-box FIFO assumption, its empty and half-full outputs determine interrupt conditions and can cause or suppress the indication.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "rtx_engine.busy",
+    "reached by": "Backward influence follows rtx_engine.busy ==> irq_generator for the idle-interrupt condition.",
+    "lines": [
+     259,
+     340
+    ],
+    "reason": "The derived busy state is an operand of the idle interrupt condition, so an incorrect busy value can produce a spurious or missing interrupt.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   }
+  ],
+  "structural assets": [
+   {
+    "concept id": "C1",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     25,
+     213
+    ],
+    "links": [
+     {
+      "primary": "spi_dat_o",
+      "entity": "neorv32_spi",
+      "direction": "a"
+     }
+    ],
+    "reason": "Carries the bus-written transmit payload into the transmit FIFO path. It is a bus-request record field barred from being primary, but its value flows through the transmit path to the primary serial output.",
+    "functionality": "Carries the bus-written transmit payload into the transmit FIFO path.",
+    "justification": "It is a bus-request record field barred from being primary, but its value flows through the transmit path to the primary serial output."
+   },
+   {
+    "concept id": "C1",
+    "element": "tx_fifo.wdata",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "tx_fifo.wdata"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     202,
+     213
+    ],
+    "links": [
+     {
+      "primary": "spi_dat_o",
+      "entity": "neorv32_spi",
+      "direction": "a"
+     }
+    ],
+    "reason": "Carries the bus payload and command bit into the transmit FIFO instance. The FIFO write-data wire is a forwarding path to the serial output and is not the stored or computed target itself.",
+    "functionality": "Carries the bus payload and command bit into the transmit FIFO instance.",
+    "justification": "The FIFO write-data wire is a forwarding path to the serial output and is not the stored or computed target itself."
+   },
+   {
+    "concept id": "C1",
+    "element": "tx_fifo.rdata",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "tx_fifo_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     207,
+     289,
+     290,
+     292
+    ],
+    "links": [
+     {
+      "primary": "spi_dat_o",
+      "entity": "neorv32_spi",
+      "direction": "a"
+     }
+    ],
+    "reason": "Carries the stored transmit word from the FIFO instance to the transceiver. It is an instance output carrying the payload onward, not the unit's stored or computed payload target.",
+    "functionality": "Carries the stored transmit word from the FIFO instance to the transceiver.",
+    "justification": "It is an instance output carrying the payload onward, not the unit's stored or computed payload target."
+   },
+   {
+    "concept id": "C1",
+    "element": "rtx_engine.sreg",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "transceiver"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     272,
+     292,
+     318,
+     343
+    ],
+    "links": [
+     {
+      "primary": "spi_dat_o",
+      "entity": "neorv32_spi",
+      "direction": "a"
+     }
+    ],
+    "reason": "Temporarily holds and shifts the transmit word before presenting its most significant bit. The serial data shift register is a forwarding buffer while the payload moves to the boundary and is barred from primary status by the serial-shift rule.",
+    "functionality": "Temporarily holds and shifts the transmit word before presenting its most significant bit.",
+    "justification": "The serial data shift register is a forwarding buffer while the payload moves to the boundary and is barred from primary status by the serial-shift rule."
+   },
+   {
+    "concept id": "C1",
+    "element": "spi_dat_o",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "spi_dat_o"
+    ],
+    "label": "primary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     30,
+     343
+    ],
+    "links": [],
+    "reason": "Returns the serialized transmit payload across the unit boundary. This non-record output crosses the boundary with the payload value unmixed and is directly observable.",
+    "functionality": "Returns the serialized transmit payload across the unit boundary.",
+    "justification": "This non-record output crosses the boundary with the payload value unmixed and is directly observable."
+   },
+   {
+    "concept id": "C2",
+    "element": "spi_dat_i",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "transceiver"
+    ],
+    "label": "primary",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "lines": [
+     31,
+     310
+    ],
+    "links": [],
+    "reason": "Carries each received serial payload bit across the unit boundary. This non-record serial data input crosses the boundary one bit per step and is the source of the received payload.",
+    "functionality": "Carries each received serial payload bit across the unit boundary.",
+    "justification": "This non-record serial data input crosses the boundary one bit per step and is the source of the received payload."
+   },
+   {
+    "concept id": "C2",
+    "element": "rtx_engine.sdi_sync",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "transceiver"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     273,
+     310,
+     318
+    ],
+    "links": [
+     {
+      "primary": "spi_dat_i",
+      "entity": "neorv32_spi",
+      "direction": "a"
+     }
+    ],
+    "reason": "Samples the serial input bit before it is shifted into the receive word. It is a synchronizer stage carrying the primary serial input and is barred from primary status.",
+    "functionality": "Samples the serial input bit before it is shifted into the receive word.",
+    "justification": "It is a synchronizer stage carrying the primary serial input and is barred from primary status."
+   },
+   {
+    "concept id": "C2",
+    "element": "rtx_engine.sreg",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "transceiver"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     292,
+     318,
+     343
+    ],
+    "links": [
+     {
+      "primary": "spi_dat_i",
+      "entity": "neorv32_spi",
+      "direction": "a"
+     }
+    ],
+    "reason": "Accumulates sampled receive bits into the received word. The serial shift register carries the received input while it moves to the FIFO and is barred from primary status as a moving serial buffer.",
+    "functionality": "Accumulates sampled receive bits into the received word.",
+    "justification": "The serial shift register carries the received input while it moves to the FIFO and is barred from primary status as a moving serial buffer."
+   },
+   {
+    "concept id": "C2",
+    "element": "rx_fifo.wdata",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "rx_fifo.wdata"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     234,
+     244
+    ],
+    "links": [
+     {
+      "primary": "spi_dat_i",
+      "entity": "neorv32_spi",
+      "direction": "a"
+     }
+    ],
+    "reason": "Carries the completed received word into the receive FIFO. It is a FIFO input forwarding the received value and is not a primary storage or computation target.",
+    "functionality": "Carries the completed received word into the receive FIFO.",
+    "justification": "It is a FIFO input forwarding the received value and is not a primary storage or computation target."
+   },
+   {
+    "concept id": "C2",
+    "element": "rx_fifo.rdata",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "rx_fifo_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     174,
+     239
+    ],
+    "links": [
+     {
+      "primary": "spi_dat_i",
+      "entity": "neorv32_spi",
+      "direction": "a"
+     }
+    ],
+    "reason": "Carries the received FIFO word to the bus access process. It is the FIFO's returned copy of the received payload on the path to the bus response.",
+    "functionality": "Carries the received FIFO word to the bus access process.",
+    "justification": "It is the FIFO's returned copy of the received payload on the path to the bus response."
+   },
+   {
+    "concept id": "C2",
+    "element": "rx_fifo.re",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "rx_fifo.re"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     238,
+     246
+    ],
+    "links": [
+     {
+      "primary": "spi_dat_i",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Controls when the receive FIFO releases and consumes a received word. It is a read-release control for the path carrying the primary serial input to the bus response.",
+    "functionality": "Controls when the receive FIFO releases and consumes a received word.",
+    "justification": "It is a read-release control for the path carrying the primary serial input to the bus response."
+   },
+   {
+    "concept id": "C2",
+    "element": "bus_rsp_o.data",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     26,
+     174
+    ],
+    "links": [
+     {
+      "primary": "spi_dat_i",
+      "entity": "neorv32_spi",
+      "direction": "a"
+     }
+    ],
+    "reason": "Carries the received FIFO word to the unit's bus response boundary. This response-record field carries the primary received value but is barred from primary status.",
+    "functionality": "Carries the received FIFO word to the unit's bus response boundary.",
+    "justification": "This response-record field carries the primary received value but is barred from primary status."
+   },
+   {
+    "concept id": "C2",
+    "element": "bus_req_i.addr",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     152,
+     174,
+     246
+    ],
+    "links": [
+     {
+      "primary": "spi_dat_i",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects the receive-data read path and therefore whether the payload is released. It decides the bus response assignment that exposes the received payload.",
+    "functionality": "Selects the receive-data read path and therefore whether the payload is released.",
+    "justification": "It decides the bus response assignment that exposes the received payload."
+   },
+   {
+    "concept id": "C2",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     138,
+     174,
+     246
+    ],
+    "links": [
+     {
+      "primary": "spi_dat_i",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects a read rather than a write for the receive-data response path. It decides whether the assignment releasing the received payload is executed.",
+    "functionality": "Selects a read rather than a write for the receive-data response path.",
+    "justification": "It decides whether the assignment releasing the received payload is executed."
+   },
+   {
+    "concept id": "C2",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     137,
+     174,
+     246
+    ],
+    "links": [
+     {
+      "primary": "spi_dat_i",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Enables the bus transaction that releases and consumes received data. It gates the response assignment and receive FIFO read operation.",
+    "functionality": "Enables the bus transaction that releases and consumes received data.",
+    "justification": "It gates the response assignment and receive FIFO read operation."
+   },
+   {
+    "concept id": "C3",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     25,
+     140
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies the bus write bit that changes the stored enable state. The request-record data field is barred from primary status but can modify the primary enable register through line 140.",
+    "functionality": "Supplies the bus write bit that changes the stored enable state.",
+    "justification": "The request-record data field is barred from primary status but can modify the primary enable register through line 140."
+   },
+   {
+    "concept id": "C3",
+    "element": "ctrl.enable",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     120,
+     140,
+     211,
+     243,
+     255,
+     281,
+     369,
+     383
+    ],
+    "links": [],
+    "reason": "Stores the run-time enable setting for the SPI engine. It is the register that holds and makes the conceptual enable decision.",
+    "functionality": "Stores the run-time enable setting for the SPI engine.",
+    "justification": "It is the register that holds and makes the conceptual enable decision."
+   },
+   {
+    "concept id": "C3",
+    "element": "bus_rsp_o.data",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     153
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Returns the stored enable bit in the bus status word. It is a response-record field and cannot be primary, but it is the readback path through which the enable setting leaves the unit.",
+    "functionality": "Returns the stored enable bit in the bus status word.",
+    "justification": "It is a response-record field and cannot be primary, but it is the readback path through which the enable setting leaves the unit."
+   },
+   {
+    "concept id": "C3",
+    "element": "clkgen_en_o",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "clkgen_en_o"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     27,
+     383
+    ],
+    "links": [],
+    "reason": "Exports the stored enable state to the clock-generation integration logic. The non-record output crosses the boundary with the enable value unmixed.",
+    "functionality": "Exports the stored enable state to the clock-generation integration logic.",
+    "justification": "The non-record output crosses the boundary with the enable value unmixed."
+   },
+   {
+    "concept id": "C3",
+    "element": "rx_fifo.clear",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "rx_fifo.clear"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     230,
+     243
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Converts the enable state into the receive FIFO clear control. This derived wire controls clearing of a functional storage element when enable is low.",
+    "functionality": "Converts the enable state into the receive FIFO clear control.",
+    "justification": "This derived wire controls clearing of a functional storage element when enable is low."
+   },
+   {
+    "concept id": "C3",
+    "element": "tx_fifo.clear",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "tx_fifo.clear"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     198,
+     211
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Converts the enable state into the transmit FIFO clear control. This derived wire controls clearing of pending transmit data when enable is low.",
+    "functionality": "Converts the enable state into the transmit FIFO clear control.",
+    "justification": "This derived wire controls clearing of pending transmit data when enable is low."
+   },
+   {
+    "concept id": "C3",
+    "element": "bus_req_i.addr",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     139
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects whether the bus write reaches the enable register. It decides the assignment that modifies the enable primary, while the record field itself is barred from primary status.",
+    "functionality": "Selects whether the bus write reaches the enable register.",
+    "justification": "It decides the assignment that modifies the enable primary, while the record field itself is barred from primary status."
+   },
+   {
+    "concept id": "C3",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     138
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects the write operation that can update the enable register. It decides whether the bus request performs the modifying assignment.",
+    "functionality": "Selects the write operation that can update the enable register.",
+    "justification": "It decides whether the bus request performs the modifying assignment."
+   },
+   {
+    "concept id": "C3",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     137
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Enables the bus transaction that writes the enable register. It gates the assignment that can modify or disable the primary enable state.",
+    "functionality": "Enables the bus transaction that writes the enable register.",
+    "justification": "It gates the assignment that can modify or disable the primary enable state."
+   },
+   {
+    "concept id": "C3",
+    "element": "clk_i",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     130
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Times updates to the stored enable state. Stalling the clock can prevent an enable change from being captured and thereby block operation.",
+    "functionality": "Times updates to the stored enable state.",
+    "justification": "Stalling the clock can prevent an enable change from being captured and thereby block operation."
+   },
+   {
+    "concept id": "C3",
+    "element": "rstn_i",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     118
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Resets the enable register to zero. The reset path can clear the primary enable state and disable the SPI function.",
+    "functionality": "Resets the enable register to zero.",
+    "justification": "The reset path can clear the primary enable state and disable the SPI function."
+   },
+   {
+    "concept id": "C4",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     25,
+     143,
+     144,
+     145
+    ],
+    "links": [
+     {
+      "primary": "ctrl.prsc",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.cdiv",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.highspeed",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies the bus write fields that configure prescaling, division and high-speed operation. The request-record data field is barred from primary status but can modify all three configuration registers.",
+    "functionality": "Supplies the bus write fields that configure prescaling, division and high-speed operation.",
+    "justification": "The request-record data field is barred from primary status but can modify all three configuration registers."
+   },
+   {
+    "concept id": "C4",
+    "element": "ctrl.prsc",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     123,
+     143,
+     156,
+     371
+    ],
+    "links": [],
+    "reason": "Stores the prescaler selection used to index clkgen_i. It is a configuration register holding the prescaler portion of the conceptual asset.",
+    "functionality": "Stores the prescaler selection used to index clkgen_i.",
+    "justification": "It is a configuration register holding the prescaler portion of the conceptual asset."
+   },
+   {
+    "concept id": "C4",
+    "element": "ctrl.cdiv",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     124,
+     144,
+     157,
+     372
+    ],
+    "links": [],
+    "reason": "Stores the divider limit used to generate the SPI pacing enable. It is the configuration register holding the divider portion of the conceptual asset.",
+    "functionality": "Stores the divider limit used to generate the SPI pacing enable.",
+    "justification": "It is the configuration register holding the divider portion of the conceptual asset."
+   },
+   {
+    "concept id": "C4",
+    "element": "ctrl.highspeed",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     125,
+     145,
+     158,
+     371
+    ],
+    "links": [],
+    "reason": "Stores the high-speed override used by the clock generator. It is the configuration register holding the high-speed portion of the conceptual asset.",
+    "functionality": "Stores the high-speed override used by the clock generator.",
+    "justification": "It is the configuration register holding the high-speed portion of the conceptual asset."
+   },
+   {
+    "concept id": "C4",
+    "element": "bus_rsp_o.data",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     156,
+     157,
+     158
+    ],
+    "links": [
+     {
+      "primary": "ctrl.prsc",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.cdiv",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.highspeed",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Returns the clock configuration fields in the bus readback word. The response-record field is barred from primary status but carries the configuration readback.",
+    "functionality": "Returns the clock configuration fields in the bus readback word.",
+    "justification": "The response-record field is barred from primary status but carries the configuration readback."
+   },
+   {
+    "concept id": "C4",
+    "element": "bus_req_i.addr",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     139
+    ],
+    "links": [
+     {
+      "primary": "ctrl.prsc",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.cdiv",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.highspeed",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects the control-register address used for clock-configuration writes. It decides whether the configuration registers are assigned.",
+    "functionality": "Selects the control-register address used for clock-configuration writes.",
+    "justification": "It decides whether the configuration registers are assigned."
+   },
+   {
+    "concept id": "C4",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     138
+    ],
+    "links": [
+     {
+      "primary": "ctrl.prsc",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.cdiv",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.highspeed",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects a write operation for the clock-configuration registers. It decides whether the bus access can modify the primary settings.",
+    "functionality": "Selects a write operation for the clock-configuration registers.",
+    "justification": "It decides whether the bus access can modify the primary settings."
+   },
+   {
+    "concept id": "C4",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     137
+    ],
+    "links": [
+     {
+      "primary": "ctrl.prsc",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.cdiv",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.highspeed",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Enables the bus transaction that writes the clock settings. It gates the assignments that can modify the three primary configuration fields.",
+    "functionality": "Enables the bus transaction that writes the clock settings.",
+    "justification": "It gates the assignments that can modify the three primary configuration fields."
+   },
+   {
+    "concept id": "C4",
+    "element": "clkgen_i",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "clock_generator"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     28,
+     371
+    ],
+    "links": [
+     {
+      "primary": "ctrl.prsc",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.cdiv",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.highspeed",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Provides the selected clock-generator tick source used to apply the configuration. The external clock-generator input gates application of the configuration and can therefore block paced operation.",
+    "functionality": "Provides the selected clock-generator tick source used to apply the configuration.",
+    "justification": "The external clock-generator input gates application of the configuration and can therefore block paced operation."
+   },
+   {
+    "concept id": "C4",
+    "element": "clk_i",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     130,
+     367
+    ],
+    "links": [
+     {
+      "primary": "ctrl.prsc",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.cdiv",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.highspeed",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Times capture of the clock-rate configuration registers. Stalling the clock can prevent configuration updates or clock-generator progress.",
+    "functionality": "Times capture of the clock-rate configuration registers.",
+    "justification": "Stalling the clock can prevent configuration updates or clock-generator progress."
+   },
+   {
+    "concept id": "C4",
+    "element": "rstn_i",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     118,
+     364
+    ],
+    "links": [
+     {
+      "primary": "ctrl.prsc",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.cdiv",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.highspeed",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Resets the clock-rate configuration fields to zero. The reset path clears the primary settings and can prevent the configured rate from being retained.",
+    "functionality": "Resets the clock-rate configuration fields to zero.",
+    "justification": "The reset path clears the primary settings and can prevent the configured rate from being retained."
+   },
+   {
+    "concept id": "C5",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     25,
+     213
+    ],
+    "links": [
+     {
+      "primary": "rtx_engine.cs_ctrl",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     },
+     {
+      "primary": "spi_csn_o",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Carries the chip-select command bit and index into the transmit command path. The request-record data field is barred from primary status but can alter the primary stored selection and resulting output.",
+    "functionality": "Carries the chip-select command bit and index into the transmit command path.",
+    "justification": "The request-record data field is barred from primary status but can alter the primary stored selection and resulting output."
+   },
+   {
+    "concept id": "C5",
+    "element": "tx_fifo.wdata",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "tx_fifo.wdata"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     202,
+     213
+    ],
+    "links": [
+     {
+      "primary": "rtx_engine.cs_ctrl",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     },
+     {
+      "primary": "spi_csn_o",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Carries the chip-select command into the transmit FIFO. It is a forwarding FIFO input that can be changed before the primary selection is stored.",
+    "functionality": "Carries the chip-select command into the transmit FIFO.",
+    "justification": "It is a forwarding FIFO input that can be changed before the primary selection is stored."
+   },
+   {
+    "concept id": "C5",
+    "element": "tx_fifo.rdata",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "tx_fifo_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     207,
+     289,
+     290
+    ],
+    "links": [
+     {
+      "primary": "rtx_engine.cs_ctrl",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     },
+     {
+      "primary": "spi_csn_o",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Carries the queued chip-select command to the transceiver. It is the FIFO's forwarding output and is not the unit's stored selection decision.",
+    "functionality": "Carries the queued chip-select command to the transceiver.",
+    "justification": "It is the FIFO's forwarding output and is not the unit's stored selection decision."
+   },
+   {
+    "concept id": "C5",
+    "element": "rtx_engine.cs_ctrl",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "transceiver"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     275,
+     290,
+     332,
+     353,
+     354
+    ],
+    "links": [],
+    "reason": "Stores whether chip select is active and which chip-select index is selected. It is the internal register holding the selected-device decision.",
+    "functionality": "Stores whether chip select is active and which chip-select index is selected.",
+    "justification": "It is the internal register holding the selected-device decision."
+   },
+   {
+    "concept id": "C5",
+    "element": "bus_rsp_o.data",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     171
+    ],
+    "links": [
+     {
+      "primary": "rtx_engine.cs_ctrl",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Returns the active chip-select state in the bus status word. The response-record field is barred from primary status but carries a readback of cs_ctrl.",
+    "functionality": "Returns the active chip-select state in the bus status word.",
+    "justification": "The response-record field is barred from primary status but carries a readback of cs_ctrl."
+   },
+   {
+    "concept id": "C5",
+    "element": "spi_csn_o",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "chip_select"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     32,
+     350,
+     352,
+     353,
+     354
+    ],
+    "links": [],
+    "reason": "Drives the selected SPI peripheral's active-low chip-select line. This output is the decoded selected-device result crossing the unit boundary.",
+    "functionality": "Drives the selected SPI peripheral's active-low chip-select line.",
+    "justification": "This output is the decoded selected-device result crossing the unit boundary."
+   },
+   {
+    "concept id": "C5",
+    "element": "tx_fifo.avail",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     208,
+     288
+    ],
+    "links": [
+     {
+      "primary": "rtx_engine.cs_ctrl",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Decides whether a queued command is available to load into cs_ctrl. The FIFO availability status gates the assignment that updates the selected-device decision.",
+    "functionality": "Decides whether a queued command is available to load into cs_ctrl.",
+    "justification": "The FIFO availability status gates the assignment that updates the selected-device decision."
+   },
+   {
+    "concept id": "C5",
+    "element": "rtx_engine.state",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     282,
+     332
+    ],
+    "links": [
+     {
+      "primary": "rtx_engine.cs_ctrl",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects the transceiver phase in which the chip-select command is consumed or cleared. Although sequencing state is barred from primary status, it decides the cs_ctrl assignments and can gate selected-device behavior.",
+    "functionality": "Selects the transceiver phase in which the chip-select command is consumed or cleared.",
+    "justification": "Although sequencing state is barred from primary status, it decides the cs_ctrl assignments and can gate selected-device behavior."
+   },
+   {
+    "concept id": "C5",
+    "element": "clk_i",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     276,
+     351
+    ],
+    "links": [
+     {
+      "primary": "rtx_engine.cs_ctrl",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     },
+     {
+      "primary": "spi_csn_o",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Times updates to the stored chip-select command and output. Clock stalling can prevent the selected-device state or output from being updated.",
+    "functionality": "Times updates to the stored chip-select command and output.",
+    "justification": "Clock stalling can prevent the selected-device state or output from being updated."
+   },
+   {
+    "concept id": "C5",
+    "element": "rstn_i",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     268,
+     349
+    ],
+    "links": [
+     {
+      "primary": "rtx_engine.cs_ctrl",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     },
+     {
+      "primary": "spi_csn_o",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Clears the stored selection and deasserts all chip-select outputs. Reset can clear the primary selection or force no peripheral to be selected.",
+    "functionality": "Clears the stored selection and deasserts all chip-select outputs.",
+    "justification": "Reset can clear the primary selection or force no peripheral to be selected."
+   },
+   {
+    "concept id": "C6",
+    "element": "irq_o",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "irq_generator"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     33,
+     253,
+     255
+    ],
+    "links": [],
+    "reason": "Exports the interrupt indication to the integrating system. This non-record output is the computed interrupt result crossing the unit boundary.",
+    "functionality": "Exports the interrupt indication to the integrating system.",
+    "justification": "This non-record output is the computed interrupt result crossing the unit boundary."
+   },
+   {
+    "concept id": "C6",
+    "element": "ctrl.enable",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     140,
+     255
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Gates whether any interrupt condition can assert irq_o. It is a stored control input to the interrupt computation and can suppress the primary indication.",
+    "functionality": "Gates whether any interrupt condition can assert irq_o.",
+    "justification": "It is a stored control input to the interrupt computation and can suppress the primary indication."
+   },
+   {
+    "concept id": "C6",
+    "element": "ctrl.irq_rx_avail",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     146,
+     256
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Enables the receive-available interrupt term. It controls whether rx_fifo.avail contributes to the primary interrupt output.",
+    "functionality": "Enables the receive-available interrupt term.",
+    "justification": "It controls whether rx_fifo.avail contributes to the primary interrupt output."
+   },
+   {
+    "concept id": "C6",
+    "element": "ctrl.irq_tx_empty",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     147,
+     257
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Enables the transmit-empty interrupt term. It controls whether the transmit FIFO empty condition contributes to irq_o.",
+    "functionality": "Enables the transmit-empty interrupt term.",
+    "justification": "It controls whether the transmit FIFO empty condition contributes to irq_o."
+   },
+   {
+    "concept id": "C6",
+    "element": "ctrl.irq_tx_nhalf",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     148,
+     258
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Enables the transmit-not-half-full interrupt term. It controls whether the FIFO half-full status contributes to irq_o.",
+    "functionality": "Enables the transmit-not-half-full interrupt term.",
+    "justification": "It controls whether the FIFO half-full status contributes to irq_o."
+   },
+   {
+    "concept id": "C6",
+    "element": "ctrl.irq_idle",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     149,
+     259
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Enables the idle-transmitter interrupt term. It controls whether the idle condition contributes to the primary interrupt output.",
+    "functionality": "Enables the idle-transmitter interrupt term.",
+    "justification": "It controls whether the idle condition contributes to the primary interrupt output."
+   },
+   {
+    "concept id": "C6",
+    "element": "rx_fifo.avail",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "rx_fifo_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     240,
+     256
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Reports receive-data availability to the interrupt generator. The FIFO status is an operand that can directly change or suppress irq_o.",
+    "functionality": "Reports receive-data availability to the interrupt generator.",
+    "justification": "The FIFO status is an operand that can directly change or suppress irq_o."
+   },
+   {
+    "concept id": "C6",
+    "element": "tx_fifo.avail",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "tx_fifo_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     208,
+     257,
+     259
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Reports transmit FIFO availability for empty and idle interrupt terms. It is an operand of two interrupt conditions and can change or suppress the primary indication.",
+    "functionality": "Reports transmit FIFO availability for empty and idle interrupt terms.",
+    "justification": "It is an operand of two interrupt conditions and can change or suppress the primary indication."
+   },
+   {
+    "concept id": "C6",
+    "element": "tx_fifo.half",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "tx_fifo_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     199,
+     258
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Reports transmit FIFO half-full status for the interrupt condition. It is an operand that can alter or suppress the primary interrupt output.",
+    "functionality": "Reports transmit FIFO half-full status for the interrupt condition.",
+    "justification": "It is an operand that can alter or suppress the primary interrupt output."
+   },
+   {
+    "concept id": "C6",
+    "element": "rtx_engine.busy",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [
+     "rtx_engine.busy"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     340,
+     259
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Reports whether the transceiver is busy for the idle interrupt term. The derived busy operand directly controls the idle contribution to irq_o.",
+    "functionality": "Reports whether the transceiver is busy for the idle interrupt term.",
+    "justification": "The derived busy operand directly controls the idle contribution to irq_o."
+   },
+   {
+    "concept id": "C6",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     25,
+     140,
+     146,
+     147,
+     148,
+     149
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies bus-written interrupt-enable and master-enable bits. The request-record data field is barred from primary status but can modify the interrupt controls.",
+    "functionality": "Supplies bus-written interrupt-enable and master-enable bits.",
+    "justification": "The request-record data field is barred from primary status but can modify the interrupt controls."
+   },
+   {
+    "concept id": "C6",
+    "element": "bus_req_i.addr",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     139
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects whether a bus write reaches the interrupt-control registers. It decides the assignments that alter the interrupt computation.",
+    "functionality": "Selects whether a bus write reaches the interrupt-control registers.",
+    "justification": "It decides the assignments that alter the interrupt computation."
+   },
+   {
+    "concept id": "C6",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     138
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects the write operation that can change interrupt controls. It decides whether the interrupt-selection assignments execute.",
+    "functionality": "Selects the write operation that can change interrupt controls.",
+    "justification": "It decides whether the interrupt-selection assignments execute."
+   },
+   {
+    "concept id": "C6",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     137
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Enables the bus transaction that changes interrupt controls. It gates the assignments that can create or suppress the primary interrupt indication.",
+    "functionality": "Enables the bus transaction that changes interrupt controls.",
+    "justification": "It gates the assignments that can create or suppress the primary interrupt indication."
+   },
+   {
+    "concept id": "C6",
+    "element": "clk_i",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     254
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Times registration of irq_o. Clock stalling can prevent the interrupt indication from updating or being delivered.",
+    "functionality": "Times registration of irq_o.",
+    "justification": "Clock stalling can prevent the interrupt indication from updating or being delivered."
+   },
+   {
+    "concept id": "C6",
+    "element": "rstn_i",
+    "entity": "neorv32_spi",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     252
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_spi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Clears irq_o during reset. Reset can clear or suppress the primary interrupt indication.",
+    "functionality": "Clears irq_o during reset.",
+    "justification": "Reset can clear or suppress the primary interrupt indication."
+   }
+  ],
+  "not reported": [],
+  "no primary reason": {}
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

@@ -1,0 +1,291 @@
+{
+ "module": "neorv32_spi",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "be3b3faab49b",
+ "user sha": "305245240291",
+ "usage": {
+  "in": 27199,
+  "out": 14253,
+  "reasoning": 11799,
+  "cached": 12982,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_0adb17372e86f3d7006ace2f3e3d2487d18cfa071f189eefbf",
+  "request key": "adde5accd53b"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_spi\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"SPI transmit payload\",\n      \"Unit\": \"neorv32_spi\",\n      \"Information\": \"Payload bytes written through the bus transmit register and serialized onto spi_dat_o. SPI output data depends on these bytes.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality is at risk because transmit data may be secret and is exposed at spi_dat_o on line 343. Integrity is at risk because bus write data enters the transmit path on line 213 and is loaded or shifted by the transceiver on lines 292 and 318.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\"\n      ],\n      \"Attack\": \"An unauthorized observer could probe spi_dat_o, or alter bus write data before transmission, to disclose or corrupt the payload.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"spi_dat_o\"\n      ],\n      \"Entry Lines\": [\n        213\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": [\n        343\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"SPI receive payload\",\n      \"Unit\": \"neorv32_spi\",\n      \"Information\": \"Bits received on spi_dat_i are accumulated into a received payload and returned through the bus receive-data register. Software depends on this information to obtain SPI input data.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality is at risk because received data may be secret and is exposed through bus_rsp_o.data on line 174. Integrity is at risk because spi_dat_i is sampled into the receive path on line 310 and incorporated into the payload on line 318.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\"\n      ],\n      \"Attack\": \"An unauthorized observer could read the bus response, or inject altered serial input data, to disclose or corrupt the received payload.\",\n      \"Enters Through\": [\n        \"spi_dat_i\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        310\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": [\n        174\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"SPI enable state\",\n      \"Unit\": \"neorv32_spi\",\n      \"Information\": \"The run-time enable state determines whether the SPI engine, FIFOs, clock-enable output and interrupt activity operate. SPI operation depends on this control state.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because a bus write changes the stored enable state on line 140. Availability is at risk because the state clears both FIFOs on lines 211 and 243, gates clock generation on line 369, and controls the external clock-enable output on line 383.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An unauthorized bus write could disable the SPI engine, clear queued data, or prevent the required clock-enable signal from being produced.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\",\n        \"clkgen_en_o\"\n      ],\n      \"Entry Lines\": [\n        140\n      ],\n      \"Held Lines\": [\n        120,\n        140\n      ],\n      \"Exit Lines\": [\n        153,\n        383\n      ]\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"SPI clock-rate configuration\",\n      \"Unit\": \"neorv32_spi\",\n      \"Information\": \"The prescaler, divider and high-speed settings determine the rate at which SPI transfer steps are paced. Correct and continued SPI operation depends on this configuration.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because bus writes modify the prescaler, divider and high-speed settings on lines 143 through 145. Availability is at risk because those settings control whether and when spi_clk_en is generated on lines 371 through 377, so an attacker can stall or badly retime transfers.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An unauthorized bus write could select an unsuitable clock source or divider value and thereby stall or incorrectly pace SPI transfers.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        143,\n        144,\n        145\n      ],\n      \"Held Lines\": [\n        123,\n        124,\n        125,\n        143,\n        144,\n        145\n      ],\n      \"Exit Lines\": [\n        156,\n        157,\n        158\n      ]\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"SPI chip-select selection\",\n      \"Unit\": \"neorv32_spi\",\n      \"Information\": \"The transmit command information selecting a chip-select target and whether it is active determines which SPI peripheral is selected. The selected-device state is also reported through the bus status readback.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because bus data supplies chip-select command information on line 213 and the selected value is stored in cs_ctrl on line 290. Availability is at risk because cs_ctrl determines whether and which spi_csn_o line is asserted on lines 353 and 354.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An unauthorized bus write could select the wrong peripheral or select no peripheral, causing an SPI transaction to reach the wrong target or fail.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\",\n        \"spi_csn_o\"\n      ],\n      \"Entry Lines\": [\n        213\n      ],\n      \"Held Lines\": [\n        275,\n        290,\n        332\n      ],\n      \"Exit Lines\": [\n        171,\n        353,\n        354\n      ]\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Concept Name\": \"SPI interrupt indication\",\n      \"Unit\": \"neorv32_spi\",\n      \"Information\": \"The interrupt indication reports receive-data availability, transmit FIFO conditions, or an idle transmitter to the integrating system. System servicing can depend on this event being asserted accurately and delivered.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because internal FIFO and engine conditions, enable state and interrupt selections determine the value assigned to irq_o on lines 255 through 259. Availability is at risk because suppressing the assignment's enabling conditions can withhold the interrupt required to service a transfer.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An unauthorized change to the interrupt-selection or enable conditions could suppress a required interrupt or cause a spurious interrupt.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"irq_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        253,\n        255\n      ],\n      \"Exit Lines\": [\n        255\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"SPI clock phase and polarity settings\",\n      \"Candidate Unit\": \"neorv32_spi\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"These settings only shape the serial link clock waveform on lines 286 and 300 through 331, so the serial-clock-line exclusion bars them as concepts apart from their readback.\"\n    },\n    {\n      \"Candidate Name\": \"Interrupt-selection settings\",\n      \"Candidate Unit\": \"neorv32_spi\",\n      \"Merged Into\": \"C6\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Transmit FIFO and shift-register staging\",\n      \"Candidate Unit\": \"neorv32_spi\",\n      \"Merged Into\": \"C1\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Receive FIFO, synchronizer and shift-register staging\",\n      \"Candidate Unit\": \"neorv32_spi\",\n      \"Merged Into\": \"C2\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Bus access command and handshake\",\n      \"Candidate Unit\": \"neorv32_spi\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The access fields only select, qualify or perform the register/FIFO access and the acknowledge is a handshake copy, so they are not information pieces of their own under the access-command and handshake rules.\"\n    },\n    {\n      \"Candidate Name\": \"SPI clock and pacing machinery\",\n      \"Candidate Unit\": \"neorv32_spi\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"spi_clk_o is a serial-link clock and cdiv_cnt, spi_clk_en and the clock-generator input only pace transfer steps on lines 365 through 377, which the clock and pacing rules exclude.\"\n    },\n    {\n      \"Candidate Name\": \"Transceiver sequencing state and step count\",\n      \"Candidate Unit\": \"neorv32_spi\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The state, bit counter, busy indication and done pulse only order and time transfer steps on lines 282 through 340, so the sequencing-state rule bars them as separate information.\"\n    },\n    {\n      \"Candidate Name\": \"FIFO occupancy and transfer status\",\n      \"Candidate Unit\": \"neorv32_spi\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The FIFO availability, free, half-full and related bus-read status only buffer or report movement of payload data, as shown by the FIFO instances and status readback on lines 160 through 163 and 186 through 240.\"\n    },\n    {\n      \"Candidate Name\": \"Configured FIFO size\",\n      \"Candidate Unit\": \"neorv32_spi\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"IO_SPI_FIFO and its reported size are build-time values fixed by the generic and constant use on lines 20, 169 and 186 through 224, so no element can change or withhold them at run time.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_spi",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_spi",
+    "concept": "SPI transmit payload",
+    "information": "Payload bytes written through the bus transmit register and serialized onto spi_dat_o. SPI output data depends on these bytes.",
+    "rubric reason": "Confidentiality is at risk because transmit data may be secret and is exposed at spi_dat_o on line 343. Integrity is at risk because bus write data enters the transmit path on line 213 and is loaded or shifted by the transceiver on lines 292 and 318.",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "attack": "An unauthorized observer could probe spi_dat_o, or alter bus write data before transmission, to disclose or corrupt the payload.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "spi_dat_o"
+    ],
+    "entry lines": [
+     213
+    ],
+    "held lines": [],
+    "exit lines": [
+     343
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_spi",
+    "concept": "SPI receive payload",
+    "information": "Bits received on spi_dat_i are accumulated into a received payload and returned through the bus receive-data register. Software depends on this information to obtain SPI input data.",
+    "rubric reason": "Confidentiality is at risk because received data may be secret and is exposed through bus_rsp_o.data on line 174. Integrity is at risk because spi_dat_i is sampled into the receive path on line 310 and incorporated into the payload on line 318.",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "attack": "An unauthorized observer could read the bus response, or inject altered serial input data, to disclose or corrupt the received payload.",
+    "enters through": [
+     "spi_dat_i"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     310
+    ],
+    "held lines": [],
+    "exit lines": [
+     174
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_spi",
+    "concept": "SPI enable state",
+    "information": "The run-time enable state determines whether the SPI engine, FIFOs, clock-enable output and interrupt activity operate. SPI operation depends on this control state.",
+    "rubric reason": "Integrity is at risk because a bus write changes the stored enable state on line 140. Availability is at risk because the state clears both FIFOs on lines 211 and 243, gates clock generation on line 369, and controls the external clock-enable output on line 383.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An unauthorized bus write could disable the SPI engine, clear queued data, or prevent the required clock-enable signal from being produced.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data",
+     "clkgen_en_o"
+    ],
+    "entry lines": [
+     140
+    ],
+    "held lines": [
+     120,
+     140
+    ],
+    "exit lines": [
+     153,
+     383
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_spi",
+    "concept": "SPI clock-rate configuration",
+    "information": "The prescaler, divider and high-speed settings determine the rate at which SPI transfer steps are paced. Correct and continued SPI operation depends on this configuration.",
+    "rubric reason": "Integrity is at risk because bus writes modify the prescaler, divider and high-speed settings on lines 143 through 145. Availability is at risk because those settings control whether and when spi_clk_en is generated on lines 371 through 377, so an attacker can stall or badly retime transfers.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An unauthorized bus write could select an unsuitable clock source or divider value and thereby stall or incorrectly pace SPI transfers.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     143,
+     144,
+     145
+    ],
+    "held lines": [
+     123,
+     124,
+     125,
+     143,
+     144,
+     145
+    ],
+    "exit lines": [
+     156,
+     157,
+     158
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_spi",
+    "concept": "SPI chip-select selection",
+    "information": "The transmit command information selecting a chip-select target and whether it is active determines which SPI peripheral is selected. The selected-device state is also reported through the bus status readback.",
+    "rubric reason": "Integrity is at risk because bus data supplies chip-select command information on line 213 and the selected value is stored in cs_ctrl on line 290. Availability is at risk because cs_ctrl determines whether and which spi_csn_o line is asserted on lines 353 and 354.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An unauthorized bus write could select the wrong peripheral or select no peripheral, causing an SPI transaction to reach the wrong target or fail.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data",
+     "spi_csn_o"
+    ],
+    "entry lines": [
+     213
+    ],
+    "held lines": [
+     275,
+     290,
+     332
+    ],
+    "exit lines": [
+     171,
+     353,
+     354
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C6",
+    "unit": "neorv32_spi",
+    "concept": "SPI interrupt indication",
+    "information": "The interrupt indication reports receive-data availability, transmit FIFO conditions, or an idle transmitter to the integrating system. System servicing can depend on this event being asserted accurately and delivered.",
+    "rubric reason": "Integrity is at risk because internal FIFO and engine conditions, enable state and interrupt selections determine the value assigned to irq_o on lines 255 through 259. Availability is at risk because suppressing the assignment's enabling conditions can withhold the interrupt required to service a transfer.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An unauthorized change to the interrupt-selection or enable conditions could suppress a required interrupt or cause a spurious interrupt.",
+    "enters through": [],
+    "leaves through": [
+     "irq_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     253,
+     255
+    ],
+    "exit lines": [
+     255
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_spi",
+    "concept": "SPI clock phase and polarity settings",
+    "reason": "These settings only shape the serial link clock waveform on lines 286 and 300 through 331, so the serial-clock-line exclusion bars them as concepts apart from their readback.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_spi",
+    "concept": "Interrupt-selection settings",
+    "reason": "merged into C6",
+    "merged into": "C6"
+   },
+   {
+    "unit": "neorv32_spi",
+    "concept": "Transmit FIFO and shift-register staging",
+    "reason": "merged into C1",
+    "merged into": "C1"
+   },
+   {
+    "unit": "neorv32_spi",
+    "concept": "Receive FIFO, synchronizer and shift-register staging",
+    "reason": "merged into C2",
+    "merged into": "C2"
+   },
+   {
+    "unit": "neorv32_spi",
+    "concept": "Bus access command and handshake",
+    "reason": "The access fields only select, qualify or perform the register/FIFO access and the acknowledge is a handshake copy, so they are not information pieces of their own under the access-command and handshake rules.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_spi",
+    "concept": "SPI clock and pacing machinery",
+    "reason": "spi_clk_o is a serial-link clock and cdiv_cnt, spi_clk_en and the clock-generator input only pace transfer steps on lines 365 through 377, which the clock and pacing rules exclude.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_spi",
+    "concept": "Transceiver sequencing state and step count",
+    "reason": "The state, bit counter, busy indication and done pulse only order and time transfer steps on lines 282 through 340, so the sequencing-state rule bars them as separate information.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_spi",
+    "concept": "FIFO occupancy and transfer status",
+    "reason": "The FIFO availability, free, half-full and related bus-read status only buffer or report movement of payload data, as shown by the FIFO instances and status readback on lines 160 through 163 and 186 through 240.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_spi",
+    "concept": "Configured FIFO size",
+    "reason": "IO_SPI_FIFO and its reported size are build-time values fixed by the generic and constant use on lines 20, 169 and 186 through 224, so no element can change or withhold them at run time.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

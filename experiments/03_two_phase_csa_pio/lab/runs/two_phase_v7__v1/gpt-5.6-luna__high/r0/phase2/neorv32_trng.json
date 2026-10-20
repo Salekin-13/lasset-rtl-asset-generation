@@ -1,0 +1,1447 @@
+{
+ "module": "neorv32_trng",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 2,
+ "system sha": "6e414c09e397",
+ "user sha": "2f922e6a5368",
+ "usage": {
+  "in": 25864,
+  "out": 19779,
+  "reasoning": 10631,
+  "cached": 15151,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_029f80c75741fe23006ace2fa9b5fc87d1b7577567fdb42b0a",
+  "request key": "9f3110f7813c"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_trng\",\n  \"Concept Walks\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Points\": [\n        {\n          \"Point\": \"neoTRNG_inst\",\n          \"Reached By\": \"holding block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            349,\n            354,\n            355,\n            356,\n            357,\n            358,\n            359,\n            360,\n            366\n          ],\n          \"Answer Reason\": \"The block stores sampled random bytes in sample_sreg and exposes them through data_o, while enable, reset, and sampling conditions can overwrite, clear, or stop the generated data.\"\n        },\n        {\n          \"Point\": \"rnd_pool_fifo_inst\",\n          \"Reached By\": \"the arrow neoTRNG_inst ==> rnd_pool_fifo_inst carrying fifo.wdata and fifo.we\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            157,\n            161,\n            162,\n            166,\n            167\n          ],\n          \"Answer Reason\": \"The FIFO black-box assumption carries generated data from fifo.wdata to fifo.rdata for readout, while its write, clear, and read controls can alter, discard, or withhold buffered bytes.\"\n        },\n        {\n          \"Point\": \"fifo.clear\",\n          \"Reached By\": \"the arrow bus_access --> fifo.clear carrying enable and fifo_clr\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            157,\n            170\n          ],\n          \"Answer Reason\": \"The clear assignment controls the FIFO clear input, so its controlling values can discard buffered random bytes and prevent their availability, but this point does not expose them.\"\n        },\n        {\n          \"Point\": \"fifo.re\",\n          \"Reached By\": \"the arrow bus_req_i --> fifo.re carrying bus_req_i.addr, bus_req_i.rw, and bus_req_i.stb\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            165,\n            171\n          ],\n          \"Answer Reason\": \"The read-enable assignment controls FIFO consumption, so forcing or suppressing it can consume random data unexpectedly or prevent a required transfer, without exposing the value at this point.\"\n        },\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"the arrow rnd_pool_fifo_inst ==> bus_access carrying fifo.rdata and fifo.avail\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            103,\n            104,\n            108,\n            112,\n            114,\n            115,\n            117\n          ],\n          \"Answer Reason\": \"The process returns fifo.rdata in bus_rsp_o.data, while request decoding and fifo.avail can replace it with zero, select whether it is returned, or prevent a valid random word from being delivered.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"sample_sreg\",\n          \"Entity\": \"neoTRNG\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"neoTRNG_inst\"\n          ],\n          \"Security Objectives\": [\n            \"C\",\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores the sampled random byte being assembled for output.\",\n          \"Justification\": \"It is the unit's final random-byte storage and is directly assigned from debiased entropy before data_o returns it.\",\n          \"Asset Lines\": [\n            274,\n            357,\n            360,\n            366\n          ]\n        },\n        {\n          \"Asset RTL\": \"data_o\",\n          \"Entity\": \"neoTRNG\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"neoTRNG_inst\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sample_sreg\",\n              \"Primary Entity\": \"neoTRNG\",\n              \"Direction\": \"a\"\n            }\n          ],\n          \"Functionality\": \"Carries sample_sreg unchanged toward the FIFO write-data path.\",\n          \"Justification\": \"It is a forwarding output of the primary sampled word and can carry or expose that value.\",\n          \"Asset Lines\": [\n            239,\n            366\n          ]\n        },\n        {\n          \"Asset RTL\": \"fifo.wdata\",\n          \"Entity\": \"neorv32_trng\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"neoTRNG_inst\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sample_sreg\",\n              \"Primary Entity\": \"neoTRNG\",\n              \"Direction\": \"a\"\n            }\n          ],\n          \"Functionality\": \"Carries generated random bytes into the FIFO write-data input.\",\n          \"Justification\": \"It is the FIFO data carrier from the neoTRNG output and is barred from being a primary because the FIFO only buffers the value while it moves.\",\n          \"Asset Lines\": [\n            84,\n            139,\n            161\n          ]\n        },\n        {\n          \"Asset RTL\": \"fifo.we\",\n          \"Entity\": \"neorv32_trng\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"neoTRNG_inst\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sample_sreg\",\n              \"Primary Entity\": \"neoTRNG\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Controls whether generated random data is written into the pool FIFO.\",\n          \"Justification\": \"The valid strobe gates storage of the random value and can therefore block or alter its delivery.\",\n          \"Asset Lines\": [\n            138,\n            162\n          ]\n        },\n        {\n          \"Asset RTL\": \"fifo.rdata\",\n          \"Entity\": \"neorv32_trng\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"rnd_pool_fifo_inst\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sample_sreg\",\n              \"Primary Entity\": \"neoTRNG\",\n              \"Direction\": \"a\"\n            }\n          ],\n          \"Functionality\": \"Carries a buffered random byte from the FIFO to the bus response process.\",\n          \"Justification\": \"It is the FIFO's outward data carrier and not a primary because the FIFO only retains each word while it moves.\",\n          \"Asset Lines\": [\n            84,\n            166,\n            117\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_rsp_o.data\",\n          \"Entity\": \"neorv32_trng\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sample_sreg\",\n              \"Primary Entity\": \"neoTRNG\",\n              \"Direction\": \"a\"\n            }\n          ],\n          \"Functionality\": \"Returns the selected random byte in the bus response data field.\",\n          \"Justification\": \"It is the final response carrier of the generated value; a bus response field is not a primary.\",\n          \"Asset Lines\": [\n            28,\n            100,\n            115,\n            117\n          ]\n        },\n        {\n          \"Asset RTL\": \"fifo.avail\",\n          \"Entity\": \"neorv32_trng\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"rnd_pool_fifo_inst\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sample_sreg\",\n              \"Primary Entity\": \"neoTRNG\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Determines whether the FIFO read response returns a buffered random byte or zero.\",\n          \"Justification\": \"It controls release of the random value at the bus response and can suppress or alter its delivery.\",\n          \"Asset Lines\": [\n            112,\n            114,\n            167\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.addr\",\n          \"Entity\": \"neorv32_trng\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sample_sreg\",\n              \"Primary Entity\": \"neoTRNG\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Selects the control/status response or random-data read path and controls FIFO consumption.\",\n          \"Justification\": \"Its address tests decide whether the random value is returned and whether the FIFO is read.\",\n          \"Asset Lines\": [\n            27,\n            108,\n            171\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.rw\",\n          \"Entity\": \"neorv32_trng\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sample_sreg\",\n              \"Primary Entity\": \"neoTRNG\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Selects write versus read behavior and participates in the FIFO read decision.\",\n          \"Justification\": \"Its conditions decide whether the random-data response and FIFO consumption occur.\",\n          \"Asset Lines\": [\n            27,\n            104,\n            171\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.stb\",\n          \"Entity\": \"neorv32_trng\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sample_sreg\",\n              \"Primary Entity\": \"neoTRNG\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Qualifies bus accesses, response generation, and FIFO random-data consumption.\",\n          \"Justification\": \"Its tests gate the response and read-enable assignments, so it can block or cause consumption of random data.\",\n          \"Asset Lines\": [\n            27,\n            98,\n            103,\n            171\n          ]\n        },\n        {\n          \"Asset RTL\": \"fifo.clear\",\n          \"Entity\": \"neorv32_trng\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"fifo.clear\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sample_sreg\",\n              \"Primary Entity\": \"neoTRNG\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Clears the FIFO holding generated random bytes.\",\n          \"Justification\": \"The clear input can discard buffered random data and prevent it from reaching the response.\",\n          \"Asset Lines\": [\n            157,\n            170\n          ]\n        },\n        {\n          \"Asset RTL\": \"fifo.re\",\n          \"Entity\": \"neorv32_trng\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"fifo.re\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sample_sreg\",\n              \"Primary Entity\": \"neoTRNG\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Controls removal of a random word from the pool FIFO.\",\n          \"Justification\": \"Its assignment decides whether a random word is consumed and can therefore cause unintended loss or prevent a read.\",\n          \"Asset Lines\": [\n            165,\n            171\n          ]\n        },\n        {\n          \"Asset RTL\": \"enable\",\n          \"Entity\": \"neorv32_trng\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sample_sreg\",\n              \"Primary Entity\": \"neoTRNG\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Enables entropy sampling and participates in clearing the random pool.\",\n          \"Justification\": \"Changing enable stops sampling and asserts the FIFO clear path, affecting generation and availability of the random bytes.\",\n          \"Asset Lines\": [\n            95,\n            105,\n            137,\n            170\n          ]\n        },\n        {\n          \"Asset RTL\": \"sample_en\",\n          \"Entity\": \"neoTRNG\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"neoTRNG_inst\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sample_sreg\",\n              \"Primary Entity\": \"neoTRNG\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Enables sampling and controls whether the sample registers are cleared or updated.\",\n          \"Justification\": \"Its condition gates sample_sreg updates and can stop or clear the generated-byte path.\",\n          \"Asset Lines\": [\n            350,\n            354,\n            355,\n            357\n          ]\n        },\n        {\n          \"Asset RTL\": \"sample_cnt\",\n          \"Entity\": \"neoTRNG\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"neoTRNG_inst\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sample_sreg\",\n              \"Primary Entity\": \"neoTRNG\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Counts sampled bits and controls clearing, updating, and validity of the output word.\",\n          \"Justification\": \"Its limit and update conditions decide whether sample_sreg is cleared or receives another random bit.\",\n          \"Asset Lines\": [\n            351,\n            355,\n            356,\n            359,\n            367\n          ]\n        },\n        {\n          \"Asset RTL\": \"debias_data\",\n          \"Entity\": \"neoTRNG\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"neoTRNG_inst\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sample_sreg\",\n              \"Primary Entity\": \"neoTRNG\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Supplies the debiased entropy bit shifted into sample_sreg.\",\n          \"Justification\": \"It is the direct data input used to compute the stored random byte.\",\n          \"Asset Lines\": [\n            270,\n            342,\n            360\n          ]\n        },\n        {\n          \"Asset RTL\": \"debias_valid\",\n          \"Entity\": \"neoTRNG\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"neoTRNG_inst\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sample_sreg\",\n              \"Primary Entity\": \"neoTRNG\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Decides whether another debiased entropy bit updates sample_sreg.\",\n          \"Justification\": \"Its condition gates the random-byte update and can suppress or permit an output-bit change.\",\n          \"Asset Lines\": [\n            269,\n            341,\n            358\n          ]\n        },\n        {\n          \"Asset RTL\": \"debias_sreg\",\n          \"Entity\": \"neoTRNG\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"neoTRNG_inst\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sample_sreg\",\n              \"Primary Entity\": \"neoTRNG\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Stores the recent entropy samples used to produce debias_data and debias_valid.\",\n          \"Justification\": \"Its contents feed both the data bit and validity decision that determine sample_sreg updates.\",\n          \"Asset Lines\": [\n            267,\n            331,\n            334,\n            341,\n            342\n          ]\n        },\n        {\n          \"Asset RTL\": \"cell_sum\",\n          \"Entity\": \"neoTRNG\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"neoTRNG_inst\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sample_sreg\",\n              \"Primary Entity\": \"neoTRNG\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Combines cell_rnd values into the entropy sample entering debias_sreg.\",\n          \"Justification\": \"It is an intermediate computed source of the bits eventually shifted into the random-byte primary.\",\n          \"Asset Lines\": [\n            264,\n            320,\n            322,\n            334\n          ]\n        },\n        {\n          \"Asset RTL\": \"cell_rnd\",\n          \"Entity\": \"neoTRNG\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"neoTRNG_inst\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sample_sreg\",\n              \"Primary Entity\": \"neoTRNG\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Provides the per-cell entropy bits combined into cell_sum.\",\n          \"Justification\": \"These generated bits are upstream inputs to the computation producing the stored random bytes.\",\n          \"Asset Lines\": [\n            263,\n            306,\n            315,\n            320\n          ]\n        },\n        {\n          \"Asset RTL\": \"cell_en_out\",\n          \"Entity\": \"neoTRNG\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"neoTRNG_inst\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sample_sreg\",\n              \"Primary Entity\": \"neoTRNG\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Propagates cell enable state and controls debias_state.\",\n          \"Justification\": \"It influences the validity of entropy accepted into the random-byte path.\",\n          \"Asset Lines\": [\n            262,\n            305,\n            312,\n            336\n          ]\n        },\n        {\n          \"Asset RTL\": \"debias_state\",\n          \"Entity\": \"neoTRNG\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"neoTRNG_inst\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sample_sreg\",\n              \"Primary Entity\": \"neoTRNG\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Controls whether the debiasing state accepts a candidate entropy transition.\",\n          \"Justification\": \"It participates in debias_valid, which gates updates of the random-byte primary.\",\n          \"Asset Lines\": [\n            268,\n            332,\n            336,\n            341\n          ]\n        },\n        {\n          \"Asset RTL\": \"clk_i\",\n          \"Entity\": \"neoTRNG\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sample_sreg\",\n              \"Primary Entity\": \"neoTRNG\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Times updates of the sampling and debiasing registers.\",\n          \"Justification\": \"Stalling or withholding this clock can prevent the random-byte primary from being updated.\",\n          \"Asset Lines\": [\n            235,\n            333,\n            353\n          ]\n        },\n        {\n          \"Asset RTL\": \"rstn_i\",\n          \"Entity\": \"neoTRNG\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sample_sreg\",\n              \"Primary Entity\": \"neoTRNG\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Resets the debiasing and sampling state used to hold random bytes.\",\n          \"Justification\": \"Asserting reset clears the random-byte storage and stops normal availability until operation resumes.\",\n          \"Asset Lines\": [\n            236,\n            330,\n            331,\n            349,\n            350,\n            351,\n            352\n          ]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Points\": [\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"holding block and the arrow bus_req_i ==> bus_access carrying bus_req_i.data\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            103,\n            104,\n            105,\n            137,\n            170\n          ],\n          \"Answer Reason\": \"A bus write stores bus_req_i.data(ctrl_en_c) in enable, and enable is used both to run the generator and to clear the FIFO when disabled.\"\n        },\n        {\n          \"Point\": \"neoTRNG_inst\",\n          \"Reached By\": \"the arrow bus_access ==> neoTRNG_inst carrying enable\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            137,\n            354,\n            355,\n            356,\n            357\n          ],\n          \"Answer Reason\": \"The enable value is copied into sample_en and a disabled value clears and stops sampling, preventing entropy generation, but this point does not modify the stored setting itself.\"\n        },\n        {\n          \"Point\": \"fifo.clear\",\n          \"Reached By\": \"the arrow bus_access --> fifo.clear carrying enable\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            157,\n            170\n          ],\n          \"Answer Reason\": \"The enable-dependent clear assignment can clear the random pool and thereby block operation, but it does not change enable.\"\n        },\n        {\n          \"Point\": \"rnd_pool_fifo_inst\",\n          \"Reached By\": \"the arrow fifo.clear ==> rnd_pool_fifo_inst carrying fifo.clear\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            157\n          ],\n          \"Answer Reason\": \"Under the black-box instance rule, the clear input can remove the pool contents and prevent random-data service, but it cannot modify the enable register.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"enable\",\n          \"Entity\": \"neorv32_trng\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores the run-time TRNG enable setting.\",\n          \"Justification\": \"It is the register loaded by the control write and directly controls generator enable and FIFO clearing.\",\n          \"Asset Lines\": [\n            71,\n            95,\n            105,\n            137,\n            170\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_trng\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"enable\",\n              \"Primary Entity\": \"neorv32_trng\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Supplies the control-write bit loaded into enable.\",\n          \"Justification\": \"Its value flows directly into the enable register on a qualified bus write; a bus request field is not primary.\",\n          \"Asset Lines\": [\n            27,\n            105\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.rw\",\n          \"Entity\": \"neorv32_trng\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"enable\",\n              \"Primary Entity\": \"neorv32_trng\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Decides whether the incoming data is treated as a write to enable.\",\n          \"Justification\": \"Its test gates assignment of the enable primary and can control whether the setting changes.\",\n          \"Asset Lines\": [\n            27,\n            104\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.stb\",\n          \"Entity\": \"neorv32_trng\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"enable\",\n              \"Primary Entity\": \"neorv32_trng\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Qualifies the bus write that updates enable.\",\n          \"Justification\": \"Its test gates the assignment of the enable primary.\",\n          \"Asset Lines\": [\n            27,\n            103\n          ]\n        },\n        {\n          \"Asset RTL\": \"clk_i\",\n          \"Entity\": \"neorv32_trng\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"enable\",\n              \"Primary Entity\": \"neorv32_trng\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Times updates of the enable register.\",\n          \"Justification\": \"Blocking the clock can prevent a required enable update and thereby prevent TRNG operation.\",\n          \"Asset Lines\": [\n            25,\n            96\n          ]\n        },\n        {\n          \"Asset RTL\": \"rstn_i\",\n          \"Entity\": \"neorv32_trng\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"enable\",\n              \"Primary Entity\": \"neorv32_trng\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Resets enable to zero.\",\n          \"Justification\": \"Reset can clear the setting and disable the generator, affecting both its integrity and availability.\",\n          \"Asset Lines\": [\n            26,\n            92,\n            95\n          ]\n        },\n        {\n          \"Asset RTL\": \"sample_en\",\n          \"Entity\": \"neoTRNG\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"neoTRNG_inst\"\n          ],\n          \"Security Objectives\": [\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"enable\",\n              \"Primary Entity\": \"neorv32_trng\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Copies enable into the sampling control state.\",\n          \"Justification\": \"It is the downstream control state that gates sampling, although it is not the setting's primary storage.\",\n          \"Asset Lines\": [\n            273,\n            350,\n            354,\n            355\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_rsp_o.data\",\n          \"Entity\": \"neorv32_trng\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [],\n          \"Secondary To\": [],\n          \"Functionality\": \"Returns the enable setting in the control/status read response.\",\n          \"Justification\": \"It carries a readback copy of enable, but confidentiality is not an objective for this concept and the response field is not primary.\",\n          \"Asset Lines\": [\n            28,\n            109\n          ]\n        },\n        {\n          \"Asset RTL\": \"fifo.clear\",\n          \"Entity\": \"neorv32_trng\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"fifo.clear\"\n          ],\n          \"Security Objectives\": [\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"enable\",\n              \"Primary Entity\": \"neorv32_trng\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Uses enable to clear the random pool when the setting is disabled.\",\n          \"Justification\": \"It is the downstream control path through which disabling enable can block random-data operation.\",\n          \"Asset Lines\": [\n            157,\n            170\n          ]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Points\": [\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"holding block and the arrow bus_req_i ==> bus_access carrying bus_req_i.data\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            103,\n            104,\n            106,\n            170\n          ],\n          \"Answer Reason\": \"A qualified bus write stores the clear command in fifo_clr, and that command drives the FIFO clear path which can discard buffered random bytes.\"\n        },\n        {\n          \"Point\": \"fifo.clear\",\n          \"Reached By\": \"the arrow bus_access --> fifo.clear carrying fifo_clr\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            157,\n            170\n          ],\n          \"Answer Reason\": \"The clear signal reaches the FIFO and can remove buffered data, preventing required random data from remaining available, but it does not alter fifo_clr itself.\"\n        },\n        {\n          \"Point\": \"rnd_pool_fifo_inst\",\n          \"Reached By\": \"the arrow fifo.clear ==> rnd_pool_fifo_inst carrying fifo.clear\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            157\n          ],\n          \"Answer Reason\": \"Under the black-box instance rule, asserting clear can empty the random pool and block service, but the FIFO cannot modify the stored clear command.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"fifo_clr\",\n          \"Entity\": \"neorv32_trng\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores the bus-controlled command that clears the random pool.\",\n          \"Justification\": \"It is the register holding the clear control and directly drives fifo.clear.\",\n          \"Asset Lines\": [\n            71,\n            94,\n            101,\n            106,\n            170\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_trng\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"fifo_clr\",\n              \"Primary Entity\": \"neorv32_trng\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Supplies the clear-command bit loaded into fifo_clr.\",\n          \"Justification\": \"Its value flows directly into fifo_clr on a qualified write; a bus request field is not primary.\",\n          \"Asset Lines\": [\n            27,\n            106\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.rw\",\n          \"Entity\": \"neorv32_trng\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"fifo_clr\",\n              \"Primary Entity\": \"neorv32_trng\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Decides whether bus_req_i.data updates fifo_clr.\",\n          \"Justification\": \"Its test gates assignment of the clear-command primary.\",\n          \"Asset Lines\": [\n            27,\n            104\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.stb\",\n          \"Entity\": \"neorv32_trng\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"fifo_clr\",\n              \"Primary Entity\": \"neorv32_trng\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Qualifies the bus write that updates fifo_clr.\",\n          \"Justification\": \"Its test gates assignment of the clear-command primary.\",\n          \"Asset Lines\": [\n            27,\n            103\n          ]\n        },\n        {\n          \"Asset RTL\": \"clk_i\",\n          \"Entity\": \"neorv32_trng\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"fifo_clr\",\n              \"Primary Entity\": \"neorv32_trng\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Times updates of fifo_clr.\",\n          \"Justification\": \"Blocking the clock can prevent the clear command from being updated or serviced as intended.\",\n          \"Asset Lines\": [\n            25,\n            96\n          ]\n        },\n        {\n          \"Asset RTL\": \"rstn_i\",\n          \"Entity\": \"neorv32_trng\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"fifo_clr\",\n              \"Primary Entity\": \"neorv32_trng\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Resets fifo_clr to zero.\",\n          \"Justification\": \"Reset can change the clear command and alter whether the pool is cleared or retained.\",\n          \"Asset Lines\": [\n            26,\n            92,\n            94\n          ]\n        },\n        {\n          \"Asset RTL\": \"fifo.clear\",\n          \"Entity\": \"neorv32_trng\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"fifo.clear\"\n          ],\n          \"Security Objectives\": [\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"fifo_clr\",\n              \"Primary Entity\": \"neorv32_trng\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Carries fifo_clr to the FIFO clear input.\",\n          \"Justification\": \"It is the downstream clear control that can block availability by emptying the random pool.\",\n          \"Asset Lines\": [\n            157,\n            170\n          ]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Points\": [\n        {\n          \"Point\": \"fifo.re\",\n          \"Reached By\": \"holding block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            171\n          ],\n          \"Answer Reason\": \"The concurrent assignment computes the one-cycle FIFO-consume decision from bus strobe, direction, and address, so those controls can force, suppress, or change consumption.\"\n        },\n        {\n          \"Point\": \"rnd_pool_fifo_inst\",\n          \"Reached By\": \"the arrow fifo.re ==> rnd_pool_fifo_inst carrying fifo.re\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            165,\n            171\n          ],\n          \"Answer Reason\": \"The FIFO read-enable input controls whether a word is removed, so suppressing it can block servicing of a data read, but the FIFO does not modify the decision itself.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"fifo.re\",\n          \"Entity\": \"neorv32_trng\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"fifo.re\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"Produces the one-cycle decision to consume a random word from the FIFO.\",\n          \"Justification\": \"It is the signal where the read-and-consume decision is computed and directly controls the FIFO read input.\",\n          \"Asset Lines\": [\n            84,\n            165,\n            171\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.addr\",\n          \"Entity\": \"neorv32_trng\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"fifo.re\",\n              \"Primary Entity\": \"neorv32_trng\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Selects the random-data address that permits FIFO consumption.\",\n          \"Justification\": \"Its address test directly decides fifo.re.\",\n          \"Asset Lines\": [\n            27,\n            171\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.rw\",\n          \"Entity\": \"neorv32_trng\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"fifo.re\",\n              \"Primary Entity\": \"neorv32_trng\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Decides whether a request is a read eligible to consume FIFO data.\",\n          \"Justification\": \"Its test directly gates fifo.re.\",\n          \"Asset Lines\": [\n            27,\n            171\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.stb\",\n          \"Entity\": \"neorv32_trng\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"fifo.re\",\n              \"Primary Entity\": \"neorv32_trng\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Qualifies the request that causes FIFO consumption.\",\n          \"Justification\": \"Its test directly gates the consume decision and can suppress or force a FIFO read.\",\n          \"Asset Lines\": [\n            27,\n            171\n          ]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_trng",
+  "notes": [],
+  "points": [
+   {
+    "concept id": "C1",
+    "point": "neoTRNG_inst",
+    "reached by": "holding block",
+    "lines": [
+     349,
+     354,
+     355,
+     356,
+     357,
+     358,
+     359,
+     360,
+     366
+    ],
+    "reason": "The block stores sampled random bytes in sample_sreg and exposes them through data_o, while enable, reset, and sampling conditions can overwrite, clear, or stop the generated data.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "rnd_pool_fifo_inst",
+    "reached by": "the arrow neoTRNG_inst ==> rnd_pool_fifo_inst carrying fifo.wdata and fifo.we",
+    "lines": [
+     157,
+     161,
+     162,
+     166,
+     167
+    ],
+    "reason": "The FIFO black-box assumption carries generated data from fifo.wdata to fifo.rdata for readout, while its write, clear, and read controls can alter, discard, or withhold buffered bytes.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "fifo.clear",
+    "reached by": "the arrow bus_access --> fifo.clear carrying enable and fifo_clr",
+    "lines": [
+     157,
+     170
+    ],
+    "reason": "The clear assignment controls the FIFO clear input, so its controlling values can discard buffered random bytes and prevent their availability, but this point does not expose them.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "fifo.re",
+    "reached by": "the arrow bus_req_i --> fifo.re carrying bus_req_i.addr, bus_req_i.rw, and bus_req_i.stb",
+    "lines": [
+     165,
+     171
+    ],
+    "reason": "The read-enable assignment controls FIFO consumption, so forcing or suppressing it can consume random data unexpectedly or prevent a required transfer, without exposing the value at this point.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "bus_access",
+    "reached by": "the arrow rnd_pool_fifo_inst ==> bus_access carrying fifo.rdata and fifo.avail",
+    "lines": [
+     103,
+     104,
+     108,
+     112,
+     114,
+     115,
+     117
+    ],
+    "reason": "The process returns fifo.rdata in bus_rsp_o.data, while request decoding and fifo.avail can replace it with zero, select whether it is returned, or prevent a valid random word from being delivered.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "bus_access",
+    "reached by": "holding block and the arrow bus_req_i ==> bus_access carrying bus_req_i.data",
+    "lines": [
+     103,
+     104,
+     105,
+     137,
+     170
+    ],
+    "reason": "A bus write stores bus_req_i.data(ctrl_en_c) in enable, and enable is used both to run the generator and to clear the FIFO when disabled.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "neoTRNG_inst",
+    "reached by": "the arrow bus_access ==> neoTRNG_inst carrying enable",
+    "lines": [
+     137,
+     354,
+     355,
+     356,
+     357
+    ],
+    "reason": "The enable value is copied into sample_en and a disabled value clears and stops sampling, preventing entropy generation, but this point does not modify the stored setting itself.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "fifo.clear",
+    "reached by": "the arrow bus_access --> fifo.clear carrying enable",
+    "lines": [
+     157,
+     170
+    ],
+    "reason": "The enable-dependent clear assignment can clear the random pool and thereby block operation, but it does not change enable.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "rnd_pool_fifo_inst",
+    "reached by": "the arrow fifo.clear ==> rnd_pool_fifo_inst carrying fifo.clear",
+    "lines": [
+     157
+    ],
+    "reason": "Under the black-box instance rule, the clear input can remove the pool contents and prevent random-data service, but it cannot modify the enable register.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "bus_access",
+    "reached by": "holding block and the arrow bus_req_i ==> bus_access carrying bus_req_i.data",
+    "lines": [
+     103,
+     104,
+     106,
+     170
+    ],
+    "reason": "A qualified bus write stores the clear command in fifo_clr, and that command drives the FIFO clear path which can discard buffered random bytes.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "fifo.clear",
+    "reached by": "the arrow bus_access --> fifo.clear carrying fifo_clr",
+    "lines": [
+     157,
+     170
+    ],
+    "reason": "The clear signal reaches the FIFO and can remove buffered data, preventing required random data from remaining available, but it does not alter fifo_clr itself.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "rnd_pool_fifo_inst",
+    "reached by": "the arrow fifo.clear ==> rnd_pool_fifo_inst carrying fifo.clear",
+    "lines": [
+     157
+    ],
+    "reason": "Under the black-box instance rule, asserting clear can empty the random pool and block service, but the FIFO cannot modify the stored clear command.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "fifo.re",
+    "reached by": "holding block",
+    "lines": [
+     171
+    ],
+    "reason": "The concurrent assignment computes the one-cycle FIFO-consume decision from bus strobe, direction, and address, so those controls can force, suppress, or change consumption.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "rnd_pool_fifo_inst",
+    "reached by": "the arrow fifo.re ==> rnd_pool_fifo_inst carrying fifo.re",
+    "lines": [
+     165,
+     171
+    ],
+    "reason": "The FIFO read-enable input controls whether a word is removed, so suppressing it can block servicing of a data read, but the FIFO does not modify the decision itself.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   }
+  ],
+  "structural assets": [
+   {
+    "concept id": "C1",
+    "element": "sample_sreg",
+    "entity": "neoTRNG",
+    "same role": [],
+    "points": [
+     "neoTRNG_inst"
+    ],
+    "label": "primary",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "lines": [
+     274,
+     357,
+     360,
+     366
+    ],
+    "links": [],
+    "reason": "Stores the sampled random byte being assembled for output. It is the unit's final random-byte storage and is directly assigned from debiased entropy before data_o returns it.",
+    "functionality": "Stores the sampled random byte being assembled for output.",
+    "justification": "It is the unit's final random-byte storage and is directly assigned from debiased entropy before data_o returns it."
+   },
+   {
+    "concept id": "C1",
+    "element": "data_o",
+    "entity": "neoTRNG",
+    "same role": [],
+    "points": [
+     "neoTRNG_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     239,
+     366
+    ],
+    "links": [
+     {
+      "primary": "sample_sreg",
+      "entity": "neoTRNG",
+      "direction": "a"
+     }
+    ],
+    "reason": "Carries sample_sreg unchanged toward the FIFO write-data path. It is a forwarding output of the primary sampled word and can carry or expose that value.",
+    "functionality": "Carries sample_sreg unchanged toward the FIFO write-data path.",
+    "justification": "It is a forwarding output of the primary sampled word and can carry or expose that value."
+   },
+   {
+    "concept id": "C1",
+    "element": "fifo.wdata",
+    "entity": "neorv32_trng",
+    "same role": [],
+    "points": [
+     "neoTRNG_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     84,
+     139,
+     161
+    ],
+    "links": [
+     {
+      "primary": "sample_sreg",
+      "entity": "neoTRNG",
+      "direction": "a"
+     }
+    ],
+    "reason": "Carries generated random bytes into the FIFO write-data input. It is the FIFO data carrier from the neoTRNG output and is barred from being a primary because the FIFO only buffers the value while it moves.",
+    "functionality": "Carries generated random bytes into the FIFO write-data input.",
+    "justification": "It is the FIFO data carrier from the neoTRNG output and is barred from being a primary because the FIFO only buffers the value while it moves."
+   },
+   {
+    "concept id": "C1",
+    "element": "fifo.we",
+    "entity": "neorv32_trng",
+    "same role": [],
+    "points": [
+     "neoTRNG_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     138,
+     162
+    ],
+    "links": [
+     {
+      "primary": "sample_sreg",
+      "entity": "neoTRNG",
+      "direction": "b"
+     }
+    ],
+    "reason": "Controls whether generated random data is written into the pool FIFO. The valid strobe gates storage of the random value and can therefore block or alter its delivery.",
+    "functionality": "Controls whether generated random data is written into the pool FIFO.",
+    "justification": "The valid strobe gates storage of the random value and can therefore block or alter its delivery."
+   },
+   {
+    "concept id": "C1",
+    "element": "fifo.rdata",
+    "entity": "neorv32_trng",
+    "same role": [],
+    "points": [
+     "rnd_pool_fifo_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     84,
+     166,
+     117
+    ],
+    "links": [
+     {
+      "primary": "sample_sreg",
+      "entity": "neoTRNG",
+      "direction": "a"
+     }
+    ],
+    "reason": "Carries a buffered random byte from the FIFO to the bus response process. It is the FIFO's outward data carrier and not a primary because the FIFO only retains each word while it moves.",
+    "functionality": "Carries a buffered random byte from the FIFO to the bus response process.",
+    "justification": "It is the FIFO's outward data carrier and not a primary because the FIFO only retains each word while it moves."
+   },
+   {
+    "concept id": "C1",
+    "element": "bus_rsp_o.data",
+    "entity": "neorv32_trng",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     28,
+     100,
+     115,
+     117
+    ],
+    "links": [
+     {
+      "primary": "sample_sreg",
+      "entity": "neoTRNG",
+      "direction": "a"
+     }
+    ],
+    "reason": "Returns the selected random byte in the bus response data field. It is the final response carrier of the generated value; a bus response field is not a primary.",
+    "functionality": "Returns the selected random byte in the bus response data field.",
+    "justification": "It is the final response carrier of the generated value; a bus response field is not a primary."
+   },
+   {
+    "concept id": "C1",
+    "element": "fifo.avail",
+    "entity": "neorv32_trng",
+    "same role": [],
+    "points": [
+     "rnd_pool_fifo_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     112,
+     114,
+     167
+    ],
+    "links": [
+     {
+      "primary": "sample_sreg",
+      "entity": "neoTRNG",
+      "direction": "b"
+     }
+    ],
+    "reason": "Determines whether the FIFO read response returns a buffered random byte or zero. It controls release of the random value at the bus response and can suppress or alter its delivery.",
+    "functionality": "Determines whether the FIFO read response returns a buffered random byte or zero.",
+    "justification": "It controls release of the random value at the bus response and can suppress or alter its delivery."
+   },
+   {
+    "concept id": "C1",
+    "element": "bus_req_i.addr",
+    "entity": "neorv32_trng",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     27,
+     108,
+     171
+    ],
+    "links": [
+     {
+      "primary": "sample_sreg",
+      "entity": "neoTRNG",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects the control/status response or random-data read path and controls FIFO consumption. Its address tests decide whether the random value is returned and whether the FIFO is read.",
+    "functionality": "Selects the control/status response or random-data read path and controls FIFO consumption.",
+    "justification": "Its address tests decide whether the random value is returned and whether the FIFO is read."
+   },
+   {
+    "concept id": "C1",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_trng",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     27,
+     104,
+     171
+    ],
+    "links": [
+     {
+      "primary": "sample_sreg",
+      "entity": "neoTRNG",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects write versus read behavior and participates in the FIFO read decision. Its conditions decide whether the random-data response and FIFO consumption occur.",
+    "functionality": "Selects write versus read behavior and participates in the FIFO read decision.",
+    "justification": "Its conditions decide whether the random-data response and FIFO consumption occur."
+   },
+   {
+    "concept id": "C1",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_trng",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     27,
+     98,
+     103,
+     171
+    ],
+    "links": [
+     {
+      "primary": "sample_sreg",
+      "entity": "neoTRNG",
+      "direction": "b"
+     }
+    ],
+    "reason": "Qualifies bus accesses, response generation, and FIFO random-data consumption. Its tests gate the response and read-enable assignments, so it can block or cause consumption of random data.",
+    "functionality": "Qualifies bus accesses, response generation, and FIFO random-data consumption.",
+    "justification": "Its tests gate the response and read-enable assignments, so it can block or cause consumption of random data."
+   },
+   {
+    "concept id": "C1",
+    "element": "fifo.clear",
+    "entity": "neorv32_trng",
+    "same role": [],
+    "points": [
+     "fifo.clear"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     157,
+     170
+    ],
+    "links": [
+     {
+      "primary": "sample_sreg",
+      "entity": "neoTRNG",
+      "direction": "b"
+     }
+    ],
+    "reason": "Clears the FIFO holding generated random bytes. The clear input can discard buffered random data and prevent it from reaching the response.",
+    "functionality": "Clears the FIFO holding generated random bytes.",
+    "justification": "The clear input can discard buffered random data and prevent it from reaching the response."
+   },
+   {
+    "concept id": "C1",
+    "element": "fifo.re",
+    "entity": "neorv32_trng",
+    "same role": [],
+    "points": [
+     "fifo.re"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     165,
+     171
+    ],
+    "links": [
+     {
+      "primary": "sample_sreg",
+      "entity": "neoTRNG",
+      "direction": "b"
+     }
+    ],
+    "reason": "Controls removal of a random word from the pool FIFO. Its assignment decides whether a random word is consumed and can therefore cause unintended loss or prevent a read.",
+    "functionality": "Controls removal of a random word from the pool FIFO.",
+    "justification": "Its assignment decides whether a random word is consumed and can therefore cause unintended loss or prevent a read."
+   },
+   {
+    "concept id": "C1",
+    "element": "enable",
+    "entity": "neorv32_trng",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     95,
+     105,
+     137,
+     170
+    ],
+    "links": [
+     {
+      "primary": "sample_sreg",
+      "entity": "neoTRNG",
+      "direction": "b"
+     }
+    ],
+    "reason": "Enables entropy sampling and participates in clearing the random pool. Changing enable stops sampling and asserts the FIFO clear path, affecting generation and availability of the random bytes.",
+    "functionality": "Enables entropy sampling and participates in clearing the random pool.",
+    "justification": "Changing enable stops sampling and asserts the FIFO clear path, affecting generation and availability of the random bytes."
+   },
+   {
+    "concept id": "C1",
+    "element": "sample_en",
+    "entity": "neoTRNG",
+    "same role": [],
+    "points": [
+     "neoTRNG_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     350,
+     354,
+     355,
+     357
+    ],
+    "links": [
+     {
+      "primary": "sample_sreg",
+      "entity": "neoTRNG",
+      "direction": "b"
+     }
+    ],
+    "reason": "Enables sampling and controls whether the sample registers are cleared or updated. Its condition gates sample_sreg updates and can stop or clear the generated-byte path.",
+    "functionality": "Enables sampling and controls whether the sample registers are cleared or updated.",
+    "justification": "Its condition gates sample_sreg updates and can stop or clear the generated-byte path."
+   },
+   {
+    "concept id": "C1",
+    "element": "sample_cnt",
+    "entity": "neoTRNG",
+    "same role": [],
+    "points": [
+     "neoTRNG_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     351,
+     355,
+     356,
+     359,
+     367
+    ],
+    "links": [
+     {
+      "primary": "sample_sreg",
+      "entity": "neoTRNG",
+      "direction": "b"
+     }
+    ],
+    "reason": "Counts sampled bits and controls clearing, updating, and validity of the output word. Its limit and update conditions decide whether sample_sreg is cleared or receives another random bit.",
+    "functionality": "Counts sampled bits and controls clearing, updating, and validity of the output word.",
+    "justification": "Its limit and update conditions decide whether sample_sreg is cleared or receives another random bit."
+   },
+   {
+    "concept id": "C1",
+    "element": "debias_data",
+    "entity": "neoTRNG",
+    "same role": [],
+    "points": [
+     "neoTRNG_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     270,
+     342,
+     360
+    ],
+    "links": [
+     {
+      "primary": "sample_sreg",
+      "entity": "neoTRNG",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies the debiased entropy bit shifted into sample_sreg. It is the direct data input used to compute the stored random byte.",
+    "functionality": "Supplies the debiased entropy bit shifted into sample_sreg.",
+    "justification": "It is the direct data input used to compute the stored random byte."
+   },
+   {
+    "concept id": "C1",
+    "element": "debias_valid",
+    "entity": "neoTRNG",
+    "same role": [],
+    "points": [
+     "neoTRNG_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     269,
+     341,
+     358
+    ],
+    "links": [
+     {
+      "primary": "sample_sreg",
+      "entity": "neoTRNG",
+      "direction": "b"
+     }
+    ],
+    "reason": "Decides whether another debiased entropy bit updates sample_sreg. Its condition gates the random-byte update and can suppress or permit an output-bit change.",
+    "functionality": "Decides whether another debiased entropy bit updates sample_sreg.",
+    "justification": "Its condition gates the random-byte update and can suppress or permit an output-bit change."
+   },
+   {
+    "concept id": "C1",
+    "element": "debias_sreg",
+    "entity": "neoTRNG",
+    "same role": [],
+    "points": [
+     "neoTRNG_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     267,
+     331,
+     334,
+     341,
+     342
+    ],
+    "links": [
+     {
+      "primary": "sample_sreg",
+      "entity": "neoTRNG",
+      "direction": "b"
+     }
+    ],
+    "reason": "Stores the recent entropy samples used to produce debias_data and debias_valid. Its contents feed both the data bit and validity decision that determine sample_sreg updates.",
+    "functionality": "Stores the recent entropy samples used to produce debias_data and debias_valid.",
+    "justification": "Its contents feed both the data bit and validity decision that determine sample_sreg updates."
+   },
+   {
+    "concept id": "C1",
+    "element": "cell_sum",
+    "entity": "neoTRNG",
+    "same role": [],
+    "points": [
+     "neoTRNG_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     264,
+     320,
+     322,
+     334
+    ],
+    "links": [
+     {
+      "primary": "sample_sreg",
+      "entity": "neoTRNG",
+      "direction": "b"
+     }
+    ],
+    "reason": "Combines cell_rnd values into the entropy sample entering debias_sreg. It is an intermediate computed source of the bits eventually shifted into the random-byte primary.",
+    "functionality": "Combines cell_rnd values into the entropy sample entering debias_sreg.",
+    "justification": "It is an intermediate computed source of the bits eventually shifted into the random-byte primary."
+   },
+   {
+    "concept id": "C1",
+    "element": "cell_rnd",
+    "entity": "neoTRNG",
+    "same role": [],
+    "points": [
+     "neoTRNG_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     263,
+     306,
+     315,
+     320
+    ],
+    "links": [
+     {
+      "primary": "sample_sreg",
+      "entity": "neoTRNG",
+      "direction": "b"
+     }
+    ],
+    "reason": "Provides the per-cell entropy bits combined into cell_sum. These generated bits are upstream inputs to the computation producing the stored random bytes.",
+    "functionality": "Provides the per-cell entropy bits combined into cell_sum.",
+    "justification": "These generated bits are upstream inputs to the computation producing the stored random bytes."
+   },
+   {
+    "concept id": "C1",
+    "element": "cell_en_out",
+    "entity": "neoTRNG",
+    "same role": [],
+    "points": [
+     "neoTRNG_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     262,
+     305,
+     312,
+     336
+    ],
+    "links": [
+     {
+      "primary": "sample_sreg",
+      "entity": "neoTRNG",
+      "direction": "b"
+     }
+    ],
+    "reason": "Propagates cell enable state and controls debias_state. It influences the validity of entropy accepted into the random-byte path.",
+    "functionality": "Propagates cell enable state and controls debias_state.",
+    "justification": "It influences the validity of entropy accepted into the random-byte path."
+   },
+   {
+    "concept id": "C1",
+    "element": "debias_state",
+    "entity": "neoTRNG",
+    "same role": [],
+    "points": [
+     "neoTRNG_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     268,
+     332,
+     336,
+     341
+    ],
+    "links": [
+     {
+      "primary": "sample_sreg",
+      "entity": "neoTRNG",
+      "direction": "b"
+     }
+    ],
+    "reason": "Controls whether the debiasing state accepts a candidate entropy transition. It participates in debias_valid, which gates updates of the random-byte primary.",
+    "functionality": "Controls whether the debiasing state accepts a candidate entropy transition.",
+    "justification": "It participates in debias_valid, which gates updates of the random-byte primary."
+   },
+   {
+    "concept id": "C1",
+    "element": "clk_i",
+    "entity": "neoTRNG",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     235,
+     333,
+     353
+    ],
+    "links": [
+     {
+      "primary": "sample_sreg",
+      "entity": "neoTRNG",
+      "direction": "b"
+     }
+    ],
+    "reason": "Times updates of the sampling and debiasing registers. Stalling or withholding this clock can prevent the random-byte primary from being updated.",
+    "functionality": "Times updates of the sampling and debiasing registers.",
+    "justification": "Stalling or withholding this clock can prevent the random-byte primary from being updated."
+   },
+   {
+    "concept id": "C1",
+    "element": "rstn_i",
+    "entity": "neoTRNG",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     236,
+     330,
+     331,
+     349,
+     350,
+     351,
+     352
+    ],
+    "links": [
+     {
+      "primary": "sample_sreg",
+      "entity": "neoTRNG",
+      "direction": "b"
+     }
+    ],
+    "reason": "Resets the debiasing and sampling state used to hold random bytes. Asserting reset clears the random-byte storage and stops normal availability until operation resumes.",
+    "functionality": "Resets the debiasing and sampling state used to hold random bytes.",
+    "justification": "Asserting reset clears the random-byte storage and stops normal availability until operation resumes."
+   },
+   {
+    "concept id": "C2",
+    "element": "enable",
+    "entity": "neorv32_trng",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     71,
+     95,
+     105,
+     137,
+     170
+    ],
+    "links": [],
+    "reason": "Stores the run-time TRNG enable setting. It is the register loaded by the control write and directly controls generator enable and FIFO clearing.",
+    "functionality": "Stores the run-time TRNG enable setting.",
+    "justification": "It is the register loaded by the control write and directly controls generator enable and FIFO clearing."
+   },
+   {
+    "concept id": "C2",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_trng",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     27,
+     105
+    ],
+    "links": [
+     {
+      "primary": "enable",
+      "entity": "neorv32_trng",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies the control-write bit loaded into enable. Its value flows directly into the enable register on a qualified bus write; a bus request field is not primary.",
+    "functionality": "Supplies the control-write bit loaded into enable.",
+    "justification": "Its value flows directly into the enable register on a qualified bus write; a bus request field is not primary."
+   },
+   {
+    "concept id": "C2",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_trng",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     27,
+     104
+    ],
+    "links": [
+     {
+      "primary": "enable",
+      "entity": "neorv32_trng",
+      "direction": "b"
+     }
+    ],
+    "reason": "Decides whether the incoming data is treated as a write to enable. Its test gates assignment of the enable primary and can control whether the setting changes.",
+    "functionality": "Decides whether the incoming data is treated as a write to enable.",
+    "justification": "Its test gates assignment of the enable primary and can control whether the setting changes."
+   },
+   {
+    "concept id": "C2",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_trng",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     27,
+     103
+    ],
+    "links": [
+     {
+      "primary": "enable",
+      "entity": "neorv32_trng",
+      "direction": "b"
+     }
+    ],
+    "reason": "Qualifies the bus write that updates enable. Its test gates the assignment of the enable primary.",
+    "functionality": "Qualifies the bus write that updates enable.",
+    "justification": "Its test gates the assignment of the enable primary."
+   },
+   {
+    "concept id": "C2",
+    "element": "clk_i",
+    "entity": "neorv32_trng",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     25,
+     96
+    ],
+    "links": [
+     {
+      "primary": "enable",
+      "entity": "neorv32_trng",
+      "direction": "b"
+     }
+    ],
+    "reason": "Times updates of the enable register. Blocking the clock can prevent a required enable update and thereby prevent TRNG operation.",
+    "functionality": "Times updates of the enable register.",
+    "justification": "Blocking the clock can prevent a required enable update and thereby prevent TRNG operation."
+   },
+   {
+    "concept id": "C2",
+    "element": "rstn_i",
+    "entity": "neorv32_trng",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     26,
+     92,
+     95
+    ],
+    "links": [
+     {
+      "primary": "enable",
+      "entity": "neorv32_trng",
+      "direction": "b"
+     }
+    ],
+    "reason": "Resets enable to zero. Reset can clear the setting and disable the generator, affecting both its integrity and availability.",
+    "functionality": "Resets enable to zero.",
+    "justification": "Reset can clear the setting and disable the generator, affecting both its integrity and availability."
+   },
+   {
+    "concept id": "C2",
+    "element": "sample_en",
+    "entity": "neoTRNG",
+    "same role": [],
+    "points": [
+     "neoTRNG_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     273,
+     350,
+     354,
+     355
+    ],
+    "links": [
+     {
+      "primary": "enable",
+      "entity": "neorv32_trng",
+      "direction": "b"
+     }
+    ],
+    "reason": "Copies enable into the sampling control state. It is the downstream control state that gates sampling, although it is not the setting's primary storage.",
+    "functionality": "Copies enable into the sampling control state.",
+    "justification": "It is the downstream control state that gates sampling, although it is not the setting's primary storage."
+   },
+   {
+    "concept id": "C2",
+    "element": "bus_rsp_o.data",
+    "entity": "neorv32_trng",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [],
+    "lines": [
+     28,
+     109
+    ],
+    "links": [],
+    "reason": "Returns the enable setting in the control/status read response. It carries a readback copy of enable, but confidentiality is not an objective for this concept and the response field is not primary.",
+    "functionality": "Returns the enable setting in the control/status read response.",
+    "justification": "It carries a readback copy of enable, but confidentiality is not an objective for this concept and the response field is not primary."
+   },
+   {
+    "concept id": "C2",
+    "element": "fifo.clear",
+    "entity": "neorv32_trng",
+    "same role": [],
+    "points": [
+     "fifo.clear"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     157,
+     170
+    ],
+    "links": [
+     {
+      "primary": "enable",
+      "entity": "neorv32_trng",
+      "direction": "b"
+     }
+    ],
+    "reason": "Uses enable to clear the random pool when the setting is disabled. It is the downstream control path through which disabling enable can block random-data operation.",
+    "functionality": "Uses enable to clear the random pool when the setting is disabled.",
+    "justification": "It is the downstream control path through which disabling enable can block random-data operation."
+   },
+   {
+    "concept id": "C3",
+    "element": "fifo_clr",
+    "entity": "neorv32_trng",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     71,
+     94,
+     101,
+     106,
+     170
+    ],
+    "links": [],
+    "reason": "Stores the bus-controlled command that clears the random pool. It is the register holding the clear control and directly drives fifo.clear.",
+    "functionality": "Stores the bus-controlled command that clears the random pool.",
+    "justification": "It is the register holding the clear control and directly drives fifo.clear."
+   },
+   {
+    "concept id": "C3",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_trng",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     27,
+     106
+    ],
+    "links": [
+     {
+      "primary": "fifo_clr",
+      "entity": "neorv32_trng",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies the clear-command bit loaded into fifo_clr. Its value flows directly into fifo_clr on a qualified write; a bus request field is not primary.",
+    "functionality": "Supplies the clear-command bit loaded into fifo_clr.",
+    "justification": "Its value flows directly into fifo_clr on a qualified write; a bus request field is not primary."
+   },
+   {
+    "concept id": "C3",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_trng",
+    "same role": [],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     27,
+     104
+    ],
+    "links": [
+     {
+      "primary": "fifo_clr",
+      "entity": "neorv32_trng",
+      "direction": "b"
+     }
+    ],
+    "reason": "Decides whether bus_req_i.data updates fifo_clr. Its test gates assignment of the clear-command primary.",
+    "functionality": "Decides whether bus_req_i.data updates fifo_clr.",
+    "justification": "Its test gates assignment of the clear-command primary."
+   },
+   {
+    "concept id": "C3",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_trng",
+    "same role": [],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     27,
+     103
+    ],
+    "links": [
+     {
+      "primary": "fifo_clr",
+      "entity": "neorv32_trng",
+      "direction": "b"
+     }
+    ],
+    "reason": "Qualifies the bus write that updates fifo_clr. Its test gates assignment of the clear-command primary.",
+    "functionality": "Qualifies the bus write that updates fifo_clr.",
+    "justification": "Its test gates assignment of the clear-command primary."
+   },
+   {
+    "concept id": "C3",
+    "element": "clk_i",
+    "entity": "neorv32_trng",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     25,
+     96
+    ],
+    "links": [
+     {
+      "primary": "fifo_clr",
+      "entity": "neorv32_trng",
+      "direction": "b"
+     }
+    ],
+    "reason": "Times updates of fifo_clr. Blocking the clock can prevent the clear command from being updated or serviced as intended.",
+    "functionality": "Times updates of fifo_clr.",
+    "justification": "Blocking the clock can prevent the clear command from being updated or serviced as intended."
+   },
+   {
+    "concept id": "C3",
+    "element": "rstn_i",
+    "entity": "neorv32_trng",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     26,
+     92,
+     94
+    ],
+    "links": [
+     {
+      "primary": "fifo_clr",
+      "entity": "neorv32_trng",
+      "direction": "b"
+     }
+    ],
+    "reason": "Resets fifo_clr to zero. Reset can change the clear command and alter whether the pool is cleared or retained.",
+    "functionality": "Resets fifo_clr to zero.",
+    "justification": "Reset can change the clear command and alter whether the pool is cleared or retained."
+   },
+   {
+    "concept id": "C3",
+    "element": "fifo.clear",
+    "entity": "neorv32_trng",
+    "same role": [],
+    "points": [
+     "fifo.clear"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     157,
+     170
+    ],
+    "links": [
+     {
+      "primary": "fifo_clr",
+      "entity": "neorv32_trng",
+      "direction": "b"
+     }
+    ],
+    "reason": "Carries fifo_clr to the FIFO clear input. It is the downstream clear control that can block availability by emptying the random pool.",
+    "functionality": "Carries fifo_clr to the FIFO clear input.",
+    "justification": "It is the downstream clear control that can block availability by emptying the random pool."
+   },
+   {
+    "concept id": "C4",
+    "element": "fifo.re",
+    "entity": "neorv32_trng",
+    "same role": [],
+    "points": [
+     "fifo.re"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     84,
+     165,
+     171
+    ],
+    "links": [],
+    "reason": "Produces the one-cycle decision to consume a random word from the FIFO. It is the signal where the read-and-consume decision is computed and directly controls the FIFO read input.",
+    "functionality": "Produces the one-cycle decision to consume a random word from the FIFO.",
+    "justification": "It is the signal where the read-and-consume decision is computed and directly controls the FIFO read input."
+   },
+   {
+    "concept id": "C4",
+    "element": "bus_req_i.addr",
+    "entity": "neorv32_trng",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     27,
+     171
+    ],
+    "links": [
+     {
+      "primary": "fifo.re",
+      "entity": "neorv32_trng",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects the random-data address that permits FIFO consumption. Its address test directly decides fifo.re.",
+    "functionality": "Selects the random-data address that permits FIFO consumption.",
+    "justification": "Its address test directly decides fifo.re."
+   },
+   {
+    "concept id": "C4",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_trng",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     27,
+     171
+    ],
+    "links": [
+     {
+      "primary": "fifo.re",
+      "entity": "neorv32_trng",
+      "direction": "b"
+     }
+    ],
+    "reason": "Decides whether a request is a read eligible to consume FIFO data. Its test directly gates fifo.re.",
+    "functionality": "Decides whether a request is a read eligible to consume FIFO data.",
+    "justification": "Its test directly gates fifo.re."
+   },
+   {
+    "concept id": "C4",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_trng",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     27,
+     171
+    ],
+    "links": [
+     {
+      "primary": "fifo.re",
+      "entity": "neorv32_trng",
+      "direction": "b"
+     }
+    ],
+    "reason": "Qualifies the request that causes FIFO consumption. Its test directly gates the consume decision and can suppress or force a FIFO read.",
+    "functionality": "Qualifies the request that causes FIFO consumption.",
+    "justification": "Its test directly gates the consume decision and can suppress or force a FIFO read."
+   }
+  ],
+  "not reported": [],
+  "no primary reason": {}
+ },
+ "problems": [
+  "format: walk C3 asset 'bus_req_i.rw' lacks ['Found At']",
+  "format: walk C3 asset 'bus_req_i.stb' lacks ['Found At']",
+  "C2: secondary 'bus_rsp_o.data' has no links"
+ ],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

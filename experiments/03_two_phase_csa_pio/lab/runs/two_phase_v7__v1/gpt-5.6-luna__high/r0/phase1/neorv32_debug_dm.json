@@ -1,0 +1,676 @@
+{
+ "module": "neorv32_debug_dm",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "be3b3faab49b",
+ "user sha": "19e940dbf62e",
+ "usage": {
+  "in": 37181,
+  "out": 18775,
+  "reasoning": 12795,
+  "cached": 37178,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_0b2af126acd5b1b5006ace83b7d66887d189b9276654859666",
+  "request key": "027cbfe4b123"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_debug_dm\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"Authentication credential and response data\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"Authentication data exchanged with the debug authenticator is used to validate debug access. It enters through the DMI data path and the authenticator response can leave through the DMI response.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The authenticator response is exposed in dmi_rsp_o.data at line 610 after DMI data enters the authenticator at line 740, so authentication data can be disclosed. DMI data and the authenticator write control can modify the credential or authenticator state through lines 738, 740 and 748 under the black-box instance rule. The authentication result gates DMI access and hart-control outputs at lines 212, 213, 500 and 505, so changing the credential can block debug operation.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could read the authentication response through DMI or overwrite authentication data so that debug access is accepted improperly or remains unavailable.\",\n      \"Enters Through\": [\n        \"dmi_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"dmi_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        740\n      ],\n      \"Held Lines\": [\n        740,\n        741\n      ],\n      \"Exit Lines\": [\n        610\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"Debug authentication state\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"The authenticator's valid state records whether debug access has been authenticated and controls access to protected debug functions. It is generated inside the authenticator and reported in the DMI status response.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Under the black-box rule, DMI authentication data can influence the authenticator output auth.valid at line 745, allowing the authentication state to be changed. auth.valid gates authenticated reads, writes, hart halt requests and reset control at lines 212, 213, 500 and 505, so an invalid or falsely valid state can block or improperly enable debug operation.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could manipulate the authenticator interaction to force auth.valid low and deny debug access or force it high and bypass authentication.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"dmi_rsp_o.data\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        745\n      ],\n      \"Exit Lines\": [\n        549\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"Debug-module activation state\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"The activation setting determines whether the debug module is active and whether its controller, hart controls and authenticator are enabled. It is stored as dmactive state and can be read back.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"DMI writes can modify the activation state at lines 432 and 433, and the state is returned at line 569, so unauthorized changes can alter the module configuration. Clearing activation resets or suppresses controller operation at lines 229 through 236 and gates external debug controls at lines 500 and 505.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could clear the activation state to disable debug servicing or set it unexpectedly to expose debug controls.\",\n      \"Enters Through\": [\n        \"dmi_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"dmi_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        433\n      ],\n      \"Held Lines\": [\n        399,\n        433\n      ],\n      \"Exit Lines\": [\n        569\n      ]\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"Selected hart target\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"The selected-hart setting identifies which hart receives halt, resume or reset operations and whose status is reported. The selected value is also returned by the DMI control readback.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"DMI data writes the hart selection at line 429 and the decode at line 487 directs operations to selected harts, so an unauthorized change can target the wrong hart. The selection controls resume, reset, halt and command legality at lines 266, 366, 377, 384, 500 and 505, so an invalid or wrong selection can prevent a required operation.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could change the selected hart so a halt, resume or reset command affects a different hart or no hart.\",\n      \"Enters Through\": [\n        \"dmi_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"dmi_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        429\n      ],\n      \"Held Lines\": [\n        410,\n        429\n      ],\n      \"Exit Lines\": [\n        562\n      ]\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"Hart halt request\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"The halt request asks the selected hart to enter debug halt and is emitted on halt_req_o when the module is active and authenticated.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The request is writable from DMI data at line 426 and drives halt_req_o at line 500, so it can be modified by an unauthorized debug write. Asserted or suppressed halt control can stop a hart or prevent a required debug halt, threatening availability.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could assert halt_req_o to stop a selected hart or suppress it so a required debug halt never occurs.\",\n      \"Enters Through\": [\n        \"dmi_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"halt_req_o\"\n      ],\n      \"Entry Lines\": [\n        426\n      ],\n      \"Held Lines\": [\n        407,\n        426\n      ],\n      \"Exit Lines\": [\n        500\n      ]\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Concept Name\": \"Hart resume request\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"The resume request causes the selected hart to leave debug halt and is held until the corresponding resume transaction is acknowledged. Its pending request is visible on the debug bus response.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"DMI writes the resume request at line 427 and the held request is set and cleared at lines 366 through 369, so it can be changed by an unauthorized write. The request is emitted through dci.req_res at line 501 and a missing or spurious request can leave a hart halted or resume it unexpectedly.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could suppress a resume request to keep a hart halted or inject one to resume a hart at the wrong time.\",\n      \"Enters Through\": [\n        \"dmi_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        427\n      ],\n      \"Held Lines\": [\n        408,\n        417,\n        427,\n        348,\n        365,\n        367,\n        369\n      ],\n      \"Exit Lines\": [\n        699\n      ]\n    },\n    {\n      \"Concept ID\": \"C7\",\n      \"Concept Name\": \"Non-debug hart reset control\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"The non-debug-reset setting controls the external hart reset request and clears the module's tracked hart lifecycle state. It is stored from DMI control data and drives ndmrstn_o.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"DMI data writes the reset setting at line 430 and ndmrstn_o is driven from it at line 505, so an unauthorized write can change reset behavior. The setting resets or clears tracked hart states at lines 355, 364, 373 and 382 and can hold harts in reset through line 505, threatening availability.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could assert the reset control to repeatedly reset harts or clear it when a reset is required.\",\n      \"Enters Through\": [\n        \"dmi_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"ndmrstn_o\"\n      ],\n      \"Entry Lines\": [\n        430\n      ],\n      \"Held Lines\": [\n        398,\n        430\n      ],\n      \"Exit Lines\": [\n        505\n      ]\n    },\n    {\n      \"Concept ID\": \"C8\",\n      \"Concept Name\": \"Hart reset acknowledgment control\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"The reset-acknowledgment setting tells the module that the selected hart reset has been acknowledged and clears the corresponding internal reset status. It has no output carrying the setting itself.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"DMI data writes reset_ack at line 428 and the setting controls clearing of hart_reset at lines 384 and 385, so unauthorized modification can falsify reset acknowledgment and status.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could acknowledge a reset without the hart being ready, causing the module to report an incorrect reset state.\",\n      \"Enters Through\": [\n        \"dmi_req_i.data\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        428\n      ],\n      \"Held Lines\": [\n        409,\n        418,\n        428\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C9\",\n      \"Concept Name\": \"Abstract debug command\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"The abstract command specifies a debug operation to execute on a selected halted hart, including the operation's register and program-buffer behavior. It is consumed by the internal command controller rather than carried unchanged to an output port.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"DMI data is stored as the command at line 439 and command fields select validation, generated instructions and execution at lines 261 through 298, so an unauthorized command write can change the operation. The controller can enter an error state or issue a hart execution request at lines 267 through 274 and 298, allowing commands to block or disrupt debug operation.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could inject an invalid or unintended abstract command to corrupt a debug operation or keep the controller from servicing later commands.\",\n      \"Enters Through\": [\n        \"dmi_req_i.data\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        439\n      ],\n      \"Held Lines\": [\n        404,\n        439\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C10\",\n      \"Concept Name\": \"Debug program-buffer instructions\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"The program buffer holds instructions supplied for execution during an abstract debug operation. The instructions are returned through the debug bus as the CPU-visible program buffer.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Program-buffer contents written through dmi_req_i.data at lines 465 and 470 are exposed through bus_rsp_o.data at line 694, so the instructions can be observed. The same writes can modify the instructions that are later returned to the CPU, threatening their integrity.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could read the program buffer over the debug bus or replace instructions so an abstract operation executes unintended code.\",\n      \"Enters Through\": [\n        \"dmi_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        465,\n        470\n      ],\n      \"Held Lines\": [\n        405,\n        465,\n        470\n      ],\n      \"Exit Lines\": [\n        694\n      ]\n    },\n    {\n      \"Concept ID\": \"C11\",\n      \"Concept Name\": \"Program-buffer enable control\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"The program-buffer enable decision selects whether supplied program-buffer instructions or NOPs are placed in the CPU-visible buffer. It is derived from the abstract command and held by the controller.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The command-derived enable is stored at line 293 and selects the CPU program-buffer contents at lines 509 and 510, so unauthorized modification can change which instructions are used. Disabling or falsely enabling the path can withhold the required program-buffer operation or substitute NOPs.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could clear the enable to suppress a required debug program or assert it to execute unintended buffered instructions.\",\n      \"Enters Through\": [\n        \"dmi_req_i.data\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        293,\n        439\n      ],\n      \"Held Lines\": [\n        224,\n        233,\n        293\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C12\",\n      \"Concept Name\": \"Abstract data register contents\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"The data register holds the data exchanged by abstract debug accesses between the DMI side and the CPU bus side. Its contents can be written from either input data path and returned on either response path.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The data register can contain values from dmi_req_i.data and bus_req_i.data at lines 666 and 668 and is returned on dmi_rsp_o.data and bus_rsp_o.data at lines 605 and 696, so sensitive debug or target data can be disclosed. Unauthorized writes at lines 666 and 668 can change the value used by an abstract access.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could read target data from either response interface or overwrite the data register before a debug load or store completes.\",\n      \"Enters Through\": [\n        \"dmi_req_i.data\",\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"dmi_rsp_o.data\",\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        666,\n        668\n      ],\n      \"Held Lines\": [\n        654,\n        666,\n        668\n      ],\n      \"Exit Lines\": [\n        605,\n        696\n      ]\n    },\n    {\n      \"Concept ID\": \"C13\",\n      \"Concept Name\": \"Automatic debug-execution settings\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"The auto-execution settings cause accesses to the data register or program buffer to trigger another abstract command automatically. They are stored configuration bits and are returned by DMI reads.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"DMI writes the auto-execution bits at lines 444 through 446 and they are read back at lines 597 through 599, so unauthorized writes can alter the configuration. The settings trigger command-controller activity through lines 450 through 452 and 635 through 639, allowing an attacker to cause unwanted operations or repeatedly occupy the controller.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could enable auto-execution on a register access to inject unintended commands or disable it so required automatic operations never start.\",\n      \"Enters Through\": [\n        \"dmi_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"dmi_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        444,\n        445,\n        446\n      ],\n      \"Held Lines\": [\n        401,\n        402,\n        444,\n        445,\n        446\n      ],\n      \"Exit Lines\": [\n        597,\n        598,\n        599\n      ]\n    },\n    {\n      \"Concept ID\": \"C14\",\n      \"Concept Name\": \"Per-hart halted state\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"The halted-state vector records which harts have acknowledged a halt or resume event and determines whether an abstract command is legal. It is reported through DMI status and halt-summary data.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The state is changed by halt and resume acknowledgments at lines 356, 358 and 360 and is exposed in DMI status at lines 542 through 545 and 615, so an unauthorized event or state change can falsify it. The controller requires a selected hart to be halted at line 266, so a false state can block a command or allow one at the wrong time.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could cause the module to report a hart as halted or running incorrectly, blocking valid commands or permitting an operation on a running hart.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"dmi_rsp_o.data\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        347,\n        356,\n        358,\n        360\n      ],\n      \"Exit Lines\": [\n        542,\n        543,\n        544,\n        545,\n        615\n      ]\n    },\n    {\n      \"Concept ID\": \"C15\",\n      \"Concept Name\": \"Per-hart resume acknowledgment state\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"The resume-acknowledgment vector records completion of resume requests for selected harts and is returned as debug status. It is generated from hart resume acknowledgments.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The acknowledgment state is set or cleared by resume events and reset control at lines 374 through 378 and is exposed through DMI status at lines 536 and 537, so unauthorized changes can produce an incorrect completion indication.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could falsify the resume acknowledgment so software proceeds as if a hart resumed or waits for an acknowledgment that will not appear.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"dmi_rsp_o.data\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        349,\n        374,\n        376,\n        378\n      ],\n      \"Exit Lines\": [\n        536,\n        537\n      ]\n    },\n    {\n      \"Concept ID\": \"C16\",\n      \"Concept Name\": \"Per-hart reset status\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"The reset-status vector records whether selected harts are in the module's tracked reset condition and is returned in debug status.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The reset-status state is set and cleared by reset control and reset acknowledgment at lines 383 through 385 and is exposed through DMI status at lines 534 and 535, so unauthorized modification can falsify reset status.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could make software believe a hart is reset or released when the reported reset state is wrong.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"dmi_rsp_o.data\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        350,\n        383,\n        385\n      ],\n      \"Exit Lines\": [\n        534,\n        535\n      ]\n    },\n    {\n      \"Concept ID\": \"C17\",\n      \"Concept Name\": \"Debug command error state\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"The command-error state records illegal commands, illegal hart state, execution exceptions and access errors, and controls whether later commands are accepted. It is returned in abstract-command status.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The error state is modified by command validation, exceptions, access errors and clearing at lines 320 through 331, so unauthorized error conditions or clearing can alter it. A nonzero error blocks command storage at line 438 and prevents command progression at lines 251 through 274, while the value is exposed at line 589.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could force a persistent error to deny abstract commands or clear an error to make an invalid operation appear acceptable.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"dmi_rsp_o.data\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        227,\n        236,\n        322,\n        324,\n        326,\n        328,\n        331\n      ],\n      \"Exit Lines\": [\n        589\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"DMI and bus access command fields\",\n      \"Candidate Unit\": \"neorv32_debug_dm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The address, direction, strobe, byte-enable and debug qualifier fields only describe accesses or gate handshake generation under the access-command and handshake-copy rules, as shown at lines 690 through 710.\"\n    },\n    {\n      \"Candidate Name\": \"Controller sequencing state and busy status\",\n      \"Candidate Unit\": \"neorv32_debug_dm\",\n      \"Merged Into\": \"C9\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Generated load/store instruction\",\n      \"Candidate Unit\": \"neorv32_debug_dm\",\n      \"Merged Into\": \"C9\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Hart-selection decode and invalid flag\",\n      \"Candidate Unit\": \"neorv32_debug_dm\",\n      \"Merged Into\": \"C4\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Authentication engine busy status\",\n      \"Candidate Unit\": \"neorv32_debug_dm\",\n      \"Merged Into\": \"C2\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Automatic-execution trigger pulses\",\n      \"Candidate Unit\": \"neorv32_debug_dm\",\n      \"Merged Into\": \"C13\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Access-error and illegal-operation cause bits\",\n      \"Candidate Unit\": \"neorv32_debug_dm\",\n      \"Merged Into\": \"C17\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"DMI and bus handshake acknowledgments\",\n      \"Candidate Unit\": \"neorv32_debug_dm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The response acknowledge fields repeat the request operation and the bus error is tied to a constant at lines 524, 661 and 662, so they are handshake information rather than independent assets.\"\n    },\n    {\n      \"Candidate Name\": \"Fixed debug ROM contents\",\n      \"Candidate Unit\": \"neorv32_debug_dm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The ROM is a build-time constant at lines 149 through 182 and is neither secret nor modifiable by an RTL element, although it is returned at line 692.\"\n    },\n    {\n      \"Candidate Name\": \"Clock, reset and reset-chain information\",\n      \"Candidate Unit\": \"neorv32_debug_dm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"Clock and reset inputs and the reset-chain output are excluded by the clock and reset rule; they only time, reset or pass reset behavior at lines 28, 29, 505 and 652.\"\n    },\n    {\n      \"Candidate Name\": \"Build-time hart-count and authenticator options\",\n      \"Candidate Unit\": \"neorv32_debug_dm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"NUM_HARTS and AUTHENTICATOR only select generated structure at lines 22 through 24 and cannot be changed or withheld at run time.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_debug_dm",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_debug_dm",
+    "concept": "Authentication credential and response data",
+    "information": "Authentication data exchanged with the debug authenticator is used to validate debug access. It enters through the DMI data path and the authenticator response can leave through the DMI response.",
+    "rubric reason": "The authenticator response is exposed in dmi_rsp_o.data at line 610 after DMI data enters the authenticator at line 740, so authentication data can be disclosed. DMI data and the authenticator write control can modify the credential or authenticator state through lines 738, 740 and 748 under the black-box instance rule. The authentication result gates DMI access and hart-control outputs at lines 212, 213, 500 and 505, so changing the credential can block debug operation.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could read the authentication response through DMI or overwrite authentication data so that debug access is accepted improperly or remains unavailable.",
+    "enters through": [
+     "dmi_req_i.data"
+    ],
+    "leaves through": [
+     "dmi_rsp_o.data"
+    ],
+    "entry lines": [
+     740
+    ],
+    "held lines": [
+     740,
+     741
+    ],
+    "exit lines": [
+     610
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_debug_dm",
+    "concept": "Debug authentication state",
+    "information": "The authenticator's valid state records whether debug access has been authenticated and controls access to protected debug functions. It is generated inside the authenticator and reported in the DMI status response.",
+    "rubric reason": "Under the black-box rule, DMI authentication data can influence the authenticator output auth.valid at line 745, allowing the authentication state to be changed. auth.valid gates authenticated reads, writes, hart halt requests and reset control at lines 212, 213, 500 and 505, so an invalid or falsely valid state can block or improperly enable debug operation.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could manipulate the authenticator interaction to force auth.valid low and deny debug access or force it high and bypass authentication.",
+    "enters through": [],
+    "leaves through": [
+     "dmi_rsp_o.data"
+    ],
+    "entry lines": [],
+    "held lines": [
+     745
+    ],
+    "exit lines": [
+     549
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_debug_dm",
+    "concept": "Debug-module activation state",
+    "information": "The activation setting determines whether the debug module is active and whether its controller, hart controls and authenticator are enabled. It is stored as dmactive state and can be read back.",
+    "rubric reason": "DMI writes can modify the activation state at lines 432 and 433, and the state is returned at line 569, so unauthorized changes can alter the module configuration. Clearing activation resets or suppresses controller operation at lines 229 through 236 and gates external debug controls at lines 500 and 505.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could clear the activation state to disable debug servicing or set it unexpectedly to expose debug controls.",
+    "enters through": [
+     "dmi_req_i.data"
+    ],
+    "leaves through": [
+     "dmi_rsp_o.data"
+    ],
+    "entry lines": [
+     433
+    ],
+    "held lines": [
+     399,
+     433
+    ],
+    "exit lines": [
+     569
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_debug_dm",
+    "concept": "Selected hart target",
+    "information": "The selected-hart setting identifies which hart receives halt, resume or reset operations and whose status is reported. The selected value is also returned by the DMI control readback.",
+    "rubric reason": "DMI data writes the hart selection at line 429 and the decode at line 487 directs operations to selected harts, so an unauthorized change can target the wrong hart. The selection controls resume, reset, halt and command legality at lines 266, 366, 377, 384, 500 and 505, so an invalid or wrong selection can prevent a required operation.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could change the selected hart so a halt, resume or reset command affects a different hart or no hart.",
+    "enters through": [
+     "dmi_req_i.data"
+    ],
+    "leaves through": [
+     "dmi_rsp_o.data"
+    ],
+    "entry lines": [
+     429
+    ],
+    "held lines": [
+     410,
+     429
+    ],
+    "exit lines": [
+     562
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_debug_dm",
+    "concept": "Hart halt request",
+    "information": "The halt request asks the selected hart to enter debug halt and is emitted on halt_req_o when the module is active and authenticated.",
+    "rubric reason": "The request is writable from DMI data at line 426 and drives halt_req_o at line 500, so it can be modified by an unauthorized debug write. Asserted or suppressed halt control can stop a hart or prevent a required debug halt, threatening availability.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could assert halt_req_o to stop a selected hart or suppress it so a required debug halt never occurs.",
+    "enters through": [
+     "dmi_req_i.data"
+    ],
+    "leaves through": [
+     "halt_req_o"
+    ],
+    "entry lines": [
+     426
+    ],
+    "held lines": [
+     407,
+     426
+    ],
+    "exit lines": [
+     500
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C6",
+    "unit": "neorv32_debug_dm",
+    "concept": "Hart resume request",
+    "information": "The resume request causes the selected hart to leave debug halt and is held until the corresponding resume transaction is acknowledged. Its pending request is visible on the debug bus response.",
+    "rubric reason": "DMI writes the resume request at line 427 and the held request is set and cleared at lines 366 through 369, so it can be changed by an unauthorized write. The request is emitted through dci.req_res at line 501 and a missing or spurious request can leave a hart halted or resume it unexpectedly.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could suppress a resume request to keep a hart halted or inject one to resume a hart at the wrong time.",
+    "enters through": [
+     "dmi_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     427
+    ],
+    "held lines": [
+     408,
+     417,
+     427,
+     348,
+     365,
+     367,
+     369
+    ],
+    "exit lines": [
+     699
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C7",
+    "unit": "neorv32_debug_dm",
+    "concept": "Non-debug hart reset control",
+    "information": "The non-debug-reset setting controls the external hart reset request and clears the module's tracked hart lifecycle state. It is stored from DMI control data and drives ndmrstn_o.",
+    "rubric reason": "DMI data writes the reset setting at line 430 and ndmrstn_o is driven from it at line 505, so an unauthorized write can change reset behavior. The setting resets or clears tracked hart states at lines 355, 364, 373 and 382 and can hold harts in reset through line 505, threatening availability.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could assert the reset control to repeatedly reset harts or clear it when a reset is required.",
+    "enters through": [
+     "dmi_req_i.data"
+    ],
+    "leaves through": [
+     "ndmrstn_o"
+    ],
+    "entry lines": [
+     430
+    ],
+    "held lines": [
+     398,
+     430
+    ],
+    "exit lines": [
+     505
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C8",
+    "unit": "neorv32_debug_dm",
+    "concept": "Hart reset acknowledgment control",
+    "information": "The reset-acknowledgment setting tells the module that the selected hart reset has been acknowledged and clears the corresponding internal reset status. It has no output carrying the setting itself.",
+    "rubric reason": "DMI data writes reset_ack at line 428 and the setting controls clearing of hart_reset at lines 384 and 385, so unauthorized modification can falsify reset acknowledgment and status.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could acknowledge a reset without the hart being ready, causing the module to report an incorrect reset state.",
+    "enters through": [
+     "dmi_req_i.data"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     428
+    ],
+    "held lines": [
+     409,
+     418,
+     428
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C9",
+    "unit": "neorv32_debug_dm",
+    "concept": "Abstract debug command",
+    "information": "The abstract command specifies a debug operation to execute on a selected halted hart, including the operation's register and program-buffer behavior. It is consumed by the internal command controller rather than carried unchanged to an output port.",
+    "rubric reason": "DMI data is stored as the command at line 439 and command fields select validation, generated instructions and execution at lines 261 through 298, so an unauthorized command write can change the operation. The controller can enter an error state or issue a hart execution request at lines 267 through 274 and 298, allowing commands to block or disrupt debug operation.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could inject an invalid or unintended abstract command to corrupt a debug operation or keep the controller from servicing later commands.",
+    "enters through": [
+     "dmi_req_i.data"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     439
+    ],
+    "held lines": [
+     404,
+     439
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C10",
+    "unit": "neorv32_debug_dm",
+    "concept": "Debug program-buffer instructions",
+    "information": "The program buffer holds instructions supplied for execution during an abstract debug operation. The instructions are returned through the debug bus as the CPU-visible program buffer.",
+    "rubric reason": "Program-buffer contents written through dmi_req_i.data at lines 465 and 470 are exposed through bus_rsp_o.data at line 694, so the instructions can be observed. The same writes can modify the instructions that are later returned to the CPU, threatening their integrity.",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "attack": "An attacker could read the program buffer over the debug bus or replace instructions so an abstract operation executes unintended code.",
+    "enters through": [
+     "dmi_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     465,
+     470
+    ],
+    "held lines": [
+     405,
+     465,
+     470
+    ],
+    "exit lines": [
+     694
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C11",
+    "unit": "neorv32_debug_dm",
+    "concept": "Program-buffer enable control",
+    "information": "The program-buffer enable decision selects whether supplied program-buffer instructions or NOPs are placed in the CPU-visible buffer. It is derived from the abstract command and held by the controller.",
+    "rubric reason": "The command-derived enable is stored at line 293 and selects the CPU program-buffer contents at lines 509 and 510, so unauthorized modification can change which instructions are used. Disabling or falsely enabling the path can withhold the required program-buffer operation or substitute NOPs.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could clear the enable to suppress a required debug program or assert it to execute unintended buffered instructions.",
+    "enters through": [
+     "dmi_req_i.data"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     293,
+     439
+    ],
+    "held lines": [
+     224,
+     233,
+     293
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C12",
+    "unit": "neorv32_debug_dm",
+    "concept": "Abstract data register contents",
+    "information": "The data register holds the data exchanged by abstract debug accesses between the DMI side and the CPU bus side. Its contents can be written from either input data path and returned on either response path.",
+    "rubric reason": "The data register can contain values from dmi_req_i.data and bus_req_i.data at lines 666 and 668 and is returned on dmi_rsp_o.data and bus_rsp_o.data at lines 605 and 696, so sensitive debug or target data can be disclosed. Unauthorized writes at lines 666 and 668 can change the value used by an abstract access.",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "attack": "An attacker could read target data from either response interface or overwrite the data register before a debug load or store completes.",
+    "enters through": [
+     "dmi_req_i.data",
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "dmi_rsp_o.data",
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     666,
+     668
+    ],
+    "held lines": [
+     654,
+     666,
+     668
+    ],
+    "exit lines": [
+     605,
+     696
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C13",
+    "unit": "neorv32_debug_dm",
+    "concept": "Automatic debug-execution settings",
+    "information": "The auto-execution settings cause accesses to the data register or program buffer to trigger another abstract command automatically. They are stored configuration bits and are returned by DMI reads.",
+    "rubric reason": "DMI writes the auto-execution bits at lines 444 through 446 and they are read back at lines 597 through 599, so unauthorized writes can alter the configuration. The settings trigger command-controller activity through lines 450 through 452 and 635 through 639, allowing an attacker to cause unwanted operations or repeatedly occupy the controller.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could enable auto-execution on a register access to inject unintended commands or disable it so required automatic operations never start.",
+    "enters through": [
+     "dmi_req_i.data"
+    ],
+    "leaves through": [
+     "dmi_rsp_o.data"
+    ],
+    "entry lines": [
+     444,
+     445,
+     446
+    ],
+    "held lines": [
+     401,
+     402,
+     444,
+     445,
+     446
+    ],
+    "exit lines": [
+     597,
+     598,
+     599
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C14",
+    "unit": "neorv32_debug_dm",
+    "concept": "Per-hart halted state",
+    "information": "The halted-state vector records which harts have acknowledged a halt or resume event and determines whether an abstract command is legal. It is reported through DMI status and halt-summary data.",
+    "rubric reason": "The state is changed by halt and resume acknowledgments at lines 356, 358 and 360 and is exposed in DMI status at lines 542 through 545 and 615, so an unauthorized event or state change can falsify it. The controller requires a selected hart to be halted at line 266, so a false state can block a command or allow one at the wrong time.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could cause the module to report a hart as halted or running incorrectly, blocking valid commands or permitting an operation on a running hart.",
+    "enters through": [],
+    "leaves through": [
+     "dmi_rsp_o.data"
+    ],
+    "entry lines": [],
+    "held lines": [
+     347,
+     356,
+     358,
+     360
+    ],
+    "exit lines": [
+     542,
+     543,
+     544,
+     545,
+     615
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C15",
+    "unit": "neorv32_debug_dm",
+    "concept": "Per-hart resume acknowledgment state",
+    "information": "The resume-acknowledgment vector records completion of resume requests for selected harts and is returned as debug status. It is generated from hart resume acknowledgments.",
+    "rubric reason": "The acknowledgment state is set or cleared by resume events and reset control at lines 374 through 378 and is exposed through DMI status at lines 536 and 537, so unauthorized changes can produce an incorrect completion indication.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could falsify the resume acknowledgment so software proceeds as if a hart resumed or waits for an acknowledgment that will not appear.",
+    "enters through": [],
+    "leaves through": [
+     "dmi_rsp_o.data"
+    ],
+    "entry lines": [],
+    "held lines": [
+     349,
+     374,
+     376,
+     378
+    ],
+    "exit lines": [
+     536,
+     537
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C16",
+    "unit": "neorv32_debug_dm",
+    "concept": "Per-hart reset status",
+    "information": "The reset-status vector records whether selected harts are in the module's tracked reset condition and is returned in debug status.",
+    "rubric reason": "The reset-status state is set and cleared by reset control and reset acknowledgment at lines 383 through 385 and is exposed through DMI status at lines 534 and 535, so unauthorized modification can falsify reset status.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could make software believe a hart is reset or released when the reported reset state is wrong.",
+    "enters through": [],
+    "leaves through": [
+     "dmi_rsp_o.data"
+    ],
+    "entry lines": [],
+    "held lines": [
+     350,
+     383,
+     385
+    ],
+    "exit lines": [
+     534,
+     535
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C17",
+    "unit": "neorv32_debug_dm",
+    "concept": "Debug command error state",
+    "information": "The command-error state records illegal commands, illegal hart state, execution exceptions and access errors, and controls whether later commands are accepted. It is returned in abstract-command status.",
+    "rubric reason": "The error state is modified by command validation, exceptions, access errors and clearing at lines 320 through 331, so unauthorized error conditions or clearing can alter it. A nonzero error blocks command storage at line 438 and prevents command progression at lines 251 through 274, while the value is exposed at line 589.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could force a persistent error to deny abstract commands or clear an error to make an invalid operation appear acceptable.",
+    "enters through": [],
+    "leaves through": [
+     "dmi_rsp_o.data"
+    ],
+    "entry lines": [],
+    "held lines": [
+     227,
+     236,
+     322,
+     324,
+     326,
+     328,
+     331
+    ],
+    "exit lines": [
+     589
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_debug_dm",
+    "concept": "DMI and bus access command fields",
+    "reason": "The address, direction, strobe, byte-enable and debug qualifier fields only describe accesses or gate handshake generation under the access-command and handshake-copy rules, as shown at lines 690 through 710.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_debug_dm",
+    "concept": "Controller sequencing state and busy status",
+    "reason": "merged into C9",
+    "merged into": "C9"
+   },
+   {
+    "unit": "neorv32_debug_dm",
+    "concept": "Generated load/store instruction",
+    "reason": "merged into C9",
+    "merged into": "C9"
+   },
+   {
+    "unit": "neorv32_debug_dm",
+    "concept": "Hart-selection decode and invalid flag",
+    "reason": "merged into C4",
+    "merged into": "C4"
+   },
+   {
+    "unit": "neorv32_debug_dm",
+    "concept": "Authentication engine busy status",
+    "reason": "merged into C2",
+    "merged into": "C2"
+   },
+   {
+    "unit": "neorv32_debug_dm",
+    "concept": "Automatic-execution trigger pulses",
+    "reason": "merged into C13",
+    "merged into": "C13"
+   },
+   {
+    "unit": "neorv32_debug_dm",
+    "concept": "Access-error and illegal-operation cause bits",
+    "reason": "merged into C17",
+    "merged into": "C17"
+   },
+   {
+    "unit": "neorv32_debug_dm",
+    "concept": "DMI and bus handshake acknowledgments",
+    "reason": "The response acknowledge fields repeat the request operation and the bus error is tied to a constant at lines 524, 661 and 662, so they are handshake information rather than independent assets.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_debug_dm",
+    "concept": "Fixed debug ROM contents",
+    "reason": "The ROM is a build-time constant at lines 149 through 182 and is neither secret nor modifiable by an RTL element, although it is returned at line 692.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_debug_dm",
+    "concept": "Clock, reset and reset-chain information",
+    "reason": "Clock and reset inputs and the reset-chain output are excluded by the clock and reset rule; they only time, reset or pass reset behavior at lines 28, 29, 505 and 652.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_debug_dm",
+    "concept": "Build-time hart-count and authenticator options",
+    "reason": "NUM_HARTS and AUTHENTICATOR only select generated structure at lines 22 through 24 and cannot be changed or withheld at run time.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

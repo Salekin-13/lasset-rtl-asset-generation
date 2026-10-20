@@ -1,0 +1,544 @@
+{
+ "module": "neorv32_debug_dm",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "be3b3faab49b",
+ "user sha": "19e940dbf62e",
+ "usage": {
+  "in": 37181,
+  "out": 16992,
+  "reasoning": 12430,
+  "cached": 37178,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_0552d12335b25ada006ace83b7e87087d191af792f7bca28ca",
+  "request key": "027cbfe4b123"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_debug_dm\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"Authentication exchange data\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"Authentication challenge, response, or credential data processed by the optional debug authenticator; debug access depends on this exchange when AUTHENTICATOR is enabled.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality is at risk because dmi_req_i.data enters the authenticator at line 740 and authenticator response data is exposed through dmi_rsp_o.data at line 610. Integrity is at risk because the DMI write data at line 740 can change the authenticator's processed authentication data or state.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could observe authentication response data or inject altered authentication data through the DMI write path.\",\n      \"Enters Through\": [\n        \"dmi_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"dmi_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        740\n      ],\n      \"Held Lines\": [\n        740,\n        741\n      ],\n      \"Exit Lines\": [\n        610\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"Debug authentication and authorization state\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"The authenticator's valid and busy state determines whether debug accesses and hart-control outputs are permitted.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality is at risk because auth.valid and auth.busy are returned in dmi_rsp_o.data at lines 549-550. Integrity is at risk because the black-box authenticator receives authentication writes at line 740 and produces auth.valid at line 745. Availability is at risk because auth.valid gates authenticated reads and writes at lines 212-213 and gates halt and reset outputs at lines 500 and 505.\",\n      \"Attack\": \"An attacker could forge or clear the authorization result, causing unauthorized debug access or preventing legitimate debug operations.\",\n      \"Enters Through\": [\n        \"dmi_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"dmi_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        740\n      ],\n      \"Held Lines\": [\n        744,\n        745\n      ],\n      \"Exit Lines\": [\n        549,\n        550\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"Debug-module activation state\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"The dmactive setting enables the debug module and determines whether its command, hart-control, and authenticator functions operate.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because dmi_req_i.data(0) writes dm_reg.dmcontrol_dmactive at line 433, changing the enable state used by the controller and outputs. Availability is at risk because a cleared dmactive resets or disables controller activity at lines 229-236 and gates halt, reset, and authenticator operation at lines 500, 505, and 743.\",\n      \"Attack\": \"An attacker could overwrite dmactive to enable unauthorized debug control or clear it to disable required debug operations.\",\n      \"Enters Through\": [\n        \"dmi_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"dmi_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        433\n      ],\n      \"Held Lines\": [\n        399,\n        433\n      ],\n      \"Exit Lines\": [\n        569\n      ]\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"Selected target hart\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"The stored hart selection identifies which hart receives debug halt, resume, and abstract-command operations.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because dmi_req_i.data writes dm_reg.hartsel at line 429 and hartsel_decode uses it to select a target at line 487. Availability is at risk because an invalid or incorrect selection can prevent command execution at lines 266-274 and steer or suppress hart-control outputs at line 500.\",\n      \"Attack\": \"An attacker could select a different hart or an invalid hart so that debug commands affect the wrong target or remain unavailable.\",\n      \"Enters Through\": [\n        \"dmi_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"dmi_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        429\n      ],\n      \"Held Lines\": [\n        410,\n        429\n      ],\n      \"Exit Lines\": [\n        562\n      ]\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"Hart halt request\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"The stored halt request commands the selected hart to enter debug halt state.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because dmi_req_i.data(31) writes dm_reg.halt_req at line 426 and the value drives halt_req_o at line 500. Availability is at risk because the halt request can be withheld or asserted for the selected hart, directly changing hart operation through halt_req_o at line 500.\",\n      \"Attack\": \"An attacker could alter or suppress the halt request, leaving a hart running during a required debug operation or halting it unexpectedly.\",\n      \"Enters Through\": [\n        \"dmi_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"halt_req_o\"\n      ],\n      \"Entry Lines\": [\n        426\n      ],\n      \"Held Lines\": [\n        407,\n        426\n      ],\n      \"Exit Lines\": [\n        500\n      ]\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Concept Name\": \"Hart resume control state\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"The resume request and acknowledgement state controls and reports resumption of the selected hart.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because dmi_req_i.data(30) writes the resume request at line 427, which controls hart_resume_req and hart_resume_ack at lines 366-378. Availability is at risk because the request can be withheld, cleared, or prevented from completing by the request and acknowledgement conditions at lines 364-378.\",\n      \"Attack\": \"An attacker could inject, clear, or misroute a resume request so a selected hart resumes prematurely or remains halted.\",\n      \"Enters Through\": [\n        \"dmi_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"dmi_rsp_o.data\",\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        427\n      ],\n      \"Held Lines\": [\n        408,\n        427,\n        348,\n        365,\n        367,\n        368,\n        369,\n        349,\n        374,\n        376,\n        378\n      ],\n      \"Exit Lines\": [\n        536,\n        537,\n        699\n      ]\n    },\n    {\n      \"Concept ID\": \"C7\",\n      \"Concept Name\": \"Hart halted state\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"The remembered halted state of each hart determines whether an abstract command is allowed and is reported to the DMI status interface; it has no direct input port because it is produced from hart acknowledgement events.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because bus-derived halt and resume acknowledgements update dm_ctrl.hart_halted at lines 356-360. Availability is at risk because the command controller requires a selected hart to be halted at lines 266-270, and the state is externally observable through status outputs at lines 542-545 and 615.\",\n      \"Attack\": \"An attacker could falsify halt acknowledgements or the stored halted state to permit commands on a running hart or block commands on a halted hart.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"dmi_rsp_o.data\",\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        347,\n        356,\n        358,\n        360\n      ],\n      \"Exit Lines\": [\n        542,\n        543,\n        544,\n        545,\n        615\n      ]\n    },\n    {\n      \"Concept ID\": \"C8\",\n      \"Concept Name\": \"Abstract debug command\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"The stored abstract command specifies the debug operation and operands or target register used when executing an operation on a halted hart; it is consumed internally and has no direct output port.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because authenticated DMI data is stored as dm_reg.command at line 439 and its fields determine command validation and generated execution at lines 261-294. Availability is at risk because command acceptance and execution are gated by dm_ctrl.cmderr, busy, and controller state at lines 251-256 and 438.\",\n      \"Attack\": \"An attacker could alter an accepted command to access the wrong hart register or issue a command that causes debug execution to fail or remain blocked.\",\n      \"Enters Through\": [\n        \"dmi_req_i.data\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        439\n      ],\n      \"Held Lines\": [\n        404,\n        439\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C9\",\n      \"Concept Name\": \"Debug execution instructions\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"The writable program-buffer instructions and controller-generated load/store instruction form the code executed during abstract debug operations; the resulting instruction words can also be returned on the bus response.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality is at risk because program-buffer instructions are exposed through bus_rsp_o.data at line 694. Integrity is at risk because DMI data writes dm_reg.progbuf at lines 465 and 470 and command fields generate execution instructions at lines 281-291. Availability is at risk because pbuf_en controls whether the program-buffer words are used at lines 509-510 and the controller can replace or withhold the execution sequence.\",\n      \"Attack\": \"An attacker could read debug instructions or replace them with instructions that execute an unintended operation or prevent the abstract command from completing.\",\n      \"Enters Through\": [\n        \"dmi_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        465,\n        470\n      ],\n      \"Held Lines\": [\n        405,\n        465,\n        470,\n        222,\n        231,\n        281,\n        282,\n        283,\n        284,\n        286,\n        287,\n        288,\n        291,\n        508,\n        509,\n        510\n      ],\n      \"Exit Lines\": [\n        694\n      ]\n    },\n    {\n      \"Concept ID\": \"C10\",\n      \"Concept Name\": \"Program-buffer execution enable\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"The pbuf enable decision selects whether user program-buffer instructions are inserted into the debug execution sequence; it has no direct output because it only controls that internal selection.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because a command bit is stored into dm_ctrl.pbuf_en at line 293 and controls the instruction selection at lines 509-510. Availability is at risk because changing this enable can suppress the program-buffer portion of an abstract operation or force the alternate instruction path.\",\n      \"Attack\": \"An attacker could change the enable decision so a debug operation executes unintended instructions or omits required program-buffer steps.\",\n      \"Enters Through\": [\n        \"dmi_req_i.data\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        293\n      ],\n      \"Held Lines\": [\n        224,\n        233,\n        293\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C11\",\n      \"Concept Name\": \"Debug data register contents\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"The data register holds the payload transferred between DMI abstract accesses and the debug bus, including data read from or written to a hart or debug memory.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality is at risk because the stored data is returned through dmi_rsp_o.data and bus_rsp_o.data at lines 605 and 696. Integrity is at risk because dci.data_reg is overwritten from DMI and bus input data at lines 666-668. Availability is at risk because authenticated and busy/access conditions can withhold data transfers and return data only through the gated read paths at lines 604-605 and 689-696.\",\n      \"Attack\": \"An attacker could overwrite the data payload, read sensitive transferred data, or prevent a required debug data transfer from completing.\",\n      \"Enters Through\": [\n        \"dmi_req_i.data\",\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"dmi_rsp_o.data\",\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        666,\n        668\n      ],\n      \"Held Lines\": [\n        654,\n        666,\n        668\n      ],\n      \"Exit Lines\": [\n        605,\n        696\n      ]\n    },\n    {\n      \"Concept ID\": \"C12\",\n      \"Concept Name\": \"Automatic execution configuration\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"The autoexec settings cause accesses to the data register or program buffer to launch another abstract command automatically, changing the control behavior of subsequent debug accesses.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because DMI data writes the autoexec settings at lines 444-446 and those settings control automatic command initiation at lines 450-452 and 635-638. Availability is at risk because altered settings can unexpectedly trigger commands or suppress required automatic execution, changing controller progress at lines 255-256.\",\n      \"Attack\": \"An attacker could enable or disable automatic execution to cause unintended debug operations or prevent expected accesses from starting.\",\n      \"Enters Through\": [\n        \"dmi_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"dmi_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        444,\n        445,\n        446\n      ],\n      \"Held Lines\": [\n        401,\n        402,\n        444,\n        445,\n        446\n      ],\n      \"Exit Lines\": [\n        597,\n        598,\n        599\n      ]\n    },\n    {\n      \"Concept ID\": \"C13\",\n      \"Concept Name\": \"Debug command error state\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"The command-error state records illegal commands, illegal hart state, exceptions, and access errors, and it controls whether later commands are accepted; it is generated internally rather than entering through a port.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because dm_ctrl.cmderr is set or cleared from command, exception, access-error, and clear conditions at lines 320-331. Availability is at risk because a nonzero error state blocks command storage and changes controller acceptance at lines 251 and 438, while the state is reported through dmi_rsp_o.data at line 589.\",\n      \"Attack\": \"An attacker could induce, clear, or exploit an error state to misreport command status or keep subsequent debug operations blocked.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"dmi_rsp_o.data\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        227,\n        322,\n        324,\n        326,\n        328,\n        331\n      ],\n      \"Exit Lines\": [\n        589\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Controller sequencing state and busy flag\",\n      \"Candidate Unit\": \"neorv32_debug_dm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"dm_ctrl.state and dm_ctrl.busy only sequence and report progress of an abstract operation, so the sequencing-state rule bars them as pieces of their own.\"\n    },\n    {\n      \"Candidate Name\": \"Reset request and reset-chain state\",\n      \"Candidate Unit\": \"neorv32_debug_dm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"dmcontrol_ndmreset, reset_ack, hart_reset, and ndmrstn_o only register, gate, report, or pass a reset request through the reset path, which the reset rule excludes.\"\n    },\n    {\n      \"Candidate Name\": \"DMI and bus handshake metadata\",\n      \"Candidate Unit\": \"neorv32_debug_dm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The request operation, strobe, read/write, byte-enable, acknowledge, and constant error fields are access-command or handshake information covered by the handshake and access-command rules.\"\n    },\n    {\n      \"Candidate Name\": \"Hart-selection decode and invalid indication\",\n      \"Candidate Unit\": \"neorv32_debug_dm\",\n      \"Merged Into\": \"C4\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Authenticator busy indicator\",\n      \"Candidate Unit\": \"neorv32_debug_dm\",\n      \"Merged Into\": \"C2\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Access-error and illegal-command cause flags\",\n      \"Candidate Unit\": \"neorv32_debug_dm\",\n      \"Merged Into\": \"C13\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Resume request forwarding wire\",\n      \"Candidate Unit\": \"neorv32_debug_dm\",\n      \"Merged Into\": \"C6\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Generated execution-buffer copies\",\n      \"Candidate Unit\": \"neorv32_debug_dm\",\n      \"Merged Into\": \"C9\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Execution request pulse\",\n      \"Candidate Unit\": \"neorv32_debug_dm\",\n      \"Merged Into\": \"C8\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Fixed debug instruction ROM\",\n      \"Candidate Unit\": \"neorv32_debug_dm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"code_rom_c is a build-time constant and cannot be changed or withheld by a run-time element of this IP.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_debug_dm",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_debug_dm",
+    "concept": "Authentication exchange data",
+    "information": "Authentication challenge, response, or credential data processed by the optional debug authenticator; debug access depends on this exchange when AUTHENTICATOR is enabled.",
+    "rubric reason": "Confidentiality is at risk because dmi_req_i.data enters the authenticator at line 740 and authenticator response data is exposed through dmi_rsp_o.data at line 610. Integrity is at risk because the DMI write data at line 740 can change the authenticator's processed authentication data or state.",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "attack": "An attacker could observe authentication response data or inject altered authentication data through the DMI write path.",
+    "enters through": [
+     "dmi_req_i.data"
+    ],
+    "leaves through": [
+     "dmi_rsp_o.data"
+    ],
+    "entry lines": [
+     740
+    ],
+    "held lines": [
+     740,
+     741
+    ],
+    "exit lines": [
+     610
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_debug_dm",
+    "concept": "Debug authentication and authorization state",
+    "information": "The authenticator's valid and busy state determines whether debug accesses and hart-control outputs are permitted.",
+    "rubric reason": "Confidentiality is at risk because auth.valid and auth.busy are returned in dmi_rsp_o.data at lines 549-550. Integrity is at risk because the black-box authenticator receives authentication writes at line 740 and produces auth.valid at line 745. Availability is at risk because auth.valid gates authenticated reads and writes at lines 212-213 and gates halt and reset outputs at lines 500 and 505.",
+    "attack": "An attacker could forge or clear the authorization result, causing unauthorized debug access or preventing legitimate debug operations.",
+    "enters through": [
+     "dmi_req_i.data"
+    ],
+    "leaves through": [
+     "dmi_rsp_o.data"
+    ],
+    "entry lines": [
+     740
+    ],
+    "held lines": [
+     744,
+     745
+    ],
+    "exit lines": [
+     549,
+     550
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_debug_dm",
+    "concept": "Debug-module activation state",
+    "information": "The dmactive setting enables the debug module and determines whether its command, hart-control, and authenticator functions operate.",
+    "rubric reason": "Integrity is at risk because dmi_req_i.data(0) writes dm_reg.dmcontrol_dmactive at line 433, changing the enable state used by the controller and outputs. Availability is at risk because a cleared dmactive resets or disables controller activity at lines 229-236 and gates halt, reset, and authenticator operation at lines 500, 505, and 743.",
+    "attack": "An attacker could overwrite dmactive to enable unauthorized debug control or clear it to disable required debug operations.",
+    "enters through": [
+     "dmi_req_i.data"
+    ],
+    "leaves through": [
+     "dmi_rsp_o.data"
+    ],
+    "entry lines": [
+     433
+    ],
+    "held lines": [
+     399,
+     433
+    ],
+    "exit lines": [
+     569
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_debug_dm",
+    "concept": "Selected target hart",
+    "information": "The stored hart selection identifies which hart receives debug halt, resume, and abstract-command operations.",
+    "rubric reason": "Integrity is at risk because dmi_req_i.data writes dm_reg.hartsel at line 429 and hartsel_decode uses it to select a target at line 487. Availability is at risk because an invalid or incorrect selection can prevent command execution at lines 266-274 and steer or suppress hart-control outputs at line 500.",
+    "attack": "An attacker could select a different hart or an invalid hart so that debug commands affect the wrong target or remain unavailable.",
+    "enters through": [
+     "dmi_req_i.data"
+    ],
+    "leaves through": [
+     "dmi_rsp_o.data"
+    ],
+    "entry lines": [
+     429
+    ],
+    "held lines": [
+     410,
+     429
+    ],
+    "exit lines": [
+     562
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_debug_dm",
+    "concept": "Hart halt request",
+    "information": "The stored halt request commands the selected hart to enter debug halt state.",
+    "rubric reason": "Integrity is at risk because dmi_req_i.data(31) writes dm_reg.halt_req at line 426 and the value drives halt_req_o at line 500. Availability is at risk because the halt request can be withheld or asserted for the selected hart, directly changing hart operation through halt_req_o at line 500.",
+    "attack": "An attacker could alter or suppress the halt request, leaving a hart running during a required debug operation or halting it unexpectedly.",
+    "enters through": [
+     "dmi_req_i.data"
+    ],
+    "leaves through": [
+     "halt_req_o"
+    ],
+    "entry lines": [
+     426
+    ],
+    "held lines": [
+     407,
+     426
+    ],
+    "exit lines": [
+     500
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C6",
+    "unit": "neorv32_debug_dm",
+    "concept": "Hart resume control state",
+    "information": "The resume request and acknowledgement state controls and reports resumption of the selected hart.",
+    "rubric reason": "Integrity is at risk because dmi_req_i.data(30) writes the resume request at line 427, which controls hart_resume_req and hart_resume_ack at lines 366-378. Availability is at risk because the request can be withheld, cleared, or prevented from completing by the request and acknowledgement conditions at lines 364-378.",
+    "attack": "An attacker could inject, clear, or misroute a resume request so a selected hart resumes prematurely or remains halted.",
+    "enters through": [
+     "dmi_req_i.data"
+    ],
+    "leaves through": [
+     "dmi_rsp_o.data",
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     427
+    ],
+    "held lines": [
+     408,
+     427,
+     348,
+     365,
+     367,
+     368,
+     369,
+     349,
+     374,
+     376,
+     378
+    ],
+    "exit lines": [
+     536,
+     537,
+     699
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C7",
+    "unit": "neorv32_debug_dm",
+    "concept": "Hart halted state",
+    "information": "The remembered halted state of each hart determines whether an abstract command is allowed and is reported to the DMI status interface; it has no direct input port because it is produced from hart acknowledgement events.",
+    "rubric reason": "Integrity is at risk because bus-derived halt and resume acknowledgements update dm_ctrl.hart_halted at lines 356-360. Availability is at risk because the command controller requires a selected hart to be halted at lines 266-270, and the state is externally observable through status outputs at lines 542-545 and 615.",
+    "attack": "An attacker could falsify halt acknowledgements or the stored halted state to permit commands on a running hart or block commands on a halted hart.",
+    "enters through": [],
+    "leaves through": [
+     "dmi_rsp_o.data",
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [],
+    "held lines": [
+     347,
+     356,
+     358,
+     360
+    ],
+    "exit lines": [
+     542,
+     543,
+     544,
+     545,
+     615
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C8",
+    "unit": "neorv32_debug_dm",
+    "concept": "Abstract debug command",
+    "information": "The stored abstract command specifies the debug operation and operands or target register used when executing an operation on a halted hart; it is consumed internally and has no direct output port.",
+    "rubric reason": "Integrity is at risk because authenticated DMI data is stored as dm_reg.command at line 439 and its fields determine command validation and generated execution at lines 261-294. Availability is at risk because command acceptance and execution are gated by dm_ctrl.cmderr, busy, and controller state at lines 251-256 and 438.",
+    "attack": "An attacker could alter an accepted command to access the wrong hart register or issue a command that causes debug execution to fail or remain blocked.",
+    "enters through": [
+     "dmi_req_i.data"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     439
+    ],
+    "held lines": [
+     404,
+     439
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C9",
+    "unit": "neorv32_debug_dm",
+    "concept": "Debug execution instructions",
+    "information": "The writable program-buffer instructions and controller-generated load/store instruction form the code executed during abstract debug operations; the resulting instruction words can also be returned on the bus response.",
+    "rubric reason": "Confidentiality is at risk because program-buffer instructions are exposed through bus_rsp_o.data at line 694. Integrity is at risk because DMI data writes dm_reg.progbuf at lines 465 and 470 and command fields generate execution instructions at lines 281-291. Availability is at risk because pbuf_en controls whether the program-buffer words are used at lines 509-510 and the controller can replace or withhold the execution sequence.",
+    "attack": "An attacker could read debug instructions or replace them with instructions that execute an unintended operation or prevent the abstract command from completing.",
+    "enters through": [
+     "dmi_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     465,
+     470
+    ],
+    "held lines": [
+     405,
+     465,
+     470,
+     222,
+     231,
+     281,
+     282,
+     283,
+     284,
+     286,
+     287,
+     288,
+     291,
+     508,
+     509,
+     510
+    ],
+    "exit lines": [
+     694
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C10",
+    "unit": "neorv32_debug_dm",
+    "concept": "Program-buffer execution enable",
+    "information": "The pbuf enable decision selects whether user program-buffer instructions are inserted into the debug execution sequence; it has no direct output because it only controls that internal selection.",
+    "rubric reason": "Integrity is at risk because a command bit is stored into dm_ctrl.pbuf_en at line 293 and controls the instruction selection at lines 509-510. Availability is at risk because changing this enable can suppress the program-buffer portion of an abstract operation or force the alternate instruction path.",
+    "attack": "An attacker could change the enable decision so a debug operation executes unintended instructions or omits required program-buffer steps.",
+    "enters through": [
+     "dmi_req_i.data"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     293
+    ],
+    "held lines": [
+     224,
+     233,
+     293
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C11",
+    "unit": "neorv32_debug_dm",
+    "concept": "Debug data register contents",
+    "information": "The data register holds the payload transferred between DMI abstract accesses and the debug bus, including data read from or written to a hart or debug memory.",
+    "rubric reason": "Confidentiality is at risk because the stored data is returned through dmi_rsp_o.data and bus_rsp_o.data at lines 605 and 696. Integrity is at risk because dci.data_reg is overwritten from DMI and bus input data at lines 666-668. Availability is at risk because authenticated and busy/access conditions can withhold data transfers and return data only through the gated read paths at lines 604-605 and 689-696.",
+    "attack": "An attacker could overwrite the data payload, read sensitive transferred data, or prevent a required debug data transfer from completing.",
+    "enters through": [
+     "dmi_req_i.data",
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "dmi_rsp_o.data",
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     666,
+     668
+    ],
+    "held lines": [
+     654,
+     666,
+     668
+    ],
+    "exit lines": [
+     605,
+     696
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C12",
+    "unit": "neorv32_debug_dm",
+    "concept": "Automatic execution configuration",
+    "information": "The autoexec settings cause accesses to the data register or program buffer to launch another abstract command automatically, changing the control behavior of subsequent debug accesses.",
+    "rubric reason": "Integrity is at risk because DMI data writes the autoexec settings at lines 444-446 and those settings control automatic command initiation at lines 450-452 and 635-638. Availability is at risk because altered settings can unexpectedly trigger commands or suppress required automatic execution, changing controller progress at lines 255-256.",
+    "attack": "An attacker could enable or disable automatic execution to cause unintended debug operations or prevent expected accesses from starting.",
+    "enters through": [
+     "dmi_req_i.data"
+    ],
+    "leaves through": [
+     "dmi_rsp_o.data"
+    ],
+    "entry lines": [
+     444,
+     445,
+     446
+    ],
+    "held lines": [
+     401,
+     402,
+     444,
+     445,
+     446
+    ],
+    "exit lines": [
+     597,
+     598,
+     599
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C13",
+    "unit": "neorv32_debug_dm",
+    "concept": "Debug command error state",
+    "information": "The command-error state records illegal commands, illegal hart state, exceptions, and access errors, and it controls whether later commands are accepted; it is generated internally rather than entering through a port.",
+    "rubric reason": "Integrity is at risk because dm_ctrl.cmderr is set or cleared from command, exception, access-error, and clear conditions at lines 320-331. Availability is at risk because a nonzero error state blocks command storage and changes controller acceptance at lines 251 and 438, while the state is reported through dmi_rsp_o.data at line 589.",
+    "attack": "An attacker could induce, clear, or exploit an error state to misreport command status or keep subsequent debug operations blocked.",
+    "enters through": [],
+    "leaves through": [
+     "dmi_rsp_o.data"
+    ],
+    "entry lines": [],
+    "held lines": [
+     227,
+     322,
+     324,
+     326,
+     328,
+     331
+    ],
+    "exit lines": [
+     589
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_debug_dm",
+    "concept": "Controller sequencing state and busy flag",
+    "reason": "dm_ctrl.state and dm_ctrl.busy only sequence and report progress of an abstract operation, so the sequencing-state rule bars them as pieces of their own.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_debug_dm",
+    "concept": "Reset request and reset-chain state",
+    "reason": "dmcontrol_ndmreset, reset_ack, hart_reset, and ndmrstn_o only register, gate, report, or pass a reset request through the reset path, which the reset rule excludes.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_debug_dm",
+    "concept": "DMI and bus handshake metadata",
+    "reason": "The request operation, strobe, read/write, byte-enable, acknowledge, and constant error fields are access-command or handshake information covered by the handshake and access-command rules.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_debug_dm",
+    "concept": "Hart-selection decode and invalid indication",
+    "reason": "merged into C4",
+    "merged into": "C4"
+   },
+   {
+    "unit": "neorv32_debug_dm",
+    "concept": "Authenticator busy indicator",
+    "reason": "merged into C2",
+    "merged into": "C2"
+   },
+   {
+    "unit": "neorv32_debug_dm",
+    "concept": "Access-error and illegal-command cause flags",
+    "reason": "merged into C13",
+    "merged into": "C13"
+   },
+   {
+    "unit": "neorv32_debug_dm",
+    "concept": "Resume request forwarding wire",
+    "reason": "merged into C6",
+    "merged into": "C6"
+   },
+   {
+    "unit": "neorv32_debug_dm",
+    "concept": "Generated execution-buffer copies",
+    "reason": "merged into C9",
+    "merged into": "C9"
+   },
+   {
+    "unit": "neorv32_debug_dm",
+    "concept": "Execution request pulse",
+    "reason": "merged into C8",
+    "merged into": "C8"
+   },
+   {
+    "unit": "neorv32_debug_dm",
+    "concept": "Fixed debug instruction ROM",
+    "reason": "code_rom_c is a build-time constant and cannot be changed or withheld by a run-time element of this IP.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [
+  "format: conceptual asset C2 lacks ['Objectives At Risk']",
+  "format: conceptual asset C3 lacks ['Objectives At Risk']",
+  "format: conceptual asset C4 lacks ['Objectives At Risk']",
+  "format: conceptual asset C5 lacks ['Objectives At Risk']",
+  "format: conceptual asset C6 lacks ['Objectives At Risk']",
+  "format: conceptual asset C7 lacks ['Objectives At Risk']",
+  "format: conceptual asset C8 lacks ['Objectives At Risk']",
+  "format: conceptual asset C9 lacks ['Objectives At Risk']",
+  "format: conceptual asset C10 lacks ['Objectives At Risk']",
+  "format: conceptual asset C11 lacks ['Objectives At Risk']",
+  "format: conceptual asset C12 lacks ['Objectives At Risk']",
+  "format: conceptual asset C13 lacks ['Objectives At Risk']",
+  "C2: objectives None",
+  "C3: objectives None",
+  "C4: objectives None",
+  "C5: objectives None",
+  "C6: objectives None",
+  "C7: objectives None",
+  "C8: objectives None",
+  "C9: objectives None",
+  "C10: objectives None",
+  "C11: objectives None",
+  "C12: objectives None",
+  "C13: objectives None"
+ ],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

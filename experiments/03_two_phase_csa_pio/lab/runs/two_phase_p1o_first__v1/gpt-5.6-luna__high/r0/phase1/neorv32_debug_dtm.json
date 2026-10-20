@@ -1,0 +1,186 @@
+{
+ "module": "neorv32_debug_dtm",
+ "prompt version": "two_phase_p1o_first",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "b4c962e16261",
+ "user sha": "3eab605f16f3",
+ "usage": {
+  "in": 31537,
+  "out": 17791,
+  "reasoning": 16056,
+  "cached": 20474,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_0d8183ab0486d2d1006ad63a7ee7d887d1a996507cf1b4f44b",
+  "request key": "aa534b83b3f8"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_debug_dtm\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"JTAG TAP control command\",\n      \"Unit\": \"neorv32_debug_dtm\",\n      \"Information\": \"The JTAG TMS command controls TAP state transitions and therefore whether the debug transport captures, shifts, updates, or idles. It enters through the JTAG control input and has no direct output port.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because the synchronized TMS input is used to select TAP transitions at lines 101 and 123-138, so altered commands can select an unintended debug operation. Availability is at risk because the same transitions can keep the TAP in reset, pause, or another state that blocks scan transfers at lines 123-138.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker can drive an altered TMS sequence to redirect or indefinitely block JTAG scan transactions.\",\n      \"Enters Through\": [\n        \"jtag_tms_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        101\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"DMI operation selector\",\n      \"Unit\": \"neorv32_debug_dtm\",\n      \"Information\": \"The DMI operation selector identifies whether the received DMI access is a read or write and causes the corresponding operation to be issued on dmi_req_o. The selector is decoded from the JTAG DMI scan data and held in the DMI controller.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because the selector is decoded and stored at lines 268-269 and then drives dmi_req_o.op at line 283, so altered scan bits can turn a read into a write or vice versa. Availability is at risk because only recognized read or write selectors set busy and issue a transaction at lines 268-271, so an altered selector can suppress the DMI request.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker can inject altered DMI operation bits through JTAG to issue an unintended access or prevent a requested access from being sent.\",\n      \"Enters Through\": [\n        \"jtag_tdi_i\"\n      ],\n      \"Leaves Through\": [\n        \"dmi_req_o.op\"\n      ],\n      \"Entry Lines\": [\n        100,\n        111,\n        196,\n        268\n      ],\n      \"Held Lines\": [\n        263,\n        269\n      ],\n      \"Exit Lines\": [\n        283\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"DMI access-error status\",\n      \"Unit\": \"neorv32_debug_dtm\",\n      \"Information\": \"The DMI error status records that a DMI access was attempted while the controller was busy and is returned in the DMI scan result. Debug software depends on it to distinguish a failed or rejected access from a successful one.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because the controller stores and clears the error state at lines 241, 257, and 259, incorporates it into the scan result at line 229, and exposes it through jtag_tdo_o at line 209, so an altered flag can misreport DMI access failure.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker can cause or alter the reported DMI error state so software accepts a rejected access or treats a valid access as failed.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"jtag_tdo_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        241,\n        257,\n        259\n      ],\n      \"Exit Lines\": [\n        209\n      ]\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"DMI busy lock\",\n      \"Unit\": \"neorv32_debug_dtm\",\n      \"Information\": \"The DMI busy state records that one DMI transaction is in progress and prevents another DMI request from being accepted until an acknowledgement arrives. It is internal state with no direct entry or exit port.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because busy is set and cleared by controller logic at lines 270 and 276, so unauthorized alteration can permit overlapping requests or release a transaction early. Availability is at risk because the busy test gates acceptance of new DMI requests at lines 250 and 264-270, so a stuck busy state can block the debug transport.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker can keep the busy lock asserted to deny subsequent DMI accesses or clear it early to corrupt transaction sequencing.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        237,\n        270,\n        276\n      ],\n      \"Exit Lines\": []\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"DMI address and forwarded data\",\n      \"Candidate Unit\": \"neorv32_debug_dtm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The address, write data, and returned data are staged portions of a forwarded test/debug access, so the forwarded-access-stage rule bars them as information of this unit.\"\n    },\n    {\n      \"Candidate Name\": \"JTAG instruction selection\",\n      \"Candidate Unit\": \"neorv32_debug_dtm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The instruction register only selects what the debug ports deliver and is not a spared debug register, so the debug-module-register rule bars it as a separate piece.\"\n    },\n    {\n      \"Candidate Name\": \"DTM control and reset settings\",\n      \"Candidate Unit\": \"neorv32_debug_dtm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The DTMCS settings and their registered copies only control or report debug-port behavior, so the debug-module-register rule bars them as independent information.\"\n    },\n    {\n      \"Candidate Name\": \"TAP sequencing state and update pulse\",\n      \"Candidate Unit\": \"neorv32_debug_dtm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"tap_ctrl_state and dr_trigger.valid only sequence or pace scan steps, which the sequencing-state and pacing-pulse rules exclude as concepts of their own.\"\n    },\n    {\n      \"Candidate Name\": \"Synchronizer stages\",\n      \"Candidate Unit\": \"neorv32_debug_dtm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The tap synchronizer registers and wires only resample or copy JTAG inputs, which the working-value and synchronizer-stage rules exclude.\"\n    },\n    {\n      \"Candidate Name\": \"IDCODE and bypass scan contents\",\n      \"Candidate Unit\": \"neorv32_debug_dtm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"IDCODE is build-time public identification and bypass is forwarded scan data, so neither has a demonstrated confidentiality, integrity, availability, or undermined-behavior asset mechanism.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_debug_dtm",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_debug_dtm",
+    "concept": "JTAG TAP control command",
+    "information": "The JTAG TMS command controls TAP state transitions and therefore whether the debug transport captures, shifts, updates, or idles. It enters through the JTAG control input and has no direct output port.",
+    "rubric reason": "Integrity is at risk because the synchronized TMS input is used to select TAP transitions at lines 101 and 123-138, so altered commands can select an unintended debug operation. Availability is at risk because the same transitions can keep the TAP in reset, pause, or another state that blocks scan transfers at lines 123-138.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker can drive an altered TMS sequence to redirect or indefinitely block JTAG scan transactions.",
+    "enters through": [
+     "jtag_tms_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     101
+    ],
+    "held lines": [],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_debug_dtm",
+    "concept": "DMI operation selector",
+    "information": "The DMI operation selector identifies whether the received DMI access is a read or write and causes the corresponding operation to be issued on dmi_req_o. The selector is decoded from the JTAG DMI scan data and held in the DMI controller.",
+    "rubric reason": "Integrity is at risk because the selector is decoded and stored at lines 268-269 and then drives dmi_req_o.op at line 283, so altered scan bits can turn a read into a write or vice versa. Availability is at risk because only recognized read or write selectors set busy and issue a transaction at lines 268-271, so an altered selector can suppress the DMI request.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker can inject altered DMI operation bits through JTAG to issue an unintended access or prevent a requested access from being sent.",
+    "enters through": [
+     "jtag_tdi_i"
+    ],
+    "leaves through": [
+     "dmi_req_o.op"
+    ],
+    "entry lines": [
+     100,
+     111,
+     196,
+     268
+    ],
+    "held lines": [
+     263,
+     269
+    ],
+    "exit lines": [
+     283
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_debug_dtm",
+    "concept": "DMI access-error status",
+    "information": "The DMI error status records that a DMI access was attempted while the controller was busy and is returned in the DMI scan result. Debug software depends on it to distinguish a failed or rejected access from a successful one.",
+    "rubric reason": "Integrity is at risk because the controller stores and clears the error state at lines 241, 257, and 259, incorporates it into the scan result at line 229, and exposes it through jtag_tdo_o at line 209, so an altered flag can misreport DMI access failure.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker can cause or alter the reported DMI error state so software accepts a rejected access or treats a valid access as failed.",
+    "enters through": [],
+    "leaves through": [
+     "jtag_tdo_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     241,
+     257,
+     259
+    ],
+    "exit lines": [
+     209
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_debug_dtm",
+    "concept": "DMI busy lock",
+    "information": "The DMI busy state records that one DMI transaction is in progress and prevents another DMI request from being accepted until an acknowledgement arrives. It is internal state with no direct entry or exit port.",
+    "rubric reason": "Integrity is at risk because busy is set and cleared by controller logic at lines 270 and 276, so unauthorized alteration can permit overlapping requests or release a transaction early. Availability is at risk because the busy test gates acceptance of new DMI requests at lines 250 and 264-270, so a stuck busy state can block the debug transport.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker can keep the busy lock asserted to deny subsequent DMI accesses or clear it early to corrupt transaction sequencing.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     237,
+     270,
+     276
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_debug_dtm",
+    "concept": "DMI address and forwarded data",
+    "reason": "The address, write data, and returned data are staged portions of a forwarded test/debug access, so the forwarded-access-stage rule bars them as information of this unit.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_debug_dtm",
+    "concept": "JTAG instruction selection",
+    "reason": "The instruction register only selects what the debug ports deliver and is not a spared debug register, so the debug-module-register rule bars it as a separate piece.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_debug_dtm",
+    "concept": "DTM control and reset settings",
+    "reason": "The DTMCS settings and their registered copies only control or report debug-port behavior, so the debug-module-register rule bars them as independent information.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_debug_dtm",
+    "concept": "TAP sequencing state and update pulse",
+    "reason": "tap_ctrl_state and dr_trigger.valid only sequence or pace scan steps, which the sequencing-state and pacing-pulse rules exclude as concepts of their own.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_debug_dtm",
+    "concept": "Synchronizer stages",
+    "reason": "The tap synchronizer registers and wires only resample or copy JTAG inputs, which the working-value and synchronizer-stage rules exclude.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_debug_dtm",
+    "concept": "IDCODE and bypass scan contents",
+    "reason": "IDCODE is build-time public identification and bypass is forwarded scan data, so neither has a demonstrated confidentiality, integrity, availability, or undermined-behavior asset mechanism.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

@@ -1,0 +1,296 @@
+{
+ "module": "neorv32_twi",
+ "prompt version": "two_phase_p1o_first",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "b4c962e16261",
+ "user sha": "d900df202519",
+ "usage": {
+  "in": 33882,
+  "out": 17498,
+  "reasoning": 14797,
+  "cached": 33879,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_0bb9a4f29244cd3c006ad63a55730087d197733f561adda9cb",
+  "request key": "5b2e47ee822a"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_twi\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"TWI enable state\",\n      \"Unit\": \"neorv32_twi\",\n      \"Information\": \"The software-programmable enable state controls whether the TWI block runs, clears its FIFOs, drives the clock-generator enable, and participates in interrupt generation.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because an unchecked bus write changes ctrl.enable at line 136. Availability is at risk because ctrl.enable clears both FIFOs at line 168, gates clock generation at lines 252-265, and drives clkgen_en_o at line 270.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could issue a bus write that clears the enable state, disables clock generation, and clears pending TWI data.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\",\n        \"clkgen_en_o\"\n      ],\n      \"Entry Lines\": [\n        136\n      ],\n      \"Held Lines\": [\n        136\n      ],\n      \"Exit Lines\": [\n        143,\n        270\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"TWI clock-rate configuration\",\n      \"Unit\": \"neorv32_twi\",\n      \"Information\": \"The prescaler and clock-divider settings determine the rate of the generated TWI timing phases, on which serial transfers depend.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because bus writes load ctrl.prsc and ctrl.cdiv at lines 137-138 without an RTL authorization check. Availability is at risk because these settings select clkgen_i and determine counter rollover and tick generation at lines 257-264.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could write an extreme or incorrect prescaler or divider value to alter TWI timing or prevent useful transfer progress.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        137,\n        138\n      ],\n      \"Held Lines\": [\n        137,\n        138\n      ],\n      \"Exit Lines\": [\n        144,\n        145\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"TWI transfer command and acknowledge control\",\n      \"Unit\": \"neorv32_twi\",\n      \"Information\": \"The command and acknowledge-control fields in a transmit FIFO word select the TWI operation and protocol response that the engine performs.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because bus_req_i.data is written into the transmit command path at line 198 and command and acknowledge information is loaded into engine.state and engine.sreg at lines 327-329. Availability is at risk because disabling the block clears the transmit FIFO at line 168 and fifo.tx_re only removes a command when the engine is idle, data is available, and a timing tick occurs at line 199.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could write altered command or acknowledge fields, causing the engine to perform the wrong TWI operation or preventing the intended operation from being served.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        198\n      ],\n      \"Held Lines\": [\n        327,\n        329\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"TWI transmitted byte\",\n      \"Unit\": \"neorv32_twi\",\n      \"Information\": \"The transmit byte supplied by software is serialized onto the TWI SDA data line as part of a commanded transfer.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality is at risk because the supplied byte can be exposed on twi_sda_o through the serialization path at lines 374 and 406. Integrity is at risk because bus_req_i.data supplies the transmit FIFO at line 198 and the engine loads the transmitted bits at line 327. Availability is at risk because ctrl.enable clears the transmit FIFO at line 168 and the transmit-read condition at line 199 can withhold a queued byte.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could alter or clear a queued transmit byte, or observe the resulting SDA waveform, causing incorrect or exposed TWI data.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"twi_sda_o\"\n      ],\n      \"Entry Lines\": [\n        198\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": [\n        374,\n        406\n      ]\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"TWI received byte\",\n      \"Unit\": \"neorv32_twi\",\n      \"Information\": \"The byte sampled from the TWI SDA input is assembled during a transfer and returned to software through the receive-data bus read.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality is at risk because received data is exposed in bus_rsp_o.data at line 156. Integrity is at risk because twi_sda_i enters the sampling path at line 408 and sampled data is incorporated into engine.sreg at line 378 before the receive read. Availability is at risk because disabling the block clears the receive FIFO at line 168 and receive data is only written when engine.done asserts at line 229.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could drive or interfere with SDA samples, clear the receive path, or otherwise cause incorrect or unavailable received data to be returned.\",\n      \"Enters Through\": [\n        \"twi_sda_i\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        408\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": [\n        156\n      ]\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Concept Name\": \"TWI transfer-ready interrupt notification\",\n      \"Unit\": \"neorv32_twi\",\n      \"Information\": \"The interrupt notification indicates that TWI is enabled, the transmit FIFO is empty, and the engine is idle, allowing software to service or start further transfers.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because irq_o is generated from enable, transmit availability, and engine state at line 239, so altered control or status can create a false notification. Availability is at risk because suppressing the notification can prevent software from servicing the empty transmit path and can halt subsequent transfers.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could suppress or falsely assert irq_o, causing software to miss a required transfer service event or act on an incorrect readiness indication.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"irq_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        239\n      ],\n      \"Exit Lines\": [\n        239\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Clock-stretch control and SCL clock state\",\n      \"Candidate Unit\": \"neorv32_twi\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The clock-stretch setting only affects the serial clock timing path at line 296, and twi_scl_i and twi_scl_o are serial-link clock lines excluded by the clocks and resets rule.\"\n    },\n    {\n      \"Candidate Name\": \"Clock generation pacing\",\n      \"Candidate Unit\": \"neorv32_twi\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"clkgen_i only enables the counter and tick progression at lines 257-264, while clk_gen.cnt, clk_gen.tick, and phase signals only pace transfers and are excluded by the pacing-pulse rule.\"\n    },\n    {\n      \"Candidate Name\": \"Engine sequencing state and progress\",\n      \"Candidate Unit\": \"neorv32_twi\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"engine.state, engine.bitcnt, engine.busy, and engine.done only order and report transfer steps at lines 322-401, so sequencing state and its status copies are not pieces of their own.\"\n    },\n    {\n      \"Candidate Name\": \"FIFO fill and buffer status\",\n      \"Candidate Unit\": \"neorv32_twi\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"fifo.tx_avail, fifo.tx_free, and fifo.rx_avail only buffer, gate, or report movement of transfer data at lines 152-154 and 239, which is excluded by the port-buffer and buffer-status rules.\"\n    },\n    {\n      \"Candidate Name\": \"Bus access command and response handshake\",\n      \"Candidate Unit\": \"neorv32_twi\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"bus_req_i address, direction, and strobe fields only select register or FIFO accesses at lines 133-143 and 197-230, while bus_rsp_o acknowledge and error are transfer-record or handshake information rather than independent assets.\"\n    },\n    {\n      \"Candidate Name\": \"FIFO-size build configuration\",\n      \"Candidate Unit\": \"neorv32_twi\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"IO_TWI_FIFO and log2_fifo_size_c only fix implementation size at build time, as shown at lines 20 and 64, so no runtime element can change or withhold them.\"\n    },\n    {\n      \"Candidate Name\": \"Serial input synchronizer and shift stages\",\n      \"Candidate Unit\": \"neorv32_twi\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"io_con.sda_in_ff, io_con.scl_in_ff, and the serial shift operations at lines 314-315 and 378 are synchronizer or movement stages, not separate information from the received byte or serial clock.\"\n    },\n    {\n      \"Candidate Name\": \"Clock-enable output indication\",\n      \"Candidate Unit\": \"neorv32_twi\",\n      \"Merged Into\": \"C1\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Configuration read-back copies\",\n      \"Candidate Unit\": \"neorv32_twi\",\n      \"Merged Into\": \"C1\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Rate read-back copy\",\n      \"Candidate Unit\": \"neorv32_twi\",\n      \"Merged Into\": \"C2\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Transmit FIFO data copy\",\n      \"Candidate Unit\": \"neorv32_twi\",\n      \"Merged Into\": \"C4\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Receive FIFO data copy\",\n      \"Candidate Unit\": \"neorv32_twi\",\n      \"Merged Into\": \"C5\",\n      \"Why Not Kept\": \"\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_twi",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_twi",
+    "concept": "TWI enable state",
+    "information": "The software-programmable enable state controls whether the TWI block runs, clears its FIFOs, drives the clock-generator enable, and participates in interrupt generation.",
+    "rubric reason": "Integrity is at risk because an unchecked bus write changes ctrl.enable at line 136. Availability is at risk because ctrl.enable clears both FIFOs at line 168, gates clock generation at lines 252-265, and drives clkgen_en_o at line 270.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could issue a bus write that clears the enable state, disables clock generation, and clears pending TWI data.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data",
+     "clkgen_en_o"
+    ],
+    "entry lines": [
+     136
+    ],
+    "held lines": [
+     136
+    ],
+    "exit lines": [
+     143,
+     270
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_twi",
+    "concept": "TWI clock-rate configuration",
+    "information": "The prescaler and clock-divider settings determine the rate of the generated TWI timing phases, on which serial transfers depend.",
+    "rubric reason": "Integrity is at risk because bus writes load ctrl.prsc and ctrl.cdiv at lines 137-138 without an RTL authorization check. Availability is at risk because these settings select clkgen_i and determine counter rollover and tick generation at lines 257-264.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could write an extreme or incorrect prescaler or divider value to alter TWI timing or prevent useful transfer progress.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     137,
+     138
+    ],
+    "held lines": [
+     137,
+     138
+    ],
+    "exit lines": [
+     144,
+     145
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_twi",
+    "concept": "TWI transfer command and acknowledge control",
+    "information": "The command and acknowledge-control fields in a transmit FIFO word select the TWI operation and protocol response that the engine performs.",
+    "rubric reason": "Integrity is at risk because bus_req_i.data is written into the transmit command path at line 198 and command and acknowledge information is loaded into engine.state and engine.sreg at lines 327-329. Availability is at risk because disabling the block clears the transmit FIFO at line 168 and fifo.tx_re only removes a command when the engine is idle, data is available, and a timing tick occurs at line 199.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could write altered command or acknowledge fields, causing the engine to perform the wrong TWI operation or preventing the intended operation from being served.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     198
+    ],
+    "held lines": [
+     327,
+     329
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_twi",
+    "concept": "TWI transmitted byte",
+    "information": "The transmit byte supplied by software is serialized onto the TWI SDA data line as part of a commanded transfer.",
+    "rubric reason": "Confidentiality is at risk because the supplied byte can be exposed on twi_sda_o through the serialization path at lines 374 and 406. Integrity is at risk because bus_req_i.data supplies the transmit FIFO at line 198 and the engine loads the transmitted bits at line 327. Availability is at risk because ctrl.enable clears the transmit FIFO at line 168 and the transmit-read condition at line 199 can withhold a queued byte.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could alter or clear a queued transmit byte, or observe the resulting SDA waveform, causing incorrect or exposed TWI data.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "twi_sda_o"
+    ],
+    "entry lines": [
+     198
+    ],
+    "held lines": [],
+    "exit lines": [
+     374,
+     406
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_twi",
+    "concept": "TWI received byte",
+    "information": "The byte sampled from the TWI SDA input is assembled during a transfer and returned to software through the receive-data bus read.",
+    "rubric reason": "Confidentiality is at risk because received data is exposed in bus_rsp_o.data at line 156. Integrity is at risk because twi_sda_i enters the sampling path at line 408 and sampled data is incorporated into engine.sreg at line 378 before the receive read. Availability is at risk because disabling the block clears the receive FIFO at line 168 and receive data is only written when engine.done asserts at line 229.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could drive or interfere with SDA samples, clear the receive path, or otherwise cause incorrect or unavailable received data to be returned.",
+    "enters through": [
+     "twi_sda_i"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     408
+    ],
+    "held lines": [],
+    "exit lines": [
+     156
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C6",
+    "unit": "neorv32_twi",
+    "concept": "TWI transfer-ready interrupt notification",
+    "information": "The interrupt notification indicates that TWI is enabled, the transmit FIFO is empty, and the engine is idle, allowing software to service or start further transfers.",
+    "rubric reason": "Integrity is at risk because irq_o is generated from enable, transmit availability, and engine state at line 239, so altered control or status can create a false notification. Availability is at risk because suppressing the notification can prevent software from servicing the empty transmit path and can halt subsequent transfers.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could suppress or falsely assert irq_o, causing software to miss a required transfer service event or act on an incorrect readiness indication.",
+    "enters through": [],
+    "leaves through": [
+     "irq_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     239
+    ],
+    "exit lines": [
+     239
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_twi",
+    "concept": "Clock-stretch control and SCL clock state",
+    "reason": "The clock-stretch setting only affects the serial clock timing path at line 296, and twi_scl_i and twi_scl_o are serial-link clock lines excluded by the clocks and resets rule.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_twi",
+    "concept": "Clock generation pacing",
+    "reason": "clkgen_i only enables the counter and tick progression at lines 257-264, while clk_gen.cnt, clk_gen.tick, and phase signals only pace transfers and are excluded by the pacing-pulse rule.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_twi",
+    "concept": "Engine sequencing state and progress",
+    "reason": "engine.state, engine.bitcnt, engine.busy, and engine.done only order and report transfer steps at lines 322-401, so sequencing state and its status copies are not pieces of their own.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_twi",
+    "concept": "FIFO fill and buffer status",
+    "reason": "fifo.tx_avail, fifo.tx_free, and fifo.rx_avail only buffer, gate, or report movement of transfer data at lines 152-154 and 239, which is excluded by the port-buffer and buffer-status rules.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_twi",
+    "concept": "Bus access command and response handshake",
+    "reason": "bus_req_i address, direction, and strobe fields only select register or FIFO accesses at lines 133-143 and 197-230, while bus_rsp_o acknowledge and error are transfer-record or handshake information rather than independent assets.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_twi",
+    "concept": "FIFO-size build configuration",
+    "reason": "IO_TWI_FIFO and log2_fifo_size_c only fix implementation size at build time, as shown at lines 20 and 64, so no runtime element can change or withhold them.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_twi",
+    "concept": "Serial input synchronizer and shift stages",
+    "reason": "io_con.sda_in_ff, io_con.scl_in_ff, and the serial shift operations at lines 314-315 and 378 are synchronizer or movement stages, not separate information from the received byte or serial clock.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_twi",
+    "concept": "Clock-enable output indication",
+    "reason": "merged into C1",
+    "merged into": "C1"
+   },
+   {
+    "unit": "neorv32_twi",
+    "concept": "Configuration read-back copies",
+    "reason": "merged into C1",
+    "merged into": "C1"
+   },
+   {
+    "unit": "neorv32_twi",
+    "concept": "Rate read-back copy",
+    "reason": "merged into C2",
+    "merged into": "C2"
+   },
+   {
+    "unit": "neorv32_twi",
+    "concept": "Transmit FIFO data copy",
+    "reason": "merged into C4",
+    "merged into": "C4"
+   },
+   {
+    "unit": "neorv32_twi",
+    "concept": "Receive FIFO data copy",
+    "reason": "merged into C5",
+    "merged into": "C5"
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

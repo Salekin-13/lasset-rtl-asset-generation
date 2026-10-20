@@ -1,0 +1,307 @@
+{
+ "module": "neorv32_wdt",
+ "prompt version": "two_phase_p1o_first",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "b4c962e16261",
+ "user sha": "a506dd2baf66",
+ "usage": {
+  "in": 27028,
+  "out": 16051,
+  "reasoning": 13382,
+  "cached": 20474,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_0d89ed1affca96fd006ad63c2aaca487d1b37245cdb9d29666",
+  "request key": "56e31048af99"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_wdt\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"Watchdog enable and clock request\",\n      \"Unit\": \"neorv32_wdt\",\n      \"Information\": \"The configuration that enables watchdog counting and requests the clock generator to remain enabled; watchdog operation and downstream clock availability depend on it.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"A bus write can modify the stored enable at line 94, changing watchdog operation and the clock-enable output at lines 130-140. Clearing this setting stops or clears the watchdog counter at line 131 and deasserts clkgen_en_o at line 140, so an attacker can disable required operation.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"Issue or corrupt a control write that clears the enable bit, preventing watchdog counting and disabling the requested clock.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\",\n        \"clkgen_en_o\"\n      ],\n      \"Entry Lines\": [\n        94\n      ],\n      \"Held Lines\": [\n        75,\n        94\n      ],\n      \"Exit Lines\": [\n        109,\n        140\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"Watchdog configuration lock state\",\n      \"Unit\": \"neorv32_wdt\",\n      \"Information\": \"The lock state that determines whether subsequent watchdog configuration writes are accepted; protected configuration depends on this state remaining correct.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The lock bit is stored from bus write data at line 95 and gates all configuration updates at line 93, so modifying it can expose protected settings to later writes or prevent intended updates.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"Alter the lock state or its update path so that protected watchdog settings can be changed after locking.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        95\n      ],\n      \"Held Lines\": [\n        76,\n        95\n      ],\n      \"Exit Lines\": [\n        110\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"Watchdog timeout limit\",\n      \"Unit\": \"neorv32_wdt\",\n      \"Information\": \"The stored timeout limit used to decide when the watchdog expires; correct watchdog reset timing depends on this configuration.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"A bus write changes the stored timeout limit at line 97, and the comparison at line 144 uses it to determine expiration, so unauthorized modification changes watchdog behavior. A changed limit can suppress or prematurely trigger the reset path through lines 144, 155 and 161, affecting availability.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"Write an excessively large or small timeout value to suppress watchdog recovery or cause repeated premature resets.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        97\n      ],\n      \"Held Lines\": [\n        78,\n        97\n      ],\n      \"Exit Lines\": [\n        113\n      ]\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"Watchdog timeout progress state\",\n      \"Unit\": \"neorv32_wdt\",\n      \"Information\": \"The internally held elapsed-count and counting-start state that tracks progress toward watchdog expiration; no port carries the state whole, and it only influences internal timeout behavior.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The counter and started state are stored, cleared and advanced at lines 126-134 and are used in the timeout comparison at line 144, so corrupting them can change the watchdog's protected timing state. Without correct progress state the watchdog cannot reach or correctly detect its timeout, allowing operation to continue without required recovery.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"Corrupt or repeatedly clear the counter progress so that the watchdog never reaches its configured expiration.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        126,\n        127,\n        130,\n        132,\n        134\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"Watchdog timeout decision\",\n      \"Unit\": \"neorv32_wdt\",\n      \"Information\": \"The comparison outcome indicating that the watchdog has expired; this internal decision controls generation of the watchdog reset request.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The count-and-limit comparison produces the timeout decision at line 144, and changing that decision changes whether the reset path is asserted through lines 155 and 161. Suppressing or forcing the decision can respectively withhold watchdog recovery or reset the system unexpectedly.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"Manipulate the timeout comparison or its inputs to suppress a required reset or create spurious resets.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"rstn_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        144\n      ],\n      \"Exit Lines\": [\n        155,\n        161\n      ]\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Concept Name\": \"Watchdog service authorization decision\",\n      \"Unit\": \"neorv32_wdt\",\n      \"Information\": \"The internally generated decision that a bus write contains the fixed watchdog-service password and may clear timeout progress; it controls whether the watchdog can be serviced.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The fixed-value comparison at line 102 produces the accepted-service outcome held in reset_wdt at line 103, so changing the comparison or result can permit unauthorized counter clearing or reject valid servicing. The command controls counter clearing at line 131, allowing an attacker to disable or prematurely trigger watchdog recovery.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"Bypass or corrupt the password comparison so an invalid bus value clears the watchdog counter or a valid service request is rejected.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        103\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C7\",\n      \"Concept Name\": \"Reset cause status\",\n      \"Unit\": \"neorv32_wdt\",\n      \"Information\": \"The stored indication of whether the recorded reset cause was debug, watchdog timeout or access related; software depends on it for reset diagnosis and recovery decisions.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The reset-cause register is assigned on external reset and cause events at lines 169, 172, 174 and 176, and is returned in the bus read response at line 111, so unauthorized alteration can make software diagnose the reset incorrectly.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"Spoof or corrupt the recorded cause so software takes the wrong recovery action after a reset.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        169,\n        172,\n        174,\n        176\n      ],\n      \"Exit Lines\": [\n        111\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Strict access-reset setting\",\n      \"Candidate Unit\": \"neorv32_wdt\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The clocks-and-resets rule excludes a setting whose only non-readback use is choosing whether a refused or wrong access requests reset and records its cause; ctrl.strict only feeds that path at line 156.\"\n    },\n    {\n      \"Candidate Name\": \"Invalid-access reset decision\",\n      \"Candidate Unit\": \"neorv32_wdt\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"reset_force only records a locked or wrong-password access and requests the reset path, which the clocks-and-resets rule excludes as a separate conceptual asset.\"\n    },\n    {\n      \"Candidate Name\": \"Reset-chain requests and reset output\",\n      \"Candidate Unit\": \"neorv32_wdt\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"hw_rst_timeout, hw_rst_access and rstn_o only generate, combine or pass reset requests through the reset chain, which the clocks-and-resets rule bars as conceptual assets.\"\n    },\n    {\n      \"Candidate Name\": \"Clock and reset inputs\",\n      \"Candidate Unit\": \"neorv32_wdt\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"clk_i, rstn_ext_i, rstn_dbg_i and rstn_sys_i are timing or reset inputs rather than information requiring a separate conceptual asset under the clocks-and-resets rule.\"\n    },\n    {\n      \"Candidate Name\": \"Prescaler tick and counter increment pulse\",\n      \"Candidate Unit\": \"neorv32_wdt\",\n      \"Merged Into\": \"C4\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Counter-start flag\",\n      \"Candidate Unit\": \"neorv32_wdt\",\n      \"Merged Into\": \"C4\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Bus access command fields\",\n      \"Candidate Unit\": \"neorv32_wdt\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The request strobe, direction and address only select or perform accesses to this unit's registers, so Access command fields bars them as concepts of their own.\"\n    },\n    {\n      \"Candidate Name\": \"Bus response handshake and constant error status\",\n      \"Candidate Unit\": \"neorv32_wdt\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The acknowledge repeats the request strobe and the error flag is tied to a constant, so bus-handshake-copy rules provide no separate information asset.\"\n    },\n    {\n      \"Candidate Name\": \"Reset password constant\",\n      \"Candidate Unit\": \"neorv32_wdt\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"Although the constant participates in the comparison at line 102, the RTL shows no element holding or exposing the password itself through a port, read-back, status value or data-dependent timing path.\"\n    },\n    {\n      \"Candidate Name\": \"Bus request and response transaction\",\n      \"Candidate Unit\": \"neorv32_wdt\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The request and response record are transfer and access protocol material; their command fields, handshake and read-back contents are covered by the specific assets above or by forwarding and handshake exclusions.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_wdt",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_wdt",
+    "concept": "Watchdog enable and clock request",
+    "information": "The configuration that enables watchdog counting and requests the clock generator to remain enabled; watchdog operation and downstream clock availability depend on it.",
+    "rubric reason": "A bus write can modify the stored enable at line 94, changing watchdog operation and the clock-enable output at lines 130-140. Clearing this setting stops or clears the watchdog counter at line 131 and deasserts clkgen_en_o at line 140, so an attacker can disable required operation.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "Issue or corrupt a control write that clears the enable bit, preventing watchdog counting and disabling the requested clock.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data",
+     "clkgen_en_o"
+    ],
+    "entry lines": [
+     94
+    ],
+    "held lines": [
+     75,
+     94
+    ],
+    "exit lines": [
+     109,
+     140
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_wdt",
+    "concept": "Watchdog configuration lock state",
+    "information": "The lock state that determines whether subsequent watchdog configuration writes are accepted; protected configuration depends on this state remaining correct.",
+    "rubric reason": "The lock bit is stored from bus write data at line 95 and gates all configuration updates at line 93, so modifying it can expose protected settings to later writes or prevent intended updates.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "Alter the lock state or its update path so that protected watchdog settings can be changed after locking.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     95
+    ],
+    "held lines": [
+     76,
+     95
+    ],
+    "exit lines": [
+     110
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_wdt",
+    "concept": "Watchdog timeout limit",
+    "information": "The stored timeout limit used to decide when the watchdog expires; correct watchdog reset timing depends on this configuration.",
+    "rubric reason": "A bus write changes the stored timeout limit at line 97, and the comparison at line 144 uses it to determine expiration, so unauthorized modification changes watchdog behavior. A changed limit can suppress or prematurely trigger the reset path through lines 144, 155 and 161, affecting availability.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "Write an excessively large or small timeout value to suppress watchdog recovery or cause repeated premature resets.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     97
+    ],
+    "held lines": [
+     78,
+     97
+    ],
+    "exit lines": [
+     113
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_wdt",
+    "concept": "Watchdog timeout progress state",
+    "information": "The internally held elapsed-count and counting-start state that tracks progress toward watchdog expiration; no port carries the state whole, and it only influences internal timeout behavior.",
+    "rubric reason": "The counter and started state are stored, cleared and advanced at lines 126-134 and are used in the timeout comparison at line 144, so corrupting them can change the watchdog's protected timing state. Without correct progress state the watchdog cannot reach or correctly detect its timeout, allowing operation to continue without required recovery.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "Corrupt or repeatedly clear the counter progress so that the watchdog never reaches its configured expiration.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     126,
+     127,
+     130,
+     132,
+     134
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_wdt",
+    "concept": "Watchdog timeout decision",
+    "information": "The comparison outcome indicating that the watchdog has expired; this internal decision controls generation of the watchdog reset request.",
+    "rubric reason": "The count-and-limit comparison produces the timeout decision at line 144, and changing that decision changes whether the reset path is asserted through lines 155 and 161. Suppressing or forcing the decision can respectively withhold watchdog recovery or reset the system unexpectedly.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "Manipulate the timeout comparison or its inputs to suppress a required reset or create spurious resets.",
+    "enters through": [],
+    "leaves through": [
+     "rstn_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     144
+    ],
+    "exit lines": [
+     155,
+     161
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C6",
+    "unit": "neorv32_wdt",
+    "concept": "Watchdog service authorization decision",
+    "information": "The internally generated decision that a bus write contains the fixed watchdog-service password and may clear timeout progress; it controls whether the watchdog can be serviced.",
+    "rubric reason": "The fixed-value comparison at line 102 produces the accepted-service outcome held in reset_wdt at line 103, so changing the comparison or result can permit unauthorized counter clearing or reject valid servicing. The command controls counter clearing at line 131, allowing an attacker to disable or prematurely trigger watchdog recovery.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "Bypass or corrupt the password comparison so an invalid bus value clears the watchdog counter or a valid service request is rejected.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     103
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C7",
+    "unit": "neorv32_wdt",
+    "concept": "Reset cause status",
+    "information": "The stored indication of whether the recorded reset cause was debug, watchdog timeout or access related; software depends on it for reset diagnosis and recovery decisions.",
+    "rubric reason": "The reset-cause register is assigned on external reset and cause events at lines 169, 172, 174 and 176, and is returned in the bus read response at line 111, so unauthorized alteration can make software diagnose the reset incorrectly.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "Spoof or corrupt the recorded cause so software takes the wrong recovery action after a reset.",
+    "enters through": [],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [],
+    "held lines": [
+     169,
+     172,
+     174,
+     176
+    ],
+    "exit lines": [
+     111
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_wdt",
+    "concept": "Strict access-reset setting",
+    "reason": "The clocks-and-resets rule excludes a setting whose only non-readback use is choosing whether a refused or wrong access requests reset and records its cause; ctrl.strict only feeds that path at line 156.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_wdt",
+    "concept": "Invalid-access reset decision",
+    "reason": "reset_force only records a locked or wrong-password access and requests the reset path, which the clocks-and-resets rule excludes as a separate conceptual asset.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_wdt",
+    "concept": "Reset-chain requests and reset output",
+    "reason": "hw_rst_timeout, hw_rst_access and rstn_o only generate, combine or pass reset requests through the reset chain, which the clocks-and-resets rule bars as conceptual assets.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_wdt",
+    "concept": "Clock and reset inputs",
+    "reason": "clk_i, rstn_ext_i, rstn_dbg_i and rstn_sys_i are timing or reset inputs rather than information requiring a separate conceptual asset under the clocks-and-resets rule.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_wdt",
+    "concept": "Prescaler tick and counter increment pulse",
+    "reason": "merged into C4",
+    "merged into": "C4"
+   },
+   {
+    "unit": "neorv32_wdt",
+    "concept": "Counter-start flag",
+    "reason": "merged into C4",
+    "merged into": "C4"
+   },
+   {
+    "unit": "neorv32_wdt",
+    "concept": "Bus access command fields",
+    "reason": "The request strobe, direction and address only select or perform accesses to this unit's registers, so Access command fields bars them as concepts of their own.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_wdt",
+    "concept": "Bus response handshake and constant error status",
+    "reason": "The acknowledge repeats the request strobe and the error flag is tied to a constant, so bus-handshake-copy rules provide no separate information asset.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_wdt",
+    "concept": "Reset password constant",
+    "reason": "Although the constant participates in the comparison at line 102, the RTL shows no element holding or exposing the password itself through a port, read-back, status value or data-dependent timing path.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_wdt",
+    "concept": "Bus request and response transaction",
+    "reason": "The request and response record are transfer and access protocol material; their command fields, handshake and read-back contents are covered by the specific assets above or by forwarding and handshake exclusions.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

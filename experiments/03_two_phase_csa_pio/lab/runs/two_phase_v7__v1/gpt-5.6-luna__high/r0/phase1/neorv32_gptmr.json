@@ -1,0 +1,297 @@
+{
+ "module": "neorv32_gptmr",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "be3b3faab49b",
+ "user sha": "4d744cee546e",
+ "usage": {
+  "in": 17654,
+  "out": 11840,
+  "reasoning": 9322,
+  "cached": 12982,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_0c087022a053bd39006ace83b855c087d1a77d7c4ff769ed45",
+  "request key": "fc3eb19c4942"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_gptmr\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"Timer enable control\",\n      \"Unit\": \"neorv32_gptmr\",\n      \"Information\": \"The enable setting determines whether the timer operates, whether counting and interrupt generation proceed, and whether the downstream clock generator is enabled.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"An unchecked bus write changes the enable bit at line 76, which controls the clock-enable output and timer and interrupt operation at lines 106, 118, and 141. Clearing the enable through line 76 disables clkgen_en_o at line 106, resets the count at lines 118-119, and clears interrupt state at lines 147-149.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker issuing a bus write to the control register could clear the enable bit and disable timer operation and interrupt generation.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\",\n        \"clkgen_en_o\"\n      ],\n      \"Entry Lines\": [\n        76\n      ],\n      \"Held Lines\": [\n        63,\n        76\n      ],\n      \"Exit Lines\": [\n        89,\n        106\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"Timer prescaler selection\",\n      \"Unit\": \"neorv32_gptmr\",\n      \"Information\": \"The prescaler setting selects which generator timing source advances the timer and therefore determines the timer's operating rate.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Bus writes modify the prescaler bits at lines 77-79, and those bits select the timing source used to produce timer.tick at line 117. An altered selection can withhold or excessively delay timer advancement because timer.count advances only when timer.tick is asserted at lines 120-125.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could write a prescaler value that selects an unsuitable or inactive timing source and thereby stall or distort timer events.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        77,\n        78,\n        79\n      ],\n      \"Held Lines\": [\n        63,\n        77,\n        78,\n        79\n      ],\n      \"Exit Lines\": [\n        90,\n        91,\n        92\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"Timer threshold setting\",\n      \"Unit\": \"neorv32_gptmr\",\n      \"Information\": \"The threshold setting determines the count value at which the timer matches, resets its count, and produces a pending interrupt.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"An unchecked bus write replaces timer.thres at line 84, and the threshold participates in the match decision at line 131 that controls count reset and interrupt generation at lines 121-145. Changing the threshold can defer or withhold the timer event because it determines when the match and interrupt occur at lines 131-143.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could write an extreme threshold value to delay or effectively suppress the timer interrupt.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        84\n      ],\n      \"Held Lines\": [\n        64,\n        84\n      ],\n      \"Exit Lines\": [\n        96\n      ]\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"Timer count state\",\n      \"Unit\": \"neorv32_gptmr\",\n      \"Information\": \"The timer count is the elapsed-time state on which timer operation and threshold matching depend; it is generated and updated internally and returned on a bus read.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The count is reset or updated by enable, tick, and match-controlled logic at lines 119-124, so bus-controlled settings can alter its evolution and value. Clearing the enable stops normal counting and resets the count at lines 118-120, preventing the timer from progressing.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could change the enable or threshold settings to reset or mis-time the counter and prevent the timer from reaching its intended event.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        115,\n        119,\n        122,\n        124\n      ],\n      \"Exit Lines\": [\n        98\n      ]\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"Threshold-match decision\",\n      \"Unit\": \"neorv32_gptmr\",\n      \"Information\": \"The match decision indicates that the timer count equals its threshold and selects the next timer and interrupt actions. It is computed internally from timer state and configuration and has no direct entry or exit port.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The count-versus-threshold comparison is computed at line 131 and directly selects count reset and interrupt assertion at lines 121-145, so changing its inputs can produce an incorrect decision. Preventing the match decision can defer the count reset and withhold the interrupt selected by lines 122 and 143.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could alter the threshold or timer operation so that the match decision occurs at the wrong time or does not occur when required.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        131\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Concept Name\": \"Pending timer interrupt indication\",\n      \"Unit\": \"neorv32_gptmr\",\n      \"Information\": \"The pending interrupt state records that the timer event has occurred and drives both the interrupt output and the interrupt-status read-back bit.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The pending state is set, cleared, or forced low by the match, clear command, and enable controls at lines 141-149, and is observable through irq_o and bus read-back at lines 94 and 154. An attacker could clear or suppress the pending state through the control and clear paths at lines 81 and 144-149, withholding the interrupt.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could issue an interrupt-clear or disable write to remove a pending timer interrupt before the receiving system observes it.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\",\n        \"irq_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        139,\n        143,\n        145,\n        148\n      ],\n      \"Exit Lines\": [\n        94,\n        154\n      ]\n    },\n    {\n      \"Concept ID\": \"C7\",\n      \"Concept Name\": \"Interrupt-clear command\",\n      \"Unit\": \"neorv32_gptmr\",\n      \"Information\": \"The interrupt-clear command requests removal of the pending timer interrupt and is registered internally before it is applied.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The bus write data supplies the clear command at line 81, which is registered in irq_clr and used to clear irq_pnd at lines 144-145, so an unauthorized command can alter interrupt state. The same clear path can remove the pending indication before irq_o is observed at line 154, withholding the interrupt.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could write the interrupt-clear bit while an interrupt is pending and suppress notification to the rest of the system.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        81\n      ],\n      \"Held Lines\": [\n        65,\n        71,\n        81\n      ],\n      \"Exit Lines\": []\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Clock and reset controls\",\n      \"Candidate Unit\": \"neorv32_gptmr\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"clk_i and rstn_i only clock or reset the timer, bus, and interrupt state at lines 61, 66, 113, 116, 138, and 140, so the clock/reset exclusion applies.\"\n    },\n    {\n      \"Candidate Name\": \"Timer pacing tick\",\n      \"Candidate Unit\": \"neorv32_gptmr\",\n      \"Merged Into\": \"C2\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Bus access command and handshake\",\n      \"Candidate Unit\": \"neorv32_gptmr\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The address, direction, and strobe only select and qualify register accesses at lines 73-87, while ack repeats the strobe and err is constant at lines 68-70, so these are barred access-command and handshake information rather than separate assets.\"\n    },\n    {\n      \"Candidate Name\": \"Bus response read-back word\",\n      \"Candidate Unit\": \"neorv32_gptmr\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The response data word is a multiplexed read-back carrying separate control, threshold, interrupt, and count information at lines 89-98, so it is not an independent piece.\"\n    },\n    {\n      \"Candidate Name\": \"Clock-enable output indication\",\n      \"Candidate Unit\": \"neorv32_gptmr\",\n      \"Merged Into\": \"C1\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Interrupt output indication\",\n      \"Candidate Unit\": \"neorv32_gptmr\",\n      \"Merged Into\": \"C6\",\n      \"Why Not Kept\": \"\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_gptmr",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_gptmr",
+    "concept": "Timer enable control",
+    "information": "The enable setting determines whether the timer operates, whether counting and interrupt generation proceed, and whether the downstream clock generator is enabled.",
+    "rubric reason": "An unchecked bus write changes the enable bit at line 76, which controls the clock-enable output and timer and interrupt operation at lines 106, 118, and 141. Clearing the enable through line 76 disables clkgen_en_o at line 106, resets the count at lines 118-119, and clears interrupt state at lines 147-149.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker issuing a bus write to the control register could clear the enable bit and disable timer operation and interrupt generation.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data",
+     "clkgen_en_o"
+    ],
+    "entry lines": [
+     76
+    ],
+    "held lines": [
+     63,
+     76
+    ],
+    "exit lines": [
+     89,
+     106
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_gptmr",
+    "concept": "Timer prescaler selection",
+    "information": "The prescaler setting selects which generator timing source advances the timer and therefore determines the timer's operating rate.",
+    "rubric reason": "Bus writes modify the prescaler bits at lines 77-79, and those bits select the timing source used to produce timer.tick at line 117. An altered selection can withhold or excessively delay timer advancement because timer.count advances only when timer.tick is asserted at lines 120-125.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could write a prescaler value that selects an unsuitable or inactive timing source and thereby stall or distort timer events.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     77,
+     78,
+     79
+    ],
+    "held lines": [
+     63,
+     77,
+     78,
+     79
+    ],
+    "exit lines": [
+     90,
+     91,
+     92
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_gptmr",
+    "concept": "Timer threshold setting",
+    "information": "The threshold setting determines the count value at which the timer matches, resets its count, and produces a pending interrupt.",
+    "rubric reason": "An unchecked bus write replaces timer.thres at line 84, and the threshold participates in the match decision at line 131 that controls count reset and interrupt generation at lines 121-145. Changing the threshold can defer or withhold the timer event because it determines when the match and interrupt occur at lines 131-143.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could write an extreme threshold value to delay or effectively suppress the timer interrupt.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     84
+    ],
+    "held lines": [
+     64,
+     84
+    ],
+    "exit lines": [
+     96
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_gptmr",
+    "concept": "Timer count state",
+    "information": "The timer count is the elapsed-time state on which timer operation and threshold matching depend; it is generated and updated internally and returned on a bus read.",
+    "rubric reason": "The count is reset or updated by enable, tick, and match-controlled logic at lines 119-124, so bus-controlled settings can alter its evolution and value. Clearing the enable stops normal counting and resets the count at lines 118-120, preventing the timer from progressing.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could change the enable or threshold settings to reset or mis-time the counter and prevent the timer from reaching its intended event.",
+    "enters through": [],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [],
+    "held lines": [
+     115,
+     119,
+     122,
+     124
+    ],
+    "exit lines": [
+     98
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_gptmr",
+    "concept": "Threshold-match decision",
+    "information": "The match decision indicates that the timer count equals its threshold and selects the next timer and interrupt actions. It is computed internally from timer state and configuration and has no direct entry or exit port.",
+    "rubric reason": "The count-versus-threshold comparison is computed at line 131 and directly selects count reset and interrupt assertion at lines 121-145, so changing its inputs can produce an incorrect decision. Preventing the match decision can defer the count reset and withhold the interrupt selected by lines 122 and 143.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could alter the threshold or timer operation so that the match decision occurs at the wrong time or does not occur when required.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     131
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C6",
+    "unit": "neorv32_gptmr",
+    "concept": "Pending timer interrupt indication",
+    "information": "The pending interrupt state records that the timer event has occurred and drives both the interrupt output and the interrupt-status read-back bit.",
+    "rubric reason": "The pending state is set, cleared, or forced low by the match, clear command, and enable controls at lines 141-149, and is observable through irq_o and bus read-back at lines 94 and 154. An attacker could clear or suppress the pending state through the control and clear paths at lines 81 and 144-149, withholding the interrupt.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could issue an interrupt-clear or disable write to remove a pending timer interrupt before the receiving system observes it.",
+    "enters through": [],
+    "leaves through": [
+     "bus_rsp_o.data",
+     "irq_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     139,
+     143,
+     145,
+     148
+    ],
+    "exit lines": [
+     94,
+     154
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C7",
+    "unit": "neorv32_gptmr",
+    "concept": "Interrupt-clear command",
+    "information": "The interrupt-clear command requests removal of the pending timer interrupt and is registered internally before it is applied.",
+    "rubric reason": "The bus write data supplies the clear command at line 81, which is registered in irq_clr and used to clear irq_pnd at lines 144-145, so an unauthorized command can alter interrupt state. The same clear path can remove the pending indication before irq_o is observed at line 154, withholding the interrupt.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could write the interrupt-clear bit while an interrupt is pending and suppress notification to the rest of the system.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     81
+    ],
+    "held lines": [
+     65,
+     71,
+     81
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_gptmr",
+    "concept": "Clock and reset controls",
+    "reason": "clk_i and rstn_i only clock or reset the timer, bus, and interrupt state at lines 61, 66, 113, 116, 138, and 140, so the clock/reset exclusion applies.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_gptmr",
+    "concept": "Timer pacing tick",
+    "reason": "merged into C2",
+    "merged into": "C2"
+   },
+   {
+    "unit": "neorv32_gptmr",
+    "concept": "Bus access command and handshake",
+    "reason": "The address, direction, and strobe only select and qualify register accesses at lines 73-87, while ack repeats the strobe and err is constant at lines 68-70, so these are barred access-command and handshake information rather than separate assets.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_gptmr",
+    "concept": "Bus response read-back word",
+    "reason": "The response data word is a multiplexed read-back carrying separate control, threshold, interrupt, and count information at lines 89-98, so it is not an independent piece.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_gptmr",
+    "concept": "Clock-enable output indication",
+    "reason": "merged into C1",
+    "merged into": "C1"
+   },
+   {
+    "unit": "neorv32_gptmr",
+    "concept": "Interrupt output indication",
+    "reason": "merged into C6",
+    "merged into": "C6"
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

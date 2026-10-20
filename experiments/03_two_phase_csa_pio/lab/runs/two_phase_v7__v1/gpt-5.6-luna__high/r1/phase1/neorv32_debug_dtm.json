@@ -1,0 +1,303 @@
+{
+ "module": "neorv32_debug_dtm",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "be3b3faab49b",
+ "user sha": "3eab605f16f3",
+ "usage": {
+  "in": 24045,
+  "out": 15789,
+  "reasoning": 12873,
+  "cached": 24042,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_0fceaa7d92fc1ed5006ace2f3e383887d1a842b453600f1e0c",
+  "request key": "19ba6acaf5b5"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_debug_dtm\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"JTAG instruction selection\",\n      \"Unit\": \"neorv32_debug_dtm\",\n      \"Information\": \"The active JTAG instruction selects the IDCODE, DTMCS, DMI, or bypass data path, determining which debug operation the TAP performs. Correct instruction selection is required for the DTM to provide the intended scan and DMI behavior.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"yes\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because TDI shifts the instruction register and the selected instruction controls data capture, shifting, and TDO output (181, 186-210). Availability is at risk because selecting a non-DMI or bypass path can prevent the required DMI transfer (186-210). Expected behavior can be undermined because injected JTAG instructions can select the wrong data register or bypass path, producing incorrect or unavailable output (181, 193-210).\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker injects a JTAG instruction sequence that selects bypass or the wrong data register, causing incorrect scan results or preventing DMI access.\",\n      \"Enters Through\": [\n        \"jtag_tdi_i\"\n      ],\n      \"Leaves Through\": [\n        \"jtag_tdo_o\"\n      ],\n      \"Entry Lines\": [\n        100,\n        181\n      ],\n      \"Held Lines\": [\n        179,\n        181\n      ],\n      \"Exit Lines\": [\n        204\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"DMI access request control\",\n      \"Unit\": \"neorv32_debug_dtm\",\n      \"Information\": \"The DMI access control comprises the target address and read/write operation extracted from a JTAG DMI scan. It determines which DMI access is issued and whether the downstream operation reads or writes.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"yes\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because scanned DMI fields are loaded into the request address and operation and then drive the DMI request output (265-271, 283, 285). Availability is at risk because invalid or suppressed operation fields leave the request as no-operation instead of launching a DMI transfer (263-271). Expected behavior can be undermined because injected JTAG fields can issue an unintended DMI read or write to an unintended address (196, 266, 269).\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker shifts a modified DMI address or operation into the TAP so that the DTM issues an unintended access or fails to issue the required one.\",\n      \"Enters Through\": [\n        \"jtag_tdi_i\"\n      ],\n      \"Leaves Through\": [\n        \"dmi_req_o.addr\",\n        \"dmi_req_o.op\"\n      ],\n      \"Entry Lines\": [\n        100,\n        196\n      ],\n      \"Held Lines\": [\n        266,\n        269\n      ],\n      \"Exit Lines\": [\n        283,\n        285\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"DMI write payload\",\n      \"Unit\": \"neorv32_debug_dtm\",\n      \"Information\": \"The DMI write payload is the 32-bit value transferred from the JTAG DMI scan into a downstream DMI write. The downstream debug operation depends on this value.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"yes\"\n      },\n      \"Rubric Reason\": \"Confidentiality is at risk because potentially sensitive scanned write data is held and exposed on the DMI request data output (267, 284). Integrity is at risk because JTAG scan input supplies the payload that is stored and forwarded to the DMI target (196, 267, 284). Expected behavior can be undermined because test-packet injection can replace the intended downstream write value with attacker-controlled data (196, 267, 284).\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\"\n      ],\n      \"Attack\": \"An attacker injects altered JTAG payload bits so that the DTM forwards an unauthorized or incorrect value in a DMI write.\",\n      \"Enters Through\": [\n        \"jtag_tdi_i\"\n      ],\n      \"Leaves Through\": [\n        \"dmi_req_o.data\"\n      ],\n      \"Entry Lines\": [\n        100,\n        196\n      ],\n      \"Held Lines\": [\n        267\n      ],\n      \"Exit Lines\": [\n        284\n      ]\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"DMI response data\",\n      \"Unit\": \"neorv32_debug_dtm\",\n      \"Information\": \"DMI response data is the value returned by the downstream debug module for a DMI read and serialized back through the JTAG data path. The JTAG debugger depends on it to receive the requested register or memory result.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"yes\"\n      },\n      \"Rubric Reason\": \"Confidentiality is at risk because downstream response data is captured, packed into the DMI readback word, and emitted on the JTAG output (274, 229, 209). Integrity is at risk because the response is stored and repacked before being shifted out, so corruption of those elements changes the reported result (274, 229, 209). Availability is at risk because a read response is available to the debugger only when the DMI response is captured and the TAP selects the DMI data path (274-276, 203-209). Expected behavior can be undermined by altering the scan selection or shifted response path so that the debugger receives incorrect or incomplete response data (196, 203-209).\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker interferes with the DMI response capture or JTAG scan path to disclose, corrupt, or withhold a downstream read result.\",\n      \"Enters Through\": [\n        \"dmi_rsp_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"jtag_tdo_o\"\n      ],\n      \"Entry Lines\": [\n        274\n      ],\n      \"Held Lines\": [\n        229,\n        274\n      ],\n      \"Exit Lines\": [\n        209\n      ]\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"DMI reset controls\",\n      \"Unit\": \"neorv32_debug_dtm\",\n      \"Information\": \"The DMI reset controls request a soft DMI reset or hard DMI reset through the DTMCS scan register. These controls determine whether DMI error state is cleared and whether new DMI requests are suppressed.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"yes\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because scanned DTMCS reset bits are stored as control state and used to clear or alter DMI control behavior (195, 248, 249, 256, 257). Availability is at risk because the hard-reset control suppresses request launch and reset handling can clear DMI operation state (251, 252, 265). Expected behavior can be undermined because injected reset commands can unexpectedly clear DMI status or disable subsequent requests (195, 248-252, 265).\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker shifts DTMCS reset bits that clear DMI state or keep the DMI controller from accepting the intended request.\",\n      \"Enters Through\": [\n        \"jtag_tdi_i\"\n      ],\n      \"Leaves Through\": [\n        \"jtag_tdo_o\"\n      ],\n      \"Entry Lines\": [\n        100,\n        195\n      ],\n      \"Held Lines\": [\n        220,\n        221,\n        248,\n        249,\n        251,\n        252\n      ],\n      \"Exit Lines\": [\n        208\n      ]\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Concept Name\": \"DMI error status\",\n      \"Unit\": \"neorv32_debug_dtm\",\n      \"Information\": \"The DMI error status records that a DMI access was attempted while the controller was busy and reports that condition through DMI readback. Debug software depends on it to distinguish an errored DMI transaction from a valid result.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because the error bit is cleared or set by DMI reset and busy-trigger conditions and is then packed into the reported readback status (256-259, 229, 224).\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker manipulates the DMI trigger or reset conditions so that software receives a false error or success indication.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"jtag_tdo_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        257,\n        259,\n        224,\n        229\n      ],\n      \"Exit Lines\": [\n        208\n      ]\n    },\n    {\n      \"Concept ID\": \"C7\",\n      \"Concept Name\": \"Pending DMI transaction state\",\n      \"Unit\": \"neorv32_debug_dtm\",\n      \"Information\": \"The pending state records that a DMI request has been issued and prevents another request from being accepted until the downstream response acknowledges it. It has no direct entry or exit port because internal request and response conditions set and clear the state.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because incorrect modification of the pending state can cause overlapping or lost DMI transactions (264-276). Availability is at risk because the state blocks acceptance of a new request while set and remains set until an acknowledgement is received (264-276).\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker causes the pending state to remain asserted or to clear prematurely, stalling the DMI interface or allowing an incorrectly sequenced request.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        237,\n        270,\n        276\n      ],\n      \"Exit Lines\": []\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"JTAG TAP sequencing state\",\n      \"Candidate Unit\": \"neorv32_debug_dtm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The TAP state machine only sequences scan steps, so its state is excluded as sequencing state rather than being information of its own (121-142).\"\n    },\n    {\n      \"Candidate Name\": \"JTAG clock, reset, synchronization, and pacing signals\",\n      \"Candidate Unit\": \"neorv32_debug_dtm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"Clock and reset inputs, synchronizer stages, and edge-detection pulses are excluded by the clock/reset, synchronizer, and pacing rules (94-111, 146-161).\"\n    },\n    {\n      \"Candidate Name\": \"JTAG IDCODE value\",\n      \"Candidate Unit\": \"neorv32_debug_dtm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The IDCODE is fixed by build-time generics and constants and is public identification data rather than a protected run-time asset (21-23, 187, 194).\"\n    },\n    {\n      \"Candidate Name\": \"JTAG bypass scan bit\",\n      \"Candidate Unit\": \"neorv32_debug_dtm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The bypass register only carries a selected serial scan bit and has no independent protected information beyond the instruction-selected scan path (190, 197, 210).\"\n    },\n    {\n      \"Candidate Name\": \"DMI response acknowledgement\",\n      \"Candidate Unit\": \"neorv32_debug_dtm\",\n      \"Merged Into\": \"C7\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"DMI trigger pulse\",\n      \"Candidate Unit\": \"neorv32_debug_dtm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The trigger is a one-cycle pulse used only to commit a scan operation and pace the DMI controller, so it is not a decision of its own (151-161).\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_debug_dtm",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_debug_dtm",
+    "concept": "JTAG instruction selection",
+    "information": "The active JTAG instruction selects the IDCODE, DTMCS, DMI, or bypass data path, determining which debug operation the TAP performs. Correct instruction selection is required for the DTM to provide the intended scan and DMI behavior.",
+    "rubric reason": "Integrity is at risk because TDI shifts the instruction register and the selected instruction controls data capture, shifting, and TDO output (181, 186-210). Availability is at risk because selecting a non-DMI or bypass path can prevent the required DMI transfer (186-210). Expected behavior can be undermined because injected JTAG instructions can select the wrong data register or bypass path, producing incorrect or unavailable output (181, 193-210).",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker injects a JTAG instruction sequence that selects bypass or the wrong data register, causing incorrect scan results or preventing DMI access.",
+    "enters through": [
+     "jtag_tdi_i"
+    ],
+    "leaves through": [
+     "jtag_tdo_o"
+    ],
+    "entry lines": [
+     100,
+     181
+    ],
+    "held lines": [
+     179,
+     181
+    ],
+    "exit lines": [
+     204
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "yes"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_debug_dtm",
+    "concept": "DMI access request control",
+    "information": "The DMI access control comprises the target address and read/write operation extracted from a JTAG DMI scan. It determines which DMI access is issued and whether the downstream operation reads or writes.",
+    "rubric reason": "Integrity is at risk because scanned DMI fields are loaded into the request address and operation and then drive the DMI request output (265-271, 283, 285). Availability is at risk because invalid or suppressed operation fields leave the request as no-operation instead of launching a DMI transfer (263-271). Expected behavior can be undermined because injected JTAG fields can issue an unintended DMI read or write to an unintended address (196, 266, 269).",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker shifts a modified DMI address or operation into the TAP so that the DTM issues an unintended access or fails to issue the required one.",
+    "enters through": [
+     "jtag_tdi_i"
+    ],
+    "leaves through": [
+     "dmi_req_o.addr",
+     "dmi_req_o.op"
+    ],
+    "entry lines": [
+     100,
+     196
+    ],
+    "held lines": [
+     266,
+     269
+    ],
+    "exit lines": [
+     283,
+     285
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "yes"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_debug_dtm",
+    "concept": "DMI write payload",
+    "information": "The DMI write payload is the 32-bit value transferred from the JTAG DMI scan into a downstream DMI write. The downstream debug operation depends on this value.",
+    "rubric reason": "Confidentiality is at risk because potentially sensitive scanned write data is held and exposed on the DMI request data output (267, 284). Integrity is at risk because JTAG scan input supplies the payload that is stored and forwarded to the DMI target (196, 267, 284). Expected behavior can be undermined because test-packet injection can replace the intended downstream write value with attacker-controlled data (196, 267, 284).",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "attack": "An attacker injects altered JTAG payload bits so that the DTM forwards an unauthorized or incorrect value in a DMI write.",
+    "enters through": [
+     "jtag_tdi_i"
+    ],
+    "leaves through": [
+     "dmi_req_o.data"
+    ],
+    "entry lines": [
+     100,
+     196
+    ],
+    "held lines": [
+     267
+    ],
+    "exit lines": [
+     284
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "yes"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_debug_dtm",
+    "concept": "DMI response data",
+    "information": "DMI response data is the value returned by the downstream debug module for a DMI read and serialized back through the JTAG data path. The JTAG debugger depends on it to receive the requested register or memory result.",
+    "rubric reason": "Confidentiality is at risk because downstream response data is captured, packed into the DMI readback word, and emitted on the JTAG output (274, 229, 209). Integrity is at risk because the response is stored and repacked before being shifted out, so corruption of those elements changes the reported result (274, 229, 209). Availability is at risk because a read response is available to the debugger only when the DMI response is captured and the TAP selects the DMI data path (274-276, 203-209). Expected behavior can be undermined by altering the scan selection or shifted response path so that the debugger receives incorrect or incomplete response data (196, 203-209).",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker interferes with the DMI response capture or JTAG scan path to disclose, corrupt, or withhold a downstream read result.",
+    "enters through": [
+     "dmi_rsp_i.data"
+    ],
+    "leaves through": [
+     "jtag_tdo_o"
+    ],
+    "entry lines": [
+     274
+    ],
+    "held lines": [
+     229,
+     274
+    ],
+    "exit lines": [
+     209
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "yes"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_debug_dtm",
+    "concept": "DMI reset controls",
+    "information": "The DMI reset controls request a soft DMI reset or hard DMI reset through the DTMCS scan register. These controls determine whether DMI error state is cleared and whether new DMI requests are suppressed.",
+    "rubric reason": "Integrity is at risk because scanned DTMCS reset bits are stored as control state and used to clear or alter DMI control behavior (195, 248, 249, 256, 257). Availability is at risk because the hard-reset control suppresses request launch and reset handling can clear DMI operation state (251, 252, 265). Expected behavior can be undermined because injected reset commands can unexpectedly clear DMI status or disable subsequent requests (195, 248-252, 265).",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker shifts DTMCS reset bits that clear DMI state or keep the DMI controller from accepting the intended request.",
+    "enters through": [
+     "jtag_tdi_i"
+    ],
+    "leaves through": [
+     "jtag_tdo_o"
+    ],
+    "entry lines": [
+     100,
+     195
+    ],
+    "held lines": [
+     220,
+     221,
+     248,
+     249,
+     251,
+     252
+    ],
+    "exit lines": [
+     208
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "yes"
+    }
+   },
+   {
+    "id": "C6",
+    "unit": "neorv32_debug_dtm",
+    "concept": "DMI error status",
+    "information": "The DMI error status records that a DMI access was attempted while the controller was busy and reports that condition through DMI readback. Debug software depends on it to distinguish an errored DMI transaction from a valid result.",
+    "rubric reason": "Integrity is at risk because the error bit is cleared or set by DMI reset and busy-trigger conditions and is then packed into the reported readback status (256-259, 229, 224).",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker manipulates the DMI trigger or reset conditions so that software receives a false error or success indication.",
+    "enters through": [],
+    "leaves through": [
+     "jtag_tdo_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     257,
+     259,
+     224,
+     229
+    ],
+    "exit lines": [
+     208
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C7",
+    "unit": "neorv32_debug_dtm",
+    "concept": "Pending DMI transaction state",
+    "information": "The pending state records that a DMI request has been issued and prevents another request from being accepted until the downstream response acknowledges it. It has no direct entry or exit port because internal request and response conditions set and clear the state.",
+    "rubric reason": "Integrity is at risk because incorrect modification of the pending state can cause overlapping or lost DMI transactions (264-276). Availability is at risk because the state blocks acceptance of a new request while set and remains set until an acknowledgement is received (264-276).",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker causes the pending state to remain asserted or to clear prematurely, stalling the DMI interface or allowing an incorrectly sequenced request.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     237,
+     270,
+     276
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_debug_dtm",
+    "concept": "JTAG TAP sequencing state",
+    "reason": "The TAP state machine only sequences scan steps, so its state is excluded as sequencing state rather than being information of its own (121-142).",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_debug_dtm",
+    "concept": "JTAG clock, reset, synchronization, and pacing signals",
+    "reason": "Clock and reset inputs, synchronizer stages, and edge-detection pulses are excluded by the clock/reset, synchronizer, and pacing rules (94-111, 146-161).",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_debug_dtm",
+    "concept": "JTAG IDCODE value",
+    "reason": "The IDCODE is fixed by build-time generics and constants and is public identification data rather than a protected run-time asset (21-23, 187, 194).",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_debug_dtm",
+    "concept": "JTAG bypass scan bit",
+    "reason": "The bypass register only carries a selected serial scan bit and has no independent protected information beyond the instruction-selected scan path (190, 197, 210).",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_debug_dtm",
+    "concept": "DMI response acknowledgement",
+    "reason": "merged into C7",
+    "merged into": "C7"
+   },
+   {
+    "unit": "neorv32_debug_dtm",
+    "concept": "DMI trigger pulse",
+    "reason": "The trigger is a one-cycle pulse used only to commit a scan operation and pace the DMI controller, so it is not a decision of its own (151-161).",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

@@ -1,0 +1,153 @@
+{
+ "module": "neorv32_dmem",
+ "prompt version": "two_phase_p1o_first",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "b4c962e16261",
+ "user sha": "800930abaadd",
+ "usage": {
+  "in": 24840,
+  "out": 11087,
+  "reasoning": 9840,
+  "cached": 20474,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_0a4dca5b07ddf02d006ad5a2e09a3087d1bdb2b13ab3c42ee3",
+  "request key": "69c668512ddc"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_dmem\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"Data memory contents\",\n      \"Unit\": \"neorv32_dmem\",\n      \"Information\": \"The unit's byte-wide memory holds data words written by bus requests and returns selected words on reads; correct storage and retrieval are required for data-memory operation.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The stored words are exposed through bus_rsp_o.data at line 129 after being read into rdata at lines 75-78, and bus writes at lines 63-72 can overwrite them.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could issue reads to disclose stored words or issue writes with selected byte enables to overwrite them.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        63,\n        66,\n        69,\n        72\n      ],\n      \"Held Lines\": [\n        75,\n        76,\n        77,\n        78\n      ],\n      \"Exit Lines\": [\n        129\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"Memory access address\",\n      \"Unit\": \"neorv32_dmem\",\n      \"Information\": \"The address selects which memory word is read or written; correct address selection is required to access the intended data word. It is used internally to index the memory and is not returned directly through an output port.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"bus_req_i.addr is copied into addr at line 113, whose value selects the memory word for writes and reads at lines 63-78, so changing it can redirect an access to an unintended word.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could alter the request address to read or overwrite a memory word different from the one intended.\",\n      \"Enters Through\": [\n        \"bus_req_i.addr\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        113\n      ],\n      \"Held Lines\": [\n        113\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"Read-data release enable\",\n      \"Unit\": \"neorv32_dmem\",\n      \"Information\": \"This registered decision qualifies whether the current memory read data is presented on the response. It has no entry or exit port of its own because it is derived from the request command and only gates bus_rsp_o.data.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"no\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"rden is assigned from the request strobe and read/write direction at line 124 and gates bus_rsp_o.data at line 129, so forcing it low can withhold required read data.\",\n      \"Objectives At Risk\": [\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could keep the registered read enable inactive so that the memory stops returning requested read data.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        121,\n        124\n      ],\n      \"Exit Lines\": []\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Bus access command fields\",\n      \"Candidate Unit\": \"neorv32_dmem\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The strobe, read/write direction and byte enables only describe whether, in which direction and which bytes an access transfers, so Access command fields bars them as separate conceptual assets; the separately decoded read-data gate is kept as C3.\"\n    },\n    {\n      \"Candidate Name\": \"Bus response acknowledgement\",\n      \"Candidate Unit\": \"neorv32_dmem\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"bus_rsp_o.ack only repeats the request strobe at line 125, so the bus handshake-copy rule makes it timing information rather than a separate asset.\"\n    },\n    {\n      \"Candidate Name\": \"Bus response error status\",\n      \"Candidate Unit\": \"neorv32_dmem\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"bus_rsp_o.err is tied to a constant at line 130 and therefore carries no mutable information requiring a security objective.\"\n    },\n    {\n      \"Candidate Name\": \"Clock and reset\",\n      \"Candidate Unit\": \"neorv32_dmem\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"clk_i and rstn_i only time or reset the memory and response logic, which the Clocks and resets rule excludes as conceptual assets.\"\n    },\n    {\n      \"Candidate Name\": \"Build-time memory configuration\",\n      \"Candidate Unit\": \"neorv32_dmem\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"DMEM_SIZE and alt_style_c are build-time values at lines 23 and 36 that cannot be changed or withheld at run time.\"\n    }\n  ],\n  \"Notes\": [\n    \"RTL line 130 assigns bus_rsp_o.err to a constant, but the diagram shows no block or arrow for that output field.\"\n  ]\n}",
+ "reply": {
+  "module name": "neorv32_dmem",
+  "notes": [
+   "RTL line 130 assigns bus_rsp_o.err to a constant, but the diagram shows no block or arrow for that output field."
+  ],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_dmem",
+    "concept": "Data memory contents",
+    "information": "The unit's byte-wide memory holds data words written by bus requests and returns selected words on reads; correct storage and retrieval are required for data-memory operation.",
+    "rubric reason": "The stored words are exposed through bus_rsp_o.data at line 129 after being read into rdata at lines 75-78, and bus writes at lines 63-72 can overwrite them.",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "attack": "An attacker could issue reads to disclose stored words or issue writes with selected byte enables to overwrite them.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     63,
+     66,
+     69,
+     72
+    ],
+    "held lines": [
+     75,
+     76,
+     77,
+     78
+    ],
+    "exit lines": [
+     129
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_dmem",
+    "concept": "Memory access address",
+    "information": "The address selects which memory word is read or written; correct address selection is required to access the intended data word. It is used internally to index the memory and is not returned directly through an output port.",
+    "rubric reason": "bus_req_i.addr is copied into addr at line 113, whose value selects the memory word for writes and reads at lines 63-78, so changing it can redirect an access to an unintended word.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could alter the request address to read or overwrite a memory word different from the one intended.",
+    "enters through": [
+     "bus_req_i.addr"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     113
+    ],
+    "held lines": [
+     113
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_dmem",
+    "concept": "Read-data release enable",
+    "information": "This registered decision qualifies whether the current memory read data is presented on the response. It has no entry or exit port of its own because it is derived from the request command and only gates bus_rsp_o.data.",
+    "rubric reason": "rden is assigned from the request strobe and read/write direction at line 124 and gates bus_rsp_o.data at line 129, so forcing it low can withhold required read data.",
+    "objectives": [
+     "A"
+    ],
+    "attack": "An attacker could keep the registered read enable inactive so that the memory stops returning requested read data.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     121,
+     124
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "no",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_dmem",
+    "concept": "Bus access command fields",
+    "reason": "The strobe, read/write direction and byte enables only describe whether, in which direction and which bytes an access transfers, so Access command fields bars them as separate conceptual assets; the separately decoded read-data gate is kept as C3.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_dmem",
+    "concept": "Bus response acknowledgement",
+    "reason": "bus_rsp_o.ack only repeats the request strobe at line 125, so the bus handshake-copy rule makes it timing information rather than a separate asset.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_dmem",
+    "concept": "Bus response error status",
+    "reason": "bus_rsp_o.err is tied to a constant at line 130 and therefore carries no mutable information requiring a security objective.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_dmem",
+    "concept": "Clock and reset",
+    "reason": "clk_i and rstn_i only time or reset the memory and response logic, which the Clocks and resets rule excludes as conceptual assets.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_dmem",
+    "concept": "Build-time memory configuration",
+    "reason": "DMEM_SIZE and alt_style_c are build-time values at lines 23 and 36 that cannot be changed or withheld at run time.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

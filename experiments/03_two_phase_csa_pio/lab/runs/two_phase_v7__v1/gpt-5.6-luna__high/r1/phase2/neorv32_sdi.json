@@ -1,0 +1,1851 @@
+{
+ "module": "neorv32_sdi",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 2,
+ "system sha": "6e414c09e397",
+ "user sha": "08a51fefc767",
+ "usage": {
+  "in": 28481,
+  "out": 25072,
+  "reasoning": 12605,
+  "cached": 15151,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_067572173bc9d8c5006ace8455fc6c87d1be10a1d33b338337",
+  "request key": "aa97d9baf591"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_sdi\",\n  \"Concept Walks\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Points\": [\n        {\n          \"Point\": \"tx_fifo.wdata\",\n          \"Reached By\": \"bus_req_i ==> tx_fifo.wdata [bus_req_i.data]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            201\n          ],\n          \"Answer Reason\": \"The bus write data is directly copied into the transmit FIFO write-data path, where it can be observed or changed before transmission.\"\n        },\n        {\n          \"Point\": \"tx_fifo_inst\",\n          \"Reached By\": \"tx_fifo.wdata ==> tx_fifo_inst [tx_fifo.wdata]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            190,\n            195\n          ],\n          \"Answer Reason\": \"The FIFO instance receives the transmit byte and returns it through tx_fifo.rdata; by the black-box rule, the input can affect the driven output, as shown by the port map.\"\n        },\n        {\n          \"Point\": \"serial_engine\",\n          \"Reached By\": \"tx_fifo_inst ==> serial_engine [tx_fifo.rdata]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            305,\n            327\n          ],\n          \"Answer Reason\": \"The transmit byte is loaded into and shifted by serial.sreg, so faults or unauthorized influence there can expose or alter the transmitted value.\"\n        },\n        {\n          \"Point\": \"sdi_dat_o\",\n          \"Reached By\": \"serial_engine ==> sdi_dat_o [serial.sreg]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            345\n          ],\n          \"Answer Reason\": \"The concurrent assignment exposes the serial shift-register bit at the external SDI data output, but the assignment itself does not modify the stored byte.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"sdi_dat_o\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"sdi_dat_o\"\n          ],\n          \"Security Objectives\": [\n            \"C\",\n            \"I\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"Carries each bit of the transmit byte across the SDI output boundary.\",\n          \"Justification\": \"The non-record serial output crosses the unit boundary bit by bit and is the direct externally visible representation of the transmit data.\",\n          \"Asset Lines\": [\n            30,\n            345\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"tx_fifo.wdata\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sdi_dat_o\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"a\"\n            }\n          ],\n          \"Functionality\": \"Provides the host-written byte that enters the transmit path.\",\n          \"Justification\": \"The record field carries the value that ultimately reaches the primary SDI output, while a bus request field is barred from being primary.\",\n          \"Asset Lines\": [\n            25,\n            201\n          ]\n        },\n        {\n          \"Asset RTL\": \"tx_fifo.wdata\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"tx_fifo.wdata\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sdi_dat_o\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"a\"\n            }\n          ],\n          \"Functionality\": \"Forwards the host-written transmit byte into the transmit FIFO instance.\",\n          \"Justification\": \"This signal is the FIFO write-data carrier and is barred from being primary because it only buffers data between interfaces.\",\n          \"Asset Lines\": [\n            107,\n            190,\n            201\n          ]\n        },\n        {\n          \"Asset RTL\": \"tx_fifo.rdata\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"tx_fifo_inst\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sdi_dat_o\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"a\"\n            }\n          ],\n          \"Functionality\": \"Carries the queued transmit byte from the FIFO to the serial engine.\",\n          \"Justification\": \"The FIFO read-data signal carries the primary's value before serialization and is not itself the stored asset boundary.\",\n          \"Asset Lines\": [\n            107,\n            195,\n            305\n          ]\n        },\n        {\n          \"Asset RTL\": \"serial.sreg\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"serial_engine\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sdi_dat_o\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"a\"\n            }\n          ],\n          \"Functionality\": \"Temporarily stores and shifts the transmit byte before its bits drive SDI.\",\n          \"Justification\": \"The serial shift register carries the byte to the primary output, but the serial-data rule bars it from being primary.\",\n          \"Asset Lines\": [\n            94,\n            288,\n            305,\n            327,\n            345\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.addr\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"tx_fifo.wdata\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sdi_dat_o\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Selects whether a bus transaction targets the transmit FIFO path.\",\n          \"Justification\": \"Its address test controls the transmit write enable and therefore whether the value reaching the primary is accepted.\",\n          \"Asset Lines\": [\n            202\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.rw\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"tx_fifo.wdata\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sdi_dat_o\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Selects a bus write for insertion into the transmit FIFO.\",\n          \"Justification\": \"The read/write condition gates tx_fifo.we and can prevent or redirect the transmit byte from reaching the primary.\",\n          \"Asset Lines\": [\n            202\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.stb\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"tx_fifo.wdata\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sdi_dat_o\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Qualifies the bus write that loads the transmit FIFO.\",\n          \"Justification\": \"The strobe gates tx_fifo.we, so it can block or permit the data transfer that feeds the primary output.\",\n          \"Asset Lines\": [\n            202\n          ]\n        },\n        {\n          \"Asset RTL\": \"tx_fifo.we\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"tx_fifo.wdata\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sdi_dat_o\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Controls whether the bus data is written into the transmit FIFO.\",\n          \"Justification\": \"Its conditional assignment gates acceptance of the transmit value before it reaches the primary serialization path.\",\n          \"Asset Lines\": [\n            191,\n            202\n          ]\n        },\n        {\n          \"Asset RTL\": \"serial.state\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"serial_engine\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sdi_dat_o\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Selects the serial-engine phase in which the transmit register is loaded or shifted.\",\n          \"Justification\": \"Its case selection controls assignments to serial.sreg and can therefore alter which byte or bit reaches the primary output.\",\n          \"Asset Lines\": [\n            297,\n            305,\n            327\n          ]\n        },\n        {\n          \"Asset RTL\": \"tx_fifo.avail\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"serial_engine\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sdi_dat_o\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Selects whether serial.sreg receives the queued byte or a zero value.\",\n          \"Justification\": \"The availability test directly chooses the value loaded into the transmit shift register.\",\n          \"Asset Lines\": [\n            302,\n            305\n          ]\n        },\n        {\n          \"Asset RTL\": \"sync.csn\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"serial_engine\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sdi_dat_o\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Controls transaction start and termination around transmit shifting.\",\n          \"Justification\": \"The chip-select conditions choose when serial.sreg is loaded, shifted, or left in the current state.\",\n          \"Asset Lines\": [\n            307,\n            324\n          ]\n        },\n        {\n          \"Asset RTL\": \"sync.sck\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"serial_engine\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sdi_dat_o\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Controls the serial shift events that update the transmit register.\",\n          \"Justification\": \"The synchronized clock condition gates serial.sreg shifting and can change the transmitted sequence.\",\n          \"Asset Lines\": [\n            317,\n            326,\n            327\n          ]\n        },\n        {\n          \"Asset RTL\": \"rstn_i\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"serial_engine\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sdi_dat_o\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Resets the transmit shift register to a constant.\",\n          \"Justification\": \"The reset path can overwrite serial.sreg and thereby change the value delivered by the primary output.\",\n          \"Asset Lines\": [\n            283,\n            288\n          ]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Points\": [\n        {\n          \"Point\": \"synchronizer\",\n          \"Reached By\": \"sdi_dat_i ==> synchronizer [sdi_dat_i]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            263,\n            270\n          ],\n          \"Answer Reason\": \"The external serial input is sampled into synchronizer registers, where it can be observed or changed before receive processing.\"\n        },\n        {\n          \"Point\": \"sync.sdi\",\n          \"Reached By\": \"synchronizer ==> sync.sdi [sync.sdi_ff]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            276\n          ],\n          \"Answer Reason\": \"This concurrent signal forwards the synchronized receive bit and exposes it to the serial engine, but the assignment itself does not alter the bit.\"\n        },\n        {\n          \"Point\": \"serial_engine\",\n          \"Reached By\": \"sync.sdi ==> serial_engine [sync.sdi]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            314,\n            327\n          ],\n          \"Answer Reason\": \"The sampled bit is captured in serial.sdi_ff and shifted into serial.sreg, so this block can expose or alter the receive byte.\"\n        },\n        {\n          \"Point\": \"rx_fifo.wdata\",\n          \"Reached By\": \"serial_engine ==> rx_fifo.wdata [serial.sreg]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            235\n          ],\n          \"Answer Reason\": \"The completed receive byte is forwarded to the FIFO write-data path and is observable there, but this wire assignment does not itself modify it.\"\n        },\n        {\n          \"Point\": \"rx_fifo_inst\",\n          \"Reached By\": \"rx_fifo.wdata ==> rx_fifo_inst [rx_fifo.wdata]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            225,\n            230\n          ],\n          \"Answer Reason\": \"The FIFO instance receives the sampled byte and returns it as rx_fifo.rdata; by the black-box rule, the input can affect the returned output.\"\n        },\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"rx_fifo_inst ==> bus_access [rx_fifo.rdata]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            162\n          ],\n          \"Answer Reason\": \"The receive FIFO data is copied into the bus response data field, exposing it to software and making the returned value dependent on this output assignment.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"sdi_dat_i\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"synchronizer\"\n          ],\n          \"Security Objectives\": [\n            \"C\",\n            \"I\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"Carries each sampled receive-data bit across the serial input boundary.\",\n          \"Justification\": \"The non-record serial input crosses the boundary one bit per step into the receive shift path, making it the primary boundary element for the received data.\",\n          \"Asset Lines\": [\n            29,\n            270\n          ]\n        },\n        {\n          \"Asset RTL\": \"sync.sdi_ff\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"synchronizer\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sdi_dat_i\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"a\"\n            }\n          ],\n          \"Functionality\": \"Synchronizes the serial input bit before it is consumed by the serial engine.\",\n          \"Justification\": \"It carries a sampled copy of the primary input, while synchronizer stages are barred from being primary.\",\n          \"Asset Lines\": [\n            83,\n            266,\n            270,\n            276\n          ]\n        },\n        {\n          \"Asset RTL\": \"sync.sdi\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"sync.sdi\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sdi_dat_i\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"a\"\n            }\n          ],\n          \"Functionality\": \"Forwards the synchronized receive bit into the serial engine.\",\n          \"Justification\": \"This wire carries the primary input's value after synchronization and is only a forwarding path.\",\n          \"Asset Lines\": [\n            83,\n            276\n          ]\n        },\n        {\n          \"Asset RTL\": \"serial.sdi_ff\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"serial_engine\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sdi_dat_i\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"a\"\n            }\n          ],\n          \"Functionality\": \"Holds the sampled receive bit until it is shifted into serial.sreg.\",\n          \"Justification\": \"It carries a receive-data bit toward the completed byte and is not the whole received-data boundary.\",\n          \"Asset Lines\": [\n            94,\n            289,\n            314,\n            327\n          ]\n        },\n        {\n          \"Asset RTL\": \"serial.sreg\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"serial_engine\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sdi_dat_i\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"a\"\n            }\n          ],\n          \"Functionality\": \"Accumulates the sampled serial bits into the received byte.\",\n          \"Justification\": \"It carries the received data while it is shifted, but the serial shift-register rule bars it from being primary.\",\n          \"Asset Lines\": [\n            94,\n            288,\n            327\n          ]\n        },\n        {\n          \"Asset RTL\": \"rx_fifo.wdata\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"rx_fifo.wdata\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sdi_dat_i\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"a\"\n            }\n          ],\n          \"Functionality\": \"Carries the completed receive byte into the receive FIFO.\",\n          \"Justification\": \"It is the FIFO write-data carrier for received data and is barred from being primary as a buffering path.\",\n          \"Asset Lines\": [\n            107,\n            225,\n            235\n          ]\n        },\n        {\n          \"Asset RTL\": \"rx_fifo.rdata\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"rx_fifo_inst\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sdi_dat_i\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"a\"\n            }\n          ],\n          \"Functionality\": \"Carries the queued received byte from the FIFO to the bus-access process.\",\n          \"Justification\": \"It carries the received value out of the FIFO but is only a FIFO data path, not the primary boundary element.\",\n          \"Asset Lines\": [\n            107,\n            162,\n            230\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_rsp_o.data\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sdi_dat_i\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"a\"\n            }\n          ],\n          \"Functionality\": \"Returns the received byte in the bus response data field.\",\n          \"Justification\": \"The response field carries the received data to software, but a bus response record field never qualifies as primary.\",\n          \"Asset Lines\": [\n            26,\n            162\n          ]\n        },\n        {\n          \"Asset RTL\": \"serial.state\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"serial_engine\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sdi_dat_i\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Selects the serial-engine phases that capture and shift receive data.\",\n          \"Justification\": \"Its case selection controls assignments to serial.sdi_ff and serial.sreg, so it can alter the received result.\",\n          \"Asset Lines\": [\n            297,\n            314,\n            327\n          ]\n        },\n        {\n          \"Asset RTL\": \"sync.csn\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"serial_engine\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sdi_dat_i\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Gates receive capture and terminates a serial transaction.\",\n          \"Justification\": \"Its conditions determine whether receive bits are captured or the transaction is ended.\",\n          \"Asset Lines\": [\n            315,\n            324\n          ]\n        },\n        {\n          \"Asset RTL\": \"sync.sck\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"serial_engine\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sdi_dat_i\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Gates the receive-bit shift events.\",\n          \"Justification\": \"The synchronized clock condition controls when serial.sreg receives another sampled bit.\",\n          \"Asset Lines\": [\n            317,\n            326,\n            327\n          ]\n        },\n        {\n          \"Asset RTL\": \"serial.done\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"serial_engine\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sdi_dat_i\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Qualifies completion of the received byte for writing into the receive FIFO.\",\n          \"Justification\": \"Its asserted assignment controls whether the accumulated receive byte is accepted by the FIFO.\",\n          \"Asset Lines\": [\n            329\n          ]\n        },\n        {\n          \"Asset RTL\": \"rx_fifo.we\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"rx_fifo.wdata\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sdi_dat_i\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Writes the completed serial byte into the receive FIFO.\",\n          \"Justification\": \"It gates storage of the received value and can cause a sampled byte to be omitted.\",\n          \"Asset Lines\": [\n            226,\n            236\n          ]\n        },\n        {\n          \"Asset RTL\": \"rx_fifo.re\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sdi_dat_i\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Controls removal of received data from the receive FIFO for a bus read.\",\n          \"Justification\": \"Its bus-qualified assignment controls whether the received data can progress to the response path.\",\n          \"Asset Lines\": [\n            229,\n            240\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.addr\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sdi_dat_i\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Selects the receive-data register path and receive FIFO read operation.\",\n          \"Justification\": \"The address condition determines whether receive data is returned and whether the FIFO is read.\",\n          \"Asset Lines\": [\n            142,\n            162,\n            240\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.rw\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sdi_dat_i\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Selects a read transaction that releases receive data.\",\n          \"Justification\": \"The read/write condition gates rx_fifo.re and the response-data operation.\",\n          \"Asset Lines\": [\n            131,\n            240\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.stb\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sdi_dat_i\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Qualifies the bus request that reads received data.\",\n          \"Justification\": \"The strobe gates the receive FIFO read and response handling, controlling release of the received value.\",\n          \"Asset Lines\": [\n            130,\n            240\n          ]\n        },\n        {\n          \"Asset RTL\": \"rstn_i\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"synchronizer\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sdi_dat_i\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Clears the receive synchronizer and receive shift state.\",\n          \"Justification\": \"Reset overwrites receive-path state with constants and can change the received byte returned to software.\",\n          \"Asset Lines\": [\n            263,\n            283\n          ]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Points\": [\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"holding block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            133,\n            200,\n            239,\n            296\n          ],\n          \"Answer Reason\": \"The bus-access process stores ctrl.enable from bus write data and the resulting value clears both FIFOs and controls serial operation.\"\n        },\n        {\n          \"Point\": \"rx_fifo.clear\",\n          \"Reached By\": \"bus_access ==> rx_fifo.clear [ctrl.enable]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"This wire only forwards the enable value to the FIFO clear input; it does not independently modify or expose the enable state.\"\n        },\n        {\n          \"Point\": \"tx_fifo.clear\",\n          \"Reached By\": \"bus_access ==> tx_fifo.clear [ctrl.enable]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"This wire only forwards the enable value to the FIFO clear input; it does not independently modify or expose the enable state.\"\n        },\n        {\n          \"Point\": \"serial_engine\",\n          \"Reached By\": \"bus_access ==> serial_engine [ctrl.enable]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"The serial engine consumes enable as a state input, but the block does not modify, expose, or independently block the stored enable state.\"\n        },\n        {\n          \"Point\": \"irq_generator\",\n          \"Reached By\": \"bus_access ==> irq_generator [ctrl.{enable,irq_rx_avail,irq_rx_full,irq_rx_half,irq_tx_empty,irq_tx_nhalf}]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"The interrupt process uses enable as a gating operand, but it does not modify or expose the enable state itself.\"\n        },\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"bus_access ==> bus_rsp_o\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"The bus response reports ctrl.enable but the listed objectives exclude confidentiality and the response assignment does not modify or block the enable state.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"ctrl.enable\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores the run-time enable setting for the SDI interface.\",\n          \"Justification\": \"This register directly holds the conceptual enable state and its value controls FIFO clearing, serial state, and interrupt generation.\",\n          \"Asset Lines\": [\n            72,\n            117,\n            133,\n            200,\n            239,\n            249,\n            296\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"ctrl.enable\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Supplies the value written into ctrl.enable.\",\n          \"Justification\": \"The bus request data field directly sets the enable register, while a bus request field cannot be primary.\",\n          \"Asset Lines\": [\n            25,\n            133\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.addr\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"ctrl.enable\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Selects the control-register write that can update ctrl.enable.\",\n          \"Justification\": \"Its address condition decides whether the enable assignment occurs.\",\n          \"Asset Lines\": [\n            132\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.rw\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"ctrl.enable\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Selects a write operation for ctrl.enable.\",\n          \"Justification\": \"The read/write condition decides whether bus data is assigned to the enable register.\",\n          \"Asset Lines\": [\n            131\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.stb\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"ctrl.enable\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Qualifies the bus transaction that writes ctrl.enable.\",\n          \"Justification\": \"The strobe condition decides whether the enable assignment is performed.\",\n          \"Asset Lines\": [\n            130\n          ]\n        },\n        {\n          \"Asset RTL\": \"clk_i\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"ctrl.enable\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Times updates of the enable register.\",\n          \"Justification\": \"The clock controls when the primary can update, so stalling it can block an enable change needed for operation.\",\n          \"Asset Lines\": [\n            123\n          ]\n        },\n        {\n          \"Asset RTL\": \"rstn_i\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"ctrl.enable\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Clears the enable register and disables the interface.\",\n          \"Justification\": \"The reset arm overwrites ctrl.enable with zero, changing the setting and preventing normal operation.\",\n          \"Asset Lines\": [\n            115,\n            117\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_rsp_o.data\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [],\n          \"Secondary To\": [],\n          \"Functionality\": \"Returns the enable state in the bus read-data field.\",\n          \"Justification\": \"It is a required exit port for the concept, but confidentiality is not an objective for this concept and the response field does not modify the state.\",\n          \"Asset Lines\": [\n            26,\n            143\n          ]\n        }\n      ],\n      \"Not Reported\": [\n        {\n          \"Element RTL\": \"bus_rsp_o.data\",\n          \"Element Entity\": \"neorv32_sdi\",\n          \"Why Not Reported\": \"The response field is required as the exit path but has no applicable secondary direction because confidentiality is not an objective and it does not influence ctrl.enable.\"\n        }\n      ],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Points\": [\n        {\n          \"Point\": \"synchronizer\",\n          \"Reached By\": \"sdi_csn_i ==> synchronizer [sdi_csn_i]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            263,\n            269\n          ],\n          \"Answer Reason\": \"The chip-select input is sampled into sync.csn_ff, so changing or clearing this state can alter or terminate transaction framing.\"\n        },\n        {\n          \"Point\": \"sync.csn\",\n          \"Reached By\": \"synchronizer ==> sync.csn [sync.csn_ff]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            275,\n            307,\n            315,\n            324\n          ],\n          \"Answer Reason\": \"The synchronized chip-select value directly controls serial start, continuation, and termination decisions.\"\n        },\n        {\n          \"Point\": \"serial_engine\",\n          \"Reached By\": \"sync.csn --> serial_engine [sync.csn]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            307,\n            315,\n            324\n          ],\n          \"Answer Reason\": \"The serial engine uses chip-select conditions to enter, continue, or leave transaction states, so framing can be changed or blocked.\"\n        },\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"sync.csn ==> bus_access [sync.csn]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"The bus-access process only reports synchronized chip-select status in the response and does not modify or block the framing state.\"\n        }\n      ],\n      \"Assets\": [],\n      \"Not Reported\": [\n        {\n          \"Element RTL\": \"sdi_csn_i\",\n          \"Element Entity\": \"neorv32_sdi\",\n          \"Why Not Reported\": \"It is the required framing entry port, but it only feeds synchronizer stages and is not primary under the synchronizer rule; there is no qualifying primary for a secondary relationship.\"\n        },\n        {\n          \"Element RTL\": \"sync.csn_ff\",\n          \"Element Entity\": \"neorv32_sdi\",\n          \"Why Not Reported\": \"It stores a synchronized copy of the input and is barred from being primary as a synchronizer stage; no qualifying primary exists.\"\n        },\n        {\n          \"Element RTL\": \"sync.csn\",\n          \"Element Entity\": \"neorv32_sdi\",\n          \"Why Not Reported\": \"It is a derived framing control wire rather than a qualifying stored primary, and no primary exists for a secondary relationship.\"\n        },\n        {\n          \"Element RTL\": \"serial.state\",\n          \"Element Entity\": \"neorv32_sdi\",\n          \"Why Not Reported\": \"It is sequencing state of the serial state machine and is barred from primary status by the sequencing-state rule; no qualifying primary exists.\"\n        },\n        {\n          \"Element RTL\": \"bus_rsp_o.data\",\n          \"Element Entity\": \"neorv32_sdi\",\n          \"Why Not Reported\": \"It is the required framing exit field, but a bus response record field cannot be primary and it does not create a secondary without a primary.\"\n        }\n      ],\n      \"No Primary Reason\": \"The framing state is represented by synchronizer and serial state-machine elements, but synchronizer stages and sequencing state are barred from being primary, while the bus response record field is also barred.\"\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Points\": [\n        {\n          \"Point\": \"irq_generator\",\n          \"Reached By\": \"holding block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            249,\n            250,\n            251,\n            252,\n            253,\n            254\n          ],\n          \"Answer Reason\": \"The process computes irq_o from enable, interrupt configuration bits, and FIFO status, so faults or unauthorized influence can create, suppress, or corrupt interrupt requests.\"\n        },\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"bus_access ==> irq_generator [ctrl.{enable,irq_rx_avail,irq_rx_full,irq_rx_half,irq_tx_empty,irq_tx_nhalf}]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            133,\n            135,\n            136,\n            137,\n            138,\n            139,\n            249\n          ],\n          \"Answer Reason\": \"Bus writes store the interrupt enable and threshold configuration fields that gate irq_o, allowing interrupt behavior to be changed or suppressed.\"\n        },\n        {\n          \"Point\": \"rx_fifo_inst\",\n          \"Reached By\": \"rx_fifo_inst ==> irq_generator [rx_fifo.{avail,free,half}]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            222,\n            227,\n            231\n          ],\n          \"Answer Reason\": \"The FIFO status outputs feed the interrupt conditions; by the black-box rule, the instance and its inputs can affect those driven status outputs.\"\n        },\n        {\n          \"Point\": \"tx_fifo_inst\",\n          \"Reached By\": \"tx_fifo_inst ==> irq_generator [tx_fifo.{avail,half}]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            187,\n            196\n          ],\n          \"Answer Reason\": \"The transmit FIFO status outputs feed the interrupt conditions; by the black-box rule, the instance and its inputs can affect the driven status outputs.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"irq_o\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"irq_generator\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"Produces the interrupt request condition for the integrating system.\",\n          \"Justification\": \"The output port is computed directly from the interrupt condition and crosses the unit boundary as the request itself.\",\n          \"Asset Lines\": [\n            31,\n            247,\n            249,\n            254\n          ]\n        },\n        {\n          \"Asset RTL\": \"ctrl.enable\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Gates whether any configured FIFO condition can assert irq_o.\",\n          \"Justification\": \"The enable operand directly controls the interrupt assignment and can suppress the request.\",\n          \"Asset Lines\": [\n            249\n          ]\n        },\n        {\n          \"Asset RTL\": \"ctrl.irq_rx_avail\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Enables the receive-available interrupt condition.\",\n          \"Justification\": \"It gates the rx_fifo.avail term in the irq_o computation.\",\n          \"Asset Lines\": [\n            250\n          ]\n        },\n        {\n          \"Asset RTL\": \"ctrl.irq_rx_half\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Enables the receive-half-full interrupt condition.\",\n          \"Justification\": \"It gates the rx_fifo.half term in the irq_o computation.\",\n          \"Asset Lines\": [\n            251\n          ]\n        },\n        {\n          \"Asset RTL\": \"ctrl.irq_rx_full\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Enables the receive-full interrupt condition.\",\n          \"Justification\": \"It gates the inverted rx_fifo.free term in the irq_o computation.\",\n          \"Asset Lines\": [\n            252\n          ]\n        },\n        {\n          \"Asset RTL\": \"ctrl.irq_tx_empty\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Enables the transmit-empty interrupt condition.\",\n          \"Justification\": \"It gates the inverted tx_fifo.avail term in the irq_o computation.\",\n          \"Asset Lines\": [\n            253\n          ]\n        },\n        {\n          \"Asset RTL\": \"ctrl.irq_tx_nhalf\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Enables the transmit-not-half-full interrupt condition.\",\n          \"Justification\": \"It gates the inverted tx_fifo.half term in the irq_o computation.\",\n          \"Asset Lines\": [\n            254\n          ]\n        },\n        {\n          \"Asset RTL\": \"rx_fifo.avail\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"rx_fifo_inst\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Reports receive data availability to the interrupt expression.\",\n          \"Justification\": \"It is an operand of the receive-available interrupt term and can change whether irq_o asserts.\",\n          \"Asset Lines\": [\n            231,\n            250\n          ]\n        },\n        {\n          \"Asset RTL\": \"rx_fifo.free\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"rx_fifo_inst\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Reports receive FIFO capacity for the receive-full interrupt term.\",\n          \"Justification\": \"Its inversion is an operand of the receive-full interrupt condition.\",\n          \"Asset Lines\": [\n            227,\n            252\n          ]\n        },\n        {\n          \"Asset RTL\": \"rx_fifo.half\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"rx_fifo_inst\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Reports the receive FIFO half-full status.\",\n          \"Justification\": \"It is an operand of the receive-half-full interrupt term.\",\n          \"Asset Lines\": [\n            222,\n            251\n          ]\n        },\n        {\n          \"Asset RTL\": \"tx_fifo.avail\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"tx_fifo_inst\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Reports transmit FIFO availability for the transmit-empty interrupt term.\",\n          \"Justification\": \"Its inversion is an operand of the transmit-empty interrupt condition.\",\n          \"Asset Lines\": [\n            196,\n            253\n          ]\n        },\n        {\n          \"Asset RTL\": \"tx_fifo.half\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"tx_fifo_inst\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Reports the transmit FIFO half-full status for interrupt generation.\",\n          \"Justification\": \"Its inversion is an operand of the transmit-not-half-full interrupt condition.\",\n          \"Asset Lines\": [\n            187,\n            254\n          ]\n        },\n        {\n          \"Asset RTL\": \"clk_i\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Times updates of the interrupt request output.\",\n          \"Justification\": \"Stalling the clock can prevent irq_o from updating and therefore block an interrupt request.\",\n          \"Asset Lines\": [\n            248\n          ]\n        },\n        {\n          \"Asset RTL\": \"rstn_i\",\n          \"Entity\": \"neorv32_sdi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_sdi\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Clears the interrupt request output.\",\n          \"Justification\": \"The reset arm forces irq_o low, changing or suppressing the interrupt condition.\",\n          \"Asset Lines\": [\n            246,\n            247\n          ]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    }\n  ],\n  \"Notes\": [\n    \"C1 lists no held lines even though serial.sreg stores and shifts transmit data at RTL lines 305 and 327.\",\n    \"C2 lists no held lines even though serial.sdi_ff, serial.sreg, and rx_fifo.wdata store or carry sampled receive data at RTL lines 314, 327, and 235.\",\n    \"C4 has reachable integrity and availability points but no qualifying primary because the relevant synchronizer stages and serial state-machine state are barred from primary status, and the response field is a bus record field.\"\n  ]\n}",
+ "reply": {
+  "module name": "neorv32_sdi",
+  "notes": [
+   "C1 lists no held lines even though serial.sreg stores and shifts transmit data at RTL lines 305 and 327.",
+   "C2 lists no held lines even though serial.sdi_ff, serial.sreg, and rx_fifo.wdata store or carry sampled receive data at RTL lines 314, 327, and 235.",
+   "C4 has reachable integrity and availability points but no qualifying primary because the relevant synchronizer stages and serial state-machine state are barred from primary status, and the response field is a bus record field."
+  ],
+  "points": [
+   {
+    "concept id": "C1",
+    "point": "tx_fifo.wdata",
+    "reached by": "bus_req_i ==> tx_fifo.wdata [bus_req_i.data]",
+    "lines": [
+     201
+    ],
+    "reason": "The bus write data is directly copied into the transmit FIFO write-data path, where it can be observed or changed before transmission.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "tx_fifo_inst",
+    "reached by": "tx_fifo.wdata ==> tx_fifo_inst [tx_fifo.wdata]",
+    "lines": [
+     190,
+     195
+    ],
+    "reason": "The FIFO instance receives the transmit byte and returns it through tx_fifo.rdata; by the black-box rule, the input can affect the driven output, as shown by the port map.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "serial_engine",
+    "reached by": "tx_fifo_inst ==> serial_engine [tx_fifo.rdata]",
+    "lines": [
+     305,
+     327
+    ],
+    "reason": "The transmit byte is loaded into and shifted by serial.sreg, so faults or unauthorized influence there can expose or alter the transmitted value.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "sdi_dat_o",
+    "reached by": "serial_engine ==> sdi_dat_o [serial.sreg]",
+    "lines": [
+     345
+    ],
+    "reason": "The concurrent assignment exposes the serial shift-register bit at the external SDI data output, but the assignment itself does not modify the stored byte.",
+    "confidentiality": "yes",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "synchronizer",
+    "reached by": "sdi_dat_i ==> synchronizer [sdi_dat_i]",
+    "lines": [
+     263,
+     270
+    ],
+    "reason": "The external serial input is sampled into synchronizer registers, where it can be observed or changed before receive processing.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "sync.sdi",
+    "reached by": "synchronizer ==> sync.sdi [sync.sdi_ff]",
+    "lines": [
+     276
+    ],
+    "reason": "This concurrent signal forwards the synchronized receive bit and exposes it to the serial engine, but the assignment itself does not alter the bit.",
+    "confidentiality": "yes",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "serial_engine",
+    "reached by": "sync.sdi ==> serial_engine [sync.sdi]",
+    "lines": [
+     314,
+     327
+    ],
+    "reason": "The sampled bit is captured in serial.sdi_ff and shifted into serial.sreg, so this block can expose or alter the receive byte.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "rx_fifo.wdata",
+    "reached by": "serial_engine ==> rx_fifo.wdata [serial.sreg]",
+    "lines": [
+     235
+    ],
+    "reason": "The completed receive byte is forwarded to the FIFO write-data path and is observable there, but this wire assignment does not itself modify it.",
+    "confidentiality": "yes",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "rx_fifo_inst",
+    "reached by": "rx_fifo.wdata ==> rx_fifo_inst [rx_fifo.wdata]",
+    "lines": [
+     225,
+     230
+    ],
+    "reason": "The FIFO instance receives the sampled byte and returns it as rx_fifo.rdata; by the black-box rule, the input can affect the returned output.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "bus_access",
+    "reached by": "rx_fifo_inst ==> bus_access [rx_fifo.rdata]",
+    "lines": [
+     162
+    ],
+    "reason": "The receive FIFO data is copied into the bus response data field, exposing it to software and making the returned value dependent on this output assignment.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "bus_access",
+    "reached by": "holding block",
+    "lines": [
+     133,
+     200,
+     239,
+     296
+    ],
+    "reason": "The bus-access process stores ctrl.enable from bus write data and the resulting value clears both FIFOs and controls serial operation.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "rx_fifo.clear",
+    "reached by": "bus_access ==> rx_fifo.clear [ctrl.enable]",
+    "lines": [],
+    "reason": "This wire only forwards the enable value to the FIFO clear input; it does not independently modify or expose the enable state.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "tx_fifo.clear",
+    "reached by": "bus_access ==> tx_fifo.clear [ctrl.enable]",
+    "lines": [],
+    "reason": "This wire only forwards the enable value to the FIFO clear input; it does not independently modify or expose the enable state.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "serial_engine",
+    "reached by": "bus_access ==> serial_engine [ctrl.enable]",
+    "lines": [],
+    "reason": "The serial engine consumes enable as a state input, but the block does not modify, expose, or independently block the stored enable state.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "irq_generator",
+    "reached by": "bus_access ==> irq_generator [ctrl.{enable,irq_rx_avail,irq_rx_full,irq_rx_half,irq_tx_empty,irq_tx_nhalf}]",
+    "lines": [],
+    "reason": "The interrupt process uses enable as a gating operand, but it does not modify or expose the enable state itself.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "bus_access",
+    "reached by": "bus_access ==> bus_rsp_o",
+    "lines": [],
+    "reason": "The bus response reports ctrl.enable but the listed objectives exclude confidentiality and the response assignment does not modify or block the enable state.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "synchronizer",
+    "reached by": "sdi_csn_i ==> synchronizer [sdi_csn_i]",
+    "lines": [
+     263,
+     269
+    ],
+    "reason": "The chip-select input is sampled into sync.csn_ff, so changing or clearing this state can alter or terminate transaction framing.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "sync.csn",
+    "reached by": "synchronizer ==> sync.csn [sync.csn_ff]",
+    "lines": [
+     275,
+     307,
+     315,
+     324
+    ],
+    "reason": "The synchronized chip-select value directly controls serial start, continuation, and termination decisions.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "serial_engine",
+    "reached by": "sync.csn --> serial_engine [sync.csn]",
+    "lines": [
+     307,
+     315,
+     324
+    ],
+    "reason": "The serial engine uses chip-select conditions to enter, continue, or leave transaction states, so framing can be changed or blocked.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "bus_access",
+    "reached by": "sync.csn ==> bus_access [sync.csn]",
+    "lines": [],
+    "reason": "The bus-access process only reports synchronized chip-select status in the response and does not modify or block the framing state.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C5",
+    "point": "irq_generator",
+    "reached by": "holding block",
+    "lines": [
+     249,
+     250,
+     251,
+     252,
+     253,
+     254
+    ],
+    "reason": "The process computes irq_o from enable, interrupt configuration bits, and FIFO status, so faults or unauthorized influence can create, suppress, or corrupt interrupt requests.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C5",
+    "point": "bus_access",
+    "reached by": "bus_access ==> irq_generator [ctrl.{enable,irq_rx_avail,irq_rx_full,irq_rx_half,irq_tx_empty,irq_tx_nhalf}]",
+    "lines": [
+     133,
+     135,
+     136,
+     137,
+     138,
+     139,
+     249
+    ],
+    "reason": "Bus writes store the interrupt enable and threshold configuration fields that gate irq_o, allowing interrupt behavior to be changed or suppressed.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C5",
+    "point": "rx_fifo_inst",
+    "reached by": "rx_fifo_inst ==> irq_generator [rx_fifo.{avail,free,half}]",
+    "lines": [
+     222,
+     227,
+     231
+    ],
+    "reason": "The FIFO status outputs feed the interrupt conditions; by the black-box rule, the instance and its inputs can affect those driven status outputs.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C5",
+    "point": "tx_fifo_inst",
+    "reached by": "tx_fifo_inst ==> irq_generator [tx_fifo.{avail,half}]",
+    "lines": [
+     187,
+     196
+    ],
+    "reason": "The transmit FIFO status outputs feed the interrupt conditions; by the black-box rule, the instance and its inputs can affect the driven status outputs.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   }
+  ],
+  "structural assets": [
+   {
+    "concept id": "C1",
+    "element": "sdi_dat_o",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "sdi_dat_o"
+    ],
+    "label": "primary",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "lines": [
+     30,
+     345
+    ],
+    "links": [],
+    "reason": "Carries each bit of the transmit byte across the SDI output boundary. The non-record serial output crosses the unit boundary bit by bit and is the direct externally visible representation of the transmit data.",
+    "functionality": "Carries each bit of the transmit byte across the SDI output boundary.",
+    "justification": "The non-record serial output crosses the unit boundary bit by bit and is the direct externally visible representation of the transmit data."
+   },
+   {
+    "concept id": "C1",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "tx_fifo.wdata"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     25,
+     201
+    ],
+    "links": [
+     {
+      "primary": "sdi_dat_o",
+      "entity": "neorv32_sdi",
+      "direction": "a"
+     }
+    ],
+    "reason": "Provides the host-written byte that enters the transmit path. The record field carries the value that ultimately reaches the primary SDI output, while a bus request field is barred from being primary.",
+    "functionality": "Provides the host-written byte that enters the transmit path.",
+    "justification": "The record field carries the value that ultimately reaches the primary SDI output, while a bus request field is barred from being primary."
+   },
+   {
+    "concept id": "C1",
+    "element": "tx_fifo.wdata",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "tx_fifo.wdata"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     107,
+     190,
+     201
+    ],
+    "links": [
+     {
+      "primary": "sdi_dat_o",
+      "entity": "neorv32_sdi",
+      "direction": "a"
+     }
+    ],
+    "reason": "Forwards the host-written transmit byte into the transmit FIFO instance. This signal is the FIFO write-data carrier and is barred from being primary because it only buffers data between interfaces.",
+    "functionality": "Forwards the host-written transmit byte into the transmit FIFO instance.",
+    "justification": "This signal is the FIFO write-data carrier and is barred from being primary because it only buffers data between interfaces."
+   },
+   {
+    "concept id": "C1",
+    "element": "tx_fifo.rdata",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "tx_fifo_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     107,
+     195,
+     305
+    ],
+    "links": [
+     {
+      "primary": "sdi_dat_o",
+      "entity": "neorv32_sdi",
+      "direction": "a"
+     }
+    ],
+    "reason": "Carries the queued transmit byte from the FIFO to the serial engine. The FIFO read-data signal carries the primary's value before serialization and is not itself the stored asset boundary.",
+    "functionality": "Carries the queued transmit byte from the FIFO to the serial engine.",
+    "justification": "The FIFO read-data signal carries the primary's value before serialization and is not itself the stored asset boundary."
+   },
+   {
+    "concept id": "C1",
+    "element": "serial.sreg",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     94,
+     288,
+     305,
+     327,
+     345
+    ],
+    "links": [
+     {
+      "primary": "sdi_dat_o",
+      "entity": "neorv32_sdi",
+      "direction": "a"
+     }
+    ],
+    "reason": "Temporarily stores and shifts the transmit byte before its bits drive SDI. The serial shift register carries the byte to the primary output, but the serial-data rule bars it from being primary.",
+    "functionality": "Temporarily stores and shifts the transmit byte before its bits drive SDI.",
+    "justification": "The serial shift register carries the byte to the primary output, but the serial-data rule bars it from being primary."
+   },
+   {
+    "concept id": "C1",
+    "element": "bus_req_i.addr",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "tx_fifo.wdata"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     202
+    ],
+    "links": [
+     {
+      "primary": "sdi_dat_o",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects whether a bus transaction targets the transmit FIFO path. Its address test controls the transmit write enable and therefore whether the value reaching the primary is accepted.",
+    "functionality": "Selects whether a bus transaction targets the transmit FIFO path.",
+    "justification": "Its address test controls the transmit write enable and therefore whether the value reaching the primary is accepted."
+   },
+   {
+    "concept id": "C1",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "tx_fifo.wdata"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     202
+    ],
+    "links": [
+     {
+      "primary": "sdi_dat_o",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects a bus write for insertion into the transmit FIFO. The read/write condition gates tx_fifo.we and can prevent or redirect the transmit byte from reaching the primary.",
+    "functionality": "Selects a bus write for insertion into the transmit FIFO.",
+    "justification": "The read/write condition gates tx_fifo.we and can prevent or redirect the transmit byte from reaching the primary."
+   },
+   {
+    "concept id": "C1",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "tx_fifo.wdata"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     202
+    ],
+    "links": [
+     {
+      "primary": "sdi_dat_o",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Qualifies the bus write that loads the transmit FIFO. The strobe gates tx_fifo.we, so it can block or permit the data transfer that feeds the primary output.",
+    "functionality": "Qualifies the bus write that loads the transmit FIFO.",
+    "justification": "The strobe gates tx_fifo.we, so it can block or permit the data transfer that feeds the primary output."
+   },
+   {
+    "concept id": "C1",
+    "element": "tx_fifo.we",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "tx_fifo.wdata"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     191,
+     202
+    ],
+    "links": [
+     {
+      "primary": "sdi_dat_o",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Controls whether the bus data is written into the transmit FIFO. Its conditional assignment gates acceptance of the transmit value before it reaches the primary serialization path.",
+    "functionality": "Controls whether the bus data is written into the transmit FIFO.",
+    "justification": "Its conditional assignment gates acceptance of the transmit value before it reaches the primary serialization path."
+   },
+   {
+    "concept id": "C1",
+    "element": "serial.state",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     297,
+     305,
+     327
+    ],
+    "links": [
+     {
+      "primary": "sdi_dat_o",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects the serial-engine phase in which the transmit register is loaded or shifted. Its case selection controls assignments to serial.sreg and can therefore alter which byte or bit reaches the primary output.",
+    "functionality": "Selects the serial-engine phase in which the transmit register is loaded or shifted.",
+    "justification": "Its case selection controls assignments to serial.sreg and can therefore alter which byte or bit reaches the primary output."
+   },
+   {
+    "concept id": "C1",
+    "element": "tx_fifo.avail",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     302,
+     305
+    ],
+    "links": [
+     {
+      "primary": "sdi_dat_o",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects whether serial.sreg receives the queued byte or a zero value. The availability test directly chooses the value loaded into the transmit shift register.",
+    "functionality": "Selects whether serial.sreg receives the queued byte or a zero value.",
+    "justification": "The availability test directly chooses the value loaded into the transmit shift register."
+   },
+   {
+    "concept id": "C1",
+    "element": "sync.csn",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     307,
+     324
+    ],
+    "links": [
+     {
+      "primary": "sdi_dat_o",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Controls transaction start and termination around transmit shifting. The chip-select conditions choose when serial.sreg is loaded, shifted, or left in the current state.",
+    "functionality": "Controls transaction start and termination around transmit shifting.",
+    "justification": "The chip-select conditions choose when serial.sreg is loaded, shifted, or left in the current state."
+   },
+   {
+    "concept id": "C1",
+    "element": "sync.sck",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     317,
+     326,
+     327
+    ],
+    "links": [
+     {
+      "primary": "sdi_dat_o",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Controls the serial shift events that update the transmit register. The synchronized clock condition gates serial.sreg shifting and can change the transmitted sequence.",
+    "functionality": "Controls the serial shift events that update the transmit register.",
+    "justification": "The synchronized clock condition gates serial.sreg shifting and can change the transmitted sequence."
+   },
+   {
+    "concept id": "C1",
+    "element": "rstn_i",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     283,
+     288
+    ],
+    "links": [
+     {
+      "primary": "sdi_dat_o",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Resets the transmit shift register to a constant. The reset path can overwrite serial.sreg and thereby change the value delivered by the primary output.",
+    "functionality": "Resets the transmit shift register to a constant.",
+    "justification": "The reset path can overwrite serial.sreg and thereby change the value delivered by the primary output."
+   },
+   {
+    "concept id": "C2",
+    "element": "sdi_dat_i",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "synchronizer"
+    ],
+    "label": "primary",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "lines": [
+     29,
+     270
+    ],
+    "links": [],
+    "reason": "Carries each sampled receive-data bit across the serial input boundary. The non-record serial input crosses the boundary one bit per step into the receive shift path, making it the primary boundary element for the received data.",
+    "functionality": "Carries each sampled receive-data bit across the serial input boundary.",
+    "justification": "The non-record serial input crosses the boundary one bit per step into the receive shift path, making it the primary boundary element for the received data."
+   },
+   {
+    "concept id": "C2",
+    "element": "sync.sdi_ff",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "synchronizer"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     83,
+     266,
+     270,
+     276
+    ],
+    "links": [
+     {
+      "primary": "sdi_dat_i",
+      "entity": "neorv32_sdi",
+      "direction": "a"
+     }
+    ],
+    "reason": "Synchronizes the serial input bit before it is consumed by the serial engine. It carries a sampled copy of the primary input, while synchronizer stages are barred from being primary.",
+    "functionality": "Synchronizes the serial input bit before it is consumed by the serial engine.",
+    "justification": "It carries a sampled copy of the primary input, while synchronizer stages are barred from being primary."
+   },
+   {
+    "concept id": "C2",
+    "element": "sync.sdi",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "sync.sdi"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     83,
+     276
+    ],
+    "links": [
+     {
+      "primary": "sdi_dat_i",
+      "entity": "neorv32_sdi",
+      "direction": "a"
+     }
+    ],
+    "reason": "Forwards the synchronized receive bit into the serial engine. This wire carries the primary input's value after synchronization and is only a forwarding path.",
+    "functionality": "Forwards the synchronized receive bit into the serial engine.",
+    "justification": "This wire carries the primary input's value after synchronization and is only a forwarding path."
+   },
+   {
+    "concept id": "C2",
+    "element": "serial.sdi_ff",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     94,
+     289,
+     314,
+     327
+    ],
+    "links": [
+     {
+      "primary": "sdi_dat_i",
+      "entity": "neorv32_sdi",
+      "direction": "a"
+     }
+    ],
+    "reason": "Holds the sampled receive bit until it is shifted into serial.sreg. It carries a receive-data bit toward the completed byte and is not the whole received-data boundary.",
+    "functionality": "Holds the sampled receive bit until it is shifted into serial.sreg.",
+    "justification": "It carries a receive-data bit toward the completed byte and is not the whole received-data boundary."
+   },
+   {
+    "concept id": "C2",
+    "element": "serial.sreg",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     94,
+     288,
+     327
+    ],
+    "links": [
+     {
+      "primary": "sdi_dat_i",
+      "entity": "neorv32_sdi",
+      "direction": "a"
+     }
+    ],
+    "reason": "Accumulates the sampled serial bits into the received byte. It carries the received data while it is shifted, but the serial shift-register rule bars it from being primary.",
+    "functionality": "Accumulates the sampled serial bits into the received byte.",
+    "justification": "It carries the received data while it is shifted, but the serial shift-register rule bars it from being primary."
+   },
+   {
+    "concept id": "C2",
+    "element": "rx_fifo.wdata",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "rx_fifo.wdata"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     107,
+     225,
+     235
+    ],
+    "links": [
+     {
+      "primary": "sdi_dat_i",
+      "entity": "neorv32_sdi",
+      "direction": "a"
+     }
+    ],
+    "reason": "Carries the completed receive byte into the receive FIFO. It is the FIFO write-data carrier for received data and is barred from being primary as a buffering path.",
+    "functionality": "Carries the completed receive byte into the receive FIFO.",
+    "justification": "It is the FIFO write-data carrier for received data and is barred from being primary as a buffering path."
+   },
+   {
+    "concept id": "C2",
+    "element": "rx_fifo.rdata",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "rx_fifo_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     107,
+     162,
+     230
+    ],
+    "links": [
+     {
+      "primary": "sdi_dat_i",
+      "entity": "neorv32_sdi",
+      "direction": "a"
+     }
+    ],
+    "reason": "Carries the queued received byte from the FIFO to the bus-access process. It carries the received value out of the FIFO but is only a FIFO data path, not the primary boundary element.",
+    "functionality": "Carries the queued received byte from the FIFO to the bus-access process.",
+    "justification": "It carries the received value out of the FIFO but is only a FIFO data path, not the primary boundary element."
+   },
+   {
+    "concept id": "C2",
+    "element": "bus_rsp_o.data",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     26,
+     162
+    ],
+    "links": [
+     {
+      "primary": "sdi_dat_i",
+      "entity": "neorv32_sdi",
+      "direction": "a"
+     }
+    ],
+    "reason": "Returns the received byte in the bus response data field. The response field carries the received data to software, but a bus response record field never qualifies as primary.",
+    "functionality": "Returns the received byte in the bus response data field.",
+    "justification": "The response field carries the received data to software, but a bus response record field never qualifies as primary."
+   },
+   {
+    "concept id": "C2",
+    "element": "serial.state",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     297,
+     314,
+     327
+    ],
+    "links": [
+     {
+      "primary": "sdi_dat_i",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects the serial-engine phases that capture and shift receive data. Its case selection controls assignments to serial.sdi_ff and serial.sreg, so it can alter the received result.",
+    "functionality": "Selects the serial-engine phases that capture and shift receive data.",
+    "justification": "Its case selection controls assignments to serial.sdi_ff and serial.sreg, so it can alter the received result."
+   },
+   {
+    "concept id": "C2",
+    "element": "sync.csn",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     315,
+     324
+    ],
+    "links": [
+     {
+      "primary": "sdi_dat_i",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Gates receive capture and terminates a serial transaction. Its conditions determine whether receive bits are captured or the transaction is ended.",
+    "functionality": "Gates receive capture and terminates a serial transaction.",
+    "justification": "Its conditions determine whether receive bits are captured or the transaction is ended."
+   },
+   {
+    "concept id": "C2",
+    "element": "sync.sck",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     317,
+     326,
+     327
+    ],
+    "links": [
+     {
+      "primary": "sdi_dat_i",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Gates the receive-bit shift events. The synchronized clock condition controls when serial.sreg receives another sampled bit.",
+    "functionality": "Gates the receive-bit shift events.",
+    "justification": "The synchronized clock condition controls when serial.sreg receives another sampled bit."
+   },
+   {
+    "concept id": "C2",
+    "element": "serial.done",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     329
+    ],
+    "links": [
+     {
+      "primary": "sdi_dat_i",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Qualifies completion of the received byte for writing into the receive FIFO. Its asserted assignment controls whether the accumulated receive byte is accepted by the FIFO.",
+    "functionality": "Qualifies completion of the received byte for writing into the receive FIFO.",
+    "justification": "Its asserted assignment controls whether the accumulated receive byte is accepted by the FIFO."
+   },
+   {
+    "concept id": "C2",
+    "element": "rx_fifo.we",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "rx_fifo.wdata"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     226,
+     236
+    ],
+    "links": [
+     {
+      "primary": "sdi_dat_i",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Writes the completed serial byte into the receive FIFO. It gates storage of the received value and can cause a sampled byte to be omitted.",
+    "functionality": "Writes the completed serial byte into the receive FIFO.",
+    "justification": "It gates storage of the received value and can cause a sampled byte to be omitted."
+   },
+   {
+    "concept id": "C2",
+    "element": "rx_fifo.re",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     229,
+     240
+    ],
+    "links": [
+     {
+      "primary": "sdi_dat_i",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Controls removal of received data from the receive FIFO for a bus read. Its bus-qualified assignment controls whether the received data can progress to the response path.",
+    "functionality": "Controls removal of received data from the receive FIFO for a bus read.",
+    "justification": "Its bus-qualified assignment controls whether the received data can progress to the response path."
+   },
+   {
+    "concept id": "C2",
+    "element": "bus_req_i.addr",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     142,
+     162,
+     240
+    ],
+    "links": [
+     {
+      "primary": "sdi_dat_i",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects the receive-data register path and receive FIFO read operation. The address condition determines whether receive data is returned and whether the FIFO is read.",
+    "functionality": "Selects the receive-data register path and receive FIFO read operation.",
+    "justification": "The address condition determines whether receive data is returned and whether the FIFO is read."
+   },
+   {
+    "concept id": "C2",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     131,
+     240
+    ],
+    "links": [
+     {
+      "primary": "sdi_dat_i",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects a read transaction that releases receive data. The read/write condition gates rx_fifo.re and the response-data operation.",
+    "functionality": "Selects a read transaction that releases receive data.",
+    "justification": "The read/write condition gates rx_fifo.re and the response-data operation."
+   },
+   {
+    "concept id": "C2",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     130,
+     240
+    ],
+    "links": [
+     {
+      "primary": "sdi_dat_i",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Qualifies the bus request that reads received data. The strobe gates the receive FIFO read and response handling, controlling release of the received value.",
+    "functionality": "Qualifies the bus request that reads received data.",
+    "justification": "The strobe gates the receive FIFO read and response handling, controlling release of the received value."
+   },
+   {
+    "concept id": "C2",
+    "element": "rstn_i",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "synchronizer"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     263,
+     283
+    ],
+    "links": [
+     {
+      "primary": "sdi_dat_i",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Clears the receive synchronizer and receive shift state. Reset overwrites receive-path state with constants and can change the received byte returned to software.",
+    "functionality": "Clears the receive synchronizer and receive shift state.",
+    "justification": "Reset overwrites receive-path state with constants and can change the received byte returned to software."
+   },
+   {
+    "concept id": "C3",
+    "element": "ctrl.enable",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     72,
+     117,
+     133,
+     200,
+     239,
+     249,
+     296
+    ],
+    "links": [],
+    "reason": "Stores the run-time enable setting for the SDI interface. This register directly holds the conceptual enable state and its value controls FIFO clearing, serial state, and interrupt generation.",
+    "functionality": "Stores the run-time enable setting for the SDI interface.",
+    "justification": "This register directly holds the conceptual enable state and its value controls FIFO clearing, serial state, and interrupt generation."
+   },
+   {
+    "concept id": "C3",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     25,
+     133
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies the value written into ctrl.enable. The bus request data field directly sets the enable register, while a bus request field cannot be primary.",
+    "functionality": "Supplies the value written into ctrl.enable.",
+    "justification": "The bus request data field directly sets the enable register, while a bus request field cannot be primary."
+   },
+   {
+    "concept id": "C3",
+    "element": "bus_req_i.addr",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     132
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects the control-register write that can update ctrl.enable. Its address condition decides whether the enable assignment occurs.",
+    "functionality": "Selects the control-register write that can update ctrl.enable.",
+    "justification": "Its address condition decides whether the enable assignment occurs."
+   },
+   {
+    "concept id": "C3",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     131
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects a write operation for ctrl.enable. The read/write condition decides whether bus data is assigned to the enable register.",
+    "functionality": "Selects a write operation for ctrl.enable.",
+    "justification": "The read/write condition decides whether bus data is assigned to the enable register."
+   },
+   {
+    "concept id": "C3",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     130
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Qualifies the bus transaction that writes ctrl.enable. The strobe condition decides whether the enable assignment is performed.",
+    "functionality": "Qualifies the bus transaction that writes ctrl.enable.",
+    "justification": "The strobe condition decides whether the enable assignment is performed."
+   },
+   {
+    "concept id": "C3",
+    "element": "clk_i",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     123
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Times updates of the enable register. The clock controls when the primary can update, so stalling it can block an enable change needed for operation.",
+    "functionality": "Times updates of the enable register.",
+    "justification": "The clock controls when the primary can update, so stalling it can block an enable change needed for operation."
+   },
+   {
+    "concept id": "C3",
+    "element": "rstn_i",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     115,
+     117
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Clears the enable register and disables the interface. The reset arm overwrites ctrl.enable with zero, changing the setting and preventing normal operation.",
+    "functionality": "Clears the enable register and disables the interface.",
+    "justification": "The reset arm overwrites ctrl.enable with zero, changing the setting and preventing normal operation."
+   },
+   {
+    "concept id": "C3",
+    "element": "bus_rsp_o.data",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [],
+    "lines": [
+     26,
+     143
+    ],
+    "links": [],
+    "reason": "Returns the enable state in the bus read-data field. It is a required exit port for the concept, but confidentiality is not an objective for this concept and the response field does not modify the state.",
+    "functionality": "Returns the enable state in the bus read-data field.",
+    "justification": "It is a required exit port for the concept, but confidentiality is not an objective for this concept and the response field does not modify the state."
+   },
+   {
+    "concept id": "C5",
+    "element": "irq_o",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "irq_generator"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     31,
+     247,
+     249,
+     254
+    ],
+    "links": [],
+    "reason": "Produces the interrupt request condition for the integrating system. The output port is computed directly from the interrupt condition and crosses the unit boundary as the request itself.",
+    "functionality": "Produces the interrupt request condition for the integrating system.",
+    "justification": "The output port is computed directly from the interrupt condition and crosses the unit boundary as the request itself."
+   },
+   {
+    "concept id": "C5",
+    "element": "ctrl.enable",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     249
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Gates whether any configured FIFO condition can assert irq_o. The enable operand directly controls the interrupt assignment and can suppress the request.",
+    "functionality": "Gates whether any configured FIFO condition can assert irq_o.",
+    "justification": "The enable operand directly controls the interrupt assignment and can suppress the request."
+   },
+   {
+    "concept id": "C5",
+    "element": "ctrl.irq_rx_avail",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     250
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Enables the receive-available interrupt condition. It gates the rx_fifo.avail term in the irq_o computation.",
+    "functionality": "Enables the receive-available interrupt condition.",
+    "justification": "It gates the rx_fifo.avail term in the irq_o computation."
+   },
+   {
+    "concept id": "C5",
+    "element": "ctrl.irq_rx_half",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     251
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Enables the receive-half-full interrupt condition. It gates the rx_fifo.half term in the irq_o computation.",
+    "functionality": "Enables the receive-half-full interrupt condition.",
+    "justification": "It gates the rx_fifo.half term in the irq_o computation."
+   },
+   {
+    "concept id": "C5",
+    "element": "ctrl.irq_rx_full",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     252
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Enables the receive-full interrupt condition. It gates the inverted rx_fifo.free term in the irq_o computation.",
+    "functionality": "Enables the receive-full interrupt condition.",
+    "justification": "It gates the inverted rx_fifo.free term in the irq_o computation."
+   },
+   {
+    "concept id": "C5",
+    "element": "ctrl.irq_tx_empty",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     253
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Enables the transmit-empty interrupt condition. It gates the inverted tx_fifo.avail term in the irq_o computation.",
+    "functionality": "Enables the transmit-empty interrupt condition.",
+    "justification": "It gates the inverted tx_fifo.avail term in the irq_o computation."
+   },
+   {
+    "concept id": "C5",
+    "element": "ctrl.irq_tx_nhalf",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     254
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Enables the transmit-not-half-full interrupt condition. It gates the inverted tx_fifo.half term in the irq_o computation.",
+    "functionality": "Enables the transmit-not-half-full interrupt condition.",
+    "justification": "It gates the inverted tx_fifo.half term in the irq_o computation."
+   },
+   {
+    "concept id": "C5",
+    "element": "rx_fifo.avail",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "rx_fifo_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     231,
+     250
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Reports receive data availability to the interrupt expression. It is an operand of the receive-available interrupt term and can change whether irq_o asserts.",
+    "functionality": "Reports receive data availability to the interrupt expression.",
+    "justification": "It is an operand of the receive-available interrupt term and can change whether irq_o asserts."
+   },
+   {
+    "concept id": "C5",
+    "element": "rx_fifo.free",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "rx_fifo_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     227,
+     252
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Reports receive FIFO capacity for the receive-full interrupt term. Its inversion is an operand of the receive-full interrupt condition.",
+    "functionality": "Reports receive FIFO capacity for the receive-full interrupt term.",
+    "justification": "Its inversion is an operand of the receive-full interrupt condition."
+   },
+   {
+    "concept id": "C5",
+    "element": "rx_fifo.half",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "rx_fifo_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     222,
+     251
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Reports the receive FIFO half-full status. It is an operand of the receive-half-full interrupt term.",
+    "functionality": "Reports the receive FIFO half-full status.",
+    "justification": "It is an operand of the receive-half-full interrupt term."
+   },
+   {
+    "concept id": "C5",
+    "element": "tx_fifo.avail",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "tx_fifo_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     196,
+     253
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Reports transmit FIFO availability for the transmit-empty interrupt term. Its inversion is an operand of the transmit-empty interrupt condition.",
+    "functionality": "Reports transmit FIFO availability for the transmit-empty interrupt term.",
+    "justification": "Its inversion is an operand of the transmit-empty interrupt condition."
+   },
+   {
+    "concept id": "C5",
+    "element": "tx_fifo.half",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [
+     "tx_fifo_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     187,
+     254
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Reports the transmit FIFO half-full status for interrupt generation. Its inversion is an operand of the transmit-not-half-full interrupt condition.",
+    "functionality": "Reports the transmit FIFO half-full status for interrupt generation.",
+    "justification": "Its inversion is an operand of the transmit-not-half-full interrupt condition."
+   },
+   {
+    "concept id": "C5",
+    "element": "clk_i",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     248
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Times updates of the interrupt request output. Stalling the clock can prevent irq_o from updating and therefore block an interrupt request.",
+    "functionality": "Times updates of the interrupt request output.",
+    "justification": "Stalling the clock can prevent irq_o from updating and therefore block an interrupt request."
+   },
+   {
+    "concept id": "C5",
+    "element": "rstn_i",
+    "entity": "neorv32_sdi",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     246,
+     247
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_sdi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Clears the interrupt request output. The reset arm forces irq_o low, changing or suppressing the interrupt condition.",
+    "functionality": "Clears the interrupt request output.",
+    "justification": "The reset arm forces irq_o low, changing or suppressing the interrupt condition."
+   }
+  ],
+  "not reported": [
+   {
+    "concept id": "C3",
+    "element": "bus_rsp_o.data",
+    "entity": "neorv32_sdi",
+    "reason": "The response field is required as the exit path but has no applicable secondary direction because confidentiality is not an objective and it does not influence ctrl.enable."
+   },
+   {
+    "concept id": "C4",
+    "element": "sdi_csn_i",
+    "entity": "neorv32_sdi",
+    "reason": "It is the required framing entry port, but it only feeds synchronizer stages and is not primary under the synchronizer rule; there is no qualifying primary for a secondary relationship."
+   },
+   {
+    "concept id": "C4",
+    "element": "sync.csn_ff",
+    "entity": "neorv32_sdi",
+    "reason": "It stores a synchronized copy of the input and is barred from being primary as a synchronizer stage; no qualifying primary exists."
+   },
+   {
+    "concept id": "C4",
+    "element": "sync.csn",
+    "entity": "neorv32_sdi",
+    "reason": "It is a derived framing control wire rather than a qualifying stored primary, and no primary exists for a secondary relationship."
+   },
+   {
+    "concept id": "C4",
+    "element": "serial.state",
+    "entity": "neorv32_sdi",
+    "reason": "It is sequencing state of the serial state machine and is barred from primary status by the sequencing-state rule; no qualifying primary exists."
+   },
+   {
+    "concept id": "C4",
+    "element": "bus_rsp_o.data",
+    "entity": "neorv32_sdi",
+    "reason": "It is the required framing exit field, but a bus response record field cannot be primary and it does not create a secondary without a primary."
+   }
+  ],
+  "no primary reason": {
+   "C4": "The framing state is represented by synchronizer and serial state-machine elements, but synchronizer stages and sequencing state are barred from being primary, while the bus response record field is also barred."
+  }
+ },
+ "problems": [
+  "consistency: walk C3 not-reported entry 'bus_rsp_o.data' is also under Assets in the same walk",
+  "C3: secondary 'bus_rsp_o.data' has no links",
+  "C4: anchor port 'sdi_csn_i' is not among its structural assets",
+  "C4: anchor port 'bus_rsp_o.data' is not among its structural assets"
+ ],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

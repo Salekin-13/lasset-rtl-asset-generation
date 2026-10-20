@@ -1,0 +1,457 @@
+{
+ "module": "neorv32_cpu",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "be3b3faab49b",
+ "user sha": "10cfe54a4905",
+ "usage": {
+  "in": 36826,
+  "out": 17794,
+  "reasoning": 13663,
+  "cached": 36823,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_062f80fca5a28a65006ace2f3e3cd087d1bc3b3ed965ffd298",
+  "request key": "ad7ba4a24964"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_cpu\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"Instruction-fetch address\",\n      \"Unit\": \"neorv32_cpu\",\n      \"Information\": \"The address used to fetch the next instruction, which determines the code location and execution path of the CPU. It is generated internally and leaves through the instruction-bus request address.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The instruction address can expose code-access and control-flow information at ibus_req_o.addr (line 196). Corruption of the generated address can redirect execution, and withholding the fetch request can stall the CPU (line 196).\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could observe or alter the instruction-bus address, redirecting execution or preventing instruction fetches.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"ibus_req_o.addr\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        196\n      ],\n      \"Exit Lines\": [\n        196\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"Data-memory access address and direction\",\n      \"Unit\": \"neorv32_cpu\",\n      \"Information\": \"The address and read/write direction of a data-memory access issued by the CPU. This information is generated internally and leaves through the data-bus request.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"dbus_req_o.addr and dbus_req_o.rw expose the CPU's memory-access pattern at line 394. Altering the address or direction can access or modify the wrong location, while blocking the request can prevent required data transfers (line 394).\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could monitor, redirect, reverse, or suppress a data-bus access.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"dbus_req_o.addr\",\n        \"dbus_req_o.rw\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        394\n      ],\n      \"Exit Lines\": [\n        394\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"Architectural register contents\",\n      \"Unit\": \"neorv32_cpu\",\n      \"Information\": \"The values held in the CPU register file and supplied as operands for execution and memory operations. The register file is internal, so this information has no direct unit input or output port.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Register operands leave the register-file instance through rs1, rs2, and rs3 (lines 324-326), with rs2 supplied to the load/store unit and potentially carried to dbus_req_o.data (lines 387 and 394). Writeback through rf_wdata can modify the register contents (line 323), and the register file is required for execution (lines 311 and 323-326).\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could read an operand through a data-bus write or corrupt register-file read or write data to alter program behavior.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        311,\n        323,\n        324,\n        325,\n        326\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"Execution and write-back data\",\n      \"Unit\": \"neorv32_cpu\",\n      \"Information\": \"Arithmetic results, load results, CSR results, and return-address values combined into the value written back to the register file. These are internal computed values and have no direct unit port.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The ALU and load/store results are combined into rf_wdata and supplied to the register file (lines 330, 369, and 388), so modifying them can corrupt architectural results.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could corrupt an ALU, load, CSR, or return-address result before it is written back.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        263,\n        330,\n        369,\n        388\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"Memory-protection configuration\",\n      \"Unit\": \"neorv32_cpu\",\n      \"Information\": \"The PMP configuration that controls which data-memory addresses and accesses are permitted. It is held inside the PMP instance and is not directly exposed through a unit port.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The PMP instance receives control and CSR information and produces PMP CSR data (lines 414 and 416), so unauthorized modification can change access permissions. A modified configuration can also deny required accesses through the PMP fault path (line 420).\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could alter PMP entries to permit protected accesses or reject accesses needed for normal execution.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        414,\n        416\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Concept Name\": \"Memory-access permission decision\",\n      \"Unit\": \"neorv32_cpu\",\n      \"Information\": \"The decision that a data-memory access violates or satisfies the PMP protection policy. It is produced by the PMP instance and consumed by control and load/store logic, with no direct unit port.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"pmp_fault is produced at line 420 and supplied to both the control and load/store instances at lines 257 and 392, so changing it can permit an unauthorized access or fault a valid one.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could force pmp_fault inactive to bypass protection or active to block legitimate memory accesses.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        420,\n        427\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C7\",\n      \"Concept Name\": \"Data-access wait state\",\n      \"Unit\": \"neorv32_cpu\",\n      \"Information\": \"The load/store wait indication that determines whether CPU control can complete a data access. It is produced internally and has no direct unit port.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"no\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"lsu_wait is handed from the load/store instance to CPU control at lines 270 and 390, and asserting or withholding it can stall completion of a required access.\",\n      \"Objectives At Risk\": [\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could hold the wait indication active and permanently stall data-access progress.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        390\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C8\",\n      \"Concept Name\": \"Data-access error status\",\n      \"Unit\": \"neorv32_cpu\",\n      \"Information\": \"The error status generated for a load/store operation and used by CPU control to determine fault handling. It is internal and has no direct unit port.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"lsu_err is produced by the load/store instance and consumed by control at lines 272 and 391, so corruption can misclassify an access and either produce incorrect execution or prevent progress.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could suppress a real access error or inject one to alter exception handling or stop execution.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        391\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C9\",\n      \"Concept Name\": \"Control-flow comparison decision\",\n      \"Unit\": \"neorv32_cpu\",\n      \"Information\": \"The ALU comparison result used by CPU control to select conditional execution and the next control-flow action. It is computed internally and has no direct unit port.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"alu_cmp is produced by the ALU and supplied to CPU control at lines 260 and 368, so changing it can select an incorrect branch or create an unintended execution loop.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could alter the comparison result to redirect conditional control flow or prevent the intended instruction sequence from completing.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        368\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C10\",\n      \"Concept Name\": \"Machine interrupt requests\",\n      \"Unit\": \"neorv32_cpu\",\n      \"Information\": \"The machine software, external, and timer interrupt requests represented by msi_i, mei_i, and mti_i. These requests enter the CPU and are combined before being consumed by CPU control.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The three interrupt inputs are combined into irq_machine and sent to CPU control at lines 75-77, 267, and 276, so unauthorized assertion or suppression can redirect execution or repeatedly interrupt normal progress.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could inject, suppress, or hold a machine interrupt request to redirect or starve normal CPU execution.\",\n      \"Enters Through\": [\n        \"msi_i\",\n        \"mei_i\",\n        \"mti_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        276\n      ],\n      \"Held Lines\": [\n        276\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C11\",\n      \"Concept Name\": \"Fast interrupt requests\",\n      \"Unit\": \"neorv32_cpu\",\n      \"Information\": \"The 16 fast interrupt request lines used to invoke fast interrupt handling. They enter directly into CPU control and are not stored or returned by this unit.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"firq_i is supplied to CPU control as irq_fast_i at line 268, so altering the request vector can redirect execution or continuously preempt normal processing.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could inject or suppress fast-interrupt requests to alter control flow or prevent normal work from completing.\",\n      \"Enters Through\": [\n        \"firq_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        268\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C12\",\n      \"Concept Name\": \"Debug request\",\n      \"Unit\": \"neorv32_cpu\",\n      \"Information\": \"The external debug request that can invoke debug handling in the CPU. It enters through dbi_i and is consumed by the control instance without a unit output.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"dbi_i is connected to the control instance's debug-request input at lines 79 and 266, so an unauthorized request can alter execution or halt normal operation.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could assert dbi_i to enter debug handling, modify execution behavior, or stop normal processing.\",\n      \"Enters Through\": [\n        \"dbi_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        266\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C13\",\n      \"Concept Name\": \"CSR read-back values\",\n      \"Unit\": \"neorv32_cpu\",\n      \"Information\": \"The control and status values returned to software through the CPU's register-file write-back path, including values supplied by the ALU, counters, PMP, and ICC units. The values are internal and have no direct unit output port.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"CSR read data from the control and subordinate instances is combined and written through rf_wdata at lines 263, 279, and 330, so corruption can cause software to observe incorrect configuration or status.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could alter the CSR read-back path so software observes false protection, status, or control values.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        263,\n        279,\n        299,\n        305,\n        330,\n        371,\n        416,\n        426,\n        445,\n        454\n      ],\n      \"Exit Lines\": []\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Instruction and data bus transactions, payloads, and handshake fields\",\n      \"Candidate Unit\": \"neorv32_cpu\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The unit forwards bus records and relayed data between instances and ports without storing or computing the transaction; only the access addresses and direction are judged as separate assets.\"\n    },\n    {\n      \"Candidate Name\": \"Inter-core communication transaction\",\n      \"Candidate Unit\": \"neorv32_cpu\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"icc_rx_i and icc_tx_o are records wired directly to the ICC instance, so their data and handshake fields are only carried by this unit.\"\n    },\n    {\n      \"Candidate Name\": \"Privilege mode, debug mode, and processor context fields\",\n      \"Candidate Unit\": \"neorv32_cpu\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"These values are fields of the instance-driven ctrl record and are only copied between instances, so the processor holds them rather than this unit.\"\n    },\n    {\n      \"Candidate Name\": \"Program-counter and control-state record fields\",\n      \"Candidate Unit\": \"neorv32_cpu\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The fields such as ctrl.pc_cur and ctrl.pc_nxt are carried in an instance-driven record and are excluded as copies, while sequencing state is not a separate information piece here.\"\n    },\n    {\n      \"Candidate Name\": \"Instruction opcodes and operation selectors\",\n      \"Candidate Unit\": \"neorv32_cpu\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"Opcode and operation-selection fields are part of the operation they select and are carried in the instance-driven control and frontend records.\"\n    },\n    {\n      \"Candidate Name\": \"Control-record enables and selects\",\n      \"Candidate Unit\": \"neorv32_cpu\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The ctrl record fields are copied from CPU control to subordinate instances, so the instance-driven-record rule bars them as separate concepts.\"\n    },\n    {\n      \"Candidate Name\": \"Clock, reset, and reset-chain information\",\n      \"Candidate Unit\": \"neorv32_cpu\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"clk_i and rstn_i only time or reset subordinate instances, which the clock and reset exclusions bar as conceptual assets.\"\n    },\n    {\n      \"Candidate Name\": \"Build-time ISA, implementation, address, and sizing configuration\",\n      \"Candidate Unit\": \"neorv32_cpu\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The generics and derived constants only fix the implementation at build time and cannot be changed or withheld by an element at run time.\"\n    },\n    {\n      \"Candidate Name\": \"ALU completion and pacing pulses\",\n      \"Candidate Unit\": \"neorv32_cpu\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"alu_cp_done is a completion or pacing indication for a multi-cycle operation rather than information of its own.\"\n    },\n    {\n      \"Candidate Name\": \"Partial arithmetic and load/store intermediate values\",\n      \"Candidate Unit\": \"neorv32_cpu\",\n      \"Merged Into\": \"C4\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Performance-counter state as an independent asset\",\n      \"Candidate Unit\": \"neorv32_cpu\",\n      \"Merged Into\": \"C13\",\n      \"Why Not Kept\": \"\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_cpu",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_cpu",
+    "concept": "Instruction-fetch address",
+    "information": "The address used to fetch the next instruction, which determines the code location and execution path of the CPU. It is generated internally and leaves through the instruction-bus request address.",
+    "rubric reason": "The instruction address can expose code-access and control-flow information at ibus_req_o.addr (line 196). Corruption of the generated address can redirect execution, and withholding the fetch request can stall the CPU (line 196).",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could observe or alter the instruction-bus address, redirecting execution or preventing instruction fetches.",
+    "enters through": [],
+    "leaves through": [
+     "ibus_req_o.addr"
+    ],
+    "entry lines": [],
+    "held lines": [
+     196
+    ],
+    "exit lines": [
+     196
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_cpu",
+    "concept": "Data-memory access address and direction",
+    "information": "The address and read/write direction of a data-memory access issued by the CPU. This information is generated internally and leaves through the data-bus request.",
+    "rubric reason": "dbus_req_o.addr and dbus_req_o.rw expose the CPU's memory-access pattern at line 394. Altering the address or direction can access or modify the wrong location, while blocking the request can prevent required data transfers (line 394).",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could monitor, redirect, reverse, or suppress a data-bus access.",
+    "enters through": [],
+    "leaves through": [
+     "dbus_req_o.addr",
+     "dbus_req_o.rw"
+    ],
+    "entry lines": [],
+    "held lines": [
+     394
+    ],
+    "exit lines": [
+     394
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_cpu",
+    "concept": "Architectural register contents",
+    "information": "The values held in the CPU register file and supplied as operands for execution and memory operations. The register file is internal, so this information has no direct unit input or output port.",
+    "rubric reason": "Register operands leave the register-file instance through rs1, rs2, and rs3 (lines 324-326), with rs2 supplied to the load/store unit and potentially carried to dbus_req_o.data (lines 387 and 394). Writeback through rf_wdata can modify the register contents (line 323), and the register file is required for execution (lines 311 and 323-326).",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could read an operand through a data-bus write or corrupt register-file read or write data to alter program behavior.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     311,
+     323,
+     324,
+     325,
+     326
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_cpu",
+    "concept": "Execution and write-back data",
+    "information": "Arithmetic results, load results, CSR results, and return-address values combined into the value written back to the register file. These are internal computed values and have no direct unit port.",
+    "rubric reason": "The ALU and load/store results are combined into rf_wdata and supplied to the register file (lines 330, 369, and 388), so modifying them can corrupt architectural results.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could corrupt an ALU, load, CSR, or return-address result before it is written back.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     263,
+     330,
+     369,
+     388
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_cpu",
+    "concept": "Memory-protection configuration",
+    "information": "The PMP configuration that controls which data-memory addresses and accesses are permitted. It is held inside the PMP instance and is not directly exposed through a unit port.",
+    "rubric reason": "The PMP instance receives control and CSR information and produces PMP CSR data (lines 414 and 416), so unauthorized modification can change access permissions. A modified configuration can also deny required accesses through the PMP fault path (line 420).",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could alter PMP entries to permit protected accesses or reject accesses needed for normal execution.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     414,
+     416
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C6",
+    "unit": "neorv32_cpu",
+    "concept": "Memory-access permission decision",
+    "information": "The decision that a data-memory access violates or satisfies the PMP protection policy. It is produced by the PMP instance and consumed by control and load/store logic, with no direct unit port.",
+    "rubric reason": "pmp_fault is produced at line 420 and supplied to both the control and load/store instances at lines 257 and 392, so changing it can permit an unauthorized access or fault a valid one.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could force pmp_fault inactive to bypass protection or active to block legitimate memory accesses.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     420,
+     427
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C7",
+    "unit": "neorv32_cpu",
+    "concept": "Data-access wait state",
+    "information": "The load/store wait indication that determines whether CPU control can complete a data access. It is produced internally and has no direct unit port.",
+    "rubric reason": "lsu_wait is handed from the load/store instance to CPU control at lines 270 and 390, and asserting or withholding it can stall completion of a required access.",
+    "objectives": [
+     "A"
+    ],
+    "attack": "An attacker could hold the wait indication active and permanently stall data-access progress.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     390
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "no",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C8",
+    "unit": "neorv32_cpu",
+    "concept": "Data-access error status",
+    "information": "The error status generated for a load/store operation and used by CPU control to determine fault handling. It is internal and has no direct unit port.",
+    "rubric reason": "lsu_err is produced by the load/store instance and consumed by control at lines 272 and 391, so corruption can misclassify an access and either produce incorrect execution or prevent progress.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could suppress a real access error or inject one to alter exception handling or stop execution.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     391
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C9",
+    "unit": "neorv32_cpu",
+    "concept": "Control-flow comparison decision",
+    "information": "The ALU comparison result used by CPU control to select conditional execution and the next control-flow action. It is computed internally and has no direct unit port.",
+    "rubric reason": "alu_cmp is produced by the ALU and supplied to CPU control at lines 260 and 368, so changing it can select an incorrect branch or create an unintended execution loop.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could alter the comparison result to redirect conditional control flow or prevent the intended instruction sequence from completing.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     368
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C10",
+    "unit": "neorv32_cpu",
+    "concept": "Machine interrupt requests",
+    "information": "The machine software, external, and timer interrupt requests represented by msi_i, mei_i, and mti_i. These requests enter the CPU and are combined before being consumed by CPU control.",
+    "rubric reason": "The three interrupt inputs are combined into irq_machine and sent to CPU control at lines 75-77, 267, and 276, so unauthorized assertion or suppression can redirect execution or repeatedly interrupt normal progress.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could inject, suppress, or hold a machine interrupt request to redirect or starve normal CPU execution.",
+    "enters through": [
+     "msi_i",
+     "mei_i",
+     "mti_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     276
+    ],
+    "held lines": [
+     276
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C11",
+    "unit": "neorv32_cpu",
+    "concept": "Fast interrupt requests",
+    "information": "The 16 fast interrupt request lines used to invoke fast interrupt handling. They enter directly into CPU control and are not stored or returned by this unit.",
+    "rubric reason": "firq_i is supplied to CPU control as irq_fast_i at line 268, so altering the request vector can redirect execution or continuously preempt normal processing.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could inject or suppress fast-interrupt requests to alter control flow or prevent normal work from completing.",
+    "enters through": [
+     "firq_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     268
+    ],
+    "held lines": [],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C12",
+    "unit": "neorv32_cpu",
+    "concept": "Debug request",
+    "information": "The external debug request that can invoke debug handling in the CPU. It enters through dbi_i and is consumed by the control instance without a unit output.",
+    "rubric reason": "dbi_i is connected to the control instance's debug-request input at lines 79 and 266, so an unauthorized request can alter execution or halt normal operation.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could assert dbi_i to enter debug handling, modify execution behavior, or stop normal processing.",
+    "enters through": [
+     "dbi_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     266
+    ],
+    "held lines": [],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C13",
+    "unit": "neorv32_cpu",
+    "concept": "CSR read-back values",
+    "information": "The control and status values returned to software through the CPU's register-file write-back path, including values supplied by the ALU, counters, PMP, and ICC units. The values are internal and have no direct unit output port.",
+    "rubric reason": "CSR read data from the control and subordinate instances is combined and written through rf_wdata at lines 263, 279, and 330, so corruption can cause software to observe incorrect configuration or status.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could alter the CSR read-back path so software observes false protection, status, or control values.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     263,
+     279,
+     299,
+     305,
+     330,
+     371,
+     416,
+     426,
+     445,
+     454
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_cpu",
+    "concept": "Instruction and data bus transactions, payloads, and handshake fields",
+    "reason": "The unit forwards bus records and relayed data between instances and ports without storing or computing the transaction; only the access addresses and direction are judged as separate assets.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu",
+    "concept": "Inter-core communication transaction",
+    "reason": "icc_rx_i and icc_tx_o are records wired directly to the ICC instance, so their data and handshake fields are only carried by this unit.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu",
+    "concept": "Privilege mode, debug mode, and processor context fields",
+    "reason": "These values are fields of the instance-driven ctrl record and are only copied between instances, so the processor holds them rather than this unit.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu",
+    "concept": "Program-counter and control-state record fields",
+    "reason": "The fields such as ctrl.pc_cur and ctrl.pc_nxt are carried in an instance-driven record and are excluded as copies, while sequencing state is not a separate information piece here.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu",
+    "concept": "Instruction opcodes and operation selectors",
+    "reason": "Opcode and operation-selection fields are part of the operation they select and are carried in the instance-driven control and frontend records.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu",
+    "concept": "Control-record enables and selects",
+    "reason": "The ctrl record fields are copied from CPU control to subordinate instances, so the instance-driven-record rule bars them as separate concepts.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu",
+    "concept": "Clock, reset, and reset-chain information",
+    "reason": "clk_i and rstn_i only time or reset subordinate instances, which the clock and reset exclusions bar as conceptual assets.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu",
+    "concept": "Build-time ISA, implementation, address, and sizing configuration",
+    "reason": "The generics and derived constants only fix the implementation at build time and cannot be changed or withheld by an element at run time.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu",
+    "concept": "ALU completion and pacing pulses",
+    "reason": "alu_cp_done is a completion or pacing indication for a multi-cycle operation rather than information of its own.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu",
+    "concept": "Partial arithmetic and load/store intermediate values",
+    "reason": "merged into C4",
+    "merged into": "C4"
+   },
+   {
+    "unit": "neorv32_cpu",
+    "concept": "Performance-counter state as an independent asset",
+    "reason": "merged into C13",
+    "merged into": "C13"
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

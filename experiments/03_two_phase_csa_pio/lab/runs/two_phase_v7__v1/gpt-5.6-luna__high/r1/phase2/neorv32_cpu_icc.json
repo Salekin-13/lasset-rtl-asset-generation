@@ -1,0 +1,317 @@
+{
+ "module": "neorv32_cpu_icc",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 2,
+ "system sha": "6e414c09e397",
+ "user sha": "49235b523877",
+ "usage": {
+  "in": 18425,
+  "out": 12976,
+  "reasoning": 10648,
+  "cached": 15151,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_0833466fbaf3c676006ace849389ec87d1b97df31615671c80",
+  "request key": "76080e25e8cf"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_cpu_icc\",\n  \"Concept Walks\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Points\": [\n        {\n          \"Point\": \"tx_queue_inst\",\n          \"Reached By\": \"csr_wdata_i ==> tx_queue_inst [csr_wdata_i].\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            81,\n            82,\n            85,\n            86\n          ],\n          \"Answer Reason\": \"Under the another-IP FIFO black-box rule, csr_wdata_i enters the FIFO at line 81, the FIFO drives the externally visible payload at line 86, tx_fifo_we controls acceptance at line 82, and icc_rx_i.ack controls advancement at line 85.\"\n        },\n        {\n          \"Point\": \"tx_fifo_we\",\n          \"Reached By\": \"tx_fifo_we ==> tx_queue_inst [tx_fifo_we] as a backward influence point.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            60,\n            82\n          ],\n          \"Answer Reason\": \"The write-enable decision at lines 60 and 82 can prevent a CSR payload from entering the FIFO, blocking transmission, but it neither exposes nor transforms the payload and is not a special override behavior.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"csr_wdata_i\",\n          \"Entity\": \"neorv32_cpu_icc\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"tx_queue_inst\"\n          ],\n          \"Security Objectives\": [\n            \"C\",\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"It carries the CSR-written payload into the FIFO write-data input.\",\n          \"Justification\": \"It crosses the unit boundary whole into the FIFO input that accepts the payload, so changing it directly changes the transmitted data.\",\n          \"Asset Lines\": [\n            27,\n            81\n          ]\n        },\n        {\n          \"Asset RTL\": \"icc_tx_o.dat\",\n          \"Entity\": \"neorv32_cpu_icc\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"tx_queue_inst\"\n          ],\n          \"Security Objectives\": [\n            \"C\",\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"It carries the FIFO payload out through the ICC transmit data field.\",\n          \"Justification\": \"It is the unit-boundary data field driven directly by the FIFO output, so compromise directly exposes or changes the transmitted payload.\",\n          \"Asset Lines\": [\n            30,\n            86\n          ]\n        },\n        {\n          \"Asset RTL\": \"tx_fifo_we\",\n          \"Entity\": \"neorv32_cpu_icc\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"tx_fifo_we\",\n            \"tx_queue_inst\"\n          ],\n          \"Security Objectives\": [\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"csr_wdata_i\",\n              \"Primary Entity\": \"neorv32_cpu_icc\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"icc_tx_o.dat\",\n              \"Primary Entity\": \"neorv32_cpu_icc\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It gates whether a CSR write is accepted into the transmit FIFO.\",\n          \"Justification\": \"It controls the FIFO write path for the payload and can block both acceptance and eventual transmission.\",\n          \"Asset Lines\": [\n            37,\n            60,\n            82\n          ]\n        },\n        {\n          \"Asset RTL\": \"icc_rx_i.ack\",\n          \"Entity\": \"neorv32_cpu_icc\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"icc_tx_o.dat\",\n              \"Primary Entity\": \"neorv32_cpu_icc\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It is wired to the FIFO read-enable input and controls when the queued payload advances.\",\n          \"Justification\": \"As an input to the another-IP FIFO, it can hold the queued payload and block its release through icc_tx_o.dat.\",\n          \"Asset Lines\": [\n            31,\n            85\n          ]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Points\": [\n        {\n          \"Point\": \"csr_read\",\n          \"Reached By\": \"icc_rx_i ==> csr_read [icc_rx_i.{dat,rdy}].\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            48,\n            51,\n            52\n          ],\n          \"Answer Reason\": \"The process copies icc_rx_i.dat into csr_rdata_o at line 52, exposing the received payload, while the icc_rx_i.rdy test at line 51 can suppress that readback; integrity is not an objective for this concept and no special behavior is present.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"icc_rx_i.dat\",\n          \"Entity\": \"neorv32_cpu_icc\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"csr_read\"\n          ],\n          \"Security Objectives\": [\n            \"C\",\n            \"A\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"It carries the received ICC payload into the CSR readback process.\",\n          \"Justification\": \"It is the received data field crossing into the unit and is the value copied into the readback output.\",\n          \"Asset Lines\": [\n            31,\n            52\n          ]\n        },\n        {\n          \"Asset RTL\": \"csr_rdata_o\",\n          \"Entity\": \"neorv32_cpu_icc\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"csr_read\"\n          ],\n          \"Security Objectives\": [\n            \"C\",\n            \"A\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"It returns the received payload to software through the CSR interface.\",\n          \"Justification\": \"It crosses the unit boundary with the received payload unchanged at line 52, making it a direct observation point.\",\n          \"Asset Lines\": [\n            28,\n            52\n          ]\n        },\n        {\n          \"Asset RTL\": \"icc_rx_i.rdy\",\n          \"Entity\": \"neorv32_cpu_icc\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"C\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"csr_rdata_o\",\n              \"Primary Entity\": \"neorv32_cpu_icc\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It conditions whether the received payload is assigned to the CSR readback output.\",\n          \"Justification\": \"It decides the assignment that releases the received payload through csr_rdata_o, so it can suppress or permit that observation.\",\n          \"Asset Lines\": [\n            31,\n            51\n          ]\n        },\n        {\n          \"Asset RTL\": \"csr_addr_i\",\n          \"Entity\": \"neorv32_cpu_icc\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"C\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"csr_rdata_o\",\n              \"Primary Entity\": \"neorv32_cpu_icc\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It selects whether the CSR readback process returns received payload data or another value.\",\n          \"Justification\": \"It decides the conditional assignment through which the received payload can leave at lines 46 and 47.\",\n          \"Asset Lines\": [\n            26,\n            46,\n            47\n          ]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Points\": [\n        {\n          \"Point\": \"csr_read\",\n          \"Reached By\": \"held lines 46, 47 and 51.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            45,\n            46,\n            47,\n            51,\n            52,\n            53\n          ],\n          \"Answer Reason\": \"The inline csr_addr_i and icc_rx_i.rdy tests select which value reaches csr_rdata_o or leave the default zero, so altered conditions can corrupt or withhold readback; no special privileged, bypass or test behavior is shown.\"\n        }\n      ],\n      \"Assets\": [],\n      \"Not Reported\": [\n        {\n          \"Element RTL\": \"csr_addr_i\",\n          \"Element Entity\": \"neorv32_cpu_icc\",\n          \"Why Not Reported\": \"It is only an operand of the inline address conditions and does not hold a separately computed selection decision, while no primary exists for this concept.\"\n        },\n        {\n          \"Element RTL\": \"icc_rx_i.rdy\",\n          \"Element Entity\": \"neorv32_cpu_icc\",\n          \"Why Not Reported\": \"It is only an operand of the inline receive-ready condition and does not hold a separately computed selection decision, while no primary exists for this concept.\"\n        },\n        {\n          \"Element RTL\": \"csr_rdata_o\",\n          \"Element Entity\": \"neorv32_cpu_icc\",\n          \"Why Not Reported\": \"It carries the consequence of the inline selection rather than storing the selection itself, and no primary exists to which it could be secondary.\"\n        }\n      ],\n      \"No Primary Reason\": \"The readback selection is made by inline conditions at lines 46, 47 and 51, so no closed-set element holds the derived decision; the condition operands and resulting output are not primary for that decision.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_cpu_icc",
+  "notes": [],
+  "points": [
+   {
+    "concept id": "C1",
+    "point": "tx_queue_inst",
+    "reached by": "csr_wdata_i ==> tx_queue_inst [csr_wdata_i].",
+    "lines": [
+     81,
+     82,
+     85,
+     86
+    ],
+    "reason": "Under the another-IP FIFO black-box rule, csr_wdata_i enters the FIFO at line 81, the FIFO drives the externally visible payload at line 86, tx_fifo_we controls acceptance at line 82, and icc_rx_i.ack controls advancement at line 85.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "tx_fifo_we",
+    "reached by": "tx_fifo_we ==> tx_queue_inst [tx_fifo_we] as a backward influence point.",
+    "lines": [
+     60,
+     82
+    ],
+    "reason": "The write-enable decision at lines 60 and 82 can prevent a CSR payload from entering the FIFO, blocking transmission, but it neither exposes nor transforms the payload and is not a special override behavior.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "csr_read",
+    "reached by": "icc_rx_i ==> csr_read [icc_rx_i.{dat,rdy}].",
+    "lines": [
+     48,
+     51,
+     52
+    ],
+    "reason": "The process copies icc_rx_i.dat into csr_rdata_o at line 52, exposing the received payload, while the icc_rx_i.rdy test at line 51 can suppress that readback; integrity is not an objective for this concept and no special behavior is present.",
+    "confidentiality": "yes",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "csr_read",
+    "reached by": "held lines 46, 47 and 51.",
+    "lines": [
+     45,
+     46,
+     47,
+     51,
+     52,
+     53
+    ],
+    "reason": "The inline csr_addr_i and icc_rx_i.rdy tests select which value reaches csr_rdata_o or leave the default zero, so altered conditions can corrupt or withhold readback; no special privileged, bypass or test behavior is shown.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   }
+  ],
+  "structural assets": [
+   {
+    "concept id": "C1",
+    "element": "csr_wdata_i",
+    "entity": "neorv32_cpu_icc",
+    "same role": [],
+    "points": [
+     "tx_queue_inst"
+    ],
+    "label": "primary",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "lines": [
+     27,
+     81
+    ],
+    "links": [],
+    "reason": "It carries the CSR-written payload into the FIFO write-data input. It crosses the unit boundary whole into the FIFO input that accepts the payload, so changing it directly changes the transmitted data.",
+    "functionality": "It carries the CSR-written payload into the FIFO write-data input.",
+    "justification": "It crosses the unit boundary whole into the FIFO input that accepts the payload, so changing it directly changes the transmitted data."
+   },
+   {
+    "concept id": "C1",
+    "element": "icc_tx_o.dat",
+    "entity": "neorv32_cpu_icc",
+    "same role": [],
+    "points": [
+     "tx_queue_inst"
+    ],
+    "label": "primary",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "lines": [
+     30,
+     86
+    ],
+    "links": [],
+    "reason": "It carries the FIFO payload out through the ICC transmit data field. It is the unit-boundary data field driven directly by the FIFO output, so compromise directly exposes or changes the transmitted payload.",
+    "functionality": "It carries the FIFO payload out through the ICC transmit data field.",
+    "justification": "It is the unit-boundary data field driven directly by the FIFO output, so compromise directly exposes or changes the transmitted payload."
+   },
+   {
+    "concept id": "C1",
+    "element": "tx_fifo_we",
+    "entity": "neorv32_cpu_icc",
+    "same role": [],
+    "points": [
+     "tx_fifo_we",
+     "tx_queue_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     37,
+     60,
+     82
+    ],
+    "links": [
+     {
+      "primary": "csr_wdata_i",
+      "entity": "neorv32_cpu_icc",
+      "direction": "b"
+     },
+     {
+      "primary": "icc_tx_o.dat",
+      "entity": "neorv32_cpu_icc",
+      "direction": "b"
+     }
+    ],
+    "reason": "It gates whether a CSR write is accepted into the transmit FIFO. It controls the FIFO write path for the payload and can block both acceptance and eventual transmission.",
+    "functionality": "It gates whether a CSR write is accepted into the transmit FIFO.",
+    "justification": "It controls the FIFO write path for the payload and can block both acceptance and eventual transmission."
+   },
+   {
+    "concept id": "C1",
+    "element": "icc_rx_i.ack",
+    "entity": "neorv32_cpu_icc",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     31,
+     85
+    ],
+    "links": [
+     {
+      "primary": "icc_tx_o.dat",
+      "entity": "neorv32_cpu_icc",
+      "direction": "b"
+     }
+    ],
+    "reason": "It is wired to the FIFO read-enable input and controls when the queued payload advances. As an input to the another-IP FIFO, it can hold the queued payload and block its release through icc_tx_o.dat.",
+    "functionality": "It is wired to the FIFO read-enable input and controls when the queued payload advances.",
+    "justification": "As an input to the another-IP FIFO, it can hold the queued payload and block its release through icc_tx_o.dat."
+   },
+   {
+    "concept id": "C2",
+    "element": "icc_rx_i.dat",
+    "entity": "neorv32_cpu_icc",
+    "same role": [],
+    "points": [
+     "csr_read"
+    ],
+    "label": "primary",
+    "objectives": [
+     "C",
+     "A"
+    ],
+    "lines": [
+     31,
+     52
+    ],
+    "links": [],
+    "reason": "It carries the received ICC payload into the CSR readback process. It is the received data field crossing into the unit and is the value copied into the readback output.",
+    "functionality": "It carries the received ICC payload into the CSR readback process.",
+    "justification": "It is the received data field crossing into the unit and is the value copied into the readback output."
+   },
+   {
+    "concept id": "C2",
+    "element": "csr_rdata_o",
+    "entity": "neorv32_cpu_icc",
+    "same role": [],
+    "points": [
+     "csr_read"
+    ],
+    "label": "primary",
+    "objectives": [
+     "C",
+     "A"
+    ],
+    "lines": [
+     28,
+     52
+    ],
+    "links": [],
+    "reason": "It returns the received payload to software through the CSR interface. It crosses the unit boundary with the received payload unchanged at line 52, making it a direct observation point.",
+    "functionality": "It returns the received payload to software through the CSR interface.",
+    "justification": "It crosses the unit boundary with the received payload unchanged at line 52, making it a direct observation point."
+   },
+   {
+    "concept id": "C2",
+    "element": "icc_rx_i.rdy",
+    "entity": "neorv32_cpu_icc",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "C",
+     "A"
+    ],
+    "lines": [
+     31,
+     51
+    ],
+    "links": [
+     {
+      "primary": "csr_rdata_o",
+      "entity": "neorv32_cpu_icc",
+      "direction": "b"
+     }
+    ],
+    "reason": "It conditions whether the received payload is assigned to the CSR readback output. It decides the assignment that releases the received payload through csr_rdata_o, so it can suppress or permit that observation.",
+    "functionality": "It conditions whether the received payload is assigned to the CSR readback output.",
+    "justification": "It decides the assignment that releases the received payload through csr_rdata_o, so it can suppress or permit that observation."
+   },
+   {
+    "concept id": "C2",
+    "element": "csr_addr_i",
+    "entity": "neorv32_cpu_icc",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "C",
+     "A"
+    ],
+    "lines": [
+     26,
+     46,
+     47
+    ],
+    "links": [
+     {
+      "primary": "csr_rdata_o",
+      "entity": "neorv32_cpu_icc",
+      "direction": "b"
+     }
+    ],
+    "reason": "It selects whether the CSR readback process returns received payload data or another value. It decides the conditional assignment through which the received payload can leave at lines 46 and 47.",
+    "functionality": "It selects whether the CSR readback process returns received payload data or another value.",
+    "justification": "It decides the conditional assignment through which the received payload can leave at lines 46 and 47."
+   }
+  ],
+  "not reported": [
+   {
+    "concept id": "C3",
+    "element": "csr_addr_i",
+    "entity": "neorv32_cpu_icc",
+    "reason": "It is only an operand of the inline address conditions and does not hold a separately computed selection decision, while no primary exists for this concept."
+   },
+   {
+    "concept id": "C3",
+    "element": "icc_rx_i.rdy",
+    "entity": "neorv32_cpu_icc",
+    "reason": "It is only an operand of the inline receive-ready condition and does not hold a separately computed selection decision, while no primary exists for this concept."
+   },
+   {
+    "concept id": "C3",
+    "element": "csr_rdata_o",
+    "entity": "neorv32_cpu_icc",
+    "reason": "It carries the consequence of the inline selection rather than storing the selection itself, and no primary exists to which it could be secondary."
+   }
+  ],
+  "no primary reason": {
+   "C3": "The readback selection is made by inline conditions at lines 46, 47 and 51, so no closed-set element holds the derived decision; the condition operands and resulting output are not primary for that decision."
+  }
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

@@ -1,0 +1,206 @@
+{
+ "module": "neorv32_cpu_cp_shifter",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "be3b3faab49b",
+ "user sha": "d434f0db141e",
+ "usage": {
+  "in": 18765,
+  "out": 10615,
+  "reasoning": 8926,
+  "cached": 12982,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_077155a8bc27872e006ace83b8561087d1a61c20f63df8bb86",
+  "request key": "9642e3909d04"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_cpu_cp_shifter\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"Shift operation command and amount\",\n      \"Unit\": \"neorv32_cpu_cp_shifter\",\n      \"Information\": \"The accepted shift operation, including its direction, arithmetic mode, instruction qualification and shift amount, determines whether and how the unit transforms the operand. The serial and barrel implementations both depend on this command information.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because the decoded function fields and shift amount select the transformation and can make res_o incorrect through lines 65-69, 98-101 and 122-143. Availability is at risk because valid_cmd and the shift amount control whether the serial operation starts and completes through lines 87-94 and whether the fast result is valid through line 144.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could alter the operation fields or shift amount so that the unit performs the wrong shift or suppresses a valid operation.\",\n      \"Enters Through\": [\n        \"ctrl_i.alu_cp_alu\",\n        \"ctrl_i.ir_funct3\",\n        \"ctrl_i.ir_funct12\",\n        \"shamt_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        65,\n        66,\n        67,\n        68,\n        94,\n        122,\n        128,\n        129\n      ],\n      \"Held Lines\": [\n        65,\n        66,\n        67,\n        68\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"Shift operand and result data\",\n      \"Unit\": \"neorv32_cpu_cp_shifter\",\n      \"Information\": \"The input operand is captured or transformed by the shifter and returned as the shifted result on res_o. Correct operation depends on preserving and correctly transforming this data.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality is at risk because the operand is held and transformed internally and can be exposed through res_o via lines 95, 111, 122, 138 and 143. Integrity is at risk because the serial and barrel datapaths modify the operand into the returned result through lines 99-101 and 128-143.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could observe or tamper with the operand or intermediate datapath so that res_o discloses it or returns an incorrect shifted value.\",\n      \"Enters Through\": [\n        \"rs1_i\"\n      ],\n      \"Leaves Through\": [\n        \"res_o\"\n      ],\n      \"Entry Lines\": [\n        95,\n        122,\n        123\n      ],\n      \"Held Lines\": [\n        95,\n        99,\n        101,\n        122,\n        128,\n        129,\n        138\n      ],\n      \"Exit Lines\": [\n        111,\n        143\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"Shift result-valid status\",\n      \"Unit\": \"neorv32_cpu_cp_shifter\",\n      \"Information\": \"The valid status indicates that the shifted result may be consumed, either when the serial shift completes or when the barrel-shifter command is accepted. Downstream operation depends on this event being timely and correct.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because logic derives valid_o from the serial completion state or valid command and can therefore assert it for an invalid result through lines 110 and 144. Availability is at risk because withholding or mistiming valid_o prevents the result transfer from completing through the same assignments.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could force valid_o low or assert it at the wrong time, causing a correct result to be lost or an invalid result to be consumed.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"valid_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        110,\n        144\n      ],\n      \"Exit Lines\": [\n        110,\n        144\n      ]\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"Trap-driven shift cancellation\",\n      \"Unit\": \"neorv32_cpu_cp_shifter\",\n      \"Information\": \"The CPU trap indication cancels an in-progress serial shift by clearing its busy state. It controls whether the pending operation can continue and produce a result.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"no\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Availability is at risk because ctrl_i.cpu_trap can clear shifter.busy during a serial operation, preventing the operation from completing through lines 89-90 and suppressing the valid result path at line 110.\",\n      \"Objectives At Risk\": [\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could assert the trap control during a serial shift to cancel the operation and withhold its result.\",\n      \"Enters Through\": [\n        \"ctrl_i.cpu_trap\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        89\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": []\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Clock and reset timing\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_shifter\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"Clock and reset inputs, including the reset paths for shifter state and bs_result, are explicitly excluded as conceptual assets.\"\n    },\n    {\n      \"Candidate Name\": \"FAST_SHIFT_EN implementation choice\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_shifter\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"FAST_SHIFT_EN is a build-time generic selecting between the serial and barrel implementations at lines 22-24 and 74-75, so no runtime element can change or withhold it.\"\n    },\n    {\n      \"Candidate Name\": \"Serial sequencing state\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_shifter\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"busy, run, done, done_ff and cnt only sequence and pace the serial transfer through lines 80-110, so the sequencing-state rule bars them as information pieces of their own.\"\n    },\n    {\n      \"Candidate Name\": \"Barrel and serial intermediate values\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_shifter\",\n      \"Merged Into\": \"C2\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Operation acceptance decode\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_shifter\",\n      \"Merged Into\": \"C1\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Internal completion flags\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_shifter\",\n      \"Merged Into\": \"C3\",\n      \"Why Not Kept\": \"\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_cpu_cp_shifter",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_cpu_cp_shifter",
+    "concept": "Shift operation command and amount",
+    "information": "The accepted shift operation, including its direction, arithmetic mode, instruction qualification and shift amount, determines whether and how the unit transforms the operand. The serial and barrel implementations both depend on this command information.",
+    "rubric reason": "Integrity is at risk because the decoded function fields and shift amount select the transformation and can make res_o incorrect through lines 65-69, 98-101 and 122-143. Availability is at risk because valid_cmd and the shift amount control whether the serial operation starts and completes through lines 87-94 and whether the fast result is valid through line 144.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could alter the operation fields or shift amount so that the unit performs the wrong shift or suppresses a valid operation.",
+    "enters through": [
+     "ctrl_i.alu_cp_alu",
+     "ctrl_i.ir_funct3",
+     "ctrl_i.ir_funct12",
+     "shamt_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     65,
+     66,
+     67,
+     68,
+     94,
+     122,
+     128,
+     129
+    ],
+    "held lines": [
+     65,
+     66,
+     67,
+     68
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_cpu_cp_shifter",
+    "concept": "Shift operand and result data",
+    "information": "The input operand is captured or transformed by the shifter and returned as the shifted result on res_o. Correct operation depends on preserving and correctly transforming this data.",
+    "rubric reason": "Confidentiality is at risk because the operand is held and transformed internally and can be exposed through res_o via lines 95, 111, 122, 138 and 143. Integrity is at risk because the serial and barrel datapaths modify the operand into the returned result through lines 99-101 and 128-143.",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "attack": "An attacker could observe or tamper with the operand or intermediate datapath so that res_o discloses it or returns an incorrect shifted value.",
+    "enters through": [
+     "rs1_i"
+    ],
+    "leaves through": [
+     "res_o"
+    ],
+    "entry lines": [
+     95,
+     122,
+     123
+    ],
+    "held lines": [
+     95,
+     99,
+     101,
+     122,
+     128,
+     129,
+     138
+    ],
+    "exit lines": [
+     111,
+     143
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_cpu_cp_shifter",
+    "concept": "Shift result-valid status",
+    "information": "The valid status indicates that the shifted result may be consumed, either when the serial shift completes or when the barrel-shifter command is accepted. Downstream operation depends on this event being timely and correct.",
+    "rubric reason": "Integrity is at risk because logic derives valid_o from the serial completion state or valid command and can therefore assert it for an invalid result through lines 110 and 144. Availability is at risk because withholding or mistiming valid_o prevents the result transfer from completing through the same assignments.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could force valid_o low or assert it at the wrong time, causing a correct result to be lost or an invalid result to be consumed.",
+    "enters through": [],
+    "leaves through": [
+     "valid_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     110,
+     144
+    ],
+    "exit lines": [
+     110,
+     144
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_cpu_cp_shifter",
+    "concept": "Trap-driven shift cancellation",
+    "information": "The CPU trap indication cancels an in-progress serial shift by clearing its busy state. It controls whether the pending operation can continue and produce a result.",
+    "rubric reason": "Availability is at risk because ctrl_i.cpu_trap can clear shifter.busy during a serial operation, preventing the operation from completing through lines 89-90 and suppressing the valid result path at line 110.",
+    "objectives": [
+     "A"
+    ],
+    "attack": "An attacker could assert the trap control during a serial shift to cancel the operation and withhold its result.",
+    "enters through": [
+     "ctrl_i.cpu_trap"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     89
+    ],
+    "held lines": [],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "no",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_cpu_cp_shifter",
+    "concept": "Clock and reset timing",
+    "reason": "Clock and reset inputs, including the reset paths for shifter state and bs_result, are explicitly excluded as conceptual assets.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_cp_shifter",
+    "concept": "FAST_SHIFT_EN implementation choice",
+    "reason": "FAST_SHIFT_EN is a build-time generic selecting between the serial and barrel implementations at lines 22-24 and 74-75, so no runtime element can change or withhold it.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_cp_shifter",
+    "concept": "Serial sequencing state",
+    "reason": "busy, run, done, done_ff and cnt only sequence and pace the serial transfer through lines 80-110, so the sequencing-state rule bars them as information pieces of their own.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_cp_shifter",
+    "concept": "Barrel and serial intermediate values",
+    "reason": "merged into C2",
+    "merged into": "C2"
+   },
+   {
+    "unit": "neorv32_cpu_cp_shifter",
+    "concept": "Operation acceptance decode",
+    "reason": "merged into C1",
+    "merged into": "C1"
+   },
+   {
+    "unit": "neorv32_cpu_cp_shifter",
+    "concept": "Internal completion flags",
+    "reason": "merged into C3",
+    "merged into": "C3"
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

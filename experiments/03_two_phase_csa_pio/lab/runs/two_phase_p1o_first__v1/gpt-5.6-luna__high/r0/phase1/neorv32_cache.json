@@ -1,0 +1,294 @@
+{
+ "module": "neorv32_cache",
+ "prompt version": "two_phase_p1o_first",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "b4c962e16261",
+ "user sha": "1e9d6e97fc45",
+ "usage": {
+  "in": 34201,
+  "out": 16590,
+  "reasoning": 13902,
+  "cached": 20474,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_069a89672ac7da21006ad63909e07c87d18fbfeb133ac759a0",
+  "request key": "998b3ea847bf"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_cache\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"Cache access target and direction\",\n      \"Unit\": \"neorv32_cache\",\n      \"Information\": \"The address and read/write direction identify the memory operation that the cache must look up, refill, or forward. The operation enters through the host request and can leave through the backing-bus request.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because the RTL uses the address and direction to select cache lines and construct backing-bus requests at lines 171, 180-181, and 225-239, so alteration can redirect or change an access.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"Tamper with the address or read/write direction so a request returns data from or writes data to an unintended memory location.\",\n      \"Enters Through\": [\n        \"host_req_i.addr\",\n        \"host_req_i.rw\"\n      ],\n      \"Leaves Through\": [\n        \"bus_req_o.addr\",\n        \"bus_req_o.rw\"\n      ],\n      \"Entry Lines\": [\n        149,\n        159,\n        180,\n        181\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": [\n        159,\n        227,\n        228,\n        238,\n        239\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"Cache bypass and routing decision\",\n      \"Unit\": \"neorv32_cache\",\n      \"Information\": \"This decision determines whether an access uses the cache or bypasses it for a direct backing-bus transaction, including the uncached, atomic, and debug cases. It is computed and held internally and has no boundary port carrying the decision itself; it only controls other paths.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"yes\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because buf_dir is set from address, AMO, and debug conditions and selects the direct path at lines 171-188; availability is at risk because the same decision gates whether the backing bus or cache path is used at lines 186-203; the debug/bypass behavior acts directly on this decision at lines 171-175 and can therefore produce incorrect normal-operation behavior.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"Spoof the debug or atomic qualification, or corrupt the stored routing decision, to bypass the cache and force an unintended or unavailable backing-bus path.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        126,\n        140,\n        173\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"Cache hit decision\",\n      \"Unit\": \"neorv32_cache\",\n      \"Information\": \"The hit decision says whether the requested line is present and selects a direct cached response versus a backing-memory access. It is generated inside the cache-memory instance and has no unit port carrying the decision itself.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality is at risk because the hit result changes observable response and bus timing, with direct acknowledgement at line 191 versus bus activity at lines 195 and 202; integrity is at risk because the hit selects cached data or a refill path at lines 189-203; availability is at risk because forcing misses or hits can make the operation depend on an unavailable or stalled backing bus.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"Alter the valid/tag comparison or its hand-off so false hits return stale data, false misses trigger unnecessary refills, or hit timing reveals cache occupancy.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        286,\n        405\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"Cache flush and fence command\",\n      \"Unit\": \"neorv32_cache\",\n      \"Information\": \"A host fence request causes the cache to be cleared and, when writable, propagates a fence to the backing bus. Cache-coherence and subsequent access behavior depend on this command being retained and serviced.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because the retained fence command drives cache clearing at line 219 and a backing-bus fence at line 217, so suppressing or fabricating it can leave stale state or discard required state; availability is at risk because the command diverts the controller into S_CLEAR and can withhold normal transfers at lines 168-221.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"Inject, suppress, or repeatedly retain a fence request to clear valid cache contents or prevent normal accesses from proceeding.\",\n      \"Enters Through\": [\n        \"host_req_i.fence\"\n      ],\n      \"Leaves Through\": [\n        \"bus_req_o.fence\"\n      ],\n      \"Entry Lines\": [\n        138\n      ],\n      \"Held Lines\": [\n        126,\n        138,\n        219\n      ],\n      \"Exit Lines\": [\n        217\n      ]\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"Write-byte selection\",\n      \"Unit\": \"neorv32_cache\",\n      \"Information\": \"The byte-enable information determines which bytes of a cached or forwarded write are modified. It enters with the host request and is also forwarded on the backing-bus request.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because the write mask is used to form cache_o.we and determine which cached bytes are written at line 194, while it is forwarded on the bus at line 159, so changing it can corrupt or incompletely update a word.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"Modify the byte-enable mask so a write changes unintended bytes or silently omits bytes that the requester intended to update.\",\n      \"Enters Through\": [\n        \"host_req_i.ben\"\n      ],\n      \"Leaves Through\": [\n        \"bus_req_o.ben\"\n      ],\n      \"Entry Lines\": [\n        159,\n        194\n      ],\n      \"Held Lines\": [\n        194\n      ],\n      \"Exit Lines\": [\n        159\n      ]\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Concept Name\": \"Cache-line fill control\",\n      \"Unit\": \"neorv32_cache\",\n      \"Information\": \"This internal command commits a downloaded line as a new cache line and controls the transition from refill to subsequent lookup. It is generated inside the controller and sent only to the cache-memory instance, so it has no unit boundary entry or exit.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because cmd_new controls creation of valid/tag state during a refill at lines 226 and 285, so altering it can associate incorrect contents with a line; availability is at risk because suppressing the fill command can leave misses unresolved and cause repeated or stalled refills.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"Suppress or fabricate the new-line command so invalid or incomplete refill data is treated as valid, or so every access repeatedly misses.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        226,\n        285\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C7\",\n      \"Concept Name\": \"Backing-bus error status\",\n      \"Unit\": \"neorv32_cache\",\n      \"Information\": \"The backing-bus error indication is accumulated during a line download, returned to the host, and used to invalidate a failed fill. Cache correctness and the host's view of transaction success depend on it.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because bus_rsp_i.err is accumulated into buf_err and reported as host_rsp_o.err at lines 242 and 257, so changing it can make failed operations appear successful or successful ones fail; availability is at risk because the error status causes invalidation and an error response at lines 254-258.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"Forge or suppress the bus error indication to accept corrupted refill data, invalidate good data, or make the host retry and lose service.\",\n      \"Enters Through\": [\n        \"bus_rsp_i.err\"\n      ],\n      \"Leaves Through\": [\n        \"host_rsp_o.err\"\n      ],\n      \"Entry Lines\": [\n        209,\n        242\n      ],\n      \"Held Lines\": [\n        126,\n        242\n      ],\n      \"Exit Lines\": [\n        209,\n        257\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Relayed request and response data\",\n      \"Candidate Unit\": \"neorv32_cache\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"Forwarded-transactions rules bar data that only moves between host and backing-bus ports or through the cache instance without this unit computing from it.\"\n    },\n    {\n      \"Candidate Name\": \"Cached data words, tags, and valid bits\",\n      \"Candidate Unit\": \"neorv32_cache\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"Cached-copies rules treat the data as backing-memory copies and tags and valid bits as records of those copies, not as information stored by this unit.\"\n    },\n    {\n      \"Candidate Name\": \"Controller sequencing state and pending request strobe\",\n      \"Candidate Unit\": \"neorv32_cache\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"Sequencing-state and bus-handshake-copy rules fold ctrl.state and buf_req into the transfer steps they pace rather than keeping them as concepts of their own.\"\n    },\n    {\n      \"Candidate Name\": \"Address staging fields\",\n      \"Candidate Unit\": \"neorv32_cache\",\n      \"Merged Into\": \"C1\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Build-time cache geometry and read-only setting\",\n      \"Candidate Unit\": \"neorv32_cache\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"NUM_BLOCKS, BLOCK_SIZE, UC_BEGIN, and READ_ONLY are generics that fix construction or behavior at build time and cannot be changed or withheld at run time.\"\n    },\n    {\n      \"Candidate Name\": \"Clock and reset\",\n      \"Candidate Unit\": \"neorv32_cache\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The clock and reset only time or reset controller and cache-memory state, and the clock/reset rules exclude them as conceptual assets.\"\n    },\n    {\n      \"Candidate Name\": \"Bus acknowledge and request handshake\",\n      \"Candidate Unit\": \"neorv32_cache\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"Forwarded-transaction and bus-handshake rules treat acknowledge, strobe, and other transfer-timing copies as part of the relayed transaction rather than independent information.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_cache",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_cache",
+    "concept": "Cache access target and direction",
+    "information": "The address and read/write direction identify the memory operation that the cache must look up, refill, or forward. The operation enters through the host request and can leave through the backing-bus request.",
+    "rubric reason": "Integrity is at risk because the RTL uses the address and direction to select cache lines and construct backing-bus requests at lines 171, 180-181, and 225-239, so alteration can redirect or change an access.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "Tamper with the address or read/write direction so a request returns data from or writes data to an unintended memory location.",
+    "enters through": [
+     "host_req_i.addr",
+     "host_req_i.rw"
+    ],
+    "leaves through": [
+     "bus_req_o.addr",
+     "bus_req_o.rw"
+    ],
+    "entry lines": [
+     149,
+     159,
+     180,
+     181
+    ],
+    "held lines": [],
+    "exit lines": [
+     159,
+     227,
+     228,
+     238,
+     239
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_cache",
+    "concept": "Cache bypass and routing decision",
+    "information": "This decision determines whether an access uses the cache or bypasses it for a direct backing-bus transaction, including the uncached, atomic, and debug cases. It is computed and held internally and has no boundary port carrying the decision itself; it only controls other paths.",
+    "rubric reason": "Integrity is at risk because buf_dir is set from address, AMO, and debug conditions and selects the direct path at lines 171-188; availability is at risk because the same decision gates whether the backing bus or cache path is used at lines 186-203; the debug/bypass behavior acts directly on this decision at lines 171-175 and can therefore produce incorrect normal-operation behavior.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "Spoof the debug or atomic qualification, or corrupt the stored routing decision, to bypass the cache and force an unintended or unavailable backing-bus path.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     126,
+     140,
+     173
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "yes"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_cache",
+    "concept": "Cache hit decision",
+    "information": "The hit decision says whether the requested line is present and selects a direct cached response versus a backing-memory access. It is generated inside the cache-memory instance and has no unit port carrying the decision itself.",
+    "rubric reason": "Confidentiality is at risk because the hit result changes observable response and bus timing, with direct acknowledgement at line 191 versus bus activity at lines 195 and 202; integrity is at risk because the hit selects cached data or a refill path at lines 189-203; availability is at risk because forcing misses or hits can make the operation depend on an unavailable or stalled backing bus.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "Alter the valid/tag comparison or its hand-off so false hits return stale data, false misses trigger unnecessary refills, or hit timing reveals cache occupancy.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     286,
+     405
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_cache",
+    "concept": "Cache flush and fence command",
+    "information": "A host fence request causes the cache to be cleared and, when writable, propagates a fence to the backing bus. Cache-coherence and subsequent access behavior depend on this command being retained and serviced.",
+    "rubric reason": "Integrity is at risk because the retained fence command drives cache clearing at line 219 and a backing-bus fence at line 217, so suppressing or fabricating it can leave stale state or discard required state; availability is at risk because the command diverts the controller into S_CLEAR and can withhold normal transfers at lines 168-221.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "Inject, suppress, or repeatedly retain a fence request to clear valid cache contents or prevent normal accesses from proceeding.",
+    "enters through": [
+     "host_req_i.fence"
+    ],
+    "leaves through": [
+     "bus_req_o.fence"
+    ],
+    "entry lines": [
+     138
+    ],
+    "held lines": [
+     126,
+     138,
+     219
+    ],
+    "exit lines": [
+     217
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_cache",
+    "concept": "Write-byte selection",
+    "information": "The byte-enable information determines which bytes of a cached or forwarded write are modified. It enters with the host request and is also forwarded on the backing-bus request.",
+    "rubric reason": "Integrity is at risk because the write mask is used to form cache_o.we and determine which cached bytes are written at line 194, while it is forwarded on the bus at line 159, so changing it can corrupt or incompletely update a word.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "Modify the byte-enable mask so a write changes unintended bytes or silently omits bytes that the requester intended to update.",
+    "enters through": [
+     "host_req_i.ben"
+    ],
+    "leaves through": [
+     "bus_req_o.ben"
+    ],
+    "entry lines": [
+     159,
+     194
+    ],
+    "held lines": [
+     194
+    ],
+    "exit lines": [
+     159
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C6",
+    "unit": "neorv32_cache",
+    "concept": "Cache-line fill control",
+    "information": "This internal command commits a downloaded line as a new cache line and controls the transition from refill to subsequent lookup. It is generated inside the controller and sent only to the cache-memory instance, so it has no unit boundary entry or exit.",
+    "rubric reason": "Integrity is at risk because cmd_new controls creation of valid/tag state during a refill at lines 226 and 285, so altering it can associate incorrect contents with a line; availability is at risk because suppressing the fill command can leave misses unresolved and cause repeated or stalled refills.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "Suppress or fabricate the new-line command so invalid or incomplete refill data is treated as valid, or so every access repeatedly misses.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     226,
+     285
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C7",
+    "unit": "neorv32_cache",
+    "concept": "Backing-bus error status",
+    "information": "The backing-bus error indication is accumulated during a line download, returned to the host, and used to invalidate a failed fill. Cache correctness and the host's view of transaction success depend on it.",
+    "rubric reason": "Integrity is at risk because bus_rsp_i.err is accumulated into buf_err and reported as host_rsp_o.err at lines 242 and 257, so changing it can make failed operations appear successful or successful ones fail; availability is at risk because the error status causes invalidation and an error response at lines 254-258.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "Forge or suppress the bus error indication to accept corrupted refill data, invalidate good data, or make the host retry and lose service.",
+    "enters through": [
+     "bus_rsp_i.err"
+    ],
+    "leaves through": [
+     "host_rsp_o.err"
+    ],
+    "entry lines": [
+     209,
+     242
+    ],
+    "held lines": [
+     126,
+     242
+    ],
+    "exit lines": [
+     209,
+     257
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_cache",
+    "concept": "Relayed request and response data",
+    "reason": "Forwarded-transactions rules bar data that only moves between host and backing-bus ports or through the cache instance without this unit computing from it.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cache",
+    "concept": "Cached data words, tags, and valid bits",
+    "reason": "Cached-copies rules treat the data as backing-memory copies and tags and valid bits as records of those copies, not as information stored by this unit.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cache",
+    "concept": "Controller sequencing state and pending request strobe",
+    "reason": "Sequencing-state and bus-handshake-copy rules fold ctrl.state and buf_req into the transfer steps they pace rather than keeping them as concepts of their own.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cache",
+    "concept": "Address staging fields",
+    "reason": "merged into C1",
+    "merged into": "C1"
+   },
+   {
+    "unit": "neorv32_cache",
+    "concept": "Build-time cache geometry and read-only setting",
+    "reason": "NUM_BLOCKS, BLOCK_SIZE, UC_BEGIN, and READ_ONLY are generics that fix construction or behavior at build time and cannot be changed or withheld at run time.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cache",
+    "concept": "Clock and reset",
+    "reason": "The clock and reset only time or reset controller and cache-memory state, and the clock/reset rules exclude them as conceptual assets.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cache",
+    "concept": "Bus acknowledge and request handshake",
+    "reason": "Forwarded-transaction and bus-handshake rules treat acknowledge, strobe, and other transfer-timing copies as part of the relayed transaction rather than independent information.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

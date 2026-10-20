@@ -1,0 +1,263 @@
+{
+ "module": "neorv32_cpu_counters",
+ "prompt version": "two_phase_p1o_first",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "b4c962e16261",
+ "user sha": "6b1eb3f07054",
+ "usage": {
+  "in": 29905,
+  "out": 14652,
+  "reasoning": 12281,
+  "cached": 20474,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_0d37cd4d36502385006ad59f80507c87d190f6a72e0b7ca584",
+  "request key": "234c6c8f5490"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_cpu_counters\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"Performance counter values\",\n      \"Unit\": \"neorv32_cpu_counters\",\n      \"Information\": \"The accumulated cycle, retired-instruction, and hardware-performance-monitor counter values are state used to report execution and event counts, and can be written through the CSR interface. They enter through ctrl_i and leave as CSR readback on rdata_o.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"yes\"\n      },\n      \"Rubric Reason\": \"Confidentiality: execution and event counts may reveal sensitive execution behavior, and the counter readback is exposed through rdata_o at line 97. Integrity: CSR write data reaches counter storage at lines 303 and 326, while subsequent counter values are held at lines 305 and 328. Availability: cnt_en controls counter increments through lines 131, 150, and 185, and cnt_re controls counter readout through lines 134, 153, and 188. Undermined Expected Behavior: cpu_debug and cnt_halt suppress counter updates at lines 108, 110, and 112, which can produce incorrect counts or stop counting.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could force CSR writes, counter read enables, halt controls, or debug mode to disclose, overwrite, freeze, or suppress performance counts.\",\n      \"Enters Through\": [\n        \"ctrl_i\"\n      ],\n      \"Leaves Through\": [\n        \"rdata_o\"\n      ],\n      \"Entry Lines\": [\n        108,\n        110,\n        112,\n        135,\n        154,\n        189\n      ],\n      \"Held Lines\": [\n        300,\n        303,\n        305,\n        321,\n        326,\n        328\n      ],\n      \"Exit Lines\": [\n        97\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"HPM event-selection configuration\",\n      \"Unit\": \"neorv32_cpu_counters\",\n      \"Information\": \"The HPM event-selection settings determine which processor events increment each hardware-performance-monitor counter and can be read back through the CSR interface. They enter through ctrl_i and leave through rdata_o.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity: CSR write data updates hpmevent at line 200, and the selected events control counter enables at line 112. Availability: changing the event-selection settings can prevent HPM counters from advancing through line 112, disabling their monitoring function.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could rewrite the HPM event settings to monitor the wrong events or disable hardware-performance monitoring.\",\n      \"Enters Through\": [\n        \"ctrl_i\"\n      ],\n      \"Leaves Through\": [\n        \"rdata_o\"\n      ],\n      \"Entry Lines\": [\n        200\n      ],\n      \"Held Lines\": [\n        197,\n        200,\n        202\n      ],\n      \"Exit Lines\": [\n        97\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"Counter update-enable control\",\n      \"Unit\": \"neorv32_cpu_counters\",\n      \"Information\": \"The registered per-counter update-enable decisions determine whether each counter advances, including the effects of event selection, counter halt controls, and debug mode. This is internal control state with no direct output port.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"yes\"\n      },\n      \"Rubric Reason\": \"Integrity: cnt_en is recomputed from event, halt, debug, and HPM-selection inputs at lines 108, 110, and 112, so changing those controls changes counter operation. Availability: clearing cnt_en prevents the counter instances from receiving increment enables at lines 131, 150, and 185. Undermined Expected Behavior: the privileged debug-mode input directly disables cnt_en at lines 108, 110, and 112, allowing counting to stop or become incorrect during otherwise expected operation.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could assert a halt or debug control, or alter an event condition, to disable selected counter updates.\",\n      \"Enters Through\": [\n        \"ctrl_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        108,\n        110,\n        112\n      ],\n      \"Held Lines\": [\n        105,\n        108,\n        109,\n        110,\n        112\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"Counter-entry selection\",\n      \"Unit\": \"neorv32_cpu_counters\",\n      \"Information\": \"The decoded low CSR address selection chooses which generated counter or HPM configuration entry receives a CSR read or write. It is an internal selector with no direct output port.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity: the selector is derived from csr_addr at line 82 and controls the per-entry read and write enables at lines 83 through 86, so a changed selection can redirect an access to the wrong entry.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could manipulate the CSR address selection so a read or write targets a different counter or configuration entry.\",\n      \"Enters Through\": [\n        \"ctrl_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        82\n      ],\n      \"Held Lines\": [\n        82\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"Counter read-return gating\",\n      \"Unit\": \"neorv32_cpu_counters\",\n      \"Information\": \"The counter read-enable decisions determine whether the counter instances return their stored values for a CSR read. They are internal access-control decisions with no direct output port.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"no\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Availability: cnt_re is formed at line 84, drives the counter instances' re_i ports at lines 134, 153, and 188, and therefore can withhold counter data from the output path.\",\n      \"Objectives At Risk\": [\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could suppress the counter read-enable decision so required counter readback is withheld.\",\n      \"Enters Through\": [\n        \"ctrl_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        84\n      ],\n      \"Held Lines\": [\n        84\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Concept Name\": \"HPM-configuration read-return gating\",\n      \"Unit\": \"neorv32_cpu_counters\",\n      \"Information\": \"The HPM-configuration read-enable decision determines whether an HPM event-selection value is included in CSR readback. It is an internal access-control decision with no direct output port.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"no\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Availability: cfg_re is generated at line 86 and gates inclusion of hpmevent in hpm_rd at line 223 before the result reaches rdata_o at line 227.\",\n      \"Objectives At Risk\": [\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could suppress cfg_re so HPM configuration readback is withheld from the CSR interface.\",\n      \"Enters Through\": [\n        \"ctrl_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        86\n      ],\n      \"Held Lines\": [\n        86\n      ],\n      \"Exit Lines\": []\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"CSR access command fields and write-enable decodes\",\n      \"Candidate Unit\": \"neorv32_cpu_counters\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"csr_addr, csr_re, csr_we, cnt_acc, cfg_acc, cnt_we, and cfg_we primarily state or implement whether an access occurs and which stored value takes write data, so Access command fields bars them as concepts of their own; their exceptional selector and read-gating decisions are kept separately at lines 82, 84, and 86.\"\n    },\n    {\n      \"Candidate Name\": \"Clock and reset\",\n      \"Candidate Unit\": \"neorv32_cpu_counters\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"clk_i and rstn_i only time or reset the counter-control and configuration state and are excluded by the Clocks and resets rule at lines 31, 32, 104, and 106.\"\n    },\n    {\n      \"Candidate Name\": \"Build-time counter options\",\n      \"Candidate Unit\": \"neorv32_cpu_counters\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"ZICNTR_EN, ZIHPM_EN, HPM_NUM, and HPM_WIDTH only determine generated hardware structure and widths at lines 24 through 27, so no runtime element can change or withhold them.\"\n    },\n    {\n      \"Candidate Name\": \"Time counter value\",\n      \"Candidate Unit\": \"neorv32_cpu_counters\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"time_rd is assigned only zero constants at lines 140, 164, and 237, so it carries no variable information on which the IP depends.\"\n    },\n    {\n      \"Candidate Name\": \"Counter arithmetic and carry intermediates\",\n      \"Candidate Unit\": \"neorv32_cpu_counters\",\n      \"Merged Into\": \"C1\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Unused control-record fields\",\n      \"Candidate Unit\": \"neorv32_cpu_counters\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The other ctrl_i fields appear only in the record declaration at line 33 and are never read by this entity, so no behavior or protected information depends on them.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_cpu_counters",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_cpu_counters",
+    "concept": "Performance counter values",
+    "information": "The accumulated cycle, retired-instruction, and hardware-performance-monitor counter values are state used to report execution and event counts, and can be written through the CSR interface. They enter through ctrl_i and leave as CSR readback on rdata_o.",
+    "rubric reason": "Confidentiality: execution and event counts may reveal sensitive execution behavior, and the counter readback is exposed through rdata_o at line 97. Integrity: CSR write data reaches counter storage at lines 303 and 326, while subsequent counter values are held at lines 305 and 328. Availability: cnt_en controls counter increments through lines 131, 150, and 185, and cnt_re controls counter readout through lines 134, 153, and 188. Undermined Expected Behavior: cpu_debug and cnt_halt suppress counter updates at lines 108, 110, and 112, which can produce incorrect counts or stop counting.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could force CSR writes, counter read enables, halt controls, or debug mode to disclose, overwrite, freeze, or suppress performance counts.",
+    "enters through": [
+     "ctrl_i"
+    ],
+    "leaves through": [
+     "rdata_o"
+    ],
+    "entry lines": [
+     108,
+     110,
+     112,
+     135,
+     154,
+     189
+    ],
+    "held lines": [
+     300,
+     303,
+     305,
+     321,
+     326,
+     328
+    ],
+    "exit lines": [
+     97
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "yes"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_cpu_counters",
+    "concept": "HPM event-selection configuration",
+    "information": "The HPM event-selection settings determine which processor events increment each hardware-performance-monitor counter and can be read back through the CSR interface. They enter through ctrl_i and leave through rdata_o.",
+    "rubric reason": "Integrity: CSR write data updates hpmevent at line 200, and the selected events control counter enables at line 112. Availability: changing the event-selection settings can prevent HPM counters from advancing through line 112, disabling their monitoring function.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could rewrite the HPM event settings to monitor the wrong events or disable hardware-performance monitoring.",
+    "enters through": [
+     "ctrl_i"
+    ],
+    "leaves through": [
+     "rdata_o"
+    ],
+    "entry lines": [
+     200
+    ],
+    "held lines": [
+     197,
+     200,
+     202
+    ],
+    "exit lines": [
+     97
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_cpu_counters",
+    "concept": "Counter update-enable control",
+    "information": "The registered per-counter update-enable decisions determine whether each counter advances, including the effects of event selection, counter halt controls, and debug mode. This is internal control state with no direct output port.",
+    "rubric reason": "Integrity: cnt_en is recomputed from event, halt, debug, and HPM-selection inputs at lines 108, 110, and 112, so changing those controls changes counter operation. Availability: clearing cnt_en prevents the counter instances from receiving increment enables at lines 131, 150, and 185. Undermined Expected Behavior: the privileged debug-mode input directly disables cnt_en at lines 108, 110, and 112, allowing counting to stop or become incorrect during otherwise expected operation.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could assert a halt or debug control, or alter an event condition, to disable selected counter updates.",
+    "enters through": [
+     "ctrl_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     108,
+     110,
+     112
+    ],
+    "held lines": [
+     105,
+     108,
+     109,
+     110,
+     112
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "yes"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_cpu_counters",
+    "concept": "Counter-entry selection",
+    "information": "The decoded low CSR address selection chooses which generated counter or HPM configuration entry receives a CSR read or write. It is an internal selector with no direct output port.",
+    "rubric reason": "Integrity: the selector is derived from csr_addr at line 82 and controls the per-entry read and write enables at lines 83 through 86, so a changed selection can redirect an access to the wrong entry.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could manipulate the CSR address selection so a read or write targets a different counter or configuration entry.",
+    "enters through": [
+     "ctrl_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     82
+    ],
+    "held lines": [
+     82
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_cpu_counters",
+    "concept": "Counter read-return gating",
+    "information": "The counter read-enable decisions determine whether the counter instances return their stored values for a CSR read. They are internal access-control decisions with no direct output port.",
+    "rubric reason": "Availability: cnt_re is formed at line 84, drives the counter instances' re_i ports at lines 134, 153, and 188, and therefore can withhold counter data from the output path.",
+    "objectives": [
+     "A"
+    ],
+    "attack": "An attacker could suppress the counter read-enable decision so required counter readback is withheld.",
+    "enters through": [
+     "ctrl_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     84
+    ],
+    "held lines": [
+     84
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "no",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C6",
+    "unit": "neorv32_cpu_counters",
+    "concept": "HPM-configuration read-return gating",
+    "information": "The HPM-configuration read-enable decision determines whether an HPM event-selection value is included in CSR readback. It is an internal access-control decision with no direct output port.",
+    "rubric reason": "Availability: cfg_re is generated at line 86 and gates inclusion of hpmevent in hpm_rd at line 223 before the result reaches rdata_o at line 227.",
+    "objectives": [
+     "A"
+    ],
+    "attack": "An attacker could suppress cfg_re so HPM configuration readback is withheld from the CSR interface.",
+    "enters through": [
+     "ctrl_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     86
+    ],
+    "held lines": [
+     86
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "no",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_cpu_counters",
+    "concept": "CSR access command fields and write-enable decodes",
+    "reason": "csr_addr, csr_re, csr_we, cnt_acc, cfg_acc, cnt_we, and cfg_we primarily state or implement whether an access occurs and which stored value takes write data, so Access command fields bars them as concepts of their own; their exceptional selector and read-gating decisions are kept separately at lines 82, 84, and 86.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_counters",
+    "concept": "Clock and reset",
+    "reason": "clk_i and rstn_i only time or reset the counter-control and configuration state and are excluded by the Clocks and resets rule at lines 31, 32, 104, and 106.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_counters",
+    "concept": "Build-time counter options",
+    "reason": "ZICNTR_EN, ZIHPM_EN, HPM_NUM, and HPM_WIDTH only determine generated hardware structure and widths at lines 24 through 27, so no runtime element can change or withhold them.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_counters",
+    "concept": "Time counter value",
+    "reason": "time_rd is assigned only zero constants at lines 140, 164, and 237, so it carries no variable information on which the IP depends.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_counters",
+    "concept": "Counter arithmetic and carry intermediates",
+    "reason": "merged into C1",
+    "merged into": "C1"
+   },
+   {
+    "unit": "neorv32_cpu_counters",
+    "concept": "Unused control-record fields",
+    "reason": "The other ctrl_i fields appear only in the record declaration at line 33 and are never read by this entity, so no behavior or protected information depends on them.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

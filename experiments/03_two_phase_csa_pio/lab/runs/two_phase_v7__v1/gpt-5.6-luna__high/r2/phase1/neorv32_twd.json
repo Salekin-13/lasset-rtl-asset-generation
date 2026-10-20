@@ -1,0 +1,496 @@
+{
+ "module": "neorv32_twd",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "be3b3faab49b",
+ "user sha": "27dea96edca1",
+ "usage": {
+  "in": 30802,
+  "out": 15184,
+  "reasoning": 10876,
+  "cached": 30799,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_01dca2a8bd4b5841006ace83b806b087d180705e4d60e85ae9",
+  "request key": "71584db5bc7e"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_twd\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"Controller enable state\",\n      \"Unit\": \"neorv32_twd\",\n      \"Information\": \"Whether the TWD controller is enabled and allowed to operate, generate its clock-enable output, and service transfers. The controller's operation depends on this state.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity: a bus write changes the enable state at line 159 and can alter controller operation. Availability: the state clears the FIFOs and gates the engine and sampling at lines 230, 281, 381, and 389, so changing it can disable transfers.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker able to write the control register can clear or disable the controller, preventing TWD transfers.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\",\n        \"clkgen_en_o\"\n      ],\n      \"Entry Lines\": [\n        159\n      ],\n      \"Held Lines\": [\n        138,\n        159\n      ],\n      \"Exit Lines\": [\n        172,\n        198\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"TWD transfer-rate selection\",\n      \"Unit\": \"neorv32_twd\",\n      \"Information\": \"The selected sampling-rate divisor for TWD transfers, choosing the clock-generation input used to pace sampling. Communication depends on this rate matching the attached device.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity: a bus write changes the rate-selection setting at line 162 and therefore changes sampling behavior at line 329. Availability: selecting an unsuitable rate can prevent valid TWD edges and stall transfers through the sampling path at lines 315-320.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker can rewrite the rate selection so that the controller samples at an incompatible rate and no longer communicates correctly.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        162\n      ],\n      \"Held Lines\": [\n        141,\n        162\n      ],\n      \"Exit Lines\": [\n        173\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"Configured TWD device address\",\n      \"Unit\": \"neorv32_twd\",\n      \"Information\": \"The stored seven-bit address that identifies which TWD transactions this controller accepts. The address controls matching of incoming transactions.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity: a bus write changes the stored address at line 163, which is compared against the received address at line 402. Availability: changing the address can cause all intended transactions to be rejected and leave the engine idle at lines 404-408.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker can rewrite the configured address so that another device is selected or legitimate TWD requests are ignored.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        163\n      ],\n      \"Held Lines\": [\n        142,\n        163\n      ],\n      \"Exit Lines\": [\n        174\n      ]\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"Read-hiding policy\",\n      \"Unit\": \"neorv32_twd\",\n      \"Information\": \"The configuration deciding whether a read transaction is hidden when the transmit FIFO is full. It controls whether a matching read proceeds to a response.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity: a bus write changes the policy at line 168 and the policy changes the accepted state transition at lines 403-406. Availability: the policy can block a read transaction when the transmit FIFO is full, withholding service at lines 403-404.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker can change the read-hiding policy to suppress valid reads or expose reads when the transmit path cannot safely service them.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        168\n      ],\n      \"Held Lines\": [\n        147,\n        168\n      ],\n      \"Exit Lines\": [\n        179\n      ]\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"Transmit dummy-data selection\",\n      \"Unit\": \"neorv32_twd\",\n      \"Information\": \"The setting deciding whether the retained transmit byte is used when the transmit FIFO is empty. It affects the byte returned during an otherwise under-filled transmit read.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity: a bus write changes the selection at line 167, and the selection changes the transmit result chosen at line 251 and subsequently shifted out.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker can change the selection so an empty transmit read returns an unintended retained byte or the all-ones fallback.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        167\n      ],\n      \"Held Lines\": [\n        146,\n        167\n      ],\n      \"Exit Lines\": [\n        178\n      ]\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Concept Name\": \"TWD transmit data\",\n      \"Unit\": \"neorv32_twd\",\n      \"Information\": \"Bytes supplied by the host for transmission on the TWD data line, including a retained byte used as dummy transmit data. TWD read responses and transmitted payloads depend on these bytes.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality: host-supplied data can be exposed on the external data output at line 454, and the retained byte is stored at line 242. Integrity: bus write data enters the transmit FIFO at line 232 and is shifted to the output, so altered stored data changes the transmitted payload. Availability: the enable and engine state can clear or withhold the transmit path at lines 230, 381, and 389, preventing queued data from being transmitted.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker can read or alter host-supplied transmit bytes, or disable the transmit path so queued data is never sent.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"twd_sda_o\"\n      ],\n      \"Entry Lines\": [\n        232\n      ],\n      \"Held Lines\": [\n        242\n      ],\n      \"Exit Lines\": [\n        454\n      ]\n    },\n    {\n      \"Concept ID\": \"C7\",\n      \"Concept Name\": \"TWD receive data\",\n      \"Unit\": \"neorv32_twd\",\n      \"Information\": \"Bytes received from the external TWD data line and returned to the host through the receive FIFO. Host software depends on these bytes to consume incoming device data.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality: received bytes are exposed to the host through the bus response at line 190. Integrity: sampled input bits are shifted into the receive path at lines 311 and 449, so altered input or stored bits change the returned data. Availability: a full receive FIFO prevents the engine from accepting a received byte and returns it to the idle state at lines 439-444.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker can alter the external data stream, read received data through the bus response, or fill the receive FIFO to stop further reception.\",\n      \"Enters Through\": [\n        \"twd_sda_i\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        311\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": [\n        190\n      ]\n    },\n    {\n      \"Concept ID\": \"C8\",\n      \"Concept Name\": \"Incoming TWD target address\",\n      \"Unit\": \"neorv32_twd\",\n      \"Information\": \"The address bits received at the start of a TWD transaction and used to select whether this controller should respond. It has no separate output because the unit only compares it and accepts or rejects the transaction.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity: received address bits are shifted into the transaction word and compared at lines 402 and 412, so changing them changes the selected target. Availability: a changed address can prevent the controller from entering the response state at lines 404-408.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker can modify the address bits on the TWD data line to redirect a transaction or prevent this controller from responding.\",\n      \"Enters Through\": [\n        \"twd_sda_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        311\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C9\",\n      \"Concept Name\": \"TWD transfer direction command\",\n      \"Unit\": \"neorv32_twd\",\n      \"Information\": \"The read-versus-write command bit received with a TWD address and retained as the current transaction direction. It selects whether the engine receives data into the RX path or transmits data from the TX path.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity: the command bit is captured into engine.cmd at line 420 and selects the receive or transmit behavior at lines 439-454. Availability: an altered command can select a path that cannot progress or suppress the intended transfer at lines 439-445.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker can alter the direction bit so the controller transmits instead of receives, receives instead of transmits, or terminates the transaction.\",\n      \"Enters Through\": [\n        \"twd_sda_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        311\n      ],\n      \"Held Lines\": [\n        420\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C10\",\n      \"Concept Name\": \"TWD acknowledgment handshake\",\n      \"Unit\": \"neorv32_twd\",\n      \"Information\": \"The acknowledgment information exchanged with the TWD peer, including the peer's received acknowledgment and acknowledgments driven by this controller. It determines whether a transfer continues and whether the peer accepts a byte.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity: the peer acknowledgment is captured at line 474 and controls continuation at line 468, while controller acknowledgments are driven at lines 418 and 482. Availability: an altered acknowledgment can terminate or block the transfer through the state transitions at lines 465-469.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker can forge or suppress an acknowledgment so that a transfer is accepted incorrectly or terminates before completion.\",\n      \"Enters Through\": [\n        \"twd_sda_i\"\n      ],\n      \"Leaves Through\": [\n        \"twd_sda_o\"\n      ],\n      \"Entry Lines\": [\n        311\n      ],\n      \"Held Lines\": [\n        474\n      ],\n      \"Exit Lines\": [\n        418,\n        482\n      ]\n    },\n    {\n      \"Concept ID\": \"C11\",\n      \"Concept Name\": \"TWD transaction boundary events\",\n      \"Unit\": \"neorv32_twd\",\n      \"Information\": \"The detected TWD start and stop events that begin, restart, or terminate a transaction. The engine uses these events to establish or abandon protocol activity.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity: the start and stop events are produced from sampled bus data at lines 346-347 and control engine state at lines 381, 399, and 434. Availability: a false stop or missing start can terminate or prevent a transaction.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker can inject or suppress a TWD start or stop condition to trigger an unintended transaction or abort a valid one.\",\n      \"Enters Through\": [\n        \"twd_sda_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        311\n      ],\n      \"Held Lines\": [\n        346,\n        347\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C12\",\n      \"Concept Name\": \"Interrupt indication\",\n      \"Unit\": \"neorv32_twd\",\n      \"Information\": \"The interrupt indication reporting enabled receive-available, receive-full, or transmit-empty conditions to the host. Software depends on it to react to TWD FIFO events.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity: the interrupt output is generated from enable settings and FIFO conditions at lines 293-296, so altered control or status can create a false or missing interrupt. Availability: suppressing the output can prevent software from servicing FIFO events and halt progress.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker can alter interrupt control or FIFO-event logic so software misses required service notifications or receives spurious ones.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"irq_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        293,\n        294,\n        295,\n        296\n      ],\n      \"Exit Lines\": [\n        293\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Clock and reset inputs\",\n      \"Candidate Unit\": \"neorv32_twd\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"Clock and reset inputs are excluded by the clock/reset rule, and reset only initializes or clears other assets.\"\n    },\n    {\n      \"Candidate Name\": \"TWD SCL clock line\",\n      \"Candidate Unit\": \"neorv32_twd\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"A serial link clock line and its sampled edge and pacing signals are excluded from conceptual assets.\"\n    },\n    {\n      \"Candidate Name\": \"Sampling synchronizer stages\",\n      \"Candidate Unit\": \"neorv32_twd\",\n      \"Merged Into\": \"C7\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"FIFO occupancy and engine busy status\",\n      \"Candidate Unit\": \"neorv32_twd\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"These are FIFO or sequencing status bits returned by the bus and are covered by the buffered data, interrupt indication, or transaction behavior rather than being information of their own.\"\n    },\n    {\n      \"Candidate Name\": \"Engine state and step counter\",\n      \"Candidate Unit\": \"neorv32_twd\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The state machine and counter only sequence and pace transfers, so the sequencing-state rule bars them as separate conceptual assets.\"\n    },\n    {\n      \"Candidate Name\": \"SCL rise, fall, and valid pulses\",\n      \"Candidate Unit\": \"neorv32_twd\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"These internal pulses only pace sampling and transaction steps and are barred as pacing information.\"\n    },\n    {\n      \"Candidate Name\": \"Bus request access fields\",\n      \"Candidate Unit\": \"neorv32_twd\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"Strobe, direction, and register-select fields are access command fields, while the bus transaction itself is not stored or computed as a whole.\"\n    },\n    {\n      \"Candidate Name\": \"Bus response acknowledge and error\",\n      \"Candidate Unit\": \"neorv32_twd\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The acknowledge repeats the request strobe and the error flag is tied to a constant, so the bus-handshake-copy rule excludes them.\"\n    },\n    {\n      \"Candidate Name\": \"FIFO clear commands\",\n      \"Candidate Unit\": \"neorv32_twd\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The clear controls only clear port-buffer FIFOs and are excluded by the port-buffer rule.\"\n    },\n    {\n      \"Candidate Name\": \"Interrupt enable mask bits\",\n      \"Candidate Unit\": \"neorv32_twd\",\n      \"Merged Into\": \"C12\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"FIFO and serial shift copies of transmit data\",\n      \"Candidate Unit\": \"neorv32_twd\",\n      \"Merged Into\": \"C6\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"FIFO and serial shift copies of receive data\",\n      \"Candidate Unit\": \"neorv32_twd\",\n      \"Merged Into\": \"C7\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"FIFO size generics\",\n      \"Candidate Unit\": \"neorv32_twd\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The FIFO depths are build-time values at lines 20-21 and cannot be changed or withheld at run time.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_twd",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_twd",
+    "concept": "Controller enable state",
+    "information": "Whether the TWD controller is enabled and allowed to operate, generate its clock-enable output, and service transfers. The controller's operation depends on this state.",
+    "rubric reason": "Integrity: a bus write changes the enable state at line 159 and can alter controller operation. Availability: the state clears the FIFOs and gates the engine and sampling at lines 230, 281, 381, and 389, so changing it can disable transfers.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker able to write the control register can clear or disable the controller, preventing TWD transfers.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data",
+     "clkgen_en_o"
+    ],
+    "entry lines": [
+     159
+    ],
+    "held lines": [
+     138,
+     159
+    ],
+    "exit lines": [
+     172,
+     198
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_twd",
+    "concept": "TWD transfer-rate selection",
+    "information": "The selected sampling-rate divisor for TWD transfers, choosing the clock-generation input used to pace sampling. Communication depends on this rate matching the attached device.",
+    "rubric reason": "Integrity: a bus write changes the rate-selection setting at line 162 and therefore changes sampling behavior at line 329. Availability: selecting an unsuitable rate can prevent valid TWD edges and stall transfers through the sampling path at lines 315-320.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker can rewrite the rate selection so that the controller samples at an incompatible rate and no longer communicates correctly.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     162
+    ],
+    "held lines": [
+     141,
+     162
+    ],
+    "exit lines": [
+     173
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_twd",
+    "concept": "Configured TWD device address",
+    "information": "The stored seven-bit address that identifies which TWD transactions this controller accepts. The address controls matching of incoming transactions.",
+    "rubric reason": "Integrity: a bus write changes the stored address at line 163, which is compared against the received address at line 402. Availability: changing the address can cause all intended transactions to be rejected and leave the engine idle at lines 404-408.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker can rewrite the configured address so that another device is selected or legitimate TWD requests are ignored.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     163
+    ],
+    "held lines": [
+     142,
+     163
+    ],
+    "exit lines": [
+     174
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_twd",
+    "concept": "Read-hiding policy",
+    "information": "The configuration deciding whether a read transaction is hidden when the transmit FIFO is full. It controls whether a matching read proceeds to a response.",
+    "rubric reason": "Integrity: a bus write changes the policy at line 168 and the policy changes the accepted state transition at lines 403-406. Availability: the policy can block a read transaction when the transmit FIFO is full, withholding service at lines 403-404.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker can change the read-hiding policy to suppress valid reads or expose reads when the transmit path cannot safely service them.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     168
+    ],
+    "held lines": [
+     147,
+     168
+    ],
+    "exit lines": [
+     179
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_twd",
+    "concept": "Transmit dummy-data selection",
+    "information": "The setting deciding whether the retained transmit byte is used when the transmit FIFO is empty. It affects the byte returned during an otherwise under-filled transmit read.",
+    "rubric reason": "Integrity: a bus write changes the selection at line 167, and the selection changes the transmit result chosen at line 251 and subsequently shifted out.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker can change the selection so an empty transmit read returns an unintended retained byte or the all-ones fallback.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     167
+    ],
+    "held lines": [
+     146,
+     167
+    ],
+    "exit lines": [
+     178
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C6",
+    "unit": "neorv32_twd",
+    "concept": "TWD transmit data",
+    "information": "Bytes supplied by the host for transmission on the TWD data line, including a retained byte used as dummy transmit data. TWD read responses and transmitted payloads depend on these bytes.",
+    "rubric reason": "Confidentiality: host-supplied data can be exposed on the external data output at line 454, and the retained byte is stored at line 242. Integrity: bus write data enters the transmit FIFO at line 232 and is shifted to the output, so altered stored data changes the transmitted payload. Availability: the enable and engine state can clear or withhold the transmit path at lines 230, 381, and 389, preventing queued data from being transmitted.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker can read or alter host-supplied transmit bytes, or disable the transmit path so queued data is never sent.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "twd_sda_o"
+    ],
+    "entry lines": [
+     232
+    ],
+    "held lines": [
+     242
+    ],
+    "exit lines": [
+     454
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C7",
+    "unit": "neorv32_twd",
+    "concept": "TWD receive data",
+    "information": "Bytes received from the external TWD data line and returned to the host through the receive FIFO. Host software depends on these bytes to consume incoming device data.",
+    "rubric reason": "Confidentiality: received bytes are exposed to the host through the bus response at line 190. Integrity: sampled input bits are shifted into the receive path at lines 311 and 449, so altered input or stored bits change the returned data. Availability: a full receive FIFO prevents the engine from accepting a received byte and returns it to the idle state at lines 439-444.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker can alter the external data stream, read received data through the bus response, or fill the receive FIFO to stop further reception.",
+    "enters through": [
+     "twd_sda_i"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     311
+    ],
+    "held lines": [],
+    "exit lines": [
+     190
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C8",
+    "unit": "neorv32_twd",
+    "concept": "Incoming TWD target address",
+    "information": "The address bits received at the start of a TWD transaction and used to select whether this controller should respond. It has no separate output because the unit only compares it and accepts or rejects the transaction.",
+    "rubric reason": "Integrity: received address bits are shifted into the transaction word and compared at lines 402 and 412, so changing them changes the selected target. Availability: a changed address can prevent the controller from entering the response state at lines 404-408.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker can modify the address bits on the TWD data line to redirect a transaction or prevent this controller from responding.",
+    "enters through": [
+     "twd_sda_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     311
+    ],
+    "held lines": [],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C9",
+    "unit": "neorv32_twd",
+    "concept": "TWD transfer direction command",
+    "information": "The read-versus-write command bit received with a TWD address and retained as the current transaction direction. It selects whether the engine receives data into the RX path or transmits data from the TX path.",
+    "rubric reason": "Integrity: the command bit is captured into engine.cmd at line 420 and selects the receive or transmit behavior at lines 439-454. Availability: an altered command can select a path that cannot progress or suppress the intended transfer at lines 439-445.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker can alter the direction bit so the controller transmits instead of receives, receives instead of transmits, or terminates the transaction.",
+    "enters through": [
+     "twd_sda_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     311
+    ],
+    "held lines": [
+     420
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C10",
+    "unit": "neorv32_twd",
+    "concept": "TWD acknowledgment handshake",
+    "information": "The acknowledgment information exchanged with the TWD peer, including the peer's received acknowledgment and acknowledgments driven by this controller. It determines whether a transfer continues and whether the peer accepts a byte.",
+    "rubric reason": "Integrity: the peer acknowledgment is captured at line 474 and controls continuation at line 468, while controller acknowledgments are driven at lines 418 and 482. Availability: an altered acknowledgment can terminate or block the transfer through the state transitions at lines 465-469.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker can forge or suppress an acknowledgment so that a transfer is accepted incorrectly or terminates before completion.",
+    "enters through": [
+     "twd_sda_i"
+    ],
+    "leaves through": [
+     "twd_sda_o"
+    ],
+    "entry lines": [
+     311
+    ],
+    "held lines": [
+     474
+    ],
+    "exit lines": [
+     418,
+     482
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C11",
+    "unit": "neorv32_twd",
+    "concept": "TWD transaction boundary events",
+    "information": "The detected TWD start and stop events that begin, restart, or terminate a transaction. The engine uses these events to establish or abandon protocol activity.",
+    "rubric reason": "Integrity: the start and stop events are produced from sampled bus data at lines 346-347 and control engine state at lines 381, 399, and 434. Availability: a false stop or missing start can terminate or prevent a transaction.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker can inject or suppress a TWD start or stop condition to trigger an unintended transaction or abort a valid one.",
+    "enters through": [
+     "twd_sda_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     311
+    ],
+    "held lines": [
+     346,
+     347
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C12",
+    "unit": "neorv32_twd",
+    "concept": "Interrupt indication",
+    "information": "The interrupt indication reporting enabled receive-available, receive-full, or transmit-empty conditions to the host. Software depends on it to react to TWD FIFO events.",
+    "rubric reason": "Integrity: the interrupt output is generated from enable settings and FIFO conditions at lines 293-296, so altered control or status can create a false or missing interrupt. Availability: suppressing the output can prevent software from servicing FIFO events and halt progress.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker can alter interrupt control or FIFO-event logic so software misses required service notifications or receives spurious ones.",
+    "enters through": [],
+    "leaves through": [
+     "irq_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     293,
+     294,
+     295,
+     296
+    ],
+    "exit lines": [
+     293
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_twd",
+    "concept": "Clock and reset inputs",
+    "reason": "Clock and reset inputs are excluded by the clock/reset rule, and reset only initializes or clears other assets.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_twd",
+    "concept": "TWD SCL clock line",
+    "reason": "A serial link clock line and its sampled edge and pacing signals are excluded from conceptual assets.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_twd",
+    "concept": "Sampling synchronizer stages",
+    "reason": "merged into C7",
+    "merged into": "C7"
+   },
+   {
+    "unit": "neorv32_twd",
+    "concept": "FIFO occupancy and engine busy status",
+    "reason": "These are FIFO or sequencing status bits returned by the bus and are covered by the buffered data, interrupt indication, or transaction behavior rather than being information of their own.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_twd",
+    "concept": "Engine state and step counter",
+    "reason": "The state machine and counter only sequence and pace transfers, so the sequencing-state rule bars them as separate conceptual assets.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_twd",
+    "concept": "SCL rise, fall, and valid pulses",
+    "reason": "These internal pulses only pace sampling and transaction steps and are barred as pacing information.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_twd",
+    "concept": "Bus request access fields",
+    "reason": "Strobe, direction, and register-select fields are access command fields, while the bus transaction itself is not stored or computed as a whole.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_twd",
+    "concept": "Bus response acknowledge and error",
+    "reason": "The acknowledge repeats the request strobe and the error flag is tied to a constant, so the bus-handshake-copy rule excludes them.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_twd",
+    "concept": "FIFO clear commands",
+    "reason": "The clear controls only clear port-buffer FIFOs and are excluded by the port-buffer rule.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_twd",
+    "concept": "Interrupt enable mask bits",
+    "reason": "merged into C12",
+    "merged into": "C12"
+   },
+   {
+    "unit": "neorv32_twd",
+    "concept": "FIFO and serial shift copies of transmit data",
+    "reason": "merged into C6",
+    "merged into": "C6"
+   },
+   {
+    "unit": "neorv32_twd",
+    "concept": "FIFO and serial shift copies of receive data",
+    "reason": "merged into C7",
+    "merged into": "C7"
+   },
+   {
+    "unit": "neorv32_twd",
+    "concept": "FIFO size generics",
+    "reason": "The FIFO depths are build-time values at lines 20-21 and cannot be changed or withheld at run time.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

@@ -1,0 +1,341 @@
+{
+ "module": "neorv32_xbus",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "be3b3faab49b",
+ "user sha": "849f5d4f4905",
+ "usage": {
+  "in": 19287,
+  "out": 15253,
+  "reasoning": 12430,
+  "cached": 12982,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_0974d7b4960e65ab006ace83b84be087d18b46011b19a2159f",
+  "request key": "301e2b97d4d2"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_xbus\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"External bus access address\",\n      \"Unit\": \"neorv32_xbus\",\n      \"Information\": \"The target address of each external bus access determines which external resource is selected. It enters with the bus request and is forwarded to the external address output.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The address can expose access patterns at xbus_adr_o on line 141. Altering the forwarded address path at lines 74 and 141 can route an access to an unintended target.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could monitor xbus_adr_o to infer protected accesses or alter the address so a read or write reaches the wrong external resource.\",\n      \"Enters Through\": [\n        \"bus_req_i.addr\"\n      ],\n      \"Leaves Through\": [\n        \"xbus_adr_o\"\n      ],\n      \"Entry Lines\": [\n        72\n      ],\n      \"Held Lines\": [\n        141\n      ],\n      \"Exit Lines\": [\n        141\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"External bus transfer direction\",\n      \"Unit\": \"neorv32_xbus\",\n      \"Information\": \"The read/write direction of an external bus transfer determines whether the selected resource is read or modified. It is forwarded from the request to xbus_we_o.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Changing the forwarded direction at lines 74 and 143 can turn a read into a write or a write into a read.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could alter the direction bit so a transaction writes when it should read or reads when it should write.\",\n      \"Enters Through\": [\n        \"bus_req_i.rw\"\n      ],\n      \"Leaves Through\": [\n        \"xbus_we_o\"\n      ],\n      \"Entry Lines\": [\n        72\n      ],\n      \"Held Lines\": [\n        143\n      ],\n      \"Exit Lines\": [\n        143\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"Debug request marker\",\n      \"Unit\": \"neorv32_xbus\",\n      \"Information\": \"The debug request marker identifies an external bus transaction as a debug transaction and is encoded into the xbus tag. External behavior can depend on this marker.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"yes\"\n      },\n      \"Rubric Reason\": \"Changing bus_req_i.debug before it is combined into xbus_tag_o at line 151 can cause an external transaction to be treated as a debug transaction. An injected or altered debug marker can make the normal access behavior incorrect through the path at lines 72 and 151.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could inject or suppress the debug marker so an external target grants debug treatment to a normal transaction or rejects a legitimate one.\",\n      \"Enters Through\": [\n        \"bus_req_i.debug\"\n      ],\n      \"Leaves Through\": [\n        \"xbus_tag_o\"\n      ],\n      \"Entry Lines\": [\n        72\n      ],\n      \"Held Lines\": [\n        151\n      ],\n      \"Exit Lines\": [\n        151\n      ]\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"Privilege-mode marker\",\n      \"Unit\": \"neorv32_xbus\",\n      \"Information\": \"The privilege-mode marker identifies the privilege context of an external bus transaction and is encoded into xbus_tag_o. External access authorization can depend on this marker.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Changing bus_req_i.priv before the tag assignment at line 151 can cause the external target to interpret the transaction as having a different privilege level.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could alter the privilege marker so an external target authorizes an access that should be restricted or rejects an access that should be allowed.\",\n      \"Enters Through\": [\n        \"bus_req_i.priv\"\n      ],\n      \"Leaves Through\": [\n        \"xbus_tag_o\"\n      ],\n      \"Entry Lines\": [\n        72\n      ],\n      \"Held Lines\": [\n        151\n      ],\n      \"Exit Lines\": [\n        151\n      ]\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"In-flight bus transfer state\",\n      \"Unit\": \"neorv32_xbus\",\n      \"Information\": \"The pending state records that a bus request is being served and controls how long the external cycle and response remain active. The state depends on the request strobe and completion or fault conditions.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Unauthorized modification of pending at lines 85, 89, 93, and 97 can cause a transfer to be reported or terminated incorrectly. Pending directly controls xbus_cyc_o at line 146 and response generation at lines 154 through 156, so corrupting it can withhold or block a required transfer.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could clear pending before completion to lose a transfer or hold it active so the bus remains blocked.\",\n      \"Enters Through\": [\n        \"bus_req_i.stb\"\n      ],\n      \"Leaves Through\": [\n        \"xbus_cyc_o\",\n        \"bus_rsp_o.ack\",\n        \"bus_rsp_o.err\"\n      ],\n      \"Entry Lines\": [\n        72\n      ],\n      \"Held Lines\": [\n        85,\n        89,\n        93,\n        97\n      ],\n      \"Exit Lines\": [\n        73,\n        146\n      ]\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Concept Name\": \"External transfer completion acknowledgment\",\n      \"Unit\": \"neorv32_xbus\",\n      \"Information\": \"The completion acknowledgment indicates that an outstanding external transfer has completed and is returned in the bus response. It is derived from xbus_ack_i together with the active-transfer state.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The acknowledgment is produced from xbus_ack_i at line 155 and returned through bus_rsp_o at lines 75 and 73, so it can be falsified to complete a transfer early or suppressed to prevent completion. Suppressing or fabricating completion can stall the requester or lose the required transfer response.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could forge xbus_ack_i to complete an unfinished access or suppress it so the requester waits indefinitely.\",\n      \"Enters Through\": [\n        \"xbus_ack_i\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.ack\"\n      ],\n      \"Entry Lines\": [\n        155\n      ],\n      \"Held Lines\": [\n        155\n      ],\n      \"Exit Lines\": [\n        73,\n        75\n      ]\n    },\n    {\n      \"Concept ID\": \"C7\",\n      \"Concept Name\": \"External bus fault status\",\n      \"Unit\": \"neorv32_xbus\",\n      \"Information\": \"The external fault indication reports that the target bus signaled an error and contributes to completion and error reporting. It enters through xbus_err_i and leaves in the bus response.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Changing xbus_err_i changes bus_rsp.err and bus_rsp.ack at lines 155 and 156 and can also terminate pending at line 92, producing an incorrect fault result or prematurely aborting an access.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could assert or suppress xbus_err_i to make a valid access fail, conceal a target fault, or terminate the transfer with a false error.\",\n      \"Enters Through\": [\n        \"xbus_err_i\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.err\",\n        \"bus_rsp_o.ack\"\n      ],\n      \"Entry Lines\": [\n        155,\n        156\n      ],\n      \"Held Lines\": [\n        156\n      ],\n      \"Exit Lines\": [\n        73,\n        75\n      ]\n    },\n    {\n      \"Concept ID\": \"C8\",\n      \"Concept Name\": \"Bus timeout protection state\",\n      \"Unit\": \"neorv32_xbus\",\n      \"Information\": \"The internal timeout counter and timeout indication bound how long an outstanding transfer may wait and generate a completion/error when the deadline expires. It has no entry port because its deadline is fixed by the build-time generic and its counter is generated internally.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Changing the counter or timeout indication at lines 112 through 122 can abort a valid transfer or alter its reported result. Suppressing the timeout can leave pending active indefinitely, while asserting it can terminate a required transfer, affecting lines 92, 96, 155, and 156.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could manipulate the timeout state to force premature bus errors or suppress expiration so a stalled transfer blocks the bus.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"bus_rsp_o.ack\",\n        \"bus_rsp_o.err\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        112,\n        113,\n        116,\n        117,\n        120,\n        122,\n        131,\n        132\n      ],\n      \"Exit Lines\": [\n        73,\n        155,\n        156\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Relayed bus payload and response data\",\n      \"Candidate Unit\": \"neorv32_xbus\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The request and response data only move between bus ports and the external bus without being stored or computed by this unit, so the forwarded-transaction and relayed-data rules bar them as pieces of their own.\"\n    },\n    {\n      \"Candidate Name\": \"Other forwarded transaction fields\",\n      \"Candidate Unit\": \"neorv32_xbus\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"AMO fields, byte enables, fence, and source metadata are only forwarded or used as external transaction metadata and are not independently stored, computed, or checked by this unit.\"\n    },\n    {\n      \"Candidate Name\": \"Lock bookkeeping copy\",\n      \"Candidate Unit\": \"neorv32_xbus\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The locked register only copies the access lock bit and is read to end or retain the access in progress, so the bus-handshake-copy rule bars it as an independent piece.\"\n    },\n    {\n      \"Candidate Name\": \"Timeout counter\",\n      \"Candidate Unit\": \"neorv32_xbus\",\n      \"Merged Into\": \"C8\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Clock and reset control\",\n      \"Candidate Unit\": \"neorv32_xbus\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"clk_i and rstn_i only time or reset the unit and its register-stage instance, and the explicit clock/reset rule excludes them as conceptual assets.\"\n    },\n    {\n      \"Candidate Name\": \"TIMEOUT_VAL build-time configuration\",\n      \"Candidate Unit\": \"neorv32_xbus\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"TIMEOUT_VAL is a generic that fixes the build and cannot be changed or withheld by an element of the IP at run time.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_xbus",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_xbus",
+    "concept": "External bus access address",
+    "information": "The target address of each external bus access determines which external resource is selected. It enters with the bus request and is forwarded to the external address output.",
+    "rubric reason": "The address can expose access patterns at xbus_adr_o on line 141. Altering the forwarded address path at lines 74 and 141 can route an access to an unintended target.",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "attack": "An attacker could monitor xbus_adr_o to infer protected accesses or alter the address so a read or write reaches the wrong external resource.",
+    "enters through": [
+     "bus_req_i.addr"
+    ],
+    "leaves through": [
+     "xbus_adr_o"
+    ],
+    "entry lines": [
+     72
+    ],
+    "held lines": [
+     141
+    ],
+    "exit lines": [
+     141
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_xbus",
+    "concept": "External bus transfer direction",
+    "information": "The read/write direction of an external bus transfer determines whether the selected resource is read or modified. It is forwarded from the request to xbus_we_o.",
+    "rubric reason": "Changing the forwarded direction at lines 74 and 143 can turn a read into a write or a write into a read.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could alter the direction bit so a transaction writes when it should read or reads when it should write.",
+    "enters through": [
+     "bus_req_i.rw"
+    ],
+    "leaves through": [
+     "xbus_we_o"
+    ],
+    "entry lines": [
+     72
+    ],
+    "held lines": [
+     143
+    ],
+    "exit lines": [
+     143
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_xbus",
+    "concept": "Debug request marker",
+    "information": "The debug request marker identifies an external bus transaction as a debug transaction and is encoded into the xbus tag. External behavior can depend on this marker.",
+    "rubric reason": "Changing bus_req_i.debug before it is combined into xbus_tag_o at line 151 can cause an external transaction to be treated as a debug transaction. An injected or altered debug marker can make the normal access behavior incorrect through the path at lines 72 and 151.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could inject or suppress the debug marker so an external target grants debug treatment to a normal transaction or rejects a legitimate one.",
+    "enters through": [
+     "bus_req_i.debug"
+    ],
+    "leaves through": [
+     "xbus_tag_o"
+    ],
+    "entry lines": [
+     72
+    ],
+    "held lines": [
+     151
+    ],
+    "exit lines": [
+     151
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "yes"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_xbus",
+    "concept": "Privilege-mode marker",
+    "information": "The privilege-mode marker identifies the privilege context of an external bus transaction and is encoded into xbus_tag_o. External access authorization can depend on this marker.",
+    "rubric reason": "Changing bus_req_i.priv before the tag assignment at line 151 can cause the external target to interpret the transaction as having a different privilege level.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could alter the privilege marker so an external target authorizes an access that should be restricted or rejects an access that should be allowed.",
+    "enters through": [
+     "bus_req_i.priv"
+    ],
+    "leaves through": [
+     "xbus_tag_o"
+    ],
+    "entry lines": [
+     72
+    ],
+    "held lines": [
+     151
+    ],
+    "exit lines": [
+     151
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_xbus",
+    "concept": "In-flight bus transfer state",
+    "information": "The pending state records that a bus request is being served and controls how long the external cycle and response remain active. The state depends on the request strobe and completion or fault conditions.",
+    "rubric reason": "Unauthorized modification of pending at lines 85, 89, 93, and 97 can cause a transfer to be reported or terminated incorrectly. Pending directly controls xbus_cyc_o at line 146 and response generation at lines 154 through 156, so corrupting it can withhold or block a required transfer.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could clear pending before completion to lose a transfer or hold it active so the bus remains blocked.",
+    "enters through": [
+     "bus_req_i.stb"
+    ],
+    "leaves through": [
+     "xbus_cyc_o",
+     "bus_rsp_o.ack",
+     "bus_rsp_o.err"
+    ],
+    "entry lines": [
+     72
+    ],
+    "held lines": [
+     85,
+     89,
+     93,
+     97
+    ],
+    "exit lines": [
+     73,
+     146
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C6",
+    "unit": "neorv32_xbus",
+    "concept": "External transfer completion acknowledgment",
+    "information": "The completion acknowledgment indicates that an outstanding external transfer has completed and is returned in the bus response. It is derived from xbus_ack_i together with the active-transfer state.",
+    "rubric reason": "The acknowledgment is produced from xbus_ack_i at line 155 and returned through bus_rsp_o at lines 75 and 73, so it can be falsified to complete a transfer early or suppressed to prevent completion. Suppressing or fabricating completion can stall the requester or lose the required transfer response.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could forge xbus_ack_i to complete an unfinished access or suppress it so the requester waits indefinitely.",
+    "enters through": [
+     "xbus_ack_i"
+    ],
+    "leaves through": [
+     "bus_rsp_o.ack"
+    ],
+    "entry lines": [
+     155
+    ],
+    "held lines": [
+     155
+    ],
+    "exit lines": [
+     73,
+     75
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C7",
+    "unit": "neorv32_xbus",
+    "concept": "External bus fault status",
+    "information": "The external fault indication reports that the target bus signaled an error and contributes to completion and error reporting. It enters through xbus_err_i and leaves in the bus response.",
+    "rubric reason": "Changing xbus_err_i changes bus_rsp.err and bus_rsp.ack at lines 155 and 156 and can also terminate pending at line 92, producing an incorrect fault result or prematurely aborting an access.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could assert or suppress xbus_err_i to make a valid access fail, conceal a target fault, or terminate the transfer with a false error.",
+    "enters through": [
+     "xbus_err_i"
+    ],
+    "leaves through": [
+     "bus_rsp_o.err",
+     "bus_rsp_o.ack"
+    ],
+    "entry lines": [
+     155,
+     156
+    ],
+    "held lines": [
+     156
+    ],
+    "exit lines": [
+     73,
+     75
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C8",
+    "unit": "neorv32_xbus",
+    "concept": "Bus timeout protection state",
+    "information": "The internal timeout counter and timeout indication bound how long an outstanding transfer may wait and generate a completion/error when the deadline expires. It has no entry port because its deadline is fixed by the build-time generic and its counter is generated internally.",
+    "rubric reason": "Changing the counter or timeout indication at lines 112 through 122 can abort a valid transfer or alter its reported result. Suppressing the timeout can leave pending active indefinitely, while asserting it can terminate a required transfer, affecting lines 92, 96, 155, and 156.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could manipulate the timeout state to force premature bus errors or suppress expiration so a stalled transfer blocks the bus.",
+    "enters through": [],
+    "leaves through": [
+     "bus_rsp_o.ack",
+     "bus_rsp_o.err"
+    ],
+    "entry lines": [],
+    "held lines": [
+     112,
+     113,
+     116,
+     117,
+     120,
+     122,
+     131,
+     132
+    ],
+    "exit lines": [
+     73,
+     155,
+     156
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_xbus",
+    "concept": "Relayed bus payload and response data",
+    "reason": "The request and response data only move between bus ports and the external bus without being stored or computed by this unit, so the forwarded-transaction and relayed-data rules bar them as pieces of their own.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_xbus",
+    "concept": "Other forwarded transaction fields",
+    "reason": "AMO fields, byte enables, fence, and source metadata are only forwarded or used as external transaction metadata and are not independently stored, computed, or checked by this unit.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_xbus",
+    "concept": "Lock bookkeeping copy",
+    "reason": "The locked register only copies the access lock bit and is read to end or retain the access in progress, so the bus-handshake-copy rule bars it as an independent piece.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_xbus",
+    "concept": "Timeout counter",
+    "reason": "merged into C8",
+    "merged into": "C8"
+   },
+   {
+    "unit": "neorv32_xbus",
+    "concept": "Clock and reset control",
+    "reason": "clk_i and rstn_i only time or reset the unit and its register-stage instance, and the explicit clock/reset rule excludes them as conceptual assets.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_xbus",
+    "concept": "TIMEOUT_VAL build-time configuration",
+    "reason": "TIMEOUT_VAL is a generic that fixes the build and cannot be changed or withheld by an element of the IP at run time.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

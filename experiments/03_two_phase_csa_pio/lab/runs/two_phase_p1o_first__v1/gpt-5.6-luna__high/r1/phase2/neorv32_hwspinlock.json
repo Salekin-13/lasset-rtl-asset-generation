@@ -1,0 +1,342 @@
+{
+ "module": "neorv32_hwspinlock",
+ "prompt version": "two_phase_p1o_first",
+ "input version": "v1",
+ "phase": 2,
+ "system sha": "021cc963702d",
+ "user sha": "ef0b53d28ccd",
+ "usage": {
+  "in": 24930,
+  "out": 9634,
+  "reasoning": 7250,
+  "cached": 21986,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_0d6f993c2501f6fe006ad63f17f1c087d1a620502dcc1ceb48",
+  "request key": "9ab05885fe8a"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_hwspinlock\",\n  \"Concept Walks\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Points\": [\n        {\n          \"Point\": \"spinlock\",\n          \"Reached By\": \"holding block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            44,\n            45\n          ],\n          \"Answer Reason\": \"A bus write satisfying the strobe, address and selection conditions at line 44 assigns the selected lock bit at line 45, allowing unauthorized state changes or persistent lock assertion.\"\n        },\n        {\n          \"Point\": \"spinlock_gen\",\n          \"Reached By\": \"backward via spinlock_gen --> spinlock [sel]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            44,\n            45,\n            51\n          ],\n          \"Answer Reason\": \"The address-derived sel at line 51 chooses the lock affected by the write at lines 44-45, so a crafted address can corrupt the intended lock or leave it unavailable.\"\n        },\n        {\n          \"Point\": \"bus_response\",\n          \"Reached By\": \"spinlock ==> bus_response [lock_q]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"This process only produces the registered lock-status readback and does not modify or block the internal lock state; confidentiality is not an objective for this concept.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"lock_q\",\n          \"Entity\": \"neorv32_hwspinlock\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"spinlock\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores the 32 lock ownership bits and supplies them to the response logic.\",\n          \"Justification\": \"It is the register that directly holds and updates the lock ownership state at lines 42 and 45.\",\n          \"Asset Lines\": [\n            42,\n            45\n          ]\n        },\n        {\n          \"Asset RTL\": \"sel\",\n          \"Entity\": \"neorv32_hwspinlock\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"spinlock_gen\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"lock_q\",\n              \"Primary Entity\": \"neorv32_hwspinlock\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Selects which lock bit is updated and which lock bit contributes to a decoded read response.\",\n          \"Justification\": \"Its address-derived value decides the assignment to lock_q at line 44 and can steer integrity or availability attacks to a different lock.\",\n          \"Asset Lines\": [\n            44,\n            51\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.addr\",\n          \"Entity\": \"neorv32_hwspinlock\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"lock_q\",\n              \"Primary Entity\": \"neorv32_hwspinlock\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Controls lock-entry selection and the readback branch used for the lock state.\",\n          \"Justification\": \"The request address decides the lock update at line 44 and the returned data path at lines 67-68, so a crafted address can redirect or withhold the intended lock operation.\",\n          \"Asset Lines\": [\n            44,\n            67\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.rw\",\n          \"Entity\": \"neorv32_hwspinlock\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"lock_q\",\n              \"Primary Entity\": \"neorv32_hwspinlock\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Determines the value written into the selected lock bit and whether lock data is read.\",\n          \"Justification\": \"Its inverted value directly enters lock_q at line 45 and its read/write test controls lock readback at line 66.\",\n          \"Asset Lines\": [\n            45,\n            66\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.stb\",\n          \"Entity\": \"neorv32_hwspinlock\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"lock_q\",\n              \"Primary Entity\": \"neorv32_hwspinlock\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Gates lock updates and acknowledges or enables response generation for a bus access.\",\n          \"Justification\": \"It decides whether lock_q is assigned at line 44 and whether response activity occurs at lines 63 and 66, allowing writes to be blocked or enabled.\",\n          \"Asset Lines\": [\n            44,\n            63,\n            66\n          ]\n        },\n        {\n          \"Asset RTL\": \"clk_i\",\n          \"Entity\": \"neorv32_hwspinlock\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"lock_q\",\n              \"Primary Entity\": \"neorv32_hwspinlock\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Times updates of the lock register.\",\n          \"Justification\": \"An attacker able to withhold the clock can stall lock-state updates, threatening availability.\",\n          \"Asset Lines\": [\n            43\n          ]\n        },\n        {\n          \"Asset RTL\": \"rstn_i\",\n          \"Entity\": \"neorv32_hwspinlock\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"lock_q\",\n              \"Primary Entity\": \"neorv32_hwspinlock\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Clears all lock ownership bits.\",\n          \"Justification\": \"The reset arm assigns zero to lock_q at line 42, so asserting reset can clear or disrupt protected lock ownership.\",\n          \"Asset Lines\": [\n            41,\n            42\n          ]\n        }\n      ],\n      \"Not Reported\": [\n        {\n          \"Element RTL\": \"bus_rsp_o.data\",\n          \"Element Entity\": \"neorv32_hwspinlock\",\n          \"Why Not Reported\": \"It carries a lock-state readback but is a field of a bus response record and cannot be a primary, while its forwarding path threatens confidentiality, which is not an objective of this concept.\"\n        }\n      ],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Points\": [\n        {\n          \"Point\": \"spinlock_gen\",\n          \"Reached By\": \"holding block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            44,\n            51,\n            68\n          ],\n          \"Answer Reason\": \"bus_req_i.addr directly generates sel at line 51, which selects the lock updated at line 44 and the lock data returned at line 68, allowing a crafted address to redirect the access.\"\n        },\n        {\n          \"Point\": \"spinlock\",\n          \"Reached By\": \"spinlock_gen --> spinlock [sel]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"The spinlock process consumes sel to update lock_q but does not alter, expose or block the selection itself.\"\n        },\n        {\n          \"Point\": \"bus_response\",\n          \"Reached By\": \"spinlock_gen ==> bus_response [sel]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"The response process uses sel in a lock-status computation but does not modify or block the selection, and confidentiality is not an objective for this concept.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"sel\",\n          \"Entity\": \"neorv32_hwspinlock\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"spinlock_gen\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"Represents the one-hot selection of the lock entry addressed by the bus request.\",\n          \"Justification\": \"It is the internal signal that makes the entry-selection decision and is generated from the request address at line 51.\",\n          \"Asset Lines\": [\n            51\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.addr\",\n          \"Entity\": \"neorv32_hwspinlock\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"sel\",\n              \"Primary Entity\": \"neorv32_hwspinlock\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Supplies the address bits from which the lock-entry selection is derived.\",\n          \"Justification\": \"The address is the direct deciding input of sel at line 51, so an attacker can steer the selected entry.\",\n          \"Asset Lines\": [\n            51\n          ]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_hwspinlock",
+  "notes": [],
+  "points": [
+   {
+    "concept id": "C1",
+    "point": "spinlock",
+    "reached by": "holding block",
+    "lines": [
+     44,
+     45
+    ],
+    "reason": "A bus write satisfying the strobe, address and selection conditions at line 44 assigns the selected lock bit at line 45, allowing unauthorized state changes or persistent lock assertion.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "spinlock_gen",
+    "reached by": "backward via spinlock_gen --> spinlock [sel]",
+    "lines": [
+     44,
+     45,
+     51
+    ],
+    "reason": "The address-derived sel at line 51 chooses the lock affected by the write at lines 44-45, so a crafted address can corrupt the intended lock or leave it unavailable.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "bus_response",
+    "reached by": "spinlock ==> bus_response [lock_q]",
+    "lines": [],
+    "reason": "This process only produces the registered lock-status readback and does not modify or block the internal lock state; confidentiality is not an objective for this concept.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "spinlock_gen",
+    "reached by": "holding block",
+    "lines": [
+     44,
+     51,
+     68
+    ],
+    "reason": "bus_req_i.addr directly generates sel at line 51, which selects the lock updated at line 44 and the lock data returned at line 68, allowing a crafted address to redirect the access.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "spinlock",
+    "reached by": "spinlock_gen --> spinlock [sel]",
+    "lines": [],
+    "reason": "The spinlock process consumes sel to update lock_q but does not alter, expose or block the selection itself.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "bus_response",
+    "reached by": "spinlock_gen ==> bus_response [sel]",
+    "lines": [],
+    "reason": "The response process uses sel in a lock-status computation but does not modify or block the selection, and confidentiality is not an objective for this concept.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   }
+  ],
+  "structural assets": [
+   {
+    "concept id": "C1",
+    "element": "lock_q",
+    "entity": "neorv32_hwspinlock",
+    "same role": [],
+    "points": [
+     "spinlock"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     42,
+     45
+    ],
+    "links": [],
+    "reason": "Stores the 32 lock ownership bits and supplies them to the response logic. It is the register that directly holds and updates the lock ownership state at lines 42 and 45.",
+    "functionality": "Stores the 32 lock ownership bits and supplies them to the response logic.",
+    "justification": "It is the register that directly holds and updates the lock ownership state at lines 42 and 45."
+   },
+   {
+    "concept id": "C1",
+    "element": "sel",
+    "entity": "neorv32_hwspinlock",
+    "same role": [],
+    "points": [
+     "spinlock_gen"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     44,
+     51
+    ],
+    "links": [
+     {
+      "primary": "lock_q",
+      "entity": "neorv32_hwspinlock",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects which lock bit is updated and which lock bit contributes to a decoded read response. Its address-derived value decides the assignment to lock_q at line 44 and can steer integrity or availability attacks to a different lock.",
+    "functionality": "Selects which lock bit is updated and which lock bit contributes to a decoded read response.",
+    "justification": "Its address-derived value decides the assignment to lock_q at line 44 and can steer integrity or availability attacks to a different lock."
+   },
+   {
+    "concept id": "C1",
+    "element": "bus_req_i.addr",
+    "entity": "neorv32_hwspinlock",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     44,
+     67
+    ],
+    "links": [
+     {
+      "primary": "lock_q",
+      "entity": "neorv32_hwspinlock",
+      "direction": "b"
+     }
+    ],
+    "reason": "Controls lock-entry selection and the readback branch used for the lock state. The request address decides the lock update at line 44 and the returned data path at lines 67-68, so a crafted address can redirect or withhold the intended lock operation.",
+    "functionality": "Controls lock-entry selection and the readback branch used for the lock state.",
+    "justification": "The request address decides the lock update at line 44 and the returned data path at lines 67-68, so a crafted address can redirect or withhold the intended lock operation."
+   },
+   {
+    "concept id": "C1",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_hwspinlock",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     45,
+     66
+    ],
+    "links": [
+     {
+      "primary": "lock_q",
+      "entity": "neorv32_hwspinlock",
+      "direction": "b"
+     }
+    ],
+    "reason": "Determines the value written into the selected lock bit and whether lock data is read. Its inverted value directly enters lock_q at line 45 and its read/write test controls lock readback at line 66.",
+    "functionality": "Determines the value written into the selected lock bit and whether lock data is read.",
+    "justification": "Its inverted value directly enters lock_q at line 45 and its read/write test controls lock readback at line 66."
+   },
+   {
+    "concept id": "C1",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_hwspinlock",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     44,
+     63,
+     66
+    ],
+    "links": [
+     {
+      "primary": "lock_q",
+      "entity": "neorv32_hwspinlock",
+      "direction": "b"
+     }
+    ],
+    "reason": "Gates lock updates and acknowledges or enables response generation for a bus access. It decides whether lock_q is assigned at line 44 and whether response activity occurs at lines 63 and 66, allowing writes to be blocked or enabled.",
+    "functionality": "Gates lock updates and acknowledges or enables response generation for a bus access.",
+    "justification": "It decides whether lock_q is assigned at line 44 and whether response activity occurs at lines 63 and 66, allowing writes to be blocked or enabled."
+   },
+   {
+    "concept id": "C1",
+    "element": "clk_i",
+    "entity": "neorv32_hwspinlock",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     43
+    ],
+    "links": [
+     {
+      "primary": "lock_q",
+      "entity": "neorv32_hwspinlock",
+      "direction": "b"
+     }
+    ],
+    "reason": "Times updates of the lock register. An attacker able to withhold the clock can stall lock-state updates, threatening availability.",
+    "functionality": "Times updates of the lock register.",
+    "justification": "An attacker able to withhold the clock can stall lock-state updates, threatening availability."
+   },
+   {
+    "concept id": "C1",
+    "element": "rstn_i",
+    "entity": "neorv32_hwspinlock",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     41,
+     42
+    ],
+    "links": [
+     {
+      "primary": "lock_q",
+      "entity": "neorv32_hwspinlock",
+      "direction": "b"
+     }
+    ],
+    "reason": "Clears all lock ownership bits. The reset arm assigns zero to lock_q at line 42, so asserting reset can clear or disrupt protected lock ownership.",
+    "functionality": "Clears all lock ownership bits.",
+    "justification": "The reset arm assigns zero to lock_q at line 42, so asserting reset can clear or disrupt protected lock ownership."
+   },
+   {
+    "concept id": "C2",
+    "element": "sel",
+    "entity": "neorv32_hwspinlock",
+    "same role": [],
+    "points": [
+     "spinlock_gen"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     51
+    ],
+    "links": [],
+    "reason": "Represents the one-hot selection of the lock entry addressed by the bus request. It is the internal signal that makes the entry-selection decision and is generated from the request address at line 51.",
+    "functionality": "Represents the one-hot selection of the lock entry addressed by the bus request.",
+    "justification": "It is the internal signal that makes the entry-selection decision and is generated from the request address at line 51."
+   },
+   {
+    "concept id": "C2",
+    "element": "bus_req_i.addr",
+    "entity": "neorv32_hwspinlock",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     51
+    ],
+    "links": [
+     {
+      "primary": "sel",
+      "entity": "neorv32_hwspinlock",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies the address bits from which the lock-entry selection is derived. The address is the direct deciding input of sel at line 51, so an attacker can steer the selected entry.",
+    "functionality": "Supplies the address bits from which the lock-entry selection is derived.",
+    "justification": "The address is the direct deciding input of sel at line 51, so an attacker can steer the selected entry."
+   }
+  ],
+  "not reported": [
+   {
+    "concept id": "C1",
+    "element": "bus_rsp_o.data",
+    "entity": "neorv32_hwspinlock",
+    "reason": "It carries a lock-state readback but is a field of a bus response record and cannot be a primary, while its forwarding path threatens confidentiality, which is not an objective of this concept."
+   }
+  ],
+  "no primary reason": {}
+ },
+ "problems": [
+  "C1: anchor port 'bus_rsp_o.data' is not among its structural assets"
+ ],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

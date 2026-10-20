@@ -1,0 +1,511 @@
+{
+ "module": "neorv32_bus",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "be3b3faab49b",
+ "user sha": "6aed8f07ae7b",
+ "usage": {
+  "in": 90285,
+  "out": 19438,
+  "reasoning": 15002,
+  "cached": 90282,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_0edd2522ae183e8d006ace2f3e4e3c87d1b33a3ad79a3688e6",
+  "request key": "5f1b52c59011"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_bus\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"Shared-bus grant and ownership\",\n      \"Unit\": \"neorv32_bus_switch\",\n      \"Information\": \"The current grant identifies which requester owns the shared downstream bus and controls the active request transfer. The switch depends on this decision to serialize requests and route the corresponding response.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because the FSM changes the ownership and selected requester at lines 91-130, so corruption can route a transaction to the wrong requester. Availability is at risk because the grant controls the downstream strobe at line 158 and can withhold or monopolize the shared bus.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could alter the arbitration state or selection so one requester is wrongly granted, another is starved, or a response is associated with the wrong requester.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"x_req_o.stb\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        49,\n        55,\n        79,\n        87,\n        91,\n        94,\n        99,\n        103,\n        106,\n        114,\n        118,\n        124,\n        128\n      ],\n      \"Exit Lines\": [\n        158\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"Gateway address-based port routing\",\n      \"Unit\": \"neorv32_bus_gateway\",\n      \"Information\": \"The routing decision identifies which downstream port receives an incoming bus request based on its address and the configured address regions. The gateway depends on this decision to deliver each transfer to the intended target.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because address comparisons produce the port-selection decision at lines 356-361 and that decision gates each downstream strobe at line 378. Availability is at risk because the same selection can suppress every downstream strobe or direct a request away from its intended target.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could influence the routing decision so a request reaches the wrong device or no enabled device responds.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"a_req_o.stb\",\n        \"b_req_o.stb\",\n        \"c_req_o.stb\",\n        \"x_req_o.stb\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        356,\n        357,\n        358,\n        361,\n        378\n      ],\n      \"Exit Lines\": [\n        378,\n        366,\n        367,\n        368,\n        369\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"Transaction timeout protection\",\n      \"Unit\": \"neorv32_bus_gateway\",\n      \"Information\": \"The timeout monitor tracks an outstanding transaction, suppresses timeout handling for the selected halt condition, and generates a timeout error when the counter expires. Gateway operation depends on it to prevent an unresponsive downstream target from stalling the bus indefinitely.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because the counter, suppression state, and timeout error are updated by the monitor at lines 415-425, so corruption can suppress or falsely assert a timeout. Availability is at risk because the timeout error is returned on the response at lines 400-401 and the timeout mechanism determines whether a stalled transfer is terminated.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could alter the timeout counter or suppression state to keep a nonresponding transaction active indefinitely or to generate a false completion and error.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"rsp_o.ack\",\n        \"rsp_o.err\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        411,\n        412,\n        413,\n        415,\n        416,\n        418,\n        422,\n        424,\n        425\n      ],\n      \"Exit Lines\": [\n        400,\n        401\n      ]\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"Device-selection routing\",\n      \"Unit\": \"neorv32_bus_io_switch\",\n      \"Information\": \"The device-selection decision identifies which of the 32 device request ports is enabled for a main-bus address. The switch depends on it to deliver a request to exactly the intended device and to prevent an unselected device from seeing an active transfer.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because the address comparison selects each device request strobe at lines 661-665, so corruption can activate the wrong device. Availability is at risk because the selected strobe controls whether any device receives the transfer, as shown at lines 662-664.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could influence device selection so a transaction is delivered to an unintended peripheral or is withheld from all peripherals.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"dev_00_req_o.stb\",\n        \"dev_01_req_o.stb\",\n        \"dev_02_req_o.stb\",\n        \"dev_03_req_o.stb\",\n        \"dev_04_req_o.stb\",\n        \"dev_05_req_o.stb\",\n        \"dev_06_req_o.stb\",\n        \"dev_07_req_o.stb\",\n        \"dev_08_req_o.stb\",\n        \"dev_09_req_o.stb\",\n        \"dev_10_req_o.stb\",\n        \"dev_11_req_o.stb\",\n        \"dev_12_req_o.stb\",\n        \"dev_13_req_o.stb\",\n        \"dev_14_req_o.stb\",\n        \"dev_15_req_o.stb\",\n        \"dev_16_req_o.stb\",\n        \"dev_17_req_o.stb\",\n        \"dev_18_req_o.stb\",\n        \"dev_19_req_o.stb\",\n        \"dev_20_req_o.stb\",\n        \"dev_21_req_o.stb\",\n        \"dev_22_req_o.stb\",\n        \"dev_23_req_o.stb\",\n        \"dev_24_req_o.stb\",\n        \"dev_25_req_o.stb\",\n        \"dev_26_req_o.stb\",\n        \"dev_27_req_o.stb\",\n        \"dev_28_req_o.stb\",\n        \"dev_29_req_o.stb\",\n        \"dev_30_req_o.stb\",\n        \"dev_31_req_o.stb\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        661,\n        662,\n        664\n      ],\n      \"Exit Lines\": [\n        662,\n        664,\n        617,\n        618,\n        619,\n        620,\n        621,\n        622,\n        623,\n        624,\n        625,\n        626,\n        627,\n        628,\n        629,\n        630,\n        631,\n        632,\n        633,\n        634,\n        635,\n        636,\n        637,\n        638,\n        639,\n        640,\n        641,\n        642,\n        643,\n        644,\n        645,\n        646,\n        647,\n        648\n      ]\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"Atomic read-modify-write execution state\",\n      \"Unit\": \"neorv32_bus_amo_rmw\",\n      \"Information\": \"The coprocessor state identifies the active phase of an atomic read-modify-write operation: idle, waiting for the read, executing, issuing the write, or waiting for its response. The operation depends on this state to preserve the required read, compute, and write sequence.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because the phase state controls transitions between read, execute, and write at lines 773-801, so corruption can skip, duplicate, or reorder an atomic phase. Availability is at risk because the state controls the system request strobe and direction at lines 813-816 and can withhold completion.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could corrupt the AMO phase state to issue an unintended write, omit a required phase, or leave the operation waiting indefinitely.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        758,\n        763,\n        780,\n        787,\n        792,\n        796,\n        801,\n        806\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Concept Name\": \"Atomic operation read value\",\n      \"Unit\": \"neorv32_bus_amo_rmw\",\n      \"Information\": \"The read value returned by the system bus is retained as the old memory value used by the atomic operation and can also be returned to the core. The read-modify-write behavior depends on this value for both its computed update and its response.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality is at risk because the retained value is returned on core_rsp_o.data at line 826 and also contributes to the system write data at line 813. Integrity is at risk because the value is captured into the AMO state at line 785 and is used in the arithmetic and logical updates at lines 840-844, so corruption changes the atomic result.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could alter the returned system-bus data or the retained read value to disclose or corrupt the old value and the resulting atomic update.\",\n      \"Enters Through\": [\n        \"sys_rsp_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"core_rsp_o.data\",\n        \"sys_req_o.data\"\n      ],\n      \"Entry Lines\": [\n        785\n      ],\n      \"Held Lines\": [\n        760,\n        763,\n        785\n      ],\n      \"Exit Lines\": [\n        813,\n        826\n      ]\n    },\n    {\n      \"Concept ID\": \"C7\",\n      \"Concept Name\": \"Atomic operation write operand\",\n      \"Unit\": \"neorv32_bus_amo_rmw\",\n      \"Information\": \"The core-supplied data operand is retained for the atomic operation and participates in computing the value written back to the system bus. AMO behavior depends on this operand together with the returned old memory value.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality is at risk because the retained operand contributes to the system request data at line 813 and is directly selected for a swap-like operation at line 839. Integrity is at risk because the operand is captured at line 779 and used by the ALU at lines 839-844, so changing it changes the memory update.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could modify the retained core operand so an atomic arithmetic or logical operation writes an unintended value or exposes the operand through the system request.\",\n      \"Enters Through\": [\n        \"core_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"sys_req_o.data\"\n      ],\n      \"Entry Lines\": [\n        779\n      ],\n      \"Held Lines\": [\n        761,\n        763,\n        779\n      ],\n      \"Exit Lines\": [\n        813\n      ]\n    },\n    {\n      \"Concept ID\": \"C8\",\n      \"Concept Name\": \"Computed atomic update value\",\n      \"Unit\": \"neorv32_bus_amo_rmw\",\n      \"Information\": \"The computed atomic update value is the arithmetic, logical, comparison, or swap result produced from the retained operands. The system memory update depends on this value.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality is at risk because the computed value leaves the unit on sys_req_o.data at line 813. Integrity is at risk because the ALU produces and registers the value at lines 836-845, and corruption of its operation or inputs can write an incorrect atomic result.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could tamper with the ALU result or its controlling operation so the atomic write exposes or commits an incorrect value.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"sys_req_o.data\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        836,\n        839,\n        840,\n        841,\n        842,\n        843,\n        844,\n        845\n      ],\n      \"Exit Lines\": [\n        813\n      ]\n    },\n    {\n      \"Concept ID\": \"C9\",\n      \"Concept Name\": \"Load-reserved reservation state\",\n      \"Unit\": \"neorv32_bus_amo_rvs\",\n      \"Information\": \"The reservation state records whether a load-reserved operation has established the condition needed for a later store-conditional operation and tracks the pending conditional store. Correct reservation state is required to accept or reject the conditional store.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because the state determines whether a store-conditional request is accepted at lines 910-927, so corruption can incorrectly permit or reject a store. Availability is at risk because state bit 1 gates the downstream request strobe at line 944 and can block a valid conditional transfer.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could alter the reservation state to make a store-conditional operation succeed without a valid reservation or to prevent a valid operation from completing.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        904,\n        912,\n        914,\n        921,\n        927\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C10\",\n      \"Concept Name\": \"Store-conditional result\",\n      \"Unit\": \"neorv32_bus_amo_rvs\",\n      \"Information\": \"The store-conditional result indicates whether the conditional store failed because the required reservation was absent. The core depends on this result to determine whether its atomic store took effect.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because sc_fail is produced from the reservation check at line 957 and changes the returned acknowledgement and result at lines 963-964. Availability is at risk because the result controls completion acknowledgement at line 963 and can falsely block or complete the core operation.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could alter the conditional-store result so the core observes success for a failed store or failure for a store that should complete.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"core_rsp_o.ack\",\n        \"core_rsp_o.data\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        955,\n        957\n      ],\n      \"Exit Lines\": [\n        963,\n        964\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Forwarded bus request and response data\",\n      \"Candidate Unit\": \"neorv32_bus_switch\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The switch only forwards request and response transactions between ports and does not store or compute their data, so the forwarded-transaction rule bars them as assets of this unit.\"\n    },\n    {\n      \"Candidate Name\": \"Previous arbitration grant\",\n      \"Candidate Unit\": \"neorv32_bus_switch\",\n      \"Merged Into\": \"C1\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Forwarded gateway request and response data\",\n      \"Candidate Unit\": \"neorv32_bus_gateway\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The gateway forwards bus payloads and merges responses without storing or computing their data; only its routing and timeout decisions are separate information.\"\n    },\n    {\n      \"Candidate Name\": \"In-flight transaction busy and lock copies\",\n      \"Candidate Unit\": \"neorv32_bus_gateway\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"keeper.busy and keeper.lock only start, time, and end the access in progress, matching the bus-handshake-copy rule rather than holding information of their own.\"\n    },\n    {\n      \"Candidate Name\": \"Configured gateway address map\",\n      \"Candidate Unit\": \"neorv32_bus_gateway\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The base addresses, sizes, and enable generics are build-time values that cannot be changed or withheld at run time.\"\n    },\n    {\n      \"Candidate Name\": \"Forwarded main-to-device bus transactions\",\n      \"Candidate Unit\": \"neorv32_bus_io_switch\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The IO switch only buffers and forwards bus requests and responses through the register stage and device ports, so the forwarding and port-buffer rules bar the transaction data.\"\n    },\n    {\n      \"Candidate Name\": \"Configured device enables and base addresses\",\n      \"Candidate Unit\": \"neorv32_bus_io_switch\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The device enable and base-address generics are build-time address-map values, while the run-time device-selection decision is kept as C4.\"\n    },\n    {\n      \"Candidate Name\": \"AMO opcode and function selector\",\n      \"Candidate Unit\": \"neorv32_bus_amo_rmw\",\n      \"Merged Into\": \"C8\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"AMO partial comparison values\",\n      \"Candidate Unit\": \"neorv32_bus_amo_rmw\",\n      \"Merged Into\": \"C8\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Store-conditional operation selector\",\n      \"Candidate Unit\": \"neorv32_bus_amo_rvs\",\n      \"Merged Into\": \"C9\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Store-conditional access command fields\",\n      \"Candidate Unit\": \"neorv32_bus_amo_rvs\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The request strobe, direction, and AMO fields only trigger or qualify the reservation and conditional-access decisions, so they are access command fields or operation selectors rather than independent pieces.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_bus",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_bus_switch",
+    "concept": "Shared-bus grant and ownership",
+    "information": "The current grant identifies which requester owns the shared downstream bus and controls the active request transfer. The switch depends on this decision to serialize requests and route the corresponding response.",
+    "rubric reason": "Integrity is at risk because the FSM changes the ownership and selected requester at lines 91-130, so corruption can route a transaction to the wrong requester. Availability is at risk because the grant controls the downstream strobe at line 158 and can withhold or monopolize the shared bus.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could alter the arbitration state or selection so one requester is wrongly granted, another is starved, or a response is associated with the wrong requester.",
+    "enters through": [],
+    "leaves through": [
+     "x_req_o.stb"
+    ],
+    "entry lines": [],
+    "held lines": [
+     49,
+     55,
+     79,
+     87,
+     91,
+     94,
+     99,
+     103,
+     106,
+     114,
+     118,
+     124,
+     128
+    ],
+    "exit lines": [
+     158
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_bus_gateway",
+    "concept": "Gateway address-based port routing",
+    "information": "The routing decision identifies which downstream port receives an incoming bus request based on its address and the configured address regions. The gateway depends on this decision to deliver each transfer to the intended target.",
+    "rubric reason": "Integrity is at risk because address comparisons produce the port-selection decision at lines 356-361 and that decision gates each downstream strobe at line 378. Availability is at risk because the same selection can suppress every downstream strobe or direct a request away from its intended target.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could influence the routing decision so a request reaches the wrong device or no enabled device responds.",
+    "enters through": [],
+    "leaves through": [
+     "a_req_o.stb",
+     "b_req_o.stb",
+     "c_req_o.stb",
+     "x_req_o.stb"
+    ],
+    "entry lines": [],
+    "held lines": [
+     356,
+     357,
+     358,
+     361,
+     378
+    ],
+    "exit lines": [
+     378,
+     366,
+     367,
+     368,
+     369
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_bus_gateway",
+    "concept": "Transaction timeout protection",
+    "information": "The timeout monitor tracks an outstanding transaction, suppresses timeout handling for the selected halt condition, and generates a timeout error when the counter expires. Gateway operation depends on it to prevent an unresponsive downstream target from stalling the bus indefinitely.",
+    "rubric reason": "Integrity is at risk because the counter, suppression state, and timeout error are updated by the monitor at lines 415-425, so corruption can suppress or falsely assert a timeout. Availability is at risk because the timeout error is returned on the response at lines 400-401 and the timeout mechanism determines whether a stalled transfer is terminated.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could alter the timeout counter or suppression state to keep a nonresponding transaction active indefinitely or to generate a false completion and error.",
+    "enters through": [],
+    "leaves through": [
+     "rsp_o.ack",
+     "rsp_o.err"
+    ],
+    "entry lines": [],
+    "held lines": [
+     411,
+     412,
+     413,
+     415,
+     416,
+     418,
+     422,
+     424,
+     425
+    ],
+    "exit lines": [
+     400,
+     401
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_bus_io_switch",
+    "concept": "Device-selection routing",
+    "information": "The device-selection decision identifies which of the 32 device request ports is enabled for a main-bus address. The switch depends on it to deliver a request to exactly the intended device and to prevent an unselected device from seeing an active transfer.",
+    "rubric reason": "Integrity is at risk because the address comparison selects each device request strobe at lines 661-665, so corruption can activate the wrong device. Availability is at risk because the selected strobe controls whether any device receives the transfer, as shown at lines 662-664.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could influence device selection so a transaction is delivered to an unintended peripheral or is withheld from all peripherals.",
+    "enters through": [],
+    "leaves through": [
+     "dev_00_req_o.stb",
+     "dev_01_req_o.stb",
+     "dev_02_req_o.stb",
+     "dev_03_req_o.stb",
+     "dev_04_req_o.stb",
+     "dev_05_req_o.stb",
+     "dev_06_req_o.stb",
+     "dev_07_req_o.stb",
+     "dev_08_req_o.stb",
+     "dev_09_req_o.stb",
+     "dev_10_req_o.stb",
+     "dev_11_req_o.stb",
+     "dev_12_req_o.stb",
+     "dev_13_req_o.stb",
+     "dev_14_req_o.stb",
+     "dev_15_req_o.stb",
+     "dev_16_req_o.stb",
+     "dev_17_req_o.stb",
+     "dev_18_req_o.stb",
+     "dev_19_req_o.stb",
+     "dev_20_req_o.stb",
+     "dev_21_req_o.stb",
+     "dev_22_req_o.stb",
+     "dev_23_req_o.stb",
+     "dev_24_req_o.stb",
+     "dev_25_req_o.stb",
+     "dev_26_req_o.stb",
+     "dev_27_req_o.stb",
+     "dev_28_req_o.stb",
+     "dev_29_req_o.stb",
+     "dev_30_req_o.stb",
+     "dev_31_req_o.stb"
+    ],
+    "entry lines": [],
+    "held lines": [
+     661,
+     662,
+     664
+    ],
+    "exit lines": [
+     662,
+     664,
+     617,
+     618,
+     619,
+     620,
+     621,
+     622,
+     623,
+     624,
+     625,
+     626,
+     627,
+     628,
+     629,
+     630,
+     631,
+     632,
+     633,
+     634,
+     635,
+     636,
+     637,
+     638,
+     639,
+     640,
+     641,
+     642,
+     643,
+     644,
+     645,
+     646,
+     647,
+     648
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_bus_amo_rmw",
+    "concept": "Atomic read-modify-write execution state",
+    "information": "The coprocessor state identifies the active phase of an atomic read-modify-write operation: idle, waiting for the read, executing, issuing the write, or waiting for its response. The operation depends on this state to preserve the required read, compute, and write sequence.",
+    "rubric reason": "Integrity is at risk because the phase state controls transitions between read, execute, and write at lines 773-801, so corruption can skip, duplicate, or reorder an atomic phase. Availability is at risk because the state controls the system request strobe and direction at lines 813-816 and can withhold completion.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could corrupt the AMO phase state to issue an unintended write, omit a required phase, or leave the operation waiting indefinitely.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     758,
+     763,
+     780,
+     787,
+     792,
+     796,
+     801,
+     806
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C6",
+    "unit": "neorv32_bus_amo_rmw",
+    "concept": "Atomic operation read value",
+    "information": "The read value returned by the system bus is retained as the old memory value used by the atomic operation and can also be returned to the core. The read-modify-write behavior depends on this value for both its computed update and its response.",
+    "rubric reason": "Confidentiality is at risk because the retained value is returned on core_rsp_o.data at line 826 and also contributes to the system write data at line 813. Integrity is at risk because the value is captured into the AMO state at line 785 and is used in the arithmetic and logical updates at lines 840-844, so corruption changes the atomic result.",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "attack": "An attacker could alter the returned system-bus data or the retained read value to disclose or corrupt the old value and the resulting atomic update.",
+    "enters through": [
+     "sys_rsp_i.data"
+    ],
+    "leaves through": [
+     "core_rsp_o.data",
+     "sys_req_o.data"
+    ],
+    "entry lines": [
+     785
+    ],
+    "held lines": [
+     760,
+     763,
+     785
+    ],
+    "exit lines": [
+     813,
+     826
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C7",
+    "unit": "neorv32_bus_amo_rmw",
+    "concept": "Atomic operation write operand",
+    "information": "The core-supplied data operand is retained for the atomic operation and participates in computing the value written back to the system bus. AMO behavior depends on this operand together with the returned old memory value.",
+    "rubric reason": "Confidentiality is at risk because the retained operand contributes to the system request data at line 813 and is directly selected for a swap-like operation at line 839. Integrity is at risk because the operand is captured at line 779 and used by the ALU at lines 839-844, so changing it changes the memory update.",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "attack": "An attacker could modify the retained core operand so an atomic arithmetic or logical operation writes an unintended value or exposes the operand through the system request.",
+    "enters through": [
+     "core_req_i.data"
+    ],
+    "leaves through": [
+     "sys_req_o.data"
+    ],
+    "entry lines": [
+     779
+    ],
+    "held lines": [
+     761,
+     763,
+     779
+    ],
+    "exit lines": [
+     813
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C8",
+    "unit": "neorv32_bus_amo_rmw",
+    "concept": "Computed atomic update value",
+    "information": "The computed atomic update value is the arithmetic, logical, comparison, or swap result produced from the retained operands. The system memory update depends on this value.",
+    "rubric reason": "Confidentiality is at risk because the computed value leaves the unit on sys_req_o.data at line 813. Integrity is at risk because the ALU produces and registers the value at lines 836-845, and corruption of its operation or inputs can write an incorrect atomic result.",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "attack": "An attacker could tamper with the ALU result or its controlling operation so the atomic write exposes or commits an incorrect value.",
+    "enters through": [],
+    "leaves through": [
+     "sys_req_o.data"
+    ],
+    "entry lines": [],
+    "held lines": [
+     836,
+     839,
+     840,
+     841,
+     842,
+     843,
+     844,
+     845
+    ],
+    "exit lines": [
+     813
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C9",
+    "unit": "neorv32_bus_amo_rvs",
+    "concept": "Load-reserved reservation state",
+    "information": "The reservation state records whether a load-reserved operation has established the condition needed for a later store-conditional operation and tracks the pending conditional store. Correct reservation state is required to accept or reject the conditional store.",
+    "rubric reason": "Integrity is at risk because the state determines whether a store-conditional request is accepted at lines 910-927, so corruption can incorrectly permit or reject a store. Availability is at risk because state bit 1 gates the downstream request strobe at line 944 and can block a valid conditional transfer.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could alter the reservation state to make a store-conditional operation succeed without a valid reservation or to prevent a valid operation from completing.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     904,
+     912,
+     914,
+     921,
+     927
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C10",
+    "unit": "neorv32_bus_amo_rvs",
+    "concept": "Store-conditional result",
+    "information": "The store-conditional result indicates whether the conditional store failed because the required reservation was absent. The core depends on this result to determine whether its atomic store took effect.",
+    "rubric reason": "Integrity is at risk because sc_fail is produced from the reservation check at line 957 and changes the returned acknowledgement and result at lines 963-964. Availability is at risk because the result controls completion acknowledgement at line 963 and can falsely block or complete the core operation.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could alter the conditional-store result so the core observes success for a failed store or failure for a store that should complete.",
+    "enters through": [],
+    "leaves through": [
+     "core_rsp_o.ack",
+     "core_rsp_o.data"
+    ],
+    "entry lines": [],
+    "held lines": [
+     955,
+     957
+    ],
+    "exit lines": [
+     963,
+     964
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_bus_switch",
+    "concept": "Forwarded bus request and response data",
+    "reason": "The switch only forwards request and response transactions between ports and does not store or compute their data, so the forwarded-transaction rule bars them as assets of this unit.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_bus_switch",
+    "concept": "Previous arbitration grant",
+    "reason": "merged into C1",
+    "merged into": "C1"
+   },
+   {
+    "unit": "neorv32_bus_gateway",
+    "concept": "Forwarded gateway request and response data",
+    "reason": "The gateway forwards bus payloads and merges responses without storing or computing their data; only its routing and timeout decisions are separate information.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_bus_gateway",
+    "concept": "In-flight transaction busy and lock copies",
+    "reason": "keeper.busy and keeper.lock only start, time, and end the access in progress, matching the bus-handshake-copy rule rather than holding information of their own.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_bus_gateway",
+    "concept": "Configured gateway address map",
+    "reason": "The base addresses, sizes, and enable generics are build-time values that cannot be changed or withheld at run time.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_bus_io_switch",
+    "concept": "Forwarded main-to-device bus transactions",
+    "reason": "The IO switch only buffers and forwards bus requests and responses through the register stage and device ports, so the forwarding and port-buffer rules bar the transaction data.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_bus_io_switch",
+    "concept": "Configured device enables and base addresses",
+    "reason": "The device enable and base-address generics are build-time address-map values, while the run-time device-selection decision is kept as C4.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_bus_amo_rmw",
+    "concept": "AMO opcode and function selector",
+    "reason": "merged into C8",
+    "merged into": "C8"
+   },
+   {
+    "unit": "neorv32_bus_amo_rmw",
+    "concept": "AMO partial comparison values",
+    "reason": "merged into C8",
+    "merged into": "C8"
+   },
+   {
+    "unit": "neorv32_bus_amo_rvs",
+    "concept": "Store-conditional operation selector",
+    "reason": "merged into C9",
+    "merged into": "C9"
+   },
+   {
+    "unit": "neorv32_bus_amo_rvs",
+    "concept": "Store-conditional access command fields",
+    "reason": "The request strobe, direction, and AMO fields only trigger or qualify the reservation and conditional-access decisions, so they are access command fields or operation selectors rather than independent pieces.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

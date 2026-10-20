@@ -1,0 +1,278 @@
+{
+ "module": "neorv32_cpu_cp_cfu",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "be3b3faab49b",
+ "user sha": "508f93f2f4c4",
+ "usage": {
+  "in": 18648,
+  "out": 15581,
+  "reasoning": 13198,
+  "cached": 18645,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_0c893f6239ab7b29006ace2f3e365c87d1be979060a7ff8081",
+  "request key": "0b905c5ef644"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_cpu_cp_cfu\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"XTEA key\",\n      \"Unit\": \"neorv32_cpu_cp_cfu\",\n      \"Information\": \"The four-word cryptographic key stored in key_mem is used by the XTEA computation and can be programmed and read through the CSR interface.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality is at risk because csr_rdata_o directly exposes a selected key word at line 185; integrity is at risk because csr_wdata_i can overwrite key_mem at line 179 and reset can clear it at line 176; availability is at risk because clearing or withholding the key prevents correct cryptographic operation through the key use at lines 236-238.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could read key_mem through csr_rdata_o or overwrite or clear it so subsequent XTEA operations use an attacker-chosen or unavailable key.\",\n      \"Enters Through\": [\n        \"csr_wdata_i\"\n      ],\n      \"Leaves Through\": [\n        \"csr_rdata_o\"\n      ],\n      \"Entry Lines\": [\n        179\n      ],\n      \"Held Lines\": [\n        176,\n        179\n      ],\n      \"Exit Lines\": [\n        185\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"XTEA operand data\",\n      \"Unit\": \"neorv32_cpu_cp_cfu\",\n      \"Information\": \"The two 32-bit operand words received for an XTEA operation are captured and used as the cryptographic input data.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality is at risk because rs1_i and rs2_i are captured into xtea.opa and xtea.opb at lines 205-206 and influence the returned computation at lines 222-238 and 249; integrity is at risk because the captured operands are changed by the load and reset assignments at lines 194-195 and 205-206.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could alter the operand values presented to the unit or exploit the returned result to disclose or corrupt protected plaintext or ciphertext data.\",\n      \"Enters Through\": [\n        \"rs1_i\",\n        \"rs2_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        205,\n        206\n      ],\n      \"Held Lines\": [\n        205,\n        206\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"XTEA result data\",\n      \"Unit\": \"neorv32_cpu_cp_cfu\",\n      \"Information\": \"The result word computed from the operands, key, and selected XTEA operation is returned to the processor.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality is at risk because the computed result, which may be plaintext or protected ciphertext, leaves through result_o at line 249; integrity is at risk because xtea.res is computed by the arithmetic assignments at lines 222-224; availability is at risk because result production and release depend on the operation and completion conditions at lines 204-225 and 245-256.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could manipulate the operation inputs or control conditions to obtain an incorrect result or prevent a valid result from being released.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"result_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        222,\n        224\n      ],\n      \"Exit Lines\": [\n        249\n      ]\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"Operation completion status\",\n      \"Unit\": \"neorv32_cpu_cp_cfu\",\n      \"Information\": \"The valid status indicates whether result_o contains a completed operation result, allowing the consuming processor to accept the result.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because result_select can assert or suppress valid_o based on rtype_i, funct3_i, and xtea.done at lines 245-256; availability is at risk because the same logic can withhold the completion indication and prevent the result transfer.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could cause valid_o to be asserted for an invalid result or withheld so the processor consumes stale data or waits indefinitely.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"valid_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        250,\n        253,\n        256,\n        262\n      ],\n      \"Exit Lines\": [\n        250,\n        253,\n        256,\n        262\n      ]\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"XTEA start command\",\n      \"Unit\": \"neorv32_cpu_cp_cfu\",\n      \"Information\": \"The start command requests that the unit capture operands and begin an XTEA operation.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"no\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Availability is at risk because xtea.opa, xtea.opb, and the operation-completion state are only initiated when start_i is asserted at line 204, so withholding the command blocks operation progress.\",\n      \"Objectives At Risk\": [\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could suppress or prevent start_i from being recognized so the coprocessor never produces a new result.\",\n      \"Enters Through\": [\n        \"start_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        204\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Concept Name\": \"CSR key-write enable\",\n      \"Unit\": \"neorv32_cpu_cp_cfu\",\n      \"Information\": \"The CSR write-enable decision controls whether incoming CSR data is allowed to change the cryptographic key storage.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because csr_we_i gates the key_mem update at lines 178-179, allowing an enabled write to replace key material; availability is at risk because the same gate can withhold the CSR key-programming transfer.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could force the write enable active to replace a key or suppress it so required key programming cannot occur.\",\n      \"Enters Through\": [\n        \"csr_we_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        178\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C7\",\n      \"Concept Name\": \"CSR key-word selection\",\n      \"Unit\": \"neorv32_cpu_cp_cfu\",\n      \"Information\": \"The CSR address selects which word of the four-word key is written or returned, and therefore determines which key portion a CSR access affects.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because csr_addr_i indexes key_mem for both writes and reads at lines 179 and 185, so an altered selection can redirect an update to a different key word.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could alter the CSR address so a key update overwrites a different key word than intended.\",\n      \"Enters Through\": [\n        \"csr_addr_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        179,\n        185\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": []\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"active control\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_cfu\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"active_i is only declared at line 26 and is never read or used by the RTL, so it is not information used or produced by this unit.\"\n    },\n    {\n      \"Candidate Name\": \"funct7 instruction field\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_cfu\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"funct7_i is only declared at line 35 and is never read or used by the RTL.\"\n    },\n    {\n      \"Candidate Name\": \"rs3 operand\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_cfu\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"rs3_i is only declared at line 38 and is never read or used by the RTL.\"\n    },\n    {\n      \"Candidate Name\": \"XTEA operation selector\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_cfu\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"rtype_i and funct3_i fields that select the operation or result form are barred from being separate pieces by the operation-selector rule, with their effects used as part of the operation behavior at lines 204-225 and 245-256.\"\n    },\n    {\n      \"Candidate Name\": \"XTEA round and intermediate working values\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_cfu\",\n      \"Merged Into\": \"C3\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"internal operation sequencing state\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_cfu\",\n      \"Merged Into\": \"C4\",\n      \"Why Not Kept\": \"\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_cpu_cp_cfu",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_cpu_cp_cfu",
+    "concept": "XTEA key",
+    "information": "The four-word cryptographic key stored in key_mem is used by the XTEA computation and can be programmed and read through the CSR interface.",
+    "rubric reason": "Confidentiality is at risk because csr_rdata_o directly exposes a selected key word at line 185; integrity is at risk because csr_wdata_i can overwrite key_mem at line 179 and reset can clear it at line 176; availability is at risk because clearing or withholding the key prevents correct cryptographic operation through the key use at lines 236-238.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could read key_mem through csr_rdata_o or overwrite or clear it so subsequent XTEA operations use an attacker-chosen or unavailable key.",
+    "enters through": [
+     "csr_wdata_i"
+    ],
+    "leaves through": [
+     "csr_rdata_o"
+    ],
+    "entry lines": [
+     179
+    ],
+    "held lines": [
+     176,
+     179
+    ],
+    "exit lines": [
+     185
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_cpu_cp_cfu",
+    "concept": "XTEA operand data",
+    "information": "The two 32-bit operand words received for an XTEA operation are captured and used as the cryptographic input data.",
+    "rubric reason": "Confidentiality is at risk because rs1_i and rs2_i are captured into xtea.opa and xtea.opb at lines 205-206 and influence the returned computation at lines 222-238 and 249; integrity is at risk because the captured operands are changed by the load and reset assignments at lines 194-195 and 205-206.",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "attack": "An attacker could alter the operand values presented to the unit or exploit the returned result to disclose or corrupt protected plaintext or ciphertext data.",
+    "enters through": [
+     "rs1_i",
+     "rs2_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     205,
+     206
+    ],
+    "held lines": [
+     205,
+     206
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_cpu_cp_cfu",
+    "concept": "XTEA result data",
+    "information": "The result word computed from the operands, key, and selected XTEA operation is returned to the processor.",
+    "rubric reason": "Confidentiality is at risk because the computed result, which may be plaintext or protected ciphertext, leaves through result_o at line 249; integrity is at risk because xtea.res is computed by the arithmetic assignments at lines 222-224; availability is at risk because result production and release depend on the operation and completion conditions at lines 204-225 and 245-256.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could manipulate the operation inputs or control conditions to obtain an incorrect result or prevent a valid result from being released.",
+    "enters through": [],
+    "leaves through": [
+     "result_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     222,
+     224
+    ],
+    "exit lines": [
+     249
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_cpu_cp_cfu",
+    "concept": "Operation completion status",
+    "information": "The valid status indicates whether result_o contains a completed operation result, allowing the consuming processor to accept the result.",
+    "rubric reason": "Integrity is at risk because result_select can assert or suppress valid_o based on rtype_i, funct3_i, and xtea.done at lines 245-256; availability is at risk because the same logic can withhold the completion indication and prevent the result transfer.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could cause valid_o to be asserted for an invalid result or withheld so the processor consumes stale data or waits indefinitely.",
+    "enters through": [],
+    "leaves through": [
+     "valid_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     250,
+     253,
+     256,
+     262
+    ],
+    "exit lines": [
+     250,
+     253,
+     256,
+     262
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_cpu_cp_cfu",
+    "concept": "XTEA start command",
+    "information": "The start command requests that the unit capture operands and begin an XTEA operation.",
+    "rubric reason": "Availability is at risk because xtea.opa, xtea.opb, and the operation-completion state are only initiated when start_i is asserted at line 204, so withholding the command blocks operation progress.",
+    "objectives": [
+     "A"
+    ],
+    "attack": "An attacker could suppress or prevent start_i from being recognized so the coprocessor never produces a new result.",
+    "enters through": [
+     "start_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     204
+    ],
+    "held lines": [],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "no",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C6",
+    "unit": "neorv32_cpu_cp_cfu",
+    "concept": "CSR key-write enable",
+    "information": "The CSR write-enable decision controls whether incoming CSR data is allowed to change the cryptographic key storage.",
+    "rubric reason": "Integrity is at risk because csr_we_i gates the key_mem update at lines 178-179, allowing an enabled write to replace key material; availability is at risk because the same gate can withhold the CSR key-programming transfer.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could force the write enable active to replace a key or suppress it so required key programming cannot occur.",
+    "enters through": [
+     "csr_we_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     178
+    ],
+    "held lines": [],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C7",
+    "unit": "neorv32_cpu_cp_cfu",
+    "concept": "CSR key-word selection",
+    "information": "The CSR address selects which word of the four-word key is written or returned, and therefore determines which key portion a CSR access affects.",
+    "rubric reason": "Integrity is at risk because csr_addr_i indexes key_mem for both writes and reads at lines 179 and 185, so an altered selection can redirect an update to a different key word.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could alter the CSR address so a key update overwrites a different key word than intended.",
+    "enters through": [
+     "csr_addr_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     179,
+     185
+    ],
+    "held lines": [],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_cpu_cp_cfu",
+    "concept": "active control",
+    "reason": "active_i is only declared at line 26 and is never read or used by the RTL, so it is not information used or produced by this unit.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_cp_cfu",
+    "concept": "funct7 instruction field",
+    "reason": "funct7_i is only declared at line 35 and is never read or used by the RTL.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_cp_cfu",
+    "concept": "rs3 operand",
+    "reason": "rs3_i is only declared at line 38 and is never read or used by the RTL.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_cp_cfu",
+    "concept": "XTEA operation selector",
+    "reason": "rtype_i and funct3_i fields that select the operation or result form are barred from being separate pieces by the operation-selector rule, with their effects used as part of the operation behavior at lines 204-225 and 245-256.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_cp_cfu",
+    "concept": "XTEA round and intermediate working values",
+    "reason": "merged into C3",
+    "merged into": "C3"
+   },
+   {
+    "unit": "neorv32_cpu_cp_cfu",
+    "concept": "internal operation sequencing state",
+    "reason": "merged into C4",
+    "merged into": "C4"
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

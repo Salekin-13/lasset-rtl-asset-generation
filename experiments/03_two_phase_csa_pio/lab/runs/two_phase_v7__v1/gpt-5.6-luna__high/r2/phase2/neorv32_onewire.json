@@ -1,0 +1,1945 @@
+{
+ "module": "neorv32_onewire",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 2,
+ "system sha": "6e414c09e397",
+ "user sha": "431d6a3f1f0c",
+ "usage": {
+  "in": 29743,
+  "out": 24611,
+  "reasoning": 11174,
+  "cached": 15151,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_019e38bca6813f80006ace84720dec87d1bfdfa508d78a11f6",
+  "request key": "e68a3be33c27"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_onewire\",\n  \"Concept Walks\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Points\": [\n        {\n          \"Point\": \"fifo.tx_wdata\",\n          \"Reached By\": \"bus_req_i ==> fifo.tx_wdata carries bus_req_i.data.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            201\n          ],\n          \"Answer Reason\": \"The bus data field directly supplies the queued transmit word, so it can alter the command or payload, but this internal FIFO input is not itself read out.\"\n        },\n        {\n          \"Point\": \"tx_fifo_inst\",\n          \"Reached By\": \"fifo.tx_wdata ==> tx_fifo_inst carries fifo.tx_wdata.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            190,\n            191,\n            195\n          ],\n          \"Answer Reason\": \"The FIFO instance accepts the bus-written transmit word and returns it to the engine; under the black-box rule, altering its write data or stored word can corrupt the transmitted transfer.\"\n        },\n        {\n          \"Point\": \"serial_engine\",\n          \"Reached By\": \"tx_fifo_inst ==> serial_engine carries fifo.tx_rdata.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            328,\n            342,\n            300,\n            302\n          ],\n          \"Answer Reason\": \"The engine loads the queued word into serial.sreg and uses its value to control onewire_o, exposing the command or payload through the serialized waveform and allowing altered queued data or engine state to change it.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"onewire_o\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"serial_engine\"\n          ],\n          \"Security Objectives\": [\n            \"C\",\n            \"I\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"It is the unit-boundary serial output through which the transmit command and payload are emitted.\",\n          \"Justification\": \"The serialized value crosses the unit boundary at onewire_o, making compromise of this output a direct compromise of the transmit asset.\",\n          \"Asset Lines\": [\n            30,\n            293,\n            300,\n            302\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"fifo.tx_wdata\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"onewire_o\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It supplies the command and payload bits that are queued for transmission.\",\n          \"Justification\": \"The bus request data directly determines fifo.tx_wdata and therefore can alter the value eventually emitted on onewire_o; it is a bus-request field and is not primary.\",\n          \"Asset Lines\": [\n            25,\n            201\n          ]\n        },\n        {\n          \"Asset RTL\": \"fifo.tx_wdata\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"fifo.tx_wdata\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"onewire_o\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It carries the bus-written command and payload into the transmit FIFO.\",\n          \"Justification\": \"It is the FIFO write-data path to the transmitted value, but FIFO buffering is only a path and not the primary storage under the FIFO rule.\",\n          \"Asset Lines\": [\n            190,\n            201\n          ]\n        },\n        {\n          \"Asset RTL\": \"fifo.tx_rdata\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"tx_fifo_inst\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"onewire_o\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It carries a queued transmit word from the FIFO instance into the serial engine.\",\n          \"Justification\": \"It is the FIFO output path for the transmit value and can affect the emitted waveform, while the FIFO data path is not primary.\",\n          \"Asset Lines\": [\n            195,\n            323,\n            328,\n            331\n          ]\n        },\n        {\n          \"Asset RTL\": \"serial.sreg\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"serial_engine\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"onewire_o\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It holds and shifts the transmit word while the serial engine emits its bits.\",\n          \"Justification\": \"The serial data shift register controls the output waveform, but the serial shift-register rule bars it from being primary and leaves it as a path to the primary output.\",\n          \"Asset Lines\": [\n            328,\n            342,\n            352\n          ]\n        },\n        {\n          \"Asset RTL\": \"serial.busy\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"serial_engine\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"onewire_o\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It selects the idle-high behavior of the OneWire output while transmission is inactive.\",\n          \"Justification\": \"Changing this state changes the output assignment at line 299 and can alter the transmitted waveform.\",\n          \"Asset Lines\": [\n            299,\n            394\n          ]\n        },\n        {\n          \"Asset RTL\": \"serial.wire_hi\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"serial_engine\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"onewire_o\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It releases the OneWire output high during a transmit slot.\",\n          \"Justification\": \"It directly decides the high-driving branch of onewire_o and can therefore change the transmitted bit timing or level.\",\n          \"Asset Lines\": [\n            299,\n            343,\n            371\n          ]\n        },\n        {\n          \"Asset RTL\": \"serial.wire_lo\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"serial_engine\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"onewire_o\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It selects the low-driving branch of the OneWire output.\",\n          \"Justification\": \"It directly decides whether onewire_o is driven low and can alter the transmitted waveform.\",\n          \"Asset Lines\": [\n            301,\n            330,\n            358\n          ]\n        },\n        {\n          \"Asset RTL\": \"serial.state\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"serial_engine\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"onewire_o\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It controls the transmit state and thereby determines which output-driving actions occur.\",\n          \"Justification\": \"The state controls busy and the wire-drive decisions that release the transmit value on onewire_o.\",\n          \"Asset Lines\": [\n            312,\n            394\n          ]\n        },\n        {\n          \"Asset RTL\": \"serial.bit_cnt\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"onewire_o\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It controls completion and continuation of transmit slots.\",\n          \"Justification\": \"Its tests decide whether the engine continues driving or completes a word, so corruption can change the emitted transfer.\",\n          \"Asset Lines\": [\n            353,\n            354\n          ]\n        },\n        {\n          \"Asset RTL\": \"serial.tick_cnt\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"onewire_o\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It controls the timing points at which the serial output is released or advanced.\",\n          \"Justification\": \"Its comparisons decide wire-drive and state transitions that affect the serialized transmit value.\",\n          \"Asset Lines\": [\n            342,\n            350,\n            358,\n            370\n          ]\n        },\n        {\n          \"Asset RTL\": \"clk_tick\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"onewire_o\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It paces transmit-state advancement and wire-drive events.\",\n          \"Justification\": \"Its tests decide when the serial engine advances and asserts wire-drive controls, so it can alter the transmitted waveform.\",\n          \"Asset Lines\": [\n            329,\n            360\n          ]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Points\": [\n        {\n          \"Point\": \"serial_engine\",\n          \"Reached By\": \"onewire_i ==> serial_engine carries onewire_i.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            296,\n            347,\n            352,\n            375\n          ],\n          \"Answer Reason\": \"The engine samples onewire_i into serial.wire_in, assembles serial.sreg, and records serial.presence; these values are later returned to software, and altered input or sampled state changes the response.\"\n        },\n        {\n          \"Point\": \"fifo.rx_wdata\",\n          \"Reached By\": \"serial_engine ==> fifo.rx_wdata carries serial.presence and serial.sreg.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            232,\n            233\n          ],\n          \"Answer Reason\": \"The assembled received word and presence bit are supplied as FIFO write data, so changing this path changes the value later returned, but the internal path is not itself an external readout.\"\n        },\n        {\n          \"Point\": \"rx_fifo_inst\",\n          \"Reached By\": \"fifo.rx_wdata ==> rx_fifo_inst carries fifo.rx_wdata.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            222,\n            223,\n            227\n          ],\n          \"Answer Reason\": \"Under the black-box rule, the FIFO stores the received word and returns it through fifo.rx_rdata for software readback, so its write or returned data can disclose or alter the response.\"\n        },\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"rx_fifo_inst ==> bus_access carries fifo.rx_rdata.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            161,\n            162\n          ],\n          \"Answer Reason\": \"The bus-access process copies fifo.rx_rdata into bus_rsp_o.data, providing the external readout; it does not modify the received value itself.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"onewire_i\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"serial_engine\"\n          ],\n          \"Security Objectives\": [\n            \"C\",\n            \"I\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"It is the unit-boundary serial input carrying sampled OneWire response bits.\",\n          \"Justification\": \"The input crosses the boundary one bit per step and directly supplies the received information, making it primary under the serial input rule.\",\n          \"Asset Lines\": [\n            29,\n            296\n          ]\n        },\n        {\n          \"Asset RTL\": \"serial.sreg\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"serial_engine\"\n          ],\n          \"Security Objectives\": [\n            \"C\",\n            \"I\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"It stores and assembles the sampled OneWire data word.\",\n          \"Justification\": \"It is the unit register holding the completed received data that is written into the receive FIFO.\",\n          \"Asset Lines\": [\n            290,\n            347,\n            352,\n            385\n          ]\n        },\n        {\n          \"Asset RTL\": \"serial.presence\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"serial_engine\"\n          ],\n          \"Security Objectives\": [\n            \"C\",\n            \"I\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"It stores the sampled OneWire presence result.\",\n          \"Justification\": \"It is the register that holds the presence result before it is combined with received data and returned.\",\n          \"Asset Lines\": [\n            375,\n            386\n          ]\n        },\n        {\n          \"Asset RTL\": \"serial.wire_in\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"serial_engine\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"serial.sreg\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"a\"\n            },\n            {\n              \"Primary RTL\": \"serial.presence\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"a\"\n            }\n          ],\n          \"Functionality\": \"It synchronizes and carries sampled OneWire input bits to the sample and presence logic.\",\n          \"Justification\": \"It is an intermediate sampling register, not primary under the synchronizer rule, and carries values that reach both received-data primaries.\",\n          \"Asset Lines\": [\n            284,\n            296,\n            347,\n            375\n          ]\n        },\n        {\n          \"Asset RTL\": \"serial.sample\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"serial_engine\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"serial.sreg\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"a\"\n            }\n          ],\n          \"Functionality\": \"It holds a sampled input bit before that bit is shifted into serial.sreg.\",\n          \"Justification\": \"It carries an intermediate received bit into the primary received-data register.\",\n          \"Asset Lines\": [\n            347,\n            352\n          ]\n        },\n        {\n          \"Asset RTL\": \"fifo.rx_wdata\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"fifo.rx_wdata\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"serial.sreg\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"a\"\n            },\n            {\n              \"Primary RTL\": \"serial.presence\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"a\"\n            }\n          ],\n          \"Functionality\": \"It carries the assembled received word and presence bit into the receive FIFO.\",\n          \"Justification\": \"It is a FIFO data path that carries copies of the two primary values and is not primary under the FIFO buffering rule.\",\n          \"Asset Lines\": [\n            222,\n            232\n          ]\n        },\n        {\n          \"Asset RTL\": \"fifo.rx_rdata\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"rx_fifo_inst\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"serial.sreg\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"a\"\n            },\n            {\n              \"Primary RTL\": \"serial.presence\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"a\"\n            }\n          ],\n          \"Functionality\": \"It carries the queued received word and presence bit from the FIFO to the bus readback logic.\",\n          \"Justification\": \"It is the FIFO output path for the received values and is not primary under the FIFO buffering rule.\",\n          \"Asset Lines\": [\n            161,\n            162,\n            227\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_rsp_o.data\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"serial.sreg\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"a\"\n            },\n            {\n              \"Primary RTL\": \"serial.presence\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"a\"\n            }\n          ],\n          \"Functionality\": \"It carries the received word and presence bit across the bus response boundary.\",\n          \"Justification\": \"A bus response record field is barred from being primary, but it carries the primary received values to software and exposes them at the response.\",\n          \"Asset Lines\": [\n            26,\n            161,\n            162\n          ]\n        },\n        {\n          \"Asset RTL\": \"fifo.rx_re\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"serial.sreg\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"serial.presence\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It controls whether the receive FIFO releases a received word for bus readback.\",\n          \"Justification\": \"Its bus-controlled read condition gates release of the received values, so it can control their confidentiality.\",\n          \"Asset Lines\": [\n            226,\n            234\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.addr\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"serial.sreg\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"serial.presence\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It selects whether the receive-data readback path is used.\",\n          \"Justification\": \"The address condition controls receive FIFO reads and response selection, so it can decide release of the received values; as a bus-request field it is not primary.\",\n          \"Asset Lines\": [\n            149,\n            234\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.rw\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"serial.sreg\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"serial.presence\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It selects the read direction required to release received data.\",\n          \"Justification\": \"The read/write condition gates receive FIFO popping and response generation, making it a release decision rather than a primary value.\",\n          \"Asset Lines\": [\n            148,\n            234\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.stb\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"serial.sreg\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"serial.presence\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It enables the receive-data read transaction and FIFO release.\",\n          \"Justification\": \"The strobe gates the readback assignment and receive FIFO read enable, so it decides when the received values are disclosed.\",\n          \"Asset Lines\": [\n            148,\n            234\n          ]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Points\": [\n        {\n          \"Point\": \"serial_engine\",\n          \"Reached By\": \"onewire_i ==> serial_engine carries onewire_i.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            296,\n            347\n          ],\n          \"Answer Reason\": \"The engine samples onewire_i into serial.wire_in and makes that sampled level available for the sense readback, so the input can change or reveal the sensed line value.\"\n        },\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"serial_engine ==> bus_access carries serial.wire_in.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            158\n          ],\n          \"Answer Reason\": \"The bus-access process copies serial.wire_in(1) into bus_rsp_o.data, exposing the sampled line level; it does not alter the sampled value.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"onewire_i\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"serial_engine\"\n          ],\n          \"Security Objectives\": [\n            \"C\",\n            \"I\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"It is the unit-boundary input carrying the current OneWire line level.\",\n          \"Justification\": \"The line level crosses the unit boundary through this non-record input and is sampled one bit per step, making the input primary.\",\n          \"Asset Lines\": [\n            29,\n            296\n          ]\n        },\n        {\n          \"Asset RTL\": \"serial.wire_in\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"serial_engine\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"onewire_i\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"a\"\n            }\n          ],\n          \"Functionality\": \"It synchronizes and carries the sampled OneWire level into the sense readback.\",\n          \"Justification\": \"It is a synchronizer-stage copy of onewire_i and therefore carries the line-level value without being primary.\",\n          \"Asset Lines\": [\n            284,\n            296,\n            347\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_rsp_o.data\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"onewire_i\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"a\"\n            }\n          ],\n          \"Functionality\": \"It carries the sampled line level to software in the sense readback field.\",\n          \"Justification\": \"The response record field is barred from being primary but directly carries the sensed line value to the bus boundary.\",\n          \"Asset Lines\": [\n            26,\n            158\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.addr\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"onewire_i\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It selects the response register containing the sampled line level.\",\n          \"Justification\": \"The address condition decides whether the sense value is released in bus_rsp_o.data, so it is a confidentiality-relevant release control.\",\n          \"Asset Lines\": [\n            149\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.rw\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"onewire_i\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It selects the read operation that returns the sampled line level.\",\n          \"Justification\": \"The read/write condition controls whether the sense field is exposed in the response.\",\n          \"Asset Lines\": [\n            148\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.stb\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"onewire_i\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It enables the bus read transaction that exposes the sense value.\",\n          \"Justification\": \"The strobe gates the response-data assignment and therefore decides disclosure of the sampled level.\",\n          \"Asset Lines\": [\n            148\n          ]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Points\": [\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"holding block.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            142,\n            130,\n            199,\n            231,\n            258,\n            311\n          ],\n          \"Answer Reason\": \"The bus-access process stores ctrl.enable from bus_req_i.data and the value can clear both FIFOs, reset timing progress, and force the serial engine inactive, so an altered write can corrupt or disable operation.\"\n        },\n        {\n          \"Point\": \"fifo.rx_clr\",\n          \"Reached By\": \"bus_access --> fifo.rx_clr is decided by ctrl.enable.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"This logic only implements the designed consequence of ctrl.enable for the receive FIFO and does not itself modify or expose the enable state.\"\n        },\n        {\n          \"Point\": \"rx_fifo_inst\",\n          \"Reached By\": \"fifo.rx_clr ==> rx_fifo_inst carries the clear control.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"The FIFO clear is a normal downstream consequence of the enable state, not an RTL mechanism that changes or exposes ctrl.enable itself.\"\n        },\n        {\n          \"Point\": \"fifo.tx_clr\",\n          \"Reached By\": \"bus_access --> fifo.tx_clr is decided by ctrl.enable.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"This logic only implements the designed consequence of ctrl.enable for the transmit FIFO and does not itself modify or expose the enable state.\"\n        },\n        {\n          \"Point\": \"tx_fifo_inst\",\n          \"Reached By\": \"fifo.tx_clr ==> tx_fifo_inst carries the clear control.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"The FIFO clear is a normal downstream consequence of the enable state, not an RTL mechanism that changes or exposes ctrl.enable itself.\"\n        },\n        {\n          \"Point\": \"clock_generator\",\n          \"Reached By\": \"bus_access --> clock_generator is decided by ctrl.enable.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"The clock generator uses ctrl.enable as designed to gate timing progress, but this block does not modify or expose the enable state.\"\n        },\n        {\n          \"Point\": \"serial_engine\",\n          \"Reached By\": \"bus_access ==> serial_engine carries ctrl.enable.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"The serial engine copies ctrl.enable into its state as designed, but it does not itself modify or expose the enable register.\"\n        },\n        {\n          \"Point\": \"irq_generator\",\n          \"Reached By\": \"bus_access ==> irq_generator carries ctrl.enable.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"The interrupt expression uses ctrl.enable as designed, but this block does not modify or expose the enable state.\"\n        },\n        {\n          \"Point\": \"clkgen_en_o\",\n          \"Reached By\": \"bus_access ==> clkgen_en_o carries ctrl.enable.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"The concurrent assignment reflects ctrl.enable to an external clock-enable port but does not itself modify or block the stored enable state.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"ctrl.enable\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"It stores the runtime enable setting for the OneWire peripheral.\",\n          \"Justification\": \"It is the register that holds and makes the enable decision controlling FIFO clearing, clock progression, serial operation, interrupt generation, and clkgen_en_o.\",\n          \"Asset Lines\": [\n            130,\n            142,\n            150,\n            199,\n            231,\n            243,\n            258,\n            273,\n            311\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"ctrl.enable\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It supplies the enable bit written into ctrl.enable.\",\n          \"Justification\": \"The bus request data directly sets the primary enable register, although a bus-request field is not primary.\",\n          \"Asset Lines\": [\n            142\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.addr\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"ctrl.enable\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It selects whether the bus write targets the control register containing enable.\",\n          \"Justification\": \"Its address test decides whether ctrl.enable is assigned and therefore can gate or permit modification of the primary.\",\n          \"Asset Lines\": [\n            141\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.rw\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"ctrl.enable\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It selects the write operation that can update ctrl.enable.\",\n          \"Justification\": \"The read/write test decides whether the primary enable register is assigned.\",\n          \"Asset Lines\": [\n            141\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.stb\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"ctrl.enable\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It enables the bus write that can update ctrl.enable.\",\n          \"Justification\": \"The strobe gates assignment of the primary enable state and can therefore control whether the write takes effect.\",\n          \"Asset Lines\": [\n            141\n          ]\n        },\n        {\n          \"Asset RTL\": \"clk_i\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"ctrl.enable\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It clocks the process that stores the enable state.\",\n          \"Justification\": \"Stalling the clock can prevent the enable write or its downstream state updates, threatening availability.\",\n          \"Asset Lines\": [\n            134\n          ]\n        },\n        {\n          \"Asset RTL\": \"rstn_i\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"ctrl.enable\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It resets ctrl.enable to the disabled value.\",\n          \"Justification\": \"Asserting reset clears the primary enable state and can disable peripheral operation.\",\n          \"Asset Lines\": [\n            128\n          ]\n        }\n      ],\n      \"Not Reported\": [\n        {\n          \"Element RTL\": \"bus_rsp_o.data\",\n          \"Element Entity\": \"neorv32_onewire\",\n          \"Why Not Reported\": \"It only carries a readback copy of ctrl.enable and is not primary or a qualifying integrity or availability control for the enable state.\"\n        },\n        {\n          \"Element RTL\": \"clkgen_en_o\",\n          \"Element Entity\": \"neorv32_onewire\",\n          \"Why Not Reported\": \"It is a downstream copy of ctrl.enable and does not flow back to modify or gate the stored enable state under the listed objectives.\"\n        }\n      ],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Points\": [\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"holding block.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            144,\n            145,\n            131,\n            132,\n            260,\n            261,\n            265\n          ],\n          \"Answer Reason\": \"The bus-access process stores the prescaler and divider settings, and altered values change tick generation, potentially corrupting OneWire timing or preventing useful progress.\"\n        },\n        {\n          \"Point\": \"clock_generator\",\n          \"Reached By\": \"bus_access --> clock_generator is decided by ctrl.clk_prsc and ctrl.clk_div.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"The clock generator uses the timing settings as designed to produce ticks, but it does not itself modify or expose the stored configuration.\"\n        },\n        {\n          \"Point\": \"serial_engine\",\n          \"Reached By\": \"clock_generator --> serial_engine carries timing decisions through clk_tick and clk_tick2.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"The serial engine is paced by the generated ticks as designed and does not itself modify or expose the prescaler or divider settings.\"\n        },\n        {\n          \"Point\": \"fifo.tx_re\",\n          \"Reached By\": \"clock_generator --> fifo.tx_re decides transmit FIFO reads through clk_tick.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"This read-enable logic only uses generated timing to pace FIFO service and does not modify or expose the timing configuration.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"ctrl.clk_prsc\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"It stores the programmable clock-source prescaler selection.\",\n          \"Justification\": \"It is the configuration register that directly selects the source used to generate OneWire timing ticks.\",\n          \"Asset Lines\": [\n            131,\n            144,\n            151,\n            260\n          ]\n        },\n        {\n          \"Asset RTL\": \"ctrl.clk_div\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"It stores the programmable clock-divider limit used for tick generation.\",\n          \"Justification\": \"It is the configuration register compared with clk_cnt to determine when timing ticks occur.\",\n          \"Asset Lines\": [\n            132,\n            145,\n            152,\n            261\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"ctrl.clk_prsc\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"ctrl.clk_div\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It supplies the prescaler and divider values written into the timing configuration registers.\",\n          \"Justification\": \"The bus data field directly sets both timing primaries, although a bus-request field is not primary.\",\n          \"Asset Lines\": [\n            144,\n            145\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.addr\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"ctrl.clk_prsc\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"ctrl.clk_div\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It selects whether the timing configuration registers are written.\",\n          \"Justification\": \"Its address test decides whether either timing primary receives a new value.\",\n          \"Asset Lines\": [\n            141\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.rw\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"ctrl.clk_prsc\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"ctrl.clk_div\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It selects the write operation that can update the timing configuration.\",\n          \"Justification\": \"The read/write test gates assignment of both timing primaries.\",\n          \"Asset Lines\": [\n            141\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.stb\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"ctrl.clk_prsc\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"ctrl.clk_div\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It enables the bus write that updates the timing configuration.\",\n          \"Justification\": \"The strobe gates writes to both timing primaries and can control whether a malicious value takes effect.\",\n          \"Asset Lines\": [\n            141\n          ]\n        },\n        {\n          \"Asset RTL\": \"clk_i\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"ctrl.clk_prsc\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"ctrl.clk_div\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It clocks the process that stores and applies the timing settings.\",\n          \"Justification\": \"Stalling the clock can prevent timing configuration updates or generated timing progress.\",\n          \"Asset Lines\": [\n            134,\n            256\n          ]\n        },\n        {\n          \"Asset RTL\": \"rstn_i\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"ctrl.clk_prsc\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"ctrl.clk_div\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It resets the timing configuration registers to zero.\",\n          \"Justification\": \"Reset clears the primary timing settings and can prevent normal timing operation.\",\n          \"Asset Lines\": [\n            128\n          ]\n        }\n      ],\n      \"Not Reported\": [\n        {\n          \"Element RTL\": \"bus_rsp_o.data\",\n          \"Element Entity\": \"neorv32_onewire\",\n          \"Why Not Reported\": \"It only carries a readback copy of the timing settings and is not primary or a qualifying integrity or availability control for them.\"\n        }\n      ],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Points\": [\n        {\n          \"Point\": \"irq_generator\",\n          \"Reached By\": \"holding block.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            241,\n            243\n          ],\n          \"Answer Reason\": \"The process computes and stores irq_o from enable, transmit-FIFO availability, and serial busy state, so altering the expression or its inputs can create a false, missing, or mistimed service request.\"\n        },\n        {\n          \"Point\": \"tx_fifo_inst\",\n          \"Reached By\": \"tx_fifo_inst ==> irq_generator carries fifo.tx_avail.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            196,\n            243\n          ],\n          \"Answer Reason\": \"Under the black-box rule, the FIFO availability output is an operand of irq_o, so a changed availability result can spuriously assert or suppress the interrupt and affect host service.\"\n        },\n        {\n          \"Point\": \"serial.busy\",\n          \"Reached By\": \"serial.busy ==> irq_generator carries serial.busy.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            243,\n            394\n          ],\n          \"Answer Reason\": \"serial.busy is an operand of the interrupt expression and is derived from serial.state, so changing it can produce an incorrect or missing service request.\"\n        },\n        {\n          \"Point\": \"serial_engine\",\n          \"Reached By\": \"serial_engine --> serial.busy decides the busy value used by irq_generator.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            394\n          ],\n          \"Answer Reason\": \"The serial engine state determines serial.busy, which directly controls irq_o and can therefore cause incorrect interrupt timing or suppress host service.\"\n        },\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"bus_access ==> irq_generator carries ctrl.enable.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            142,\n            243\n          ],\n          \"Answer Reason\": \"The bus-access process can change ctrl.enable and irq_generator includes that state in irq_o, so a bus write can create or suppress the service indication.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"irq_o\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"irq_generator\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"It is the unit-boundary interrupt request indicating that service is needed.\",\n          \"Justification\": \"The interrupt request is computed in this unit and crosses the boundary unmixed at irq_o, making the output primary.\",\n          \"Asset Lines\": [\n            31,\n            241,\n            243\n          ]\n        },\n        {\n          \"Asset RTL\": \"ctrl.enable\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It gates interrupt generation according to whether the peripheral is enabled.\",\n          \"Justification\": \"It is a direct operand of the irq_o assignment and can suppress or permit the service request.\",\n          \"Asset Lines\": [\n            142,\n            243\n          ]\n        },\n        {\n          \"Asset RTL\": \"fifo.tx_avail\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"tx_fifo_inst\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It reports transmit-FIFO availability as an operand of the interrupt condition.\",\n          \"Justification\": \"The FIFO status output directly decides whether irq_o is asserted.\",\n          \"Asset Lines\": [\n            196,\n            243\n          ]\n        },\n        {\n          \"Asset RTL\": \"serial.busy\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"serial.busy\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It reports serial-engine activity as an operand of the interrupt condition.\",\n          \"Justification\": \"The busy value directly decides whether irq_o can assert.\",\n          \"Asset Lines\": [\n            243,\n            394\n          ]\n        },\n        {\n          \"Asset RTL\": \"serial.state\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It determines the serial.busy value that participates in irq_o generation.\",\n          \"Justification\": \"The state register controls the busy predicate and therefore can indirectly alter or block the interrupt request.\",\n          \"Asset Lines\": [\n            394\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It supplies the enable value that can change one operand of irq_o.\",\n          \"Justification\": \"The bus data field writes ctrl.enable, which directly participates in irq_o generation; the field itself is not primary.\",\n          \"Asset Lines\": [\n            142,\n            243\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.addr\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It decides whether a bus write can update the enable operand used by irq_o.\",\n          \"Justification\": \"Its address test gates assignment of ctrl.enable and therefore controls a direct interrupt operand.\",\n          \"Asset Lines\": [\n            141\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.rw\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It decides whether the bus transaction writes the enable operand used by irq_o.\",\n          \"Justification\": \"Its write-direction test gates assignment of ctrl.enable and can control the interrupt operand.\",\n          \"Asset Lines\": [\n            141\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.stb\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It decides whether the bus transaction writes the enable operand used by irq_o.\",\n          \"Justification\": \"Its strobe test gates assignment of ctrl.enable and can control the interrupt operand.\",\n          \"Asset Lines\": [\n            141\n          ]\n        },\n        {\n          \"Asset RTL\": \"clk_i\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It clocks the interrupt register and the state producing its operands.\",\n          \"Justification\": \"Stalling clk_i can prevent irq_o from updating or prevent the state and FIFO service sequence from progressing.\",\n          \"Asset Lines\": [\n            242,\n            256,\n            294\n          ]\n        },\n        {\n          \"Asset RTL\": \"rstn_i\",\n          \"Entity\": \"neorv32_onewire\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"irq_o\",\n              \"Primary Entity\": \"neorv32_onewire\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It clears irq_o and resets the state contributing to its operands.\",\n          \"Justification\": \"Asserting reset clears the interrupt request and can block normal service until the peripheral restarts.\",\n          \"Asset Lines\": [\n            240,\n            283\n          ]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    }\n  ],\n  \"Notes\": [\n    \"C1 lists no held lines even though the RTL holds transmit data in fifo.tx_rdata and serial.sreg at lines 195 and 328.\",\n    \"The receive-data and presence concepts share the serial.sreg and serial.presence paths before FIFO readback, so those structural elements are linked to both conceptual assets.\"\n  ]\n}",
+ "reply": {
+  "module name": "neorv32_onewire",
+  "notes": [
+   "C1 lists no held lines even though the RTL holds transmit data in fifo.tx_rdata and serial.sreg at lines 195 and 328.",
+   "The receive-data and presence concepts share the serial.sreg and serial.presence paths before FIFO readback, so those structural elements are linked to both conceptual assets."
+  ],
+  "points": [
+   {
+    "concept id": "C1",
+    "point": "fifo.tx_wdata",
+    "reached by": "bus_req_i ==> fifo.tx_wdata carries bus_req_i.data.",
+    "lines": [
+     201
+    ],
+    "reason": "The bus data field directly supplies the queued transmit word, so it can alter the command or payload, but this internal FIFO input is not itself read out.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "tx_fifo_inst",
+    "reached by": "fifo.tx_wdata ==> tx_fifo_inst carries fifo.tx_wdata.",
+    "lines": [
+     190,
+     191,
+     195
+    ],
+    "reason": "The FIFO instance accepts the bus-written transmit word and returns it to the engine; under the black-box rule, altering its write data or stored word can corrupt the transmitted transfer.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "serial_engine",
+    "reached by": "tx_fifo_inst ==> serial_engine carries fifo.tx_rdata.",
+    "lines": [
+     328,
+     342,
+     300,
+     302
+    ],
+    "reason": "The engine loads the queued word into serial.sreg and uses its value to control onewire_o, exposing the command or payload through the serialized waveform and allowing altered queued data or engine state to change it.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "serial_engine",
+    "reached by": "onewire_i ==> serial_engine carries onewire_i.",
+    "lines": [
+     296,
+     347,
+     352,
+     375
+    ],
+    "reason": "The engine samples onewire_i into serial.wire_in, assembles serial.sreg, and records serial.presence; these values are later returned to software, and altered input or sampled state changes the response.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "fifo.rx_wdata",
+    "reached by": "serial_engine ==> fifo.rx_wdata carries serial.presence and serial.sreg.",
+    "lines": [
+     232,
+     233
+    ],
+    "reason": "The assembled received word and presence bit are supplied as FIFO write data, so changing this path changes the value later returned, but the internal path is not itself an external readout.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "rx_fifo_inst",
+    "reached by": "fifo.rx_wdata ==> rx_fifo_inst carries fifo.rx_wdata.",
+    "lines": [
+     222,
+     223,
+     227
+    ],
+    "reason": "Under the black-box rule, the FIFO stores the received word and returns it through fifo.rx_rdata for software readback, so its write or returned data can disclose or alter the response.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "bus_access",
+    "reached by": "rx_fifo_inst ==> bus_access carries fifo.rx_rdata.",
+    "lines": [
+     161,
+     162
+    ],
+    "reason": "The bus-access process copies fifo.rx_rdata into bus_rsp_o.data, providing the external readout; it does not modify the received value itself.",
+    "confidentiality": "yes",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "serial_engine",
+    "reached by": "onewire_i ==> serial_engine carries onewire_i.",
+    "lines": [
+     296,
+     347
+    ],
+    "reason": "The engine samples onewire_i into serial.wire_in and makes that sampled level available for the sense readback, so the input can change or reveal the sensed line value.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "bus_access",
+    "reached by": "serial_engine ==> bus_access carries serial.wire_in.",
+    "lines": [
+     158
+    ],
+    "reason": "The bus-access process copies serial.wire_in(1) into bus_rsp_o.data, exposing the sampled line level; it does not alter the sampled value.",
+    "confidentiality": "yes",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "bus_access",
+    "reached by": "holding block.",
+    "lines": [
+     142,
+     130,
+     199,
+     231,
+     258,
+     311
+    ],
+    "reason": "The bus-access process stores ctrl.enable from bus_req_i.data and the value can clear both FIFOs, reset timing progress, and force the serial engine inactive, so an altered write can corrupt or disable operation.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "fifo.rx_clr",
+    "reached by": "bus_access --> fifo.rx_clr is decided by ctrl.enable.",
+    "lines": [],
+    "reason": "This logic only implements the designed consequence of ctrl.enable for the receive FIFO and does not itself modify or expose the enable state.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "rx_fifo_inst",
+    "reached by": "fifo.rx_clr ==> rx_fifo_inst carries the clear control.",
+    "lines": [],
+    "reason": "The FIFO clear is a normal downstream consequence of the enable state, not an RTL mechanism that changes or exposes ctrl.enable itself.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "fifo.tx_clr",
+    "reached by": "bus_access --> fifo.tx_clr is decided by ctrl.enable.",
+    "lines": [],
+    "reason": "This logic only implements the designed consequence of ctrl.enable for the transmit FIFO and does not itself modify or expose the enable state.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "tx_fifo_inst",
+    "reached by": "fifo.tx_clr ==> tx_fifo_inst carries the clear control.",
+    "lines": [],
+    "reason": "The FIFO clear is a normal downstream consequence of the enable state, not an RTL mechanism that changes or exposes ctrl.enable itself.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "clock_generator",
+    "reached by": "bus_access --> clock_generator is decided by ctrl.enable.",
+    "lines": [],
+    "reason": "The clock generator uses ctrl.enable as designed to gate timing progress, but this block does not modify or expose the enable state.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "serial_engine",
+    "reached by": "bus_access ==> serial_engine carries ctrl.enable.",
+    "lines": [],
+    "reason": "The serial engine copies ctrl.enable into its state as designed, but it does not itself modify or expose the enable register.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "irq_generator",
+    "reached by": "bus_access ==> irq_generator carries ctrl.enable.",
+    "lines": [],
+    "reason": "The interrupt expression uses ctrl.enable as designed, but this block does not modify or expose the enable state.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "clkgen_en_o",
+    "reached by": "bus_access ==> clkgen_en_o carries ctrl.enable.",
+    "lines": [],
+    "reason": "The concurrent assignment reflects ctrl.enable to an external clock-enable port but does not itself modify or block the stored enable state.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C5",
+    "point": "bus_access",
+    "reached by": "holding block.",
+    "lines": [
+     144,
+     145,
+     131,
+     132,
+     260,
+     261,
+     265
+    ],
+    "reason": "The bus-access process stores the prescaler and divider settings, and altered values change tick generation, potentially corrupting OneWire timing or preventing useful progress.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C5",
+    "point": "clock_generator",
+    "reached by": "bus_access --> clock_generator is decided by ctrl.clk_prsc and ctrl.clk_div.",
+    "lines": [],
+    "reason": "The clock generator uses the timing settings as designed to produce ticks, but it does not itself modify or expose the stored configuration.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C5",
+    "point": "serial_engine",
+    "reached by": "clock_generator --> serial_engine carries timing decisions through clk_tick and clk_tick2.",
+    "lines": [],
+    "reason": "The serial engine is paced by the generated ticks as designed and does not itself modify or expose the prescaler or divider settings.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C5",
+    "point": "fifo.tx_re",
+    "reached by": "clock_generator --> fifo.tx_re decides transmit FIFO reads through clk_tick.",
+    "lines": [],
+    "reason": "This read-enable logic only uses generated timing to pace FIFO service and does not modify or expose the timing configuration.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "irq_generator",
+    "reached by": "holding block.",
+    "lines": [
+     241,
+     243
+    ],
+    "reason": "The process computes and stores irq_o from enable, transmit-FIFO availability, and serial busy state, so altering the expression or its inputs can create a false, missing, or mistimed service request.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "tx_fifo_inst",
+    "reached by": "tx_fifo_inst ==> irq_generator carries fifo.tx_avail.",
+    "lines": [
+     196,
+     243
+    ],
+    "reason": "Under the black-box rule, the FIFO availability output is an operand of irq_o, so a changed availability result can spuriously assert or suppress the interrupt and affect host service.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "serial.busy",
+    "reached by": "serial.busy ==> irq_generator carries serial.busy.",
+    "lines": [
+     243,
+     394
+    ],
+    "reason": "serial.busy is an operand of the interrupt expression and is derived from serial.state, so changing it can produce an incorrect or missing service request.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "serial_engine",
+    "reached by": "serial_engine --> serial.busy decides the busy value used by irq_generator.",
+    "lines": [
+     394
+    ],
+    "reason": "The serial engine state determines serial.busy, which directly controls irq_o and can therefore cause incorrect interrupt timing or suppress host service.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "bus_access",
+    "reached by": "bus_access ==> irq_generator carries ctrl.enable.",
+    "lines": [
+     142,
+     243
+    ],
+    "reason": "The bus-access process can change ctrl.enable and irq_generator includes that state in irq_o, so a bus write can create or suppress the service indication.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   }
+  ],
+  "structural assets": [
+   {
+    "concept id": "C1",
+    "element": "onewire_o",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "primary",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "lines": [
+     30,
+     293,
+     300,
+     302
+    ],
+    "links": [],
+    "reason": "It is the unit-boundary serial output through which the transmit command and payload are emitted. The serialized value crosses the unit boundary at onewire_o, making compromise of this output a direct compromise of the transmit asset.",
+    "functionality": "It is the unit-boundary serial output through which the transmit command and payload are emitted.",
+    "justification": "The serialized value crosses the unit boundary at onewire_o, making compromise of this output a direct compromise of the transmit asset."
+   },
+   {
+    "concept id": "C1",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "fifo.tx_wdata"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     25,
+     201
+    ],
+    "links": [
+     {
+      "primary": "onewire_o",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It supplies the command and payload bits that are queued for transmission. The bus request data directly determines fifo.tx_wdata and therefore can alter the value eventually emitted on onewire_o; it is a bus-request field and is not primary.",
+    "functionality": "It supplies the command and payload bits that are queued for transmission.",
+    "justification": "The bus request data directly determines fifo.tx_wdata and therefore can alter the value eventually emitted on onewire_o; it is a bus-request field and is not primary."
+   },
+   {
+    "concept id": "C1",
+    "element": "fifo.tx_wdata",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "fifo.tx_wdata"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     190,
+     201
+    ],
+    "links": [
+     {
+      "primary": "onewire_o",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It carries the bus-written command and payload into the transmit FIFO. It is the FIFO write-data path to the transmitted value, but FIFO buffering is only a path and not the primary storage under the FIFO rule.",
+    "functionality": "It carries the bus-written command and payload into the transmit FIFO.",
+    "justification": "It is the FIFO write-data path to the transmitted value, but FIFO buffering is only a path and not the primary storage under the FIFO rule."
+   },
+   {
+    "concept id": "C1",
+    "element": "fifo.tx_rdata",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "tx_fifo_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     195,
+     323,
+     328,
+     331
+    ],
+    "links": [
+     {
+      "primary": "onewire_o",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It carries a queued transmit word from the FIFO instance into the serial engine. It is the FIFO output path for the transmit value and can affect the emitted waveform, while the FIFO data path is not primary.",
+    "functionality": "It carries a queued transmit word from the FIFO instance into the serial engine.",
+    "justification": "It is the FIFO output path for the transmit value and can affect the emitted waveform, while the FIFO data path is not primary."
+   },
+   {
+    "concept id": "C1",
+    "element": "serial.sreg",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     328,
+     342,
+     352
+    ],
+    "links": [
+     {
+      "primary": "onewire_o",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It holds and shifts the transmit word while the serial engine emits its bits. The serial data shift register controls the output waveform, but the serial shift-register rule bars it from being primary and leaves it as a path to the primary output.",
+    "functionality": "It holds and shifts the transmit word while the serial engine emits its bits.",
+    "justification": "The serial data shift register controls the output waveform, but the serial shift-register rule bars it from being primary and leaves it as a path to the primary output."
+   },
+   {
+    "concept id": "C1",
+    "element": "serial.busy",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     299,
+     394
+    ],
+    "links": [
+     {
+      "primary": "onewire_o",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It selects the idle-high behavior of the OneWire output while transmission is inactive. Changing this state changes the output assignment at line 299 and can alter the transmitted waveform.",
+    "functionality": "It selects the idle-high behavior of the OneWire output while transmission is inactive.",
+    "justification": "Changing this state changes the output assignment at line 299 and can alter the transmitted waveform."
+   },
+   {
+    "concept id": "C1",
+    "element": "serial.wire_hi",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     299,
+     343,
+     371
+    ],
+    "links": [
+     {
+      "primary": "onewire_o",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It releases the OneWire output high during a transmit slot. It directly decides the high-driving branch of onewire_o and can therefore change the transmitted bit timing or level.",
+    "functionality": "It releases the OneWire output high during a transmit slot.",
+    "justification": "It directly decides the high-driving branch of onewire_o and can therefore change the transmitted bit timing or level."
+   },
+   {
+    "concept id": "C1",
+    "element": "serial.wire_lo",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     301,
+     330,
+     358
+    ],
+    "links": [
+     {
+      "primary": "onewire_o",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It selects the low-driving branch of the OneWire output. It directly decides whether onewire_o is driven low and can alter the transmitted waveform.",
+    "functionality": "It selects the low-driving branch of the OneWire output.",
+    "justification": "It directly decides whether onewire_o is driven low and can alter the transmitted waveform."
+   },
+   {
+    "concept id": "C1",
+    "element": "serial.state",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     312,
+     394
+    ],
+    "links": [
+     {
+      "primary": "onewire_o",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It controls the transmit state and thereby determines which output-driving actions occur. The state controls busy and the wire-drive decisions that release the transmit value on onewire_o.",
+    "functionality": "It controls the transmit state and thereby determines which output-driving actions occur.",
+    "justification": "The state controls busy and the wire-drive decisions that release the transmit value on onewire_o."
+   },
+   {
+    "concept id": "C1",
+    "element": "serial.bit_cnt",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     353,
+     354
+    ],
+    "links": [
+     {
+      "primary": "onewire_o",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It controls completion and continuation of transmit slots. Its tests decide whether the engine continues driving or completes a word, so corruption can change the emitted transfer.",
+    "functionality": "It controls completion and continuation of transmit slots.",
+    "justification": "Its tests decide whether the engine continues driving or completes a word, so corruption can change the emitted transfer."
+   },
+   {
+    "concept id": "C1",
+    "element": "serial.tick_cnt",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     342,
+     350,
+     358,
+     370
+    ],
+    "links": [
+     {
+      "primary": "onewire_o",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It controls the timing points at which the serial output is released or advanced. Its comparisons decide wire-drive and state transitions that affect the serialized transmit value.",
+    "functionality": "It controls the timing points at which the serial output is released or advanced.",
+    "justification": "Its comparisons decide wire-drive and state transitions that affect the serialized transmit value."
+   },
+   {
+    "concept id": "C1",
+    "element": "clk_tick",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     329,
+     360
+    ],
+    "links": [
+     {
+      "primary": "onewire_o",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It paces transmit-state advancement and wire-drive events. Its tests decide when the serial engine advances and asserts wire-drive controls, so it can alter the transmitted waveform.",
+    "functionality": "It paces transmit-state advancement and wire-drive events.",
+    "justification": "Its tests decide when the serial engine advances and asserts wire-drive controls, so it can alter the transmitted waveform."
+   },
+   {
+    "concept id": "C2",
+    "element": "onewire_i",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "primary",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "lines": [
+     29,
+     296
+    ],
+    "links": [],
+    "reason": "It is the unit-boundary serial input carrying sampled OneWire response bits. The input crosses the boundary one bit per step and directly supplies the received information, making it primary under the serial input rule.",
+    "functionality": "It is the unit-boundary serial input carrying sampled OneWire response bits.",
+    "justification": "The input crosses the boundary one bit per step and directly supplies the received information, making it primary under the serial input rule."
+   },
+   {
+    "concept id": "C2",
+    "element": "serial.sreg",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "primary",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "lines": [
+     290,
+     347,
+     352,
+     385
+    ],
+    "links": [],
+    "reason": "It stores and assembles the sampled OneWire data word. It is the unit register holding the completed received data that is written into the receive FIFO.",
+    "functionality": "It stores and assembles the sampled OneWire data word.",
+    "justification": "It is the unit register holding the completed received data that is written into the receive FIFO."
+   },
+   {
+    "concept id": "C2",
+    "element": "serial.presence",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "primary",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "lines": [
+     375,
+     386
+    ],
+    "links": [],
+    "reason": "It stores the sampled OneWire presence result. It is the register that holds the presence result before it is combined with received data and returned.",
+    "functionality": "It stores the sampled OneWire presence result.",
+    "justification": "It is the register that holds the presence result before it is combined with received data and returned."
+   },
+   {
+    "concept id": "C2",
+    "element": "serial.wire_in",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     284,
+     296,
+     347,
+     375
+    ],
+    "links": [
+     {
+      "primary": "serial.sreg",
+      "entity": "neorv32_onewire",
+      "direction": "a"
+     },
+     {
+      "primary": "serial.presence",
+      "entity": "neorv32_onewire",
+      "direction": "a"
+     }
+    ],
+    "reason": "It synchronizes and carries sampled OneWire input bits to the sample and presence logic. It is an intermediate sampling register, not primary under the synchronizer rule, and carries values that reach both received-data primaries.",
+    "functionality": "It synchronizes and carries sampled OneWire input bits to the sample and presence logic.",
+    "justification": "It is an intermediate sampling register, not primary under the synchronizer rule, and carries values that reach both received-data primaries."
+   },
+   {
+    "concept id": "C2",
+    "element": "serial.sample",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     347,
+     352
+    ],
+    "links": [
+     {
+      "primary": "serial.sreg",
+      "entity": "neorv32_onewire",
+      "direction": "a"
+     }
+    ],
+    "reason": "It holds a sampled input bit before that bit is shifted into serial.sreg. It carries an intermediate received bit into the primary received-data register.",
+    "functionality": "It holds a sampled input bit before that bit is shifted into serial.sreg.",
+    "justification": "It carries an intermediate received bit into the primary received-data register."
+   },
+   {
+    "concept id": "C2",
+    "element": "fifo.rx_wdata",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "fifo.rx_wdata"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     222,
+     232
+    ],
+    "links": [
+     {
+      "primary": "serial.sreg",
+      "entity": "neorv32_onewire",
+      "direction": "a"
+     },
+     {
+      "primary": "serial.presence",
+      "entity": "neorv32_onewire",
+      "direction": "a"
+     }
+    ],
+    "reason": "It carries the assembled received word and presence bit into the receive FIFO. It is a FIFO data path that carries copies of the two primary values and is not primary under the FIFO buffering rule.",
+    "functionality": "It carries the assembled received word and presence bit into the receive FIFO.",
+    "justification": "It is a FIFO data path that carries copies of the two primary values and is not primary under the FIFO buffering rule."
+   },
+   {
+    "concept id": "C2",
+    "element": "fifo.rx_rdata",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "rx_fifo_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     161,
+     162,
+     227
+    ],
+    "links": [
+     {
+      "primary": "serial.sreg",
+      "entity": "neorv32_onewire",
+      "direction": "a"
+     },
+     {
+      "primary": "serial.presence",
+      "entity": "neorv32_onewire",
+      "direction": "a"
+     }
+    ],
+    "reason": "It carries the queued received word and presence bit from the FIFO to the bus readback logic. It is the FIFO output path for the received values and is not primary under the FIFO buffering rule.",
+    "functionality": "It carries the queued received word and presence bit from the FIFO to the bus readback logic.",
+    "justification": "It is the FIFO output path for the received values and is not primary under the FIFO buffering rule."
+   },
+   {
+    "concept id": "C2",
+    "element": "bus_rsp_o.data",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     26,
+     161,
+     162
+    ],
+    "links": [
+     {
+      "primary": "serial.sreg",
+      "entity": "neorv32_onewire",
+      "direction": "a"
+     },
+     {
+      "primary": "serial.presence",
+      "entity": "neorv32_onewire",
+      "direction": "a"
+     }
+    ],
+    "reason": "It carries the received word and presence bit across the bus response boundary. A bus response record field is barred from being primary, but it carries the primary received values to software and exposes them at the response.",
+    "functionality": "It carries the received word and presence bit across the bus response boundary.",
+    "justification": "A bus response record field is barred from being primary, but it carries the primary received values to software and exposes them at the response."
+   },
+   {
+    "concept id": "C2",
+    "element": "fifo.rx_re",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     226,
+     234
+    ],
+    "links": [
+     {
+      "primary": "serial.sreg",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     },
+     {
+      "primary": "serial.presence",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It controls whether the receive FIFO releases a received word for bus readback. Its bus-controlled read condition gates release of the received values, so it can control their confidentiality.",
+    "functionality": "It controls whether the receive FIFO releases a received word for bus readback.",
+    "justification": "Its bus-controlled read condition gates release of the received values, so it can control their confidentiality."
+   },
+   {
+    "concept id": "C2",
+    "element": "bus_req_i.addr",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     149,
+     234
+    ],
+    "links": [
+     {
+      "primary": "serial.sreg",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     },
+     {
+      "primary": "serial.presence",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It selects whether the receive-data readback path is used. The address condition controls receive FIFO reads and response selection, so it can decide release of the received values; as a bus-request field it is not primary.",
+    "functionality": "It selects whether the receive-data readback path is used.",
+    "justification": "The address condition controls receive FIFO reads and response selection, so it can decide release of the received values; as a bus-request field it is not primary."
+   },
+   {
+    "concept id": "C2",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     148,
+     234
+    ],
+    "links": [
+     {
+      "primary": "serial.sreg",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     },
+     {
+      "primary": "serial.presence",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It selects the read direction required to release received data. The read/write condition gates receive FIFO popping and response generation, making it a release decision rather than a primary value.",
+    "functionality": "It selects the read direction required to release received data.",
+    "justification": "The read/write condition gates receive FIFO popping and response generation, making it a release decision rather than a primary value."
+   },
+   {
+    "concept id": "C2",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     148,
+     234
+    ],
+    "links": [
+     {
+      "primary": "serial.sreg",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     },
+     {
+      "primary": "serial.presence",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It enables the receive-data read transaction and FIFO release. The strobe gates the readback assignment and receive FIFO read enable, so it decides when the received values are disclosed.",
+    "functionality": "It enables the receive-data read transaction and FIFO release.",
+    "justification": "The strobe gates the readback assignment and receive FIFO read enable, so it decides when the received values are disclosed."
+   },
+   {
+    "concept id": "C3",
+    "element": "onewire_i",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "primary",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "lines": [
+     29,
+     296
+    ],
+    "links": [],
+    "reason": "It is the unit-boundary input carrying the current OneWire line level. The line level crosses the unit boundary through this non-record input and is sampled one bit per step, making the input primary.",
+    "functionality": "It is the unit-boundary input carrying the current OneWire line level.",
+    "justification": "The line level crosses the unit boundary through this non-record input and is sampled one bit per step, making the input primary."
+   },
+   {
+    "concept id": "C3",
+    "element": "serial.wire_in",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     284,
+     296,
+     347
+    ],
+    "links": [
+     {
+      "primary": "onewire_i",
+      "entity": "neorv32_onewire",
+      "direction": "a"
+     }
+    ],
+    "reason": "It synchronizes and carries the sampled OneWire level into the sense readback. It is a synchronizer-stage copy of onewire_i and therefore carries the line-level value without being primary.",
+    "functionality": "It synchronizes and carries the sampled OneWire level into the sense readback.",
+    "justification": "It is a synchronizer-stage copy of onewire_i and therefore carries the line-level value without being primary."
+   },
+   {
+    "concept id": "C3",
+    "element": "bus_rsp_o.data",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     26,
+     158
+    ],
+    "links": [
+     {
+      "primary": "onewire_i",
+      "entity": "neorv32_onewire",
+      "direction": "a"
+     }
+    ],
+    "reason": "It carries the sampled line level to software in the sense readback field. The response record field is barred from being primary but directly carries the sensed line value to the bus boundary.",
+    "functionality": "It carries the sampled line level to software in the sense readback field.",
+    "justification": "The response record field is barred from being primary but directly carries the sensed line value to the bus boundary."
+   },
+   {
+    "concept id": "C3",
+    "element": "bus_req_i.addr",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     149
+    ],
+    "links": [
+     {
+      "primary": "onewire_i",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It selects the response register containing the sampled line level. The address condition decides whether the sense value is released in bus_rsp_o.data, so it is a confidentiality-relevant release control.",
+    "functionality": "It selects the response register containing the sampled line level.",
+    "justification": "The address condition decides whether the sense value is released in bus_rsp_o.data, so it is a confidentiality-relevant release control."
+   },
+   {
+    "concept id": "C3",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     148
+    ],
+    "links": [
+     {
+      "primary": "onewire_i",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It selects the read operation that returns the sampled line level. The read/write condition controls whether the sense field is exposed in the response.",
+    "functionality": "It selects the read operation that returns the sampled line level.",
+    "justification": "The read/write condition controls whether the sense field is exposed in the response."
+   },
+   {
+    "concept id": "C3",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     148
+    ],
+    "links": [
+     {
+      "primary": "onewire_i",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It enables the bus read transaction that exposes the sense value. The strobe gates the response-data assignment and therefore decides disclosure of the sampled level.",
+    "functionality": "It enables the bus read transaction that exposes the sense value.",
+    "justification": "The strobe gates the response-data assignment and therefore decides disclosure of the sampled level."
+   },
+   {
+    "concept id": "C4",
+    "element": "ctrl.enable",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     130,
+     142,
+     150,
+     199,
+     231,
+     243,
+     258,
+     273,
+     311
+    ],
+    "links": [],
+    "reason": "It stores the runtime enable setting for the OneWire peripheral. It is the register that holds and makes the enable decision controlling FIFO clearing, clock progression, serial operation, interrupt generation, and clkgen_en_o.",
+    "functionality": "It stores the runtime enable setting for the OneWire peripheral.",
+    "justification": "It is the register that holds and makes the enable decision controlling FIFO clearing, clock progression, serial operation, interrupt generation, and clkgen_en_o."
+   },
+   {
+    "concept id": "C4",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     142
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It supplies the enable bit written into ctrl.enable. The bus request data directly sets the primary enable register, although a bus-request field is not primary.",
+    "functionality": "It supplies the enable bit written into ctrl.enable.",
+    "justification": "The bus request data directly sets the primary enable register, although a bus-request field is not primary."
+   },
+   {
+    "concept id": "C4",
+    "element": "bus_req_i.addr",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     141
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It selects whether the bus write targets the control register containing enable. Its address test decides whether ctrl.enable is assigned and therefore can gate or permit modification of the primary.",
+    "functionality": "It selects whether the bus write targets the control register containing enable.",
+    "justification": "Its address test decides whether ctrl.enable is assigned and therefore can gate or permit modification of the primary."
+   },
+   {
+    "concept id": "C4",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     141
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It selects the write operation that can update ctrl.enable. The read/write test decides whether the primary enable register is assigned.",
+    "functionality": "It selects the write operation that can update ctrl.enable.",
+    "justification": "The read/write test decides whether the primary enable register is assigned."
+   },
+   {
+    "concept id": "C4",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     141
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It enables the bus write that can update ctrl.enable. The strobe gates assignment of the primary enable state and can therefore control whether the write takes effect.",
+    "functionality": "It enables the bus write that can update ctrl.enable.",
+    "justification": "The strobe gates assignment of the primary enable state and can therefore control whether the write takes effect."
+   },
+   {
+    "concept id": "C4",
+    "element": "clk_i",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     134
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It clocks the process that stores the enable state. Stalling the clock can prevent the enable write or its downstream state updates, threatening availability.",
+    "functionality": "It clocks the process that stores the enable state.",
+    "justification": "Stalling the clock can prevent the enable write or its downstream state updates, threatening availability."
+   },
+   {
+    "concept id": "C4",
+    "element": "rstn_i",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     128
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It resets ctrl.enable to the disabled value. Asserting reset clears the primary enable state and can disable peripheral operation.",
+    "functionality": "It resets ctrl.enable to the disabled value.",
+    "justification": "Asserting reset clears the primary enable state and can disable peripheral operation."
+   },
+   {
+    "concept id": "C5",
+    "element": "ctrl.clk_prsc",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     131,
+     144,
+     151,
+     260
+    ],
+    "links": [],
+    "reason": "It stores the programmable clock-source prescaler selection. It is the configuration register that directly selects the source used to generate OneWire timing ticks.",
+    "functionality": "It stores the programmable clock-source prescaler selection.",
+    "justification": "It is the configuration register that directly selects the source used to generate OneWire timing ticks."
+   },
+   {
+    "concept id": "C5",
+    "element": "ctrl.clk_div",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     132,
+     145,
+     152,
+     261
+    ],
+    "links": [],
+    "reason": "It stores the programmable clock-divider limit used for tick generation. It is the configuration register compared with clk_cnt to determine when timing ticks occur.",
+    "functionality": "It stores the programmable clock-divider limit used for tick generation.",
+    "justification": "It is the configuration register compared with clk_cnt to determine when timing ticks occur."
+   },
+   {
+    "concept id": "C5",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     144,
+     145
+    ],
+    "links": [
+     {
+      "primary": "ctrl.clk_prsc",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.clk_div",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It supplies the prescaler and divider values written into the timing configuration registers. The bus data field directly sets both timing primaries, although a bus-request field is not primary.",
+    "functionality": "It supplies the prescaler and divider values written into the timing configuration registers.",
+    "justification": "The bus data field directly sets both timing primaries, although a bus-request field is not primary."
+   },
+   {
+    "concept id": "C5",
+    "element": "bus_req_i.addr",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     141
+    ],
+    "links": [
+     {
+      "primary": "ctrl.clk_prsc",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.clk_div",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It selects whether the timing configuration registers are written. Its address test decides whether either timing primary receives a new value.",
+    "functionality": "It selects whether the timing configuration registers are written.",
+    "justification": "Its address test decides whether either timing primary receives a new value."
+   },
+   {
+    "concept id": "C5",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     141
+    ],
+    "links": [
+     {
+      "primary": "ctrl.clk_prsc",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.clk_div",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It selects the write operation that can update the timing configuration. The read/write test gates assignment of both timing primaries.",
+    "functionality": "It selects the write operation that can update the timing configuration.",
+    "justification": "The read/write test gates assignment of both timing primaries."
+   },
+   {
+    "concept id": "C5",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     141
+    ],
+    "links": [
+     {
+      "primary": "ctrl.clk_prsc",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.clk_div",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It enables the bus write that updates the timing configuration. The strobe gates writes to both timing primaries and can control whether a malicious value takes effect.",
+    "functionality": "It enables the bus write that updates the timing configuration.",
+    "justification": "The strobe gates writes to both timing primaries and can control whether a malicious value takes effect."
+   },
+   {
+    "concept id": "C5",
+    "element": "clk_i",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     134,
+     256
+    ],
+    "links": [
+     {
+      "primary": "ctrl.clk_prsc",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.clk_div",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It clocks the process that stores and applies the timing settings. Stalling the clock can prevent timing configuration updates or generated timing progress.",
+    "functionality": "It clocks the process that stores and applies the timing settings.",
+    "justification": "Stalling the clock can prevent timing configuration updates or generated timing progress."
+   },
+   {
+    "concept id": "C5",
+    "element": "rstn_i",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     128
+    ],
+    "links": [
+     {
+      "primary": "ctrl.clk_prsc",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.clk_div",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It resets the timing configuration registers to zero. Reset clears the primary timing settings and can prevent normal timing operation.",
+    "functionality": "It resets the timing configuration registers to zero.",
+    "justification": "Reset clears the primary timing settings and can prevent normal timing operation."
+   },
+   {
+    "concept id": "C6",
+    "element": "irq_o",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "irq_generator"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     31,
+     241,
+     243
+    ],
+    "links": [],
+    "reason": "It is the unit-boundary interrupt request indicating that service is needed. The interrupt request is computed in this unit and crosses the boundary unmixed at irq_o, making the output primary.",
+    "functionality": "It is the unit-boundary interrupt request indicating that service is needed.",
+    "justification": "The interrupt request is computed in this unit and crosses the boundary unmixed at irq_o, making the output primary."
+   },
+   {
+    "concept id": "C6",
+    "element": "ctrl.enable",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     142,
+     243
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It gates interrupt generation according to whether the peripheral is enabled. It is a direct operand of the irq_o assignment and can suppress or permit the service request.",
+    "functionality": "It gates interrupt generation according to whether the peripheral is enabled.",
+    "justification": "It is a direct operand of the irq_o assignment and can suppress or permit the service request."
+   },
+   {
+    "concept id": "C6",
+    "element": "fifo.tx_avail",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "tx_fifo_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     196,
+     243
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It reports transmit-FIFO availability as an operand of the interrupt condition. The FIFO status output directly decides whether irq_o is asserted.",
+    "functionality": "It reports transmit-FIFO availability as an operand of the interrupt condition.",
+    "justification": "The FIFO status output directly decides whether irq_o is asserted."
+   },
+   {
+    "concept id": "C6",
+    "element": "serial.busy",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "serial.busy"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     243,
+     394
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It reports serial-engine activity as an operand of the interrupt condition. The busy value directly decides whether irq_o can assert.",
+    "functionality": "It reports serial-engine activity as an operand of the interrupt condition.",
+    "justification": "The busy value directly decides whether irq_o can assert."
+   },
+   {
+    "concept id": "C6",
+    "element": "serial.state",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     394
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It determines the serial.busy value that participates in irq_o generation. The state register controls the busy predicate and therefore can indirectly alter or block the interrupt request.",
+    "functionality": "It determines the serial.busy value that participates in irq_o generation.",
+    "justification": "The state register controls the busy predicate and therefore can indirectly alter or block the interrupt request."
+   },
+   {
+    "concept id": "C6",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     142,
+     243
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It supplies the enable value that can change one operand of irq_o. The bus data field writes ctrl.enable, which directly participates in irq_o generation; the field itself is not primary.",
+    "functionality": "It supplies the enable value that can change one operand of irq_o.",
+    "justification": "The bus data field writes ctrl.enable, which directly participates in irq_o generation; the field itself is not primary."
+   },
+   {
+    "concept id": "C6",
+    "element": "bus_req_i.addr",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     141
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It decides whether a bus write can update the enable operand used by irq_o. Its address test gates assignment of ctrl.enable and therefore controls a direct interrupt operand.",
+    "functionality": "It decides whether a bus write can update the enable operand used by irq_o.",
+    "justification": "Its address test gates assignment of ctrl.enable and therefore controls a direct interrupt operand."
+   },
+   {
+    "concept id": "C6",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     141
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It decides whether the bus transaction writes the enable operand used by irq_o. Its write-direction test gates assignment of ctrl.enable and can control the interrupt operand.",
+    "functionality": "It decides whether the bus transaction writes the enable operand used by irq_o.",
+    "justification": "Its write-direction test gates assignment of ctrl.enable and can control the interrupt operand."
+   },
+   {
+    "concept id": "C6",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     141
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It decides whether the bus transaction writes the enable operand used by irq_o. Its strobe test gates assignment of ctrl.enable and can control the interrupt operand.",
+    "functionality": "It decides whether the bus transaction writes the enable operand used by irq_o.",
+    "justification": "Its strobe test gates assignment of ctrl.enable and can control the interrupt operand."
+   },
+   {
+    "concept id": "C6",
+    "element": "clk_i",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     242,
+     256,
+     294
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It clocks the interrupt register and the state producing its operands. Stalling clk_i can prevent irq_o from updating or prevent the state and FIFO service sequence from progressing.",
+    "functionality": "It clocks the interrupt register and the state producing its operands.",
+    "justification": "Stalling clk_i can prevent irq_o from updating or prevent the state and FIFO service sequence from progressing."
+   },
+   {
+    "concept id": "C6",
+    "element": "rstn_i",
+    "entity": "neorv32_onewire",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     240,
+     283
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_onewire",
+      "direction": "b"
+     }
+    ],
+    "reason": "It clears irq_o and resets the state contributing to its operands. Asserting reset clears the interrupt request and can block normal service until the peripheral restarts.",
+    "functionality": "It clears irq_o and resets the state contributing to its operands.",
+    "justification": "Asserting reset clears the interrupt request and can block normal service until the peripheral restarts."
+   }
+  ],
+  "not reported": [
+   {
+    "concept id": "C4",
+    "element": "bus_rsp_o.data",
+    "entity": "neorv32_onewire",
+    "reason": "It only carries a readback copy of ctrl.enable and is not primary or a qualifying integrity or availability control for the enable state."
+   },
+   {
+    "concept id": "C4",
+    "element": "clkgen_en_o",
+    "entity": "neorv32_onewire",
+    "reason": "It is a downstream copy of ctrl.enable and does not flow back to modify or gate the stored enable state under the listed objectives."
+   },
+   {
+    "concept id": "C5",
+    "element": "bus_rsp_o.data",
+    "entity": "neorv32_onewire",
+    "reason": "It only carries a readback copy of the timing settings and is not primary or a qualifying integrity or availability control for them."
+   }
+  ],
+  "no primary reason": {}
+ },
+ "problems": [
+  "C4: anchor port 'bus_rsp_o.data' is not among its structural assets",
+  "C4: anchor port 'clkgen_en_o' is not among its structural assets",
+  "C5: anchor port 'bus_rsp_o.data' is not among its structural assets"
+ ],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

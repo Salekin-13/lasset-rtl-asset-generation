@@ -1,0 +1,274 @@
+{
+ "module": "neorv32_cpu_cp_muldiv",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "be3b3faab49b",
+ "user sha": "92fd1ffd9b6b",
+ "usage": {
+  "in": 23516,
+  "out": 14691,
+  "reasoning": 12430,
+  "cached": 12982,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_054d9f91d25b1a87006ace2f3e48e487d18f143938a8dd222d",
+  "request key": "8e45ed1bf966"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_cpu_cp_muldiv\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"Source operand data\",\n      \"Unit\": \"neorv32_cpu_cp_muldiv\",\n      \"Information\": \"The two source operand values are the data consumed by the multiply and divide operations on which the coprocessor's arithmetic result depends.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The operands can be exposed through arithmetic results returned on res_o at lines 325, 327 and 329, and they can be altered or corrupted in the operand capture and arithmetic paths at lines 171, 172, 212, 225, 227, 264, 266, 270 and 272.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could inject altered rs1_i or rs2_i values into the computation or infer sensitive operand information from returned arithmetic results.\",\n      \"Enters Through\": [\n        \"rs1_i\",\n        \"rs2_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        171,\n        172,\n        212,\n        225,\n        227,\n        263,\n        264,\n        266,\n        269,\n        270,\n        272,\n        276,\n        278\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"Multiply/divide result\",\n      \"Unit\": \"neorv32_cpu_cp_muldiv\",\n      \"Information\": \"The computed product, quotient or remainder is the arithmetic result returned to the processor for the requested operation.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"yes\"\n      },\n      \"Rubric Reason\": \"The result is exposed through res_o at lines 325, 327 and 329; its product, quotient and remainder state is modified by clocked and combinational arithmetic at lines 178, 184, 211, 214, 215, 225, 227, 230, 264, 266, 285, 287, 289, 296, 299 and 300; ctrl.out_en and ctrl.state can withhold or replace the result at lines 321-329; and cpu_trap can terminate an incomplete operation before the result is complete at lines 131-145.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could corrupt intermediate arithmetic state, force an early completion, or observe res_o to obtain or alter the returned result.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"res_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        178,\n        184,\n        208,\n        211,\n        212,\n        214,\n        215,\n        225,\n        227,\n        230,\n        256,\n        259,\n        264,\n        266,\n        276,\n        278,\n        280,\n        283,\n        285,\n        287,\n        289,\n        296,\n        299,\n        300\n      ],\n      \"Exit Lines\": [\n        325,\n        327,\n        329\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"Multicycle execution state\",\n      \"Unit\": \"neorv32_cpu_cp_muldiv\",\n      \"Information\": \"The IDLE, BUSY and DONE execution state, together with its coprocessor step counter, determines whether an operation is accepted, iterated or completed. It has no direct entry or exit port because valid_o reports this state rather than carrying it.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"yes\"\n      },\n      \"Rubric Reason\": \"ctrl.state and ctrl.cnt are changed by command acceptance, iteration and trap conditions at lines 107-140; the state controls operation progress and valid_o at lines 131-145 and 213-215; and cpu_trap can force the state to DONE during normal execution at line 131, producing an incorrect completion indication at line 145.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could disturb the state or counter transitions, or assert the trap condition, to skip computation, hold the operation or signal completion incorrectly.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        107,\n        108,\n        109,\n        112,\n        113,\n        122,\n        124,\n        130,\n        132,\n        137,\n        138\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"Multiply/divide execution request\",\n      \"Unit\": \"neorv32_cpu_cp_muldiv\",\n      \"Information\": \"The accepted instruction request, including the selected multiply or divide operation and its signedness and result form, determines whether and how the coprocessor launches the arithmetic operation.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Changing the instruction qualification, operation selection or signedness changes valid_cmd, the start controls or the selected result path at lines 97-99, 148-155 and 323-329; and suppressing or corrupting the command can prevent operation launch through lines 120, 154 and 155.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could alter the instruction-control fields so the wrong arithmetic operation executes or a valid operation is rejected.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        97,\n        98,\n        99,\n        154,\n        155\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"Trap cancellation request\",\n      \"Unit\": \"neorv32_cpu_cp_muldiv\",\n      \"Information\": \"The CPU trap indication is a cancellation control that can terminate a busy multiply or divide operation and cause the unit to report completion.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"yes\"\n      },\n      \"Rubric Reason\": \"ctrl_i.cpu_trap directly changes ctrl.state from BUSY to DONE at line 131, which can discard an incomplete operation and alter the result-valid behavior at line 145; asserting it can therefore interrupt the required transfer and produce an incorrect result.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could inject cpu_trap while an operation is busy to terminate it early and make a partial result appear valid.\",\n      \"Enters Through\": [\n        \"ctrl_i.cpu_trap\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        131\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Concept Name\": \"Result-valid completion status\",\n      \"Unit\": \"neorv32_cpu_cp_muldiv\",\n      \"Information\": \"The completion status tells the consuming processor when res_o contains the result of the accepted operation.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"valid_o can be made incorrect by changing the execution state that drives it at line 145, and withholding or asserting it incorrectly can cause the required result transfer to be missed or consumed at the wrong time.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could suppress or spoof completion status so the processor misses a result or consumes an invalid one.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"valid_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        145\n      ],\n      \"Exit Lines\": [\n        145\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Separate operation-selector and signedness information\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_muldiv\",\n      \"Merged Into\": \"C4\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Intermediate products, quotient steps and sign-adjustment values\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_muldiv\",\n      \"Merged Into\": \"C2\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Internal busy, done and step-pacing signals\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_muldiv\",\n      \"Merged Into\": \"C3\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Build-time multiplier and divider enable choices\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_muldiv\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"FAST_MUL_EN and DIVISION_EN only select generated hardware at lines 25-26 and cannot be changed or withheld at run time.\"\n    },\n    {\n      \"Candidate Name\": \"Clock and reset timing\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_muldiv\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"clk_i and rstn_i only time or initialize the operation state and datapath at lines 104-110, 164-174 and 253-260, and the clock/reset rule excludes them as conceptual assets.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_cpu_cp_muldiv",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_cpu_cp_muldiv",
+    "concept": "Source operand data",
+    "information": "The two source operand values are the data consumed by the multiply and divide operations on which the coprocessor's arithmetic result depends.",
+    "rubric reason": "The operands can be exposed through arithmetic results returned on res_o at lines 325, 327 and 329, and they can be altered or corrupted in the operand capture and arithmetic paths at lines 171, 172, 212, 225, 227, 264, 266, 270 and 272.",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "attack": "An attacker could inject altered rs1_i or rs2_i values into the computation or infer sensitive operand information from returned arithmetic results.",
+    "enters through": [
+     "rs1_i",
+     "rs2_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     171,
+     172,
+     212,
+     225,
+     227,
+     263,
+     264,
+     266,
+     269,
+     270,
+     272,
+     276,
+     278
+    ],
+    "held lines": [],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_cpu_cp_muldiv",
+    "concept": "Multiply/divide result",
+    "information": "The computed product, quotient or remainder is the arithmetic result returned to the processor for the requested operation.",
+    "rubric reason": "The result is exposed through res_o at lines 325, 327 and 329; its product, quotient and remainder state is modified by clocked and combinational arithmetic at lines 178, 184, 211, 214, 215, 225, 227, 230, 264, 266, 285, 287, 289, 296, 299 and 300; ctrl.out_en and ctrl.state can withhold or replace the result at lines 321-329; and cpu_trap can terminate an incomplete operation before the result is complete at lines 131-145.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could corrupt intermediate arithmetic state, force an early completion, or observe res_o to obtain or alter the returned result.",
+    "enters through": [],
+    "leaves through": [
+     "res_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     178,
+     184,
+     208,
+     211,
+     212,
+     214,
+     215,
+     225,
+     227,
+     230,
+     256,
+     259,
+     264,
+     266,
+     276,
+     278,
+     280,
+     283,
+     285,
+     287,
+     289,
+     296,
+     299,
+     300
+    ],
+    "exit lines": [
+     325,
+     327,
+     329
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "yes"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_cpu_cp_muldiv",
+    "concept": "Multicycle execution state",
+    "information": "The IDLE, BUSY and DONE execution state, together with its coprocessor step counter, determines whether an operation is accepted, iterated or completed. It has no direct entry or exit port because valid_o reports this state rather than carrying it.",
+    "rubric reason": "ctrl.state and ctrl.cnt are changed by command acceptance, iteration and trap conditions at lines 107-140; the state controls operation progress and valid_o at lines 131-145 and 213-215; and cpu_trap can force the state to DONE during normal execution at line 131, producing an incorrect completion indication at line 145.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could disturb the state or counter transitions, or assert the trap condition, to skip computation, hold the operation or signal completion incorrectly.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     107,
+     108,
+     109,
+     112,
+     113,
+     122,
+     124,
+     130,
+     132,
+     137,
+     138
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "yes"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_cpu_cp_muldiv",
+    "concept": "Multiply/divide execution request",
+    "information": "The accepted instruction request, including the selected multiply or divide operation and its signedness and result form, determines whether and how the coprocessor launches the arithmetic operation.",
+    "rubric reason": "Changing the instruction qualification, operation selection or signedness changes valid_cmd, the start controls or the selected result path at lines 97-99, 148-155 and 323-329; and suppressing or corrupting the command can prevent operation launch through lines 120, 154 and 155.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could alter the instruction-control fields so the wrong arithmetic operation executes or a valid operation is rejected.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     97,
+     98,
+     99,
+     154,
+     155
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_cpu_cp_muldiv",
+    "concept": "Trap cancellation request",
+    "information": "The CPU trap indication is a cancellation control that can terminate a busy multiply or divide operation and cause the unit to report completion.",
+    "rubric reason": "ctrl_i.cpu_trap directly changes ctrl.state from BUSY to DONE at line 131, which can discard an incomplete operation and alter the result-valid behavior at line 145; asserting it can therefore interrupt the required transfer and produce an incorrect result.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could inject cpu_trap while an operation is busy to terminate it early and make a partial result appear valid.",
+    "enters through": [
+     "ctrl_i.cpu_trap"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     131
+    ],
+    "held lines": [],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "yes"
+    }
+   },
+   {
+    "id": "C6",
+    "unit": "neorv32_cpu_cp_muldiv",
+    "concept": "Result-valid completion status",
+    "information": "The completion status tells the consuming processor when res_o contains the result of the accepted operation.",
+    "rubric reason": "valid_o can be made incorrect by changing the execution state that drives it at line 145, and withholding or asserting it incorrectly can cause the required result transfer to be missed or consumed at the wrong time.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could suppress or spoof completion status so the processor misses a result or consumes an invalid one.",
+    "enters through": [],
+    "leaves through": [
+     "valid_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     145
+    ],
+    "exit lines": [
+     145
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_cpu_cp_muldiv",
+    "concept": "Separate operation-selector and signedness information",
+    "reason": "merged into C4",
+    "merged into": "C4"
+   },
+   {
+    "unit": "neorv32_cpu_cp_muldiv",
+    "concept": "Intermediate products, quotient steps and sign-adjustment values",
+    "reason": "merged into C2",
+    "merged into": "C2"
+   },
+   {
+    "unit": "neorv32_cpu_cp_muldiv",
+    "concept": "Internal busy, done and step-pacing signals",
+    "reason": "merged into C3",
+    "merged into": "C3"
+   },
+   {
+    "unit": "neorv32_cpu_cp_muldiv",
+    "concept": "Build-time multiplier and divider enable choices",
+    "reason": "FAST_MUL_EN and DIVISION_EN only select generated hardware at lines 25-26 and cannot be changed or withheld at run time.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_cp_muldiv",
+    "concept": "Clock and reset timing",
+    "reason": "clk_i and rstn_i only time or initialize the operation state and datapath at lines 104-110, 164-174 and 253-260, and the clock/reset rule excludes them as conceptual assets.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

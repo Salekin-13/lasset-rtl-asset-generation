@@ -1,0 +1,869 @@
+{
+ "module": "neorv32_dmem",
+ "prompt version": "two_phase_p1o_first",
+ "input version": "v1",
+ "phase": 2,
+ "system sha": "021cc963702d",
+ "user sha": "1b3335c6f458",
+ "usage": {
+  "in": 27306,
+  "out": 17319,
+  "reasoning": 11600,
+  "cached": 21986,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_0119d534ed1c9a1f006ad5c9cd3d1c87d18ce9619e0bb25b0d",
+  "request key": "1582aeaef4f6"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_dmem\",\n  \"Concept Walks\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Points\": [\n        {\n          \"Point\": \"mem_access (line 58)\",\n          \"Reached By\": \"holding block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            60,\n            63,\n            66,\n            69,\n            72,\n            75,\n            76,\n            77,\n            78\n          ],\n          \"Answer Reason\": \"The process writes bus data into the memory bytes, reads selected bytes into rdata, and its clock can stall those updates.\"\n        },\n        {\n          \"Point\": \"mem_access (line 86)\",\n          \"Reached By\": \"holding block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            88,\n            92,\n            95,\n            98,\n            101\n          ],\n          \"Answer Reason\": \"The process writes bus data into the memory bytes and its clock can prevent those memory operations from progressing, but this block does not itself release the stored word.\"\n        },\n        {\n          \"Point\": \"dmem_ram_alternative\",\n          \"Reached By\": \"held line\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            106,\n            107,\n            108,\n            109\n          ],\n          \"Answer Reason\": \"The generate block reads the selected memory bytes into rdata, exposing the stored contents on the read path without modifying or blocking them.\"\n        },\n        {\n          \"Point\": \"addr\",\n          \"Reached By\": \"the backward arrow addr --> mem_access (line 58) [addr]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            63,\n            66,\n            69,\n            72,\n            75,\n            76,\n            77,\n            78\n          ],\n          \"Answer Reason\": \"The address indexes both memory writes and reads, so changing it can redirect which stored word is modified or returned.\"\n        },\n        {\n          \"Point\": \"bus_feedback\",\n          \"Reached By\": \"the backward arrow bus_feedback ==> bus_rsp_o [rden]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            124,\n            129\n          ],\n          \"Answer Reason\": \"rden decides whether memory data is released or replaced with zero, so forcing it can expose data on an unintended response, corrupt the returned value, or suppress a required read.\"\n        },\n        {\n          \"Point\": \"bus_rsp_o\",\n          \"Reached By\": \"the arrow bus_feedback ==> bus_rsp_o [rden] and the arrows from the memory blocks carrying rdata\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            129\n          ],\n          \"Answer Reason\": \"bus_rsp_o.data returns rdata when rden is active and otherwise returns zero, allowing the stored word to be observed, changed, or withheld at the boundary.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"rdata\",\n          \"Entity\": \"neorv32_dmem\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"mem_access (line 58)\",\n            \"dmem_ram_alternative\"\n          ],\n          \"Security Objectives\": [\n            \"C\",\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"It produces the selected combined memory word from the byte arrays for a read response.\",\n          \"Justification\": \"As the read element for the stored-word arrays, rdata is the internal value from which the returned memory contents are derived.\",\n          \"Asset Lines\": [\n            75,\n            76,\n            77,\n            78,\n            106,\n            107,\n            108,\n            109\n          ]\n        },\n        {\n          \"Asset RTL\": \"mem_ram_b0\",\n          \"Entity\": \"neorv32_dmem\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [\n            \"mem_ram_b1\",\n            \"mem_ram_b2\",\n            \"mem_ram_b3\"\n          ],\n          \"Found At\": [\n            \"mem_access (line 58)\",\n            \"mem_access (line 86)\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rdata\",\n              \"Primary Entity\": \"neorv32_dmem\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It stores one byte lane of the memory contents and supplies that lane to rdata.\",\n          \"Justification\": \"The stored-word-array rule bars the byte array from being primary, but writes to it alter the read element rdata.\",\n          \"Asset Lines\": [\n            50,\n            63,\n            75,\n            92,\n            106\n          ]\n        },\n        {\n          \"Asset RTL\": \"mem_ram_b1\",\n          \"Entity\": \"neorv32_dmem\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [\n            \"mem_ram_b0\",\n            \"mem_ram_b2\",\n            \"mem_ram_b3\"\n          ],\n          \"Found At\": [\n            \"mem_access (line 58)\",\n            \"mem_access (line 86)\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rdata\",\n              \"Primary Entity\": \"neorv32_dmem\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It stores one byte lane of the memory contents and supplies that lane to rdata.\",\n          \"Justification\": \"The stored-word-array rule bars the byte array from being primary, but writes to it alter the read element rdata.\",\n          \"Asset Lines\": [\n            50,\n            66,\n            76,\n            95,\n            107\n          ]\n        },\n        {\n          \"Asset RTL\": \"mem_ram_b2\",\n          \"Entity\": \"neorv32_dmem\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [\n            \"mem_ram_b0\",\n            \"mem_ram_b1\",\n            \"mem_ram_b3\"\n          ],\n          \"Found At\": [\n            \"mem_access (line 58)\",\n            \"mem_access (line 86)\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rdata\",\n              \"Primary Entity\": \"neorv32_dmem\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It stores one byte lane of the memory contents and supplies that lane to rdata.\",\n          \"Justification\": \"The stored-word-array rule bars the byte array from being primary, but writes to it alter the read element rdata.\",\n          \"Asset Lines\": [\n            50,\n            69,\n            77,\n            98,\n            108\n          ]\n        },\n        {\n          \"Asset RTL\": \"mem_ram_b3\",\n          \"Entity\": \"neorv32_dmem\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [\n            \"mem_ram_b0\",\n            \"mem_ram_b1\",\n            \"mem_ram_b2\"\n          ],\n          \"Found At\": [\n            \"mem_access (line 58)\",\n            \"mem_access (line 86)\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rdata\",\n              \"Primary Entity\": \"neorv32_dmem\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It stores one byte lane of the memory contents and supplies that lane to rdata.\",\n          \"Justification\": \"The stored-word-array rule bars the byte array from being primary, but writes to it alter the read element rdata.\",\n          \"Asset Lines\": [\n            50,\n            72,\n            78,\n            101,\n            109\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_dmem\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"mem_access (line 58)\",\n            \"mem_access (line 86)\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rdata\",\n              \"Primary Entity\": \"neorv32_dmem\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It supplies write data that changes the byte arrays and therefore the word later read into rdata.\",\n          \"Justification\": \"The bus request field is not primary because it is a field of a bus request record, but its explicit writes can modify the stored contents feeding rdata.\",\n          \"Asset Lines\": [\n            63,\n            66,\n            69,\n            72,\n            92,\n            95,\n            98,\n            101\n          ]\n        },\n        {\n          \"Asset RTL\": \"addr\",\n          \"Entity\": \"neorv32_dmem\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"addr\",\n            \"mem_access (line 58)\",\n            \"mem_access (line 86)\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rdata\",\n              \"Primary Entity\": \"neorv32_dmem\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It selects which memory word is written or read for the data-memory operation.\",\n          \"Justification\": \"The address index controls the memory elements that feed or determine the word in rdata, so tampering can return or modify unintended contents.\",\n          \"Asset Lines\": [\n            63,\n            66,\n            69,\n            72,\n            75,\n            76,\n            77,\n            78,\n            92,\n            95,\n            98,\n            101\n          ]\n        },\n        {\n          \"Asset RTL\": \"addr_ff\",\n          \"Entity\": \"neorv32_dmem\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"mem_access (line 86)\",\n            \"dmem_ram_alternative\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rdata\",\n              \"Primary Entity\": \"neorv32_dmem\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It holds the alternative-style read address used to select the memory bytes supplied to rdata.\",\n          \"Justification\": \"Its indexed selection controls which stored word reaches rdata in the alternative implementation.\",\n          \"Asset Lines\": [\n            89,\n            106,\n            107,\n            108,\n            109\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.addr\",\n          \"Entity\": \"neorv32_dmem\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"addr\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rdata\",\n              \"Primary Entity\": \"neorv32_dmem\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It provides the address bits from which the memory index is formed.\",\n          \"Justification\": \"Although it is a bus-request record field, it controls the address used to select the contents returned through rdata.\",\n          \"Asset Lines\": [\n            113\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.ben\",\n          \"Entity\": \"neorv32_dmem\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"mem_access (line 58)\",\n            \"mem_access (line 86)\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rdata\",\n              \"Primary Entity\": \"neorv32_dmem\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It selects which byte lanes of the stored word are overwritten.\",\n          \"Justification\": \"The byte-enable conditions can steer or block writes to the arrays that feed rdata.\",\n          \"Asset Lines\": [\n            62,\n            65,\n            68,\n            71,\n            91,\n            94,\n            97,\n            100\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.rw\",\n          \"Entity\": \"neorv32_dmem\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"mem_access (line 58)\",\n            \"mem_access (line 86)\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rdata\",\n              \"Primary Entity\": \"neorv32_dmem\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It selects whether the memory access performs a write and also contributes to the read-release decision.\",\n          \"Justification\": \"Its write condition controls changes to the arrays that supply rdata.\",\n          \"Asset Lines\": [\n            61,\n            90\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.stb\",\n          \"Entity\": \"neorv32_dmem\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"mem_access (line 58)\",\n            \"mem_access (line 86)\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rdata\",\n              \"Primary Entity\": \"neorv32_dmem\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It qualifies memory writes and contributes to the request timing used by the response path.\",\n          \"Justification\": \"Its write condition can block or permit modifications to the arrays feeding rdata.\",\n          \"Asset Lines\": [\n            61,\n            90\n          ]\n        },\n        {\n          \"Asset RTL\": \"rden\",\n          \"Entity\": \"neorv32_dmem\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_feedback\",\n            \"bus_rsp_o\"\n          ],\n          \"Security Objectives\": [\n            \"C\",\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rdata\",\n              \"Primary Entity\": \"neorv32_dmem\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It controls whether rdata is released on bus_rsp_o.data or replaced by zero.\",\n          \"Justification\": \"It decides the release of the primary memory word, threatening confidentiality, response integrity, and availability.\",\n          \"Asset Lines\": [\n            124,\n            129\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_rsp_o.data\",\n          \"Entity\": \"neorv32_dmem\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_rsp_o\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rdata\",\n              \"Primary Entity\": \"neorv32_dmem\",\n              \"Direction\": \"a\"\n            }\n          ],\n          \"Functionality\": \"It carries the selected memory word from rdata across the unit boundary.\",\n          \"Justification\": \"A response-record field is barred from being primary, but it carries the primary read value outward and can expose it.\",\n          \"Asset Lines\": [\n            129\n          ]\n        },\n        {\n          \"Asset RTL\": \"clk_i\",\n          \"Entity\": \"neorv32_dmem\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"mem_access (line 58)\",\n            \"mem_access (line 86)\"\n          ],\n          \"Security Objectives\": [\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rdata\",\n              \"Primary Entity\": \"neorv32_dmem\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It paces the clocked memory and read-data updates.\",\n          \"Justification\": \"Holding the clock can stall the clocked storage and read production needed for the memory contents.\",\n          \"Asset Lines\": [\n            60,\n            88\n          ]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Points\": [\n        {\n          \"Point\": \"addr\",\n          \"Reached By\": \"holding block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            113\n          ],\n          \"Answer Reason\": \"The address index is formed directly from bus_req_i.addr, so changing the request can change the selected memory word.\"\n        },\n        {\n          \"Point\": \"mem_access (line 58)\",\n          \"Reached By\": \"the arrow addr --> mem_access (line 58) [addr]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            63,\n            66,\n            69,\n            72,\n            75,\n            76,\n            77,\n            78\n          ],\n          \"Answer Reason\": \"addr is used as an index for both writes and reads, allowing an altered address to modify or return a different memory word.\"\n        },\n        {\n          \"Point\": \"mem_access (line 86)\",\n          \"Reached By\": \"the arrow addr ==> mem_access (line 86) [addr]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            89,\n            92,\n            95,\n            98,\n            101\n          ],\n          \"Answer Reason\": \"The address is captured and used to index the alternative memory accesses, so an altered selection can redirect writes or reads.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"addr\",\n          \"Entity\": \"neorv32_dmem\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"addr\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"It holds the address-derived index that selects the memory word for the access.\",\n          \"Justification\": \"It is the internal wire that computes the address selection used directly by the memory accesses.\",\n          \"Asset Lines\": [\n            113\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.addr\",\n          \"Entity\": \"neorv32_dmem\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"addr\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"addr\",\n              \"Primary Entity\": \"neorv32_dmem\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It supplies the address slice used to compute addr.\",\n          \"Justification\": \"The bus-request record field is not primary, but it directly controls the internal address selection.\",\n          \"Asset Lines\": [\n            113\n          ]\n        }\n      ],\n      \"Not Reported\": [\n        {\n          \"Element RTL\": \"addr_ff\",\n          \"Element Entity\": \"neorv32_dmem\",\n          \"Why Not Reported\": \"It only copies and retimes addr for the alternative read path, and that forwarding direction does not threaten this concept's integrity objective.\"\n        }\n      ],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Points\": [\n        {\n          \"Point\": \"bus_feedback\",\n          \"Reached By\": \"holding block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            120,\n            124\n          ],\n          \"Answer Reason\": \"rden is loaded from bus request strobe and direction fields and is cleared by reset, so those controls can make the response decision wrong or inactive.\"\n        },\n        {\n          \"Point\": \"bus_rsp_o\",\n          \"Reached By\": \"the arrow bus_feedback ==> bus_rsp_o [rden]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            129\n          ],\n          \"Answer Reason\": \"The rden-controlled assignment returns memory data or zero, so changing rden can corrupt the response or suppress a required read.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"rden\",\n          \"Entity\": \"neorv32_dmem\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_feedback\",\n            \"bus_rsp_o\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"It stores the registered decision that releases or suppresses read data.\",\n          \"Justification\": \"rden is the internal register that makes the read-release decision and directly gates bus_rsp_o.data.\",\n          \"Asset Lines\": [\n            121,\n            124,\n            129\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.stb\",\n          \"Entity\": \"neorv32_dmem\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_feedback\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rden\",\n              \"Primary Entity\": \"neorv32_dmem\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It contributes to the registered read-release decision.\",\n          \"Justification\": \"Changing the request strobe changes rden and can make a read response decision incorrect or unavailable.\",\n          \"Asset Lines\": [\n            124\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.rw\",\n          \"Entity\": \"neorv32_dmem\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_feedback\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rden\",\n              \"Primary Entity\": \"neorv32_dmem\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It contributes the read-versus-write qualification used to load rden.\",\n          \"Justification\": \"Changing the request direction changes whether rden releases data and can therefore corrupt or suppress a read response.\",\n          \"Asset Lines\": [\n            124\n          ]\n        },\n        {\n          \"Asset RTL\": \"clk_i\",\n          \"Entity\": \"neorv32_dmem\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_feedback\"\n          ],\n          \"Security Objectives\": [\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rden\",\n              \"Primary Entity\": \"neorv32_dmem\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It paces updates of the rden register.\",\n          \"Justification\": \"Holding the clock can prevent rden from being updated and block the read-release decision.\",\n          \"Asset Lines\": [\n            123\n          ]\n        },\n        {\n          \"Asset RTL\": \"rstn_i\",\n          \"Entity\": \"neorv32_dmem\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_feedback\"\n          ],\n          \"Security Objectives\": [\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rden\",\n              \"Primary Entity\": \"neorv32_dmem\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It resets rden to the inactive state.\",\n          \"Justification\": \"Asserting reset clears the read-release decision and can suppress the required response data.\",\n          \"Asset Lines\": [\n            120,\n            121\n          ]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    }\n  ],\n  \"Notes\": [\n    \"alt_style_c is a constant false at line 36, so the dmem_ram_alternative generate branch is not elaborated in the shown build even though the diagram and fixed concept list include its RTL.\"\n  ]\n}",
+ "reply": {
+  "module name": "neorv32_dmem",
+  "notes": [
+   "alt_style_c is a constant false at line 36, so the dmem_ram_alternative generate branch is not elaborated in the shown build even though the diagram and fixed concept list include its RTL."
+  ],
+  "points": [
+   {
+    "concept id": "C1",
+    "point": "mem_access (line 58)",
+    "reached by": "holding block",
+    "lines": [
+     60,
+     63,
+     66,
+     69,
+     72,
+     75,
+     76,
+     77,
+     78
+    ],
+    "reason": "The process writes bus data into the memory bytes, reads selected bytes into rdata, and its clock can stall those updates.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "mem_access (line 86)",
+    "reached by": "holding block",
+    "lines": [
+     88,
+     92,
+     95,
+     98,
+     101
+    ],
+    "reason": "The process writes bus data into the memory bytes and its clock can prevent those memory operations from progressing, but this block does not itself release the stored word.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "dmem_ram_alternative",
+    "reached by": "held line",
+    "lines": [
+     106,
+     107,
+     108,
+     109
+    ],
+    "reason": "The generate block reads the selected memory bytes into rdata, exposing the stored contents on the read path without modifying or blocking them.",
+    "confidentiality": "yes",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "addr",
+    "reached by": "the backward arrow addr --> mem_access (line 58) [addr]",
+    "lines": [
+     63,
+     66,
+     69,
+     72,
+     75,
+     76,
+     77,
+     78
+    ],
+    "reason": "The address indexes both memory writes and reads, so changing it can redirect which stored word is modified or returned.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "bus_feedback",
+    "reached by": "the backward arrow bus_feedback ==> bus_rsp_o [rden]",
+    "lines": [
+     124,
+     129
+    ],
+    "reason": "rden decides whether memory data is released or replaced with zero, so forcing it can expose data on an unintended response, corrupt the returned value, or suppress a required read.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "bus_rsp_o",
+    "reached by": "the arrow bus_feedback ==> bus_rsp_o [rden] and the arrows from the memory blocks carrying rdata",
+    "lines": [
+     129
+    ],
+    "reason": "bus_rsp_o.data returns rdata when rden is active and otherwise returns zero, allowing the stored word to be observed, changed, or withheld at the boundary.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "addr",
+    "reached by": "holding block",
+    "lines": [
+     113
+    ],
+    "reason": "The address index is formed directly from bus_req_i.addr, so changing the request can change the selected memory word.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "mem_access (line 58)",
+    "reached by": "the arrow addr --> mem_access (line 58) [addr]",
+    "lines": [
+     63,
+     66,
+     69,
+     72,
+     75,
+     76,
+     77,
+     78
+    ],
+    "reason": "addr is used as an index for both writes and reads, allowing an altered address to modify or return a different memory word.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "mem_access (line 86)",
+    "reached by": "the arrow addr ==> mem_access (line 86) [addr]",
+    "lines": [
+     89,
+     92,
+     95,
+     98,
+     101
+    ],
+    "reason": "The address is captured and used to index the alternative memory accesses, so an altered selection can redirect writes or reads.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "bus_feedback",
+    "reached by": "holding block",
+    "lines": [
+     120,
+     124
+    ],
+    "reason": "rden is loaded from bus request strobe and direction fields and is cleared by reset, so those controls can make the response decision wrong or inactive.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "bus_rsp_o",
+    "reached by": "the arrow bus_feedback ==> bus_rsp_o [rden]",
+    "lines": [
+     129
+    ],
+    "reason": "The rden-controlled assignment returns memory data or zero, so changing rden can corrupt the response or suppress a required read.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   }
+  ],
+  "structural assets": [
+   {
+    "concept id": "C1",
+    "element": "rdata",
+    "entity": "neorv32_dmem",
+    "same role": [],
+    "points": [
+     "mem_access (line 58)",
+     "dmem_ram_alternative"
+    ],
+    "label": "primary",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "lines": [
+     75,
+     76,
+     77,
+     78,
+     106,
+     107,
+     108,
+     109
+    ],
+    "links": [],
+    "reason": "It produces the selected combined memory word from the byte arrays for a read response. As the read element for the stored-word arrays, rdata is the internal value from which the returned memory contents are derived.",
+    "functionality": "It produces the selected combined memory word from the byte arrays for a read response.",
+    "justification": "As the read element for the stored-word arrays, rdata is the internal value from which the returned memory contents are derived."
+   },
+   {
+    "concept id": "C1",
+    "element": "mem_ram_b0",
+    "entity": "neorv32_dmem",
+    "same role": [
+     "mem_ram_b1",
+     "mem_ram_b2",
+     "mem_ram_b3"
+    ],
+    "points": [
+     "mem_access (line 58)",
+     "mem_access (line 86)"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     50,
+     63,
+     75,
+     92,
+     106
+    ],
+    "links": [
+     {
+      "primary": "rdata",
+      "entity": "neorv32_dmem",
+      "direction": "b"
+     }
+    ],
+    "reason": "It stores one byte lane of the memory contents and supplies that lane to rdata. The stored-word-array rule bars the byte array from being primary, but writes to it alter the read element rdata.",
+    "functionality": "It stores one byte lane of the memory contents and supplies that lane to rdata.",
+    "justification": "The stored-word-array rule bars the byte array from being primary, but writes to it alter the read element rdata."
+   },
+   {
+    "concept id": "C1",
+    "element": "mem_ram_b1",
+    "entity": "neorv32_dmem",
+    "same role": [
+     "mem_ram_b0",
+     "mem_ram_b2",
+     "mem_ram_b3"
+    ],
+    "points": [
+     "mem_access (line 58)",
+     "mem_access (line 86)"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     50,
+     66,
+     76,
+     95,
+     107
+    ],
+    "links": [
+     {
+      "primary": "rdata",
+      "entity": "neorv32_dmem",
+      "direction": "b"
+     }
+    ],
+    "reason": "It stores one byte lane of the memory contents and supplies that lane to rdata. The stored-word-array rule bars the byte array from being primary, but writes to it alter the read element rdata.",
+    "functionality": "It stores one byte lane of the memory contents and supplies that lane to rdata.",
+    "justification": "The stored-word-array rule bars the byte array from being primary, but writes to it alter the read element rdata."
+   },
+   {
+    "concept id": "C1",
+    "element": "mem_ram_b2",
+    "entity": "neorv32_dmem",
+    "same role": [
+     "mem_ram_b0",
+     "mem_ram_b1",
+     "mem_ram_b3"
+    ],
+    "points": [
+     "mem_access (line 58)",
+     "mem_access (line 86)"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     50,
+     69,
+     77,
+     98,
+     108
+    ],
+    "links": [
+     {
+      "primary": "rdata",
+      "entity": "neorv32_dmem",
+      "direction": "b"
+     }
+    ],
+    "reason": "It stores one byte lane of the memory contents and supplies that lane to rdata. The stored-word-array rule bars the byte array from being primary, but writes to it alter the read element rdata.",
+    "functionality": "It stores one byte lane of the memory contents and supplies that lane to rdata.",
+    "justification": "The stored-word-array rule bars the byte array from being primary, but writes to it alter the read element rdata."
+   },
+   {
+    "concept id": "C1",
+    "element": "mem_ram_b3",
+    "entity": "neorv32_dmem",
+    "same role": [
+     "mem_ram_b0",
+     "mem_ram_b1",
+     "mem_ram_b2"
+    ],
+    "points": [
+     "mem_access (line 58)",
+     "mem_access (line 86)"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     50,
+     72,
+     78,
+     101,
+     109
+    ],
+    "links": [
+     {
+      "primary": "rdata",
+      "entity": "neorv32_dmem",
+      "direction": "b"
+     }
+    ],
+    "reason": "It stores one byte lane of the memory contents and supplies that lane to rdata. The stored-word-array rule bars the byte array from being primary, but writes to it alter the read element rdata.",
+    "functionality": "It stores one byte lane of the memory contents and supplies that lane to rdata.",
+    "justification": "The stored-word-array rule bars the byte array from being primary, but writes to it alter the read element rdata."
+   },
+   {
+    "concept id": "C1",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_dmem",
+    "same role": [],
+    "points": [
+     "mem_access (line 58)",
+     "mem_access (line 86)"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     63,
+     66,
+     69,
+     72,
+     92,
+     95,
+     98,
+     101
+    ],
+    "links": [
+     {
+      "primary": "rdata",
+      "entity": "neorv32_dmem",
+      "direction": "b"
+     }
+    ],
+    "reason": "It supplies write data that changes the byte arrays and therefore the word later read into rdata. The bus request field is not primary because it is a field of a bus request record, but its explicit writes can modify the stored contents feeding rdata.",
+    "functionality": "It supplies write data that changes the byte arrays and therefore the word later read into rdata.",
+    "justification": "The bus request field is not primary because it is a field of a bus request record, but its explicit writes can modify the stored contents feeding rdata."
+   },
+   {
+    "concept id": "C1",
+    "element": "addr",
+    "entity": "neorv32_dmem",
+    "same role": [],
+    "points": [
+     "addr",
+     "mem_access (line 58)",
+     "mem_access (line 86)"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     63,
+     66,
+     69,
+     72,
+     75,
+     76,
+     77,
+     78,
+     92,
+     95,
+     98,
+     101
+    ],
+    "links": [
+     {
+      "primary": "rdata",
+      "entity": "neorv32_dmem",
+      "direction": "b"
+     }
+    ],
+    "reason": "It selects which memory word is written or read for the data-memory operation. The address index controls the memory elements that feed or determine the word in rdata, so tampering can return or modify unintended contents.",
+    "functionality": "It selects which memory word is written or read for the data-memory operation.",
+    "justification": "The address index controls the memory elements that feed or determine the word in rdata, so tampering can return or modify unintended contents."
+   },
+   {
+    "concept id": "C1",
+    "element": "addr_ff",
+    "entity": "neorv32_dmem",
+    "same role": [],
+    "points": [
+     "mem_access (line 86)",
+     "dmem_ram_alternative"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     89,
+     106,
+     107,
+     108,
+     109
+    ],
+    "links": [
+     {
+      "primary": "rdata",
+      "entity": "neorv32_dmem",
+      "direction": "b"
+     }
+    ],
+    "reason": "It holds the alternative-style read address used to select the memory bytes supplied to rdata. Its indexed selection controls which stored word reaches rdata in the alternative implementation.",
+    "functionality": "It holds the alternative-style read address used to select the memory bytes supplied to rdata.",
+    "justification": "Its indexed selection controls which stored word reaches rdata in the alternative implementation."
+   },
+   {
+    "concept id": "C1",
+    "element": "bus_req_i.addr",
+    "entity": "neorv32_dmem",
+    "same role": [],
+    "points": [
+     "addr"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     113
+    ],
+    "links": [
+     {
+      "primary": "rdata",
+      "entity": "neorv32_dmem",
+      "direction": "b"
+     }
+    ],
+    "reason": "It provides the address bits from which the memory index is formed. Although it is a bus-request record field, it controls the address used to select the contents returned through rdata.",
+    "functionality": "It provides the address bits from which the memory index is formed.",
+    "justification": "Although it is a bus-request record field, it controls the address used to select the contents returned through rdata."
+   },
+   {
+    "concept id": "C1",
+    "element": "bus_req_i.ben",
+    "entity": "neorv32_dmem",
+    "same role": [],
+    "points": [
+     "mem_access (line 58)",
+     "mem_access (line 86)"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     62,
+     65,
+     68,
+     71,
+     91,
+     94,
+     97,
+     100
+    ],
+    "links": [
+     {
+      "primary": "rdata",
+      "entity": "neorv32_dmem",
+      "direction": "b"
+     }
+    ],
+    "reason": "It selects which byte lanes of the stored word are overwritten. The byte-enable conditions can steer or block writes to the arrays that feed rdata.",
+    "functionality": "It selects which byte lanes of the stored word are overwritten.",
+    "justification": "The byte-enable conditions can steer or block writes to the arrays that feed rdata."
+   },
+   {
+    "concept id": "C1",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_dmem",
+    "same role": [],
+    "points": [
+     "mem_access (line 58)",
+     "mem_access (line 86)"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     61,
+     90
+    ],
+    "links": [
+     {
+      "primary": "rdata",
+      "entity": "neorv32_dmem",
+      "direction": "b"
+     }
+    ],
+    "reason": "It selects whether the memory access performs a write and also contributes to the read-release decision. Its write condition controls changes to the arrays that supply rdata.",
+    "functionality": "It selects whether the memory access performs a write and also contributes to the read-release decision.",
+    "justification": "Its write condition controls changes to the arrays that supply rdata."
+   },
+   {
+    "concept id": "C1",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_dmem",
+    "same role": [],
+    "points": [
+     "mem_access (line 58)",
+     "mem_access (line 86)"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     61,
+     90
+    ],
+    "links": [
+     {
+      "primary": "rdata",
+      "entity": "neorv32_dmem",
+      "direction": "b"
+     }
+    ],
+    "reason": "It qualifies memory writes and contributes to the request timing used by the response path. Its write condition can block or permit modifications to the arrays feeding rdata.",
+    "functionality": "It qualifies memory writes and contributes to the request timing used by the response path.",
+    "justification": "Its write condition can block or permit modifications to the arrays feeding rdata."
+   },
+   {
+    "concept id": "C1",
+    "element": "rden",
+    "entity": "neorv32_dmem",
+    "same role": [],
+    "points": [
+     "bus_feedback",
+     "bus_rsp_o"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "lines": [
+     124,
+     129
+    ],
+    "links": [
+     {
+      "primary": "rdata",
+      "entity": "neorv32_dmem",
+      "direction": "b"
+     }
+    ],
+    "reason": "It controls whether rdata is released on bus_rsp_o.data or replaced by zero. It decides the release of the primary memory word, threatening confidentiality, response integrity, and availability.",
+    "functionality": "It controls whether rdata is released on bus_rsp_o.data or replaced by zero.",
+    "justification": "It decides the release of the primary memory word, threatening confidentiality, response integrity, and availability."
+   },
+   {
+    "concept id": "C1",
+    "element": "bus_rsp_o.data",
+    "entity": "neorv32_dmem",
+    "same role": [],
+    "points": [
+     "bus_rsp_o"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     129
+    ],
+    "links": [
+     {
+      "primary": "rdata",
+      "entity": "neorv32_dmem",
+      "direction": "a"
+     }
+    ],
+    "reason": "It carries the selected memory word from rdata across the unit boundary. A response-record field is barred from being primary, but it carries the primary read value outward and can expose it.",
+    "functionality": "It carries the selected memory word from rdata across the unit boundary.",
+    "justification": "A response-record field is barred from being primary, but it carries the primary read value outward and can expose it."
+   },
+   {
+    "concept id": "C1",
+    "element": "clk_i",
+    "entity": "neorv32_dmem",
+    "same role": [],
+    "points": [
+     "mem_access (line 58)",
+     "mem_access (line 86)"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     60,
+     88
+    ],
+    "links": [
+     {
+      "primary": "rdata",
+      "entity": "neorv32_dmem",
+      "direction": "b"
+     }
+    ],
+    "reason": "It paces the clocked memory and read-data updates. Holding the clock can stall the clocked storage and read production needed for the memory contents.",
+    "functionality": "It paces the clocked memory and read-data updates.",
+    "justification": "Holding the clock can stall the clocked storage and read production needed for the memory contents."
+   },
+   {
+    "concept id": "C2",
+    "element": "addr",
+    "entity": "neorv32_dmem",
+    "same role": [],
+    "points": [
+     "addr"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     113
+    ],
+    "links": [],
+    "reason": "It holds the address-derived index that selects the memory word for the access. It is the internal wire that computes the address selection used directly by the memory accesses.",
+    "functionality": "It holds the address-derived index that selects the memory word for the access.",
+    "justification": "It is the internal wire that computes the address selection used directly by the memory accesses."
+   },
+   {
+    "concept id": "C2",
+    "element": "bus_req_i.addr",
+    "entity": "neorv32_dmem",
+    "same role": [],
+    "points": [
+     "addr"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     113
+    ],
+    "links": [
+     {
+      "primary": "addr",
+      "entity": "neorv32_dmem",
+      "direction": "b"
+     }
+    ],
+    "reason": "It supplies the address slice used to compute addr. The bus-request record field is not primary, but it directly controls the internal address selection.",
+    "functionality": "It supplies the address slice used to compute addr.",
+    "justification": "The bus-request record field is not primary, but it directly controls the internal address selection."
+   },
+   {
+    "concept id": "C3",
+    "element": "rden",
+    "entity": "neorv32_dmem",
+    "same role": [],
+    "points": [
+     "bus_feedback",
+     "bus_rsp_o"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     121,
+     124,
+     129
+    ],
+    "links": [],
+    "reason": "It stores the registered decision that releases or suppresses read data. rden is the internal register that makes the read-release decision and directly gates bus_rsp_o.data.",
+    "functionality": "It stores the registered decision that releases or suppresses read data.",
+    "justification": "rden is the internal register that makes the read-release decision and directly gates bus_rsp_o.data."
+   },
+   {
+    "concept id": "C3",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_dmem",
+    "same role": [],
+    "points": [
+     "bus_feedback"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     124
+    ],
+    "links": [
+     {
+      "primary": "rden",
+      "entity": "neorv32_dmem",
+      "direction": "b"
+     }
+    ],
+    "reason": "It contributes to the registered read-release decision. Changing the request strobe changes rden and can make a read response decision incorrect or unavailable.",
+    "functionality": "It contributes to the registered read-release decision.",
+    "justification": "Changing the request strobe changes rden and can make a read response decision incorrect or unavailable."
+   },
+   {
+    "concept id": "C3",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_dmem",
+    "same role": [],
+    "points": [
+     "bus_feedback"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     124
+    ],
+    "links": [
+     {
+      "primary": "rden",
+      "entity": "neorv32_dmem",
+      "direction": "b"
+     }
+    ],
+    "reason": "It contributes the read-versus-write qualification used to load rden. Changing the request direction changes whether rden releases data and can therefore corrupt or suppress a read response.",
+    "functionality": "It contributes the read-versus-write qualification used to load rden.",
+    "justification": "Changing the request direction changes whether rden releases data and can therefore corrupt or suppress a read response."
+   },
+   {
+    "concept id": "C3",
+    "element": "clk_i",
+    "entity": "neorv32_dmem",
+    "same role": [],
+    "points": [
+     "bus_feedback"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     123
+    ],
+    "links": [
+     {
+      "primary": "rden",
+      "entity": "neorv32_dmem",
+      "direction": "b"
+     }
+    ],
+    "reason": "It paces updates of the rden register. Holding the clock can prevent rden from being updated and block the read-release decision.",
+    "functionality": "It paces updates of the rden register.",
+    "justification": "Holding the clock can prevent rden from being updated and block the read-release decision."
+   },
+   {
+    "concept id": "C3",
+    "element": "rstn_i",
+    "entity": "neorv32_dmem",
+    "same role": [],
+    "points": [
+     "bus_feedback"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     120,
+     121
+    ],
+    "links": [
+     {
+      "primary": "rden",
+      "entity": "neorv32_dmem",
+      "direction": "b"
+     }
+    ],
+    "reason": "It resets rden to the inactive state. Asserting reset clears the read-release decision and can suppress the required response data.",
+    "functionality": "It resets rden to the inactive state.",
+    "justification": "Asserting reset clears the read-release decision and can suppress the required response data."
+   }
+  ],
+  "not reported": [
+   {
+    "concept id": "C2",
+    "element": "addr_ff",
+    "entity": "neorv32_dmem",
+    "reason": "It only copies and retimes addr for the alternative read path, and that forwarding direction does not threaten this concept's integrity objective."
+   }
+  ],
+  "no primary reason": {}
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

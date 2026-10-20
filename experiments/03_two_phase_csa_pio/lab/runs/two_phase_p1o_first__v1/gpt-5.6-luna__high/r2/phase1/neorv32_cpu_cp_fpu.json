@@ -1,0 +1,437 @@
+{
+ "module": "neorv32_cpu_cp_fpu",
+ "prompt version": "two_phase_p1o_first",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "b4c962e16261",
+ "user sha": "17781b4db558",
+ "usage": {
+  "in": 91435,
+  "out": 16829,
+  "reasoning": 13415,
+  "cached": 91432,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_05e16a8391d3811b006ad5a771a5d887d186815a5a59264e72",
+  "request key": "5dfd72bdb696"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_cpu_cp_fpu\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"Floating-point operand data\",\n      \"Unit\": \"neorv32_cpu_cp_fpu\",\n      \"Information\": \"The floating-point values received as rs1_i and rs2_i are captured, classified and used by the supported operations; min/max and sign-injection operations can return operand-derived values.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"An integrator may treat operand values as private data, and the operands are captured internally and can be exposed through operand-derived results on res_o at lines 437, 439, 1507 and 1510. Changing either operand or its captured copy can change the arithmetic, comparison or selected result at lines 437, 439, 673-676 and 1137.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could alter or observe an operand at the input or captured operand path, causing an incorrect result or inferring operand data from res_o.\",\n      \"Enters Through\": [\n        \"rs1_i\",\n        \"rs2_i\"\n      ],\n      \"Leaves Through\": [\n        \"res_o\"\n      ],\n      \"Entry Lines\": [\n        347,\n        348,\n        349,\n        351,\n        352,\n        353\n      ],\n      \"Held Lines\": [\n        437,\n        439\n      ],\n      \"Exit Lines\": [\n        1498,\n        1501,\n        1504,\n        1507,\n        1510,\n        1513\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"Floating-point operation command\",\n      \"Unit\": \"neorv32_cpu_cp_fpu\",\n      \"Information\": \"The instruction function fields and comparison selection identify the floating-point operation and result form that the unit must perform.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The operation command is sensitive control information because changing the instruction decode or comparison selection can select an unintended result path, as shown by lines 316-340, 598 and 715. Invalid or altered command fields can prevent dispatch through cmd.valid and the control FSM at lines 326-340 and 435-443.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could modify the instruction function or comparison selection so that the wrong operation executes or no operation is accepted.\",\n      \"Enters Through\": [\n        \"ctrl_i\",\n        \"cmp_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        316,\n        317,\n        318,\n        319,\n        320,\n        321,\n        322,\n        323,\n        326,\n        333,\n        426\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"FPU execution dispatch and abort control\",\n      \"Unit\": \"neorv32_cpu_cp_fpu\",\n      \"Information\": \"The FPU enable and trap/abort controls determine whether a decoded operation is accepted and whether an active operation is cancelled.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"These control inputs can change the operation lifecycle: alu_cp_fpu gates capture and start at line 435, while cpu_trap aborts or ends the operation at lines 448, 696 and 1464. Removing the enable or asserting the abort can block the required operation and its result at lines 435-450.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could suppress the FPU enable or inject an abort request to prevent a valid operation from completing.\",\n      \"Enters Through\": [\n        \"ctrl_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        435,\n        448,\n        696,\n        1464\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"Effective floating-point rounding mode\",\n      \"Unit\": \"neorv32_cpu_cp_fpu\",\n      \"Information\": \"The effective rounding mode is taken either from the stored frm CSR setting or from the instruction's rounding-mode field and controls result rounding and exception behavior.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Rounding mode is configuration material that changes produced results: it is written into csr_frm at lines 287 and 291, selected into fpu_operands.frm at lines 429-432, and used by the rounding logic at lines 1830-1838 and 1904-1942.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could overwrite the rounding-mode setting or alter the per-operation selection so that results and flags are rounded incorrectly.\",\n      \"Enters Through\": [\n        \"ctrl_i\",\n        \"csr_wdata_i\"\n      ],\n      \"Leaves Through\": [\n        \"csr_rdata_o\"\n      ],\n      \"Entry Lines\": [\n        287,\n        291,\n        430,\n        432\n      ],\n      \"Held Lines\": [\n        277,\n        287,\n        291,\n        430,\n        432\n      ],\n      \"Exit Lines\": [\n        306,\n        307\n      ]\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"Floating-point result data\",\n      \"Unit\": \"neorv32_cpu_cp_fpu\",\n      \"Information\": \"The computed floating-point result is produced from the operands, selected operation and rounding behavior and is returned to the processor through res_o.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"An integrator may consider computed numeric results private, and the result is exposed at res_o through the output selection paths at lines 1498-1513. The result can be modified by corrupting the selected functional-unit result or output selection at lines 1495-1515. The output gate clears and withholds the result until completion at lines 1493-1495, so blocking that control prevents the FPU function from returning a result.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could corrupt an intermediate result or suppress the valid-controlled output update, exposing or altering the returned floating-point value or withholding it.\",\n      \"Enters Through\": [\n        \"rs1_i\",\n        \"rs2_i\"\n      ],\n      \"Leaves Through\": [\n        \"res_o\"\n      ],\n      \"Entry Lines\": [\n        347,\n        348,\n        349,\n        351,\n        352,\n        353\n      ],\n      \"Held Lines\": [\n        1490,\n        1493,\n        1498,\n        1501,\n        1504,\n        1507,\n        1510,\n        1513,\n        1884,\n        1885,\n        1886,\n        2294\n      ],\n      \"Exit Lines\": [\n        1498,\n        1501,\n        1504,\n        1507,\n        1510,\n        1513\n      ]\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Concept Name\": \"Floating-point exception status\",\n      \"Unit\": \"neorv32_cpu_cp_fpu\",\n      \"Information\": \"The exception flags generated by floating-point operations are held in fflags, accumulated in csr_fflags and made available through the CSR readback interface.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The exception status is sensitive architectural state because incorrect flags change software's interpretation of an operation; the unit generates and stores flags at lines 1499-1514 and accumulates them into csr_fflags at line 295, while CSR writes can overwrite them at lines 283 and 292.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could overwrite, suppress or inject exception flags so software accepts an invalid result or handles a valid result incorrectly.\",\n      \"Enters Through\": [\n        \"csr_wdata_i\"\n      ],\n      \"Leaves Through\": [\n        \"csr_rdata_o\"\n      ],\n      \"Entry Lines\": [\n        283,\n        292\n      ],\n      \"Held Lines\": [\n        278,\n        283,\n        292,\n        295,\n        1491,\n        1494,\n        1499,\n        1502,\n        1505,\n        1508,\n        1511,\n        1514\n      ],\n      \"Exit Lines\": [\n        305,\n        307\n      ]\n    },\n    {\n      \"Concept ID\": \"C7\",\n      \"Concept Name\": \"FPU CSR access command\",\n      \"Unit\": \"neorv32_cpu_cp_fpu\",\n      \"Information\": \"The CSR write-enable and address inputs determine whether the FPU's rounding-mode or exception-status register is written or returned.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The CSR access command controls which protected FPU state can be changed or read through the tests and case selection at lines 280-304, so altering it can redirect a write to csr_frm or csr_fflags or select an unintended readback.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could change csr_we_i or csr_addr_i to overwrite the wrong FPU CSR or select unauthorized status/configuration readback.\",\n      \"Enters Through\": [\n        \"csr_we_i\",\n        \"csr_addr_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        280,\n        282,\n        286,\n        290,\n        304\n      ],\n      \"Held Lines\": [\n        280,\n        282,\n        286,\n        290,\n        304\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C8\",\n      \"Concept Name\": \"FPU operation progress state\",\n      \"Unit\": \"neorv32_cpu_cp_fpu\",\n      \"Information\": \"The internally generated control and progress state sequences single-cycle and multi-cycle FPU operations, determines when their results are complete and drives valid_o; it has no entry port because it is produced internally.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The control FSM and the child operation engines hold and advance progress state that determines completion and result release at lines 405, 443, 448-450, 1621-1862 and 2055-2278. Corrupting this state can release an incomplete result or prevent valid_o from asserting, while the same state and done paths can block completion at lines 448-462.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could corrupt the operation state or counters to skip computation, repeatedly hold the FPU busy or suppress completion.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"valid_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        405,\n        406,\n        443,\n        449,\n        450,\n        455,\n        1621,\n        1623,\n        1641,\n        1665,\n        1681,\n        1683,\n        1695,\n        1701,\n        1703,\n        1733,\n        1734,\n        1736,\n        1746,\n        1755,\n        1757,\n        1789,\n        1818,\n        1861,\n        1862,\n        1872,\n        2055,\n        2056,\n        2072,\n        2091,\n        2095,\n        2128,\n        2132,\n        2142,\n        2144,\n        2160,\n        2176,\n        2277,\n        2278,\n        2288\n      ],\n      \"Exit Lines\": [\n        462\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Clock and reset inputs\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_fpu\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The clock and reset are excluded by the Clocks and resets rule because they only time or reset the unit and its child engines.\"\n    },\n    {\n      \"Candidate Name\": \"Subnormal-support build option\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_fpu\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"FPU_SUBNORMAL_SUPPORT at line 36 is a build-time generic that cannot be changed or withheld at run time.\"\n    },\n    {\n      \"Candidate Name\": \"Instruction operation selector fields as a separate asset\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_fpu\",\n      \"Merged Into\": \"C2\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Operand forwarding and classification wires\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_fpu\",\n      \"Merged Into\": \"C1\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Arithmetic, multiplication and normalization intermediate values\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_fpu\",\n      \"Merged Into\": \"C5\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Start, done and latency pacing pulses\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_fpu\",\n      \"Merged Into\": \"C8\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Unused third operand input\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_fpu\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"rs3_i is only declared at line 52 and is never read, so the RTL shows no use or security mechanism for information on it.\"\n    },\n    {\n      \"Candidate Name\": \"Privilege, debug and unrelated control-record fields\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_fpu\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The corresponding ctrl_i fields are only declarations and are not read by this unit, so they do not affect a protected asset here.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_cpu_cp_fpu",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_cpu_cp_fpu",
+    "concept": "Floating-point operand data",
+    "information": "The floating-point values received as rs1_i and rs2_i are captured, classified and used by the supported operations; min/max and sign-injection operations can return operand-derived values.",
+    "rubric reason": "An integrator may treat operand values as private data, and the operands are captured internally and can be exposed through operand-derived results on res_o at lines 437, 439, 1507 and 1510. Changing either operand or its captured copy can change the arithmetic, comparison or selected result at lines 437, 439, 673-676 and 1137.",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "attack": "An attacker could alter or observe an operand at the input or captured operand path, causing an incorrect result or inferring operand data from res_o.",
+    "enters through": [
+     "rs1_i",
+     "rs2_i"
+    ],
+    "leaves through": [
+     "res_o"
+    ],
+    "entry lines": [
+     347,
+     348,
+     349,
+     351,
+     352,
+     353
+    ],
+    "held lines": [
+     437,
+     439
+    ],
+    "exit lines": [
+     1498,
+     1501,
+     1504,
+     1507,
+     1510,
+     1513
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_cpu_cp_fpu",
+    "concept": "Floating-point operation command",
+    "information": "The instruction function fields and comparison selection identify the floating-point operation and result form that the unit must perform.",
+    "rubric reason": "The operation command is sensitive control information because changing the instruction decode or comparison selection can select an unintended result path, as shown by lines 316-340, 598 and 715. Invalid or altered command fields can prevent dispatch through cmd.valid and the control FSM at lines 326-340 and 435-443.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could modify the instruction function or comparison selection so that the wrong operation executes or no operation is accepted.",
+    "enters through": [
+     "ctrl_i",
+     "cmp_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     316,
+     317,
+     318,
+     319,
+     320,
+     321,
+     322,
+     323,
+     326,
+     333,
+     426
+    ],
+    "held lines": [],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_cpu_cp_fpu",
+    "concept": "FPU execution dispatch and abort control",
+    "information": "The FPU enable and trap/abort controls determine whether a decoded operation is accepted and whether an active operation is cancelled.",
+    "rubric reason": "These control inputs can change the operation lifecycle: alu_cp_fpu gates capture and start at line 435, while cpu_trap aborts or ends the operation at lines 448, 696 and 1464. Removing the enable or asserting the abort can block the required operation and its result at lines 435-450.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could suppress the FPU enable or inject an abort request to prevent a valid operation from completing.",
+    "enters through": [
+     "ctrl_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     435,
+     448,
+     696,
+     1464
+    ],
+    "held lines": [],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_cpu_cp_fpu",
+    "concept": "Effective floating-point rounding mode",
+    "information": "The effective rounding mode is taken either from the stored frm CSR setting or from the instruction's rounding-mode field and controls result rounding and exception behavior.",
+    "rubric reason": "Rounding mode is configuration material that changes produced results: it is written into csr_frm at lines 287 and 291, selected into fpu_operands.frm at lines 429-432, and used by the rounding logic at lines 1830-1838 and 1904-1942.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could overwrite the rounding-mode setting or alter the per-operation selection so that results and flags are rounded incorrectly.",
+    "enters through": [
+     "ctrl_i",
+     "csr_wdata_i"
+    ],
+    "leaves through": [
+     "csr_rdata_o"
+    ],
+    "entry lines": [
+     287,
+     291,
+     430,
+     432
+    ],
+    "held lines": [
+     277,
+     287,
+     291,
+     430,
+     432
+    ],
+    "exit lines": [
+     306,
+     307
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_cpu_cp_fpu",
+    "concept": "Floating-point result data",
+    "information": "The computed floating-point result is produced from the operands, selected operation and rounding behavior and is returned to the processor through res_o.",
+    "rubric reason": "An integrator may consider computed numeric results private, and the result is exposed at res_o through the output selection paths at lines 1498-1513. The result can be modified by corrupting the selected functional-unit result or output selection at lines 1495-1515. The output gate clears and withholds the result until completion at lines 1493-1495, so blocking that control prevents the FPU function from returning a result.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could corrupt an intermediate result or suppress the valid-controlled output update, exposing or altering the returned floating-point value or withholding it.",
+    "enters through": [
+     "rs1_i",
+     "rs2_i"
+    ],
+    "leaves through": [
+     "res_o"
+    ],
+    "entry lines": [
+     347,
+     348,
+     349,
+     351,
+     352,
+     353
+    ],
+    "held lines": [
+     1490,
+     1493,
+     1498,
+     1501,
+     1504,
+     1507,
+     1510,
+     1513,
+     1884,
+     1885,
+     1886,
+     2294
+    ],
+    "exit lines": [
+     1498,
+     1501,
+     1504,
+     1507,
+     1510,
+     1513
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C6",
+    "unit": "neorv32_cpu_cp_fpu",
+    "concept": "Floating-point exception status",
+    "information": "The exception flags generated by floating-point operations are held in fflags, accumulated in csr_fflags and made available through the CSR readback interface.",
+    "rubric reason": "The exception status is sensitive architectural state because incorrect flags change software's interpretation of an operation; the unit generates and stores flags at lines 1499-1514 and accumulates them into csr_fflags at line 295, while CSR writes can overwrite them at lines 283 and 292.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could overwrite, suppress or inject exception flags so software accepts an invalid result or handles a valid result incorrectly.",
+    "enters through": [
+     "csr_wdata_i"
+    ],
+    "leaves through": [
+     "csr_rdata_o"
+    ],
+    "entry lines": [
+     283,
+     292
+    ],
+    "held lines": [
+     278,
+     283,
+     292,
+     295,
+     1491,
+     1494,
+     1499,
+     1502,
+     1505,
+     1508,
+     1511,
+     1514
+    ],
+    "exit lines": [
+     305,
+     307
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C7",
+    "unit": "neorv32_cpu_cp_fpu",
+    "concept": "FPU CSR access command",
+    "information": "The CSR write-enable and address inputs determine whether the FPU's rounding-mode or exception-status register is written or returned.",
+    "rubric reason": "The CSR access command controls which protected FPU state can be changed or read through the tests and case selection at lines 280-304, so altering it can redirect a write to csr_frm or csr_fflags or select an unintended readback.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could change csr_we_i or csr_addr_i to overwrite the wrong FPU CSR or select unauthorized status/configuration readback.",
+    "enters through": [
+     "csr_we_i",
+     "csr_addr_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     280,
+     282,
+     286,
+     290,
+     304
+    ],
+    "held lines": [
+     280,
+     282,
+     286,
+     290,
+     304
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C8",
+    "unit": "neorv32_cpu_cp_fpu",
+    "concept": "FPU operation progress state",
+    "information": "The internally generated control and progress state sequences single-cycle and multi-cycle FPU operations, determines when their results are complete and drives valid_o; it has no entry port because it is produced internally.",
+    "rubric reason": "The control FSM and the child operation engines hold and advance progress state that determines completion and result release at lines 405, 443, 448-450, 1621-1862 and 2055-2278. Corrupting this state can release an incomplete result or prevent valid_o from asserting, while the same state and done paths can block completion at lines 448-462.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could corrupt the operation state or counters to skip computation, repeatedly hold the FPU busy or suppress completion.",
+    "enters through": [],
+    "leaves through": [
+     "valid_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     405,
+     406,
+     443,
+     449,
+     450,
+     455,
+     1621,
+     1623,
+     1641,
+     1665,
+     1681,
+     1683,
+     1695,
+     1701,
+     1703,
+     1733,
+     1734,
+     1736,
+     1746,
+     1755,
+     1757,
+     1789,
+     1818,
+     1861,
+     1862,
+     1872,
+     2055,
+     2056,
+     2072,
+     2091,
+     2095,
+     2128,
+     2132,
+     2142,
+     2144,
+     2160,
+     2176,
+     2277,
+     2278,
+     2288
+    ],
+    "exit lines": [
+     462
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_cpu_cp_fpu",
+    "concept": "Clock and reset inputs",
+    "reason": "The clock and reset are excluded by the Clocks and resets rule because they only time or reset the unit and its child engines.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_cp_fpu",
+    "concept": "Subnormal-support build option",
+    "reason": "FPU_SUBNORMAL_SUPPORT at line 36 is a build-time generic that cannot be changed or withheld at run time.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_cp_fpu",
+    "concept": "Instruction operation selector fields as a separate asset",
+    "reason": "merged into C2",
+    "merged into": "C2"
+   },
+   {
+    "unit": "neorv32_cpu_cp_fpu",
+    "concept": "Operand forwarding and classification wires",
+    "reason": "merged into C1",
+    "merged into": "C1"
+   },
+   {
+    "unit": "neorv32_cpu_cp_fpu",
+    "concept": "Arithmetic, multiplication and normalization intermediate values",
+    "reason": "merged into C5",
+    "merged into": "C5"
+   },
+   {
+    "unit": "neorv32_cpu_cp_fpu",
+    "concept": "Start, done and latency pacing pulses",
+    "reason": "merged into C8",
+    "merged into": "C8"
+   },
+   {
+    "unit": "neorv32_cpu_cp_fpu",
+    "concept": "Unused third operand input",
+    "reason": "rs3_i is only declared at line 52 and is never read, so the RTL shows no use or security mechanism for information on it.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_cp_fpu",
+    "concept": "Privilege, debug and unrelated control-record fields",
+    "reason": "The corresponding ctrl_i fields are only declarations and are not read by this unit, so they do not affect a protected asset here.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

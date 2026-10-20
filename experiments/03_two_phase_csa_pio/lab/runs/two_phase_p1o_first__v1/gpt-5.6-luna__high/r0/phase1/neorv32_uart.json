@@ -1,0 +1,419 @@
+{
+ "module": "neorv32_uart",
+ "prompt version": "two_phase_p1o_first",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "b4c962e16261",
+ "user sha": "7302d06ade25",
+ "usage": {
+  "in": 38157,
+  "out": 13796,
+  "reasoning": 10172,
+  "cached": 38154,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_0e1ec6bb93645da8006ad63762238087d1b8c08b26ac9827cf",
+  "request key": "97d685a685f2"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_uart\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"Transmit data\",\n      \"Unit\": \"neorv32_uart\",\n      \"Information\": \"Bytes written for UART transmission enter through the bus and are serialized on the UART transmit line. UART operation depends on preserving, transmitting, and eventually consuming these bytes.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The transmitted byte is exposed on the integration-visible uart_txd_o output at line 392. A bus write supplies the byte to the transmit FIFO through bus_req_i.data at line 260, so alteration of that path changes the transmitted data. The transmit FIFO can be cleared at line 259 and CTS gating can hold transmission at lines 358-360, allowing the byte to be discarded or withheld.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could observe uart_txd_o, alter a bus-written transmit byte, or force flow control and FIFO-clear conditions to suppress or corrupt transmission.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"uart_txd_o\"\n      ],\n      \"Entry Lines\": [\n        260\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": [\n        392\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"Received data\",\n      \"Unit\": \"neorv32_uart\",\n      \"Information\": \"Bytes received on the UART receive line are assembled and later returned through a bus response. UART operation depends on preserving received bytes until software reads them.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Received data is exposed in the bus response data field at line 217. The UART receive input is sampled at line 408 and its resulting data is placed into the receive path at lines 434 and 305, so changing the receive path changes the byte. The receive FIFO can be cleared at line 304 and receive flow can be withheld through uart_rtsn_o at lines 472-477, causing received data to be lost or blocked.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could read the bus response, inject or alter uart_rxd_i, or clear or block the receive path before software obtains the byte.\",\n      \"Enters Through\": [\n        \"uart_rxd_i\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        408\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": [\n        217\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"UART operational enable\",\n      \"Unit\": \"neorv32_uart\",\n      \"Information\": \"The operational enable setting controls whether the UART and its clock-generation enable output are active. UART communication and related interrupt and FIFO behavior depend on this setting.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The setting is writable into ctrl.enable at line 179 and can therefore be modified. Clearing or changing it disables the clock-generator output at line 228 and clears or disables UART operation through lines 259, 304, 344, and 417.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could write the control register to disable the UART or enable it at an unsafe time, stopping required communication.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"clkgen_en_o\",\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        179\n      ],\n      \"Held Lines\": [\n        156,\n        179\n      ],\n      \"Exit Lines\": [\n        195,\n        228\n      ]\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"UART serial timing configuration\",\n      \"Unit\": \"neorv32_uart\",\n      \"Information\": \"The prescaler and baud divisor configure the timing used to sample and transmit UART bits. Correct serial communication depends on retaining these rate settings.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The prescaler and baud settings are written from bus data at lines 182-183 and held in ctrl.prsc and ctrl.baud at lines 159-160 and 182-183. They select the UART clock and reload the transmit and receive timing counters at lines 229, 349, 368, 422, and 432, so modification can make communication fail.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could replace the prescaler or baud divisor with an incompatible value, causing transmitted data to be mis-timed or received data to be sampled incorrectly.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        182,\n        183\n      ],\n      \"Held Lines\": [\n        159,\n        160,\n        182,\n        183\n      ],\n      \"Exit Lines\": [\n        198,\n        199\n      ]\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"Hardware flow-control enable\",\n      \"Unit\": \"neorv32_uart\",\n      \"Information\": \"This setting selects whether CTS and RTS hardware flow control affects UART transfers. UART link availability depends on retaining the intended flow-control behavior.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The hardware flow-control setting is written at line 181 and held in ctrl.hwfc_en at lines 158 and 181, so it can be modified. It gates transmitter progress at line 359 and determines RTS behavior at lines 472-480, allowing transfers to be incorrectly blocked or released.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could change the flow-control enable setting to cause the UART to ignore CTS or assert RTS incorrectly, disrupting transfers.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        181\n      ],\n      \"Held Lines\": [\n        158,\n        181\n      ],\n      \"Exit Lines\": [\n        197\n      ]\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Concept Name\": \"Transmit flow-control handshake\",\n      \"Unit\": \"neorv32_uart\",\n      \"Information\": \"The incoming CTS handshake indicates whether the peer permits transmission. The transmitter depends on this status to decide when a UART word may proceed.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"uart_ctsn_i is sampled into the transmit flow-control path at line 337 and its value controls transmitter progress at lines 358-360, so alteration can make the transmitter proceed when it should wait or remain blocked. Because the same condition can hold transmission, an attacker can prevent required transmit transfers.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could force uart_ctsn_i to an inappropriate level and thereby release or indefinitely block UART transmission.\",\n      \"Enters Through\": [\n        \"uart_ctsn_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        337\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C7\",\n      \"Concept Name\": \"Receive flow-control handshake\",\n      \"Unit\": \"neorv32_uart\",\n      \"Information\": \"The outgoing RTS handshake tells the peer whether the UART can accept more received data. The receive path depends on this signal to regulate incoming transfers.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"uart_rtsn_o is produced by the flow-control process at lines 470, 475, 477, and 480, and its value depends on enable, hardware flow control, and receive FIFO occupancy at lines 472-477. Altering or withholding this output can falsely permit data when the FIFO is near full or block all incoming transfers.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could alter uart_rtsn_o so the peer sends into a full receiver or stops sending required data.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"uart_rtsn_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        470,\n        475,\n        477,\n        480\n      ],\n      \"Exit Lines\": [\n        470,\n        475,\n        477,\n        480\n      ]\n    },\n    {\n      \"Concept ID\": \"C8\",\n      \"Concept Name\": \"Receive interrupt notification\",\n      \"Unit\": \"neorv32_uart\",\n      \"Information\": \"The receive interrupt notification reports configured receive FIFO conditions such as nonempty, half-full, or full. External software or interrupt logic may depend on it to service received data.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"irq_rx_o is an integration-visible output produced from receive FIFO status and interrupt-enable settings at lines 315-318, so changing those internal conditions can spuriously assert or suppress the notification.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could manipulate the receive status or interrupt-enable path to hide a pending receive condition or generate false receive interrupts.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"irq_rx_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        313,\n        315\n      ],\n      \"Exit Lines\": [\n        313,\n        315\n      ]\n    },\n    {\n      \"Concept ID\": \"C9\",\n      \"Concept Name\": \"Transmit interrupt notification\",\n      \"Unit\": \"neorv32_uart\",\n      \"Information\": \"The transmit interrupt notification reports configured transmit FIFO conditions such as empty or below half-full. External software or interrupt logic may depend on it to refill the transmitter.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"irq_tx_o is an integration-visible output generated from transmit FIFO status and interrupt-enable settings at lines 270-272, so its asserted or deasserted state can be improperly changed.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could manipulate the transmit status or interrupt-enable path to create false refill requests or hide the need to provide more transmit data.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"irq_tx_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        268,\n        270\n      ],\n      \"Exit Lines\": [\n        268,\n        270\n      ]\n    },\n    {\n      \"Concept ID\": \"C10\",\n      \"Concept Name\": \"Receive overrun status\",\n      \"Unit\": \"neorv32_uart\",\n      \"Information\": \"The overrun status records that received data was completed while the receive FIFO had no free space. Software depends on this status to detect receive data loss.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The overrun status is generated and held when a receive write meets a full FIFO at lines 456, 459, and 461, and is exposed in the bus response at line 214; unauthorized alteration could hide or falsely report receive data loss.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could clear or suppress the overrun indication so software fails to detect lost received data.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        456,\n        459,\n        461\n      ],\n      \"Exit Lines\": [\n        214\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Transmit serial shift-register contents\",\n      \"Candidate Unit\": \"neorv32_uart\",\n      \"Merged Into\": \"C1\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Receive serial shift-register contents\",\n      \"Candidate Unit\": \"neorv32_uart\",\n      \"Merged Into\": \"C2\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Buffered transmit FIFO data\",\n      \"Candidate Unit\": \"neorv32_uart\",\n      \"Merged Into\": \"C1\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Buffered receive FIFO data\",\n      \"Candidate Unit\": \"neorv32_uart\",\n      \"Merged Into\": \"C2\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Interrupt-enable settings\",\n      \"Candidate Unit\": \"neorv32_uart\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"These settings only tune the interrupt output ports apart from read-back, so the Port options rule bars them as pieces of their own.\"\n    },\n    {\n      \"Candidate Name\": \"FIFO occupancy and buffer status\",\n      \"Candidate Unit\": \"neorv32_uart\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The FIFO flags only report or regulate buffered data movement, and Buffer and engine status bits bars them as independent information.\"\n    },\n    {\n      \"Candidate Name\": \"FIFO clear commands\",\n      \"Candidate Unit\": \"neorv32_uart\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The clear controls only clear FIFO buffers, so Port buffers bars them as pieces of their own.\"\n    },\n    {\n      \"Candidate Name\": \"Transmit and receive sequencing state\",\n      \"Candidate Unit\": \"neorv32_uart\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The engine states and counters only order or pace UART steps, so Sequencing state and Pacing pulses bar them as independent concepts.\"\n    },\n    {\n      \"Candidate Name\": \"UART pacing clock\",\n      \"Candidate Unit\": \"neorv32_uart\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"clkgen_i, uart_clk, and the clock and reset paths are clocks or pacing signals excluded by the Clocks and resets and Pacing pulses rules.\"\n    },\n    {\n      \"Candidate Name\": \"Simulation mode\",\n      \"Candidate Unit\": \"neorv32_uart\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The run-time bit is ANDed with a build-time simulation switch and its effect includes writing the screen or simulation file, so Build-time values bars it as a run-time concept.\"\n    },\n    {\n      \"Candidate Name\": \"Bus access command and forwarded bus handshake\",\n      \"Candidate Unit\": \"neorv32_uart\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The bus command fields are covered by Access command fields and the acknowledgement is a handshake copy, while the transaction itself is not stored or computed as a separate UART asset.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_uart",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_uart",
+    "concept": "Transmit data",
+    "information": "Bytes written for UART transmission enter through the bus and are serialized on the UART transmit line. UART operation depends on preserving, transmitting, and eventually consuming these bytes.",
+    "rubric reason": "The transmitted byte is exposed on the integration-visible uart_txd_o output at line 392. A bus write supplies the byte to the transmit FIFO through bus_req_i.data at line 260, so alteration of that path changes the transmitted data. The transmit FIFO can be cleared at line 259 and CTS gating can hold transmission at lines 358-360, allowing the byte to be discarded or withheld.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could observe uart_txd_o, alter a bus-written transmit byte, or force flow control and FIFO-clear conditions to suppress or corrupt transmission.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "uart_txd_o"
+    ],
+    "entry lines": [
+     260
+    ],
+    "held lines": [],
+    "exit lines": [
+     392
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_uart",
+    "concept": "Received data",
+    "information": "Bytes received on the UART receive line are assembled and later returned through a bus response. UART operation depends on preserving received bytes until software reads them.",
+    "rubric reason": "Received data is exposed in the bus response data field at line 217. The UART receive input is sampled at line 408 and its resulting data is placed into the receive path at lines 434 and 305, so changing the receive path changes the byte. The receive FIFO can be cleared at line 304 and receive flow can be withheld through uart_rtsn_o at lines 472-477, causing received data to be lost or blocked.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could read the bus response, inject or alter uart_rxd_i, or clear or block the receive path before software obtains the byte.",
+    "enters through": [
+     "uart_rxd_i"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     408
+    ],
+    "held lines": [],
+    "exit lines": [
+     217
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_uart",
+    "concept": "UART operational enable",
+    "information": "The operational enable setting controls whether the UART and its clock-generation enable output are active. UART communication and related interrupt and FIFO behavior depend on this setting.",
+    "rubric reason": "The setting is writable into ctrl.enable at line 179 and can therefore be modified. Clearing or changing it disables the clock-generator output at line 228 and clears or disables UART operation through lines 259, 304, 344, and 417.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could write the control register to disable the UART or enable it at an unsafe time, stopping required communication.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "clkgen_en_o",
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     179
+    ],
+    "held lines": [
+     156,
+     179
+    ],
+    "exit lines": [
+     195,
+     228
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_uart",
+    "concept": "UART serial timing configuration",
+    "information": "The prescaler and baud divisor configure the timing used to sample and transmit UART bits. Correct serial communication depends on retaining these rate settings.",
+    "rubric reason": "The prescaler and baud settings are written from bus data at lines 182-183 and held in ctrl.prsc and ctrl.baud at lines 159-160 and 182-183. They select the UART clock and reload the transmit and receive timing counters at lines 229, 349, 368, 422, and 432, so modification can make communication fail.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could replace the prescaler or baud divisor with an incompatible value, causing transmitted data to be mis-timed or received data to be sampled incorrectly.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     182,
+     183
+    ],
+    "held lines": [
+     159,
+     160,
+     182,
+     183
+    ],
+    "exit lines": [
+     198,
+     199
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_uart",
+    "concept": "Hardware flow-control enable",
+    "information": "This setting selects whether CTS and RTS hardware flow control affects UART transfers. UART link availability depends on retaining the intended flow-control behavior.",
+    "rubric reason": "The hardware flow-control setting is written at line 181 and held in ctrl.hwfc_en at lines 158 and 181, so it can be modified. It gates transmitter progress at line 359 and determines RTS behavior at lines 472-480, allowing transfers to be incorrectly blocked or released.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could change the flow-control enable setting to cause the UART to ignore CTS or assert RTS incorrectly, disrupting transfers.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     181
+    ],
+    "held lines": [
+     158,
+     181
+    ],
+    "exit lines": [
+     197
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C6",
+    "unit": "neorv32_uart",
+    "concept": "Transmit flow-control handshake",
+    "information": "The incoming CTS handshake indicates whether the peer permits transmission. The transmitter depends on this status to decide when a UART word may proceed.",
+    "rubric reason": "uart_ctsn_i is sampled into the transmit flow-control path at line 337 and its value controls transmitter progress at lines 358-360, so alteration can make the transmitter proceed when it should wait or remain blocked. Because the same condition can hold transmission, an attacker can prevent required transmit transfers.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could force uart_ctsn_i to an inappropriate level and thereby release or indefinitely block UART transmission.",
+    "enters through": [
+     "uart_ctsn_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     337
+    ],
+    "held lines": [],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C7",
+    "unit": "neorv32_uart",
+    "concept": "Receive flow-control handshake",
+    "information": "The outgoing RTS handshake tells the peer whether the UART can accept more received data. The receive path depends on this signal to regulate incoming transfers.",
+    "rubric reason": "uart_rtsn_o is produced by the flow-control process at lines 470, 475, 477, and 480, and its value depends on enable, hardware flow control, and receive FIFO occupancy at lines 472-477. Altering or withholding this output can falsely permit data when the FIFO is near full or block all incoming transfers.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could alter uart_rtsn_o so the peer sends into a full receiver or stops sending required data.",
+    "enters through": [],
+    "leaves through": [
+     "uart_rtsn_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     470,
+     475,
+     477,
+     480
+    ],
+    "exit lines": [
+     470,
+     475,
+     477,
+     480
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C8",
+    "unit": "neorv32_uart",
+    "concept": "Receive interrupt notification",
+    "information": "The receive interrupt notification reports configured receive FIFO conditions such as nonempty, half-full, or full. External software or interrupt logic may depend on it to service received data.",
+    "rubric reason": "irq_rx_o is an integration-visible output produced from receive FIFO status and interrupt-enable settings at lines 315-318, so changing those internal conditions can spuriously assert or suppress the notification.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could manipulate the receive status or interrupt-enable path to hide a pending receive condition or generate false receive interrupts.",
+    "enters through": [],
+    "leaves through": [
+     "irq_rx_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     313,
+     315
+    ],
+    "exit lines": [
+     313,
+     315
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C9",
+    "unit": "neorv32_uart",
+    "concept": "Transmit interrupt notification",
+    "information": "The transmit interrupt notification reports configured transmit FIFO conditions such as empty or below half-full. External software or interrupt logic may depend on it to refill the transmitter.",
+    "rubric reason": "irq_tx_o is an integration-visible output generated from transmit FIFO status and interrupt-enable settings at lines 270-272, so its asserted or deasserted state can be improperly changed.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could manipulate the transmit status or interrupt-enable path to create false refill requests or hide the need to provide more transmit data.",
+    "enters through": [],
+    "leaves through": [
+     "irq_tx_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     268,
+     270
+    ],
+    "exit lines": [
+     268,
+     270
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C10",
+    "unit": "neorv32_uart",
+    "concept": "Receive overrun status",
+    "information": "The overrun status records that received data was completed while the receive FIFO had no free space. Software depends on this status to detect receive data loss.",
+    "rubric reason": "The overrun status is generated and held when a receive write meets a full FIFO at lines 456, 459, and 461, and is exposed in the bus response at line 214; unauthorized alteration could hide or falsely report receive data loss.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could clear or suppress the overrun indication so software fails to detect lost received data.",
+    "enters through": [],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [],
+    "held lines": [
+     456,
+     459,
+     461
+    ],
+    "exit lines": [
+     214
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_uart",
+    "concept": "Transmit serial shift-register contents",
+    "reason": "merged into C1",
+    "merged into": "C1"
+   },
+   {
+    "unit": "neorv32_uart",
+    "concept": "Receive serial shift-register contents",
+    "reason": "merged into C2",
+    "merged into": "C2"
+   },
+   {
+    "unit": "neorv32_uart",
+    "concept": "Buffered transmit FIFO data",
+    "reason": "merged into C1",
+    "merged into": "C1"
+   },
+   {
+    "unit": "neorv32_uart",
+    "concept": "Buffered receive FIFO data",
+    "reason": "merged into C2",
+    "merged into": "C2"
+   },
+   {
+    "unit": "neorv32_uart",
+    "concept": "Interrupt-enable settings",
+    "reason": "These settings only tune the interrupt output ports apart from read-back, so the Port options rule bars them as pieces of their own.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_uart",
+    "concept": "FIFO occupancy and buffer status",
+    "reason": "The FIFO flags only report or regulate buffered data movement, and Buffer and engine status bits bars them as independent information.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_uart",
+    "concept": "FIFO clear commands",
+    "reason": "The clear controls only clear FIFO buffers, so Port buffers bars them as pieces of their own.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_uart",
+    "concept": "Transmit and receive sequencing state",
+    "reason": "The engine states and counters only order or pace UART steps, so Sequencing state and Pacing pulses bar them as independent concepts.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_uart",
+    "concept": "UART pacing clock",
+    "reason": "clkgen_i, uart_clk, and the clock and reset paths are clocks or pacing signals excluded by the Clocks and resets and Pacing pulses rules.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_uart",
+    "concept": "Simulation mode",
+    "reason": "The run-time bit is ANDed with a build-time simulation switch and its effect includes writing the screen or simulation file, so Build-time values bars it as a run-time concept.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_uart",
+    "concept": "Bus access command and forwarded bus handshake",
+    "reason": "The bus command fields are covered by Access command fields and the acknowledgement is a handshake copy, while the transaction itself is not stored or computed as a separate UART asset.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

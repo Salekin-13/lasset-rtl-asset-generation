@@ -1,0 +1,224 @@
+{
+ "module": "neorv32_pwm",
+ "prompt version": "two_phase_p1o_first",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "b4c962e16261",
+ "user sha": "3107f435e770",
+ "usage": {
+  "in": 27475,
+  "out": 12731,
+  "reasoning": 10546,
+  "cached": 27472,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_06b22f2f851e983b006ad5aac9c4d887d19f0956e09a6c8d30",
+  "request key": "a9edabcd0958"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_pwm\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"PWM enable configuration\",\n      \"Unit\": \"neorv32_pwm\",\n      \"Information\": \"The per-channel enable setting determines whether PWM activity is enabled and whether the channel requests its clock. It enters with channel configuration writes and leaves through configuration read-back and the clock-enable output.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality no: this is an operational enable setting, not information the RTL indicates is secret. Integrity yes: an asserted channel write loads cfg_en from wdata_i at lines 183-184, with no restricting check. Availability yes: cfg_en drives clkgen_en_o at line 197 and disables or clears PWM progression at lines 212-225, so changing it can disable the channel. Undermined Expected Behavior no: the RTL contains no privileged-mode, override, bypass or test behavior acting on this setting.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could issue a channel write with cfg_en cleared, disabling the PWM channel and its clock request.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\",\n        \"clkgen_en_o\"\n      ],\n      \"Entry Lines\": [\n        101\n      ],\n      \"Held Lines\": [\n        184\n      ],\n      \"Exit Lines\": [\n        70,\n        121\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"PWM timing configuration\",\n      \"Unit\": \"neorv32_pwm\",\n      \"Information\": \"The per-channel prescaler selection and clock-divider limit determine the rate at which PWM duty progression advances. The settings enter through channel configuration writes and are returned through configuration read-back.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality no: the timing settings are operational configuration rather than secret information. Integrity yes: channel writes load cfg_prsc and cfg_cdiv at lines 183, 185 and 187, and these values control clock selection, divider comparison and tick generation at lines 214-220. Availability yes: the selected clkgen_i bit and divider determine whether cnt_tick is produced at lines 214-217, so a modified setting can withhold PWM progression. Undermined Expected Behavior no: no privileged, override, bypass or test behavior is present.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could overwrite the prescaler or divider so that PWM ticks occur at an incorrect rate or do not occur.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        101\n      ],\n      \"Held Lines\": [\n        185,\n        187\n      ],\n      \"Exit Lines\": [\n        70\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"PWM waveform configuration\",\n      \"Unit\": \"neorv32_pwm\",\n      \"Information\": \"The per-channel polarity and duty settings determine the output level and duty cycle of the PWM waveform. They enter through configuration writes, are returned through read-back, and the polarity value also contributes to the PWM output.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality no: polarity and duty are externally observable operational settings, not information the RTL indicates is secret. Integrity yes: channel writes load cfg_pol and cfg_duty at lines 183, 186 and 188, and those settings determine pwm_o at lines 231-234. Availability no: changing polarity or duty changes waveform behavior but does not by itself block the PWM engine or withhold a required transfer. Undermined Expected Behavior no: the RTL has no integration-level privileged, override, bypass or test path acting on these settings.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could overwrite the polarity or duty fields so the PWM output has an incorrect waveform.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\",\n        \"pwm_o\"\n      ],\n      \"Entry Lines\": [\n        101\n      ],\n      \"Held Lines\": [\n        186,\n        188\n      ],\n      \"Exit Lines\": [\n        70,\n        117\n      ]\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"PWM channel access selection\",\n      \"Unit\": \"neorv32_pwm\",\n      \"Information\": \"The decoded channel selection determines which generated PWM channel receives or returns a bus access. It has no boundary crossing of its own because it only decides which child write and read strobes are asserted.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality no: the selection is an access-routing decision, not secret information. Integrity yes: bus_req_i.addr selects a channel at line 109 and the resulting sel controls the write and read strobes at lines 110-111, so a changed selection can target the wrong channel. Availability yes: an address that selects no generated channel leaves the access strobes inactive at lines 109-111, causing the requested channel transfer to be lost. Undermined Expected Behavior no: no privileged, override, bypass or test behavior acts on the selection.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could alter the access address to redirect a configuration or read operation to another channel or to no channel.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        109\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"PWM output waveform\",\n      \"Unit\": \"neorv32_pwm\",\n      \"Information\": \"The generated PWM waveform is the timing and level behavior delivered to the external consumer on pwm_o. It is produced internally from the channel enable, timing, duty and polarity state and has no entering port.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality no: pwm_o is an intended external output and the RTL provides no indication that its waveform is secret. Integrity yes: pwm_o is selected from cfg_pol according to cfg_en, cnt_duty and cfg_duty at lines 231-234, so modifying channel configuration changes the produced waveform. Availability yes: cfg_en can clear the PWM progression and force non-progressing output behavior at lines 212-225 and 231-234, allowing the PWM function to be disabled. Undermined Expected Behavior no: the RTL contains no privileged-mode, override, bypass or test behavior acting on the waveform.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could rewrite a channel configuration to force an incorrect or effectively disabled waveform on pwm_o.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"pwm_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        232,\n        234\n      ],\n      \"Exit Lines\": [\n        117\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"PWM pacing source and counters\",\n      \"Candidate Unit\": \"neorv32_pwm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The selected clkgen_i bit only advances the divider and cnt_cdiv, cnt_tick and cnt_duty only pace PWM steps at lines 214-227, so the pacing-pulse and sequencing-state rules bar them as separate information.\"\n    },\n    {\n      \"Candidate Name\": \"Bus access command\",\n      \"Candidate Unit\": \"neorv32_pwm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The request strobe and read/write fields only control whether channel accesses occur at lines 69 and 110-111, so they are access command fields rather than a separate conceptual asset.\"\n    },\n    {\n      \"Candidate Name\": \"Bus response handshake and error\",\n      \"Candidate Unit\": \"neorv32_pwm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"bus_rsp_o.ack repeats the request strobe and bus_rsp_o.err is tied to a constant at lines 69-76, so the bus-handshake-copy and constant-status rules bar a separate concept.\"\n    },\n    {\n      \"Candidate Name\": \"Channel read-back carrier\",\n      \"Candidate Unit\": \"neorv32_pwm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"rdata and rdata_sum only carry or merge channel configuration read-back through lines 86-88 and 102, so they add no information beyond the configuration concepts.\"\n    },\n    {\n      \"Candidate Name\": \"Internal PWM carrier\",\n      \"Candidate Unit\": \"neorv32_pwm\",\n      \"Merged Into\": \"C5\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Internal clock-enable carrier\",\n      \"Candidate Unit\": \"neorv32_pwm\",\n      \"Merged Into\": \"C1\",\n      \"Why Not Kept\": \"\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_pwm",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_pwm",
+    "concept": "PWM enable configuration",
+    "information": "The per-channel enable setting determines whether PWM activity is enabled and whether the channel requests its clock. It enters with channel configuration writes and leaves through configuration read-back and the clock-enable output.",
+    "rubric reason": "Confidentiality no: this is an operational enable setting, not information the RTL indicates is secret. Integrity yes: an asserted channel write loads cfg_en from wdata_i at lines 183-184, with no restricting check. Availability yes: cfg_en drives clkgen_en_o at line 197 and disables or clears PWM progression at lines 212-225, so changing it can disable the channel. Undermined Expected Behavior no: the RTL contains no privileged-mode, override, bypass or test behavior acting on this setting.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could issue a channel write with cfg_en cleared, disabling the PWM channel and its clock request.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data",
+     "clkgen_en_o"
+    ],
+    "entry lines": [
+     101
+    ],
+    "held lines": [
+     184
+    ],
+    "exit lines": [
+     70,
+     121
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_pwm",
+    "concept": "PWM timing configuration",
+    "information": "The per-channel prescaler selection and clock-divider limit determine the rate at which PWM duty progression advances. The settings enter through channel configuration writes and are returned through configuration read-back.",
+    "rubric reason": "Confidentiality no: the timing settings are operational configuration rather than secret information. Integrity yes: channel writes load cfg_prsc and cfg_cdiv at lines 183, 185 and 187, and these values control clock selection, divider comparison and tick generation at lines 214-220. Availability yes: the selected clkgen_i bit and divider determine whether cnt_tick is produced at lines 214-217, so a modified setting can withhold PWM progression. Undermined Expected Behavior no: no privileged, override, bypass or test behavior is present.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could overwrite the prescaler or divider so that PWM ticks occur at an incorrect rate or do not occur.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     101
+    ],
+    "held lines": [
+     185,
+     187
+    ],
+    "exit lines": [
+     70
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_pwm",
+    "concept": "PWM waveform configuration",
+    "information": "The per-channel polarity and duty settings determine the output level and duty cycle of the PWM waveform. They enter through configuration writes, are returned through read-back, and the polarity value also contributes to the PWM output.",
+    "rubric reason": "Confidentiality no: polarity and duty are externally observable operational settings, not information the RTL indicates is secret. Integrity yes: channel writes load cfg_pol and cfg_duty at lines 183, 186 and 188, and those settings determine pwm_o at lines 231-234. Availability no: changing polarity or duty changes waveform behavior but does not by itself block the PWM engine or withhold a required transfer. Undermined Expected Behavior no: the RTL has no integration-level privileged, override, bypass or test path acting on these settings.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could overwrite the polarity or duty fields so the PWM output has an incorrect waveform.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data",
+     "pwm_o"
+    ],
+    "entry lines": [
+     101
+    ],
+    "held lines": [
+     186,
+     188
+    ],
+    "exit lines": [
+     70,
+     117
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_pwm",
+    "concept": "PWM channel access selection",
+    "information": "The decoded channel selection determines which generated PWM channel receives or returns a bus access. It has no boundary crossing of its own because it only decides which child write and read strobes are asserted.",
+    "rubric reason": "Confidentiality no: the selection is an access-routing decision, not secret information. Integrity yes: bus_req_i.addr selects a channel at line 109 and the resulting sel controls the write and read strobes at lines 110-111, so a changed selection can target the wrong channel. Availability yes: an address that selects no generated channel leaves the access strobes inactive at lines 109-111, causing the requested channel transfer to be lost. Undermined Expected Behavior no: no privileged, override, bypass or test behavior acts on the selection.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could alter the access address to redirect a configuration or read operation to another channel or to no channel.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     109
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_pwm",
+    "concept": "PWM output waveform",
+    "information": "The generated PWM waveform is the timing and level behavior delivered to the external consumer on pwm_o. It is produced internally from the channel enable, timing, duty and polarity state and has no entering port.",
+    "rubric reason": "Confidentiality no: pwm_o is an intended external output and the RTL provides no indication that its waveform is secret. Integrity yes: pwm_o is selected from cfg_pol according to cfg_en, cnt_duty and cfg_duty at lines 231-234, so modifying channel configuration changes the produced waveform. Availability yes: cfg_en can clear the PWM progression and force non-progressing output behavior at lines 212-225 and 231-234, allowing the PWM function to be disabled. Undermined Expected Behavior no: the RTL contains no privileged-mode, override, bypass or test behavior acting on the waveform.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could rewrite a channel configuration to force an incorrect or effectively disabled waveform on pwm_o.",
+    "enters through": [],
+    "leaves through": [
+     "pwm_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     232,
+     234
+    ],
+    "exit lines": [
+     117
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_pwm",
+    "concept": "PWM pacing source and counters",
+    "reason": "The selected clkgen_i bit only advances the divider and cnt_cdiv, cnt_tick and cnt_duty only pace PWM steps at lines 214-227, so the pacing-pulse and sequencing-state rules bar them as separate information.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_pwm",
+    "concept": "Bus access command",
+    "reason": "The request strobe and read/write fields only control whether channel accesses occur at lines 69 and 110-111, so they are access command fields rather than a separate conceptual asset.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_pwm",
+    "concept": "Bus response handshake and error",
+    "reason": "bus_rsp_o.ack repeats the request strobe and bus_rsp_o.err is tied to a constant at lines 69-76, so the bus-handshake-copy and constant-status rules bar a separate concept.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_pwm",
+    "concept": "Channel read-back carrier",
+    "reason": "rdata and rdata_sum only carry or merge channel configuration read-back through lines 86-88 and 102, so they add no information beyond the configuration concepts.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_pwm",
+    "concept": "Internal PWM carrier",
+    "reason": "merged into C5",
+    "merged into": "C5"
+   },
+   {
+    "unit": "neorv32_pwm",
+    "concept": "Internal clock-enable carrier",
+    "reason": "merged into C1",
+    "merged into": "C1"
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

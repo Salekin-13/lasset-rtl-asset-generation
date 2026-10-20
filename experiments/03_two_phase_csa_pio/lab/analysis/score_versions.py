@@ -1,5 +1,7 @@
 """Every stored two-phase version, scored with the lab's exact scorer (compare_v8.score) on the tuning 15 and the held-out
-26, per complete run; pooled over the complete runs; all 41 = both splits pooled when both have the same runs. Read-only. Writes score_all_versions.json beside this script."""
+26, per complete run; pooled over the complete runs; all 41 = both splits pooled when both have the same runs. Read-only on the runs.
+Writes score_versions.json beside this script by merging: a version with stored runs replaces its saved row; a version whose runs are
+not in this copy (only two_phase_p1o_first and two_phase_v7 are published) keeps its saved row, so a clone does not shrink the file."""
 import os, sys, json, re
 from pathlib import Path
 
@@ -19,7 +21,8 @@ import labkit as K, compare_v8 as C8, chain as CH
 MODEL, EFF = "gpt-5.6-luna", "high"
 g = K.gt_modules(); ref = C8.refs(sorted(set(g["tuning"]) | set(g["heldout"])))
 print("scorer self-test:", "PASS" if C8.selftest(ref) else "FAIL")
-vers = sorted({d.name[:-4] for d in (LAB / "runs").iterdir() if d.name.startswith("two_phase_") and d.name.endswith("__v1")},
+RUNS = LAB / "runs"
+vers = sorted({d.name[:-4] for d in RUNS.iterdir() if d.name.startswith("two_phase_") and d.name.endswith("__v1")} if RUNS.exists() else set(),
               key=lambda s: [int(t) if t.isdigit() else t for t in re.split(r"(\d+)", s)])
 out = {}
 for v in vers:
@@ -45,4 +48,9 @@ for v in vers:
         if k not in row: return "-"
         z = row[k]; return f"{z['P']:.3f} / {z['R']:.3f} ({len(z['runs'])} run{'s' if len(z['runs'])>1 else ''}: {', '.join(f'{c}/{l}' for c,l in z['per_run'])})"
     print(f"| {v.replace('two_phase_','')} | {fmt('tuning')} | {fmt('heldout')} | {fmt('all41')} |")
-Path(__file__).with_suffix(".json").write_text(json.dumps(out, indent=1), encoding="utf-8")
+path = Path(__file__).with_suffix(".json")
+saved = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+kept = [v for v in saved if v not in out]
+saved.update(out)
+path.write_text(json.dumps(saved, indent=1), encoding="utf-8")
+print(f"scored from stored replies: {len(out)} version(s); rows kept from the saved file: {len(kept)}")

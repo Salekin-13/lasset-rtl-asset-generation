@@ -1,0 +1,301 @@
+{
+ "module": "neorv32_gpio",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "be3b3faab49b",
+ "user sha": "44588a2b9271",
+ "usage": {
+  "in": 18305,
+  "out": 13363,
+  "reasoning": 10737,
+  "cached": 12982,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_0cd7bafe67bf71dc006ace83b8661487d1ba04081db9515800",
+  "request key": "559f6fd1b338"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_gpio\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"GPIO output state\",\n      \"Unit\": \"neorv32_gpio\",\n      \"Information\": \"The latched values driven on the GPIO output pins; the IP depends on them to control external GPIO signals and report the output state on reads.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity yes: bus_req_i.data writes port_out at line 74 when the bus access selects the output register at lines 71-73, allowing the driven GPIO state to be changed. Confidentiality no because gpio_o is intentionally exposed at line 112; availability no because no RTL path gates or withholds the output; undermined expected behavior no because no privileged, override, bypass or test behavior acts on it.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker able to issue an unchecked write selecting the output register can replace port_out and drive incorrect GPIO levels.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\",\n        \"gpio_o\"\n      ],\n      \"Entry Lines\": [\n        74\n      ],\n      \"Held Lines\": [\n        59,\n        74\n      ],\n      \"Exit Lines\": [\n        84,\n        112\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"GPIO input data\",\n      \"Unit\": \"neorv32_gpio\",\n      \"Information\": \"The sampled values arriving on the GPIO input pins; the IP uses them for software reads and for detecting configured GPIO interrupt conditions.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"no\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality yes: port_in is returned through bus_rsp_o.data at line 83, and the sampled input also affects the interrupt indication through lines 125-142, creating direct and status-dependent exposure. Integrity no because the only non-reset assignment to port_in samples gpio_i at line 103, with no internal bus write path; availability no because no internal element blocks the input transfer; undermined expected behavior no because no privileged or override behavior acts on the input data.\",\n      \"Objectives At Risk\": [\n        \"C\"\n      ],\n      \"Attack\": \"An unauthorized bus read of the input register can recover sampled GPIO input values and observe input-dependent interrupt behavior.\",\n      \"Enters Through\": [\n        \"gpio_i\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\",\n        \"cpu_irq_o\"\n      ],\n      \"Entry Lines\": [\n        103\n      ],\n      \"Held Lines\": [\n        100,\n        103\n      ],\n      \"Exit Lines\": [\n        83,\n        142\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"GPIO interrupt trigger configuration\",\n      \"Unit\": \"neorv32_gpio\",\n      \"Information\": \"The per-pin interrupt type and polarity settings; interrupt generation depends on them to distinguish level and edge conditions and their polarity.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity yes: bus writes load irq_typ and irq_pol at lines 75-76, and those settings select the trigger behavior at lines 123-129. Availability yes: the selected trigger behavior determines whether pending interrupts and cpu_irq_o are produced through lines 141-142, so changing it can suppress required interrupts. Confidentiality no because the settings are ordinary readable configuration at lines 85-86; undermined expected behavior no because no privileged, override, bypass or test behavior is implemented.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker can write the trigger type or polarity registers to convert real GPIO events into missed or spurious interrupts.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        75,\n        76\n      ],\n      \"Held Lines\": [\n        60,\n        61,\n        75,\n        76\n      ],\n      \"Exit Lines\": [\n        85,\n        86\n      ]\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"GPIO interrupt enable mask\",\n      \"Unit\": \"neorv32_gpio\",\n      \"Information\": \"The per-pin mask selecting which generated GPIO interrupt events are latched and signaled to the CPU.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity yes: bus_req_i.data writes irq_en at line 77, and irq_en directly masks the pending-state update at line 141. Availability yes: disabling a bit prevents the corresponding interrupt from reaching cpu_irq_o at line 142. Confidentiality no because the mask is readable at line 87; undermined expected behavior no because no privileged or override behavior acts on it.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker can write zeros to the interrupt-enable register and suppress selected GPIO interrupts.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        77\n      ],\n      \"Held Lines\": [\n        62,\n        77\n      ],\n      \"Exit Lines\": [\n        87\n      ]\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"Interrupt pending clear control\",\n      \"Unit\": \"neorv32_gpio\",\n      \"Information\": \"The per-pin clear or retain control applied to pending interrupt bits; it determines whether an already pending interrupt survives the next update.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity yes: a bus write loads irq_clrn at line 78 and the value controls pending-bit retention in line 141. Availability yes: clearing or masking pending bits can remove an interrupt before cpu_irq_o reports it at line 142. Confidentiality no because this control has no secret output; undermined expected behavior no because no privileged, override, bypass or test behavior is implemented.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker can write the interrupt-clear register to erase or suppress a pending interrupt before the CPU observes it.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        78\n      ],\n      \"Held Lines\": [\n        63,\n        69,\n        78\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Concept Name\": \"GPIO interrupt trigger event\",\n      \"Unit\": \"neorv32_gpio\",\n      \"Information\": \"The internally decoded per-pin event indicating that the sampled GPIO input meets its configured level or edge condition; this event causes pending interrupt state to be set.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity yes: the trigger decision is produced by the logic at lines 125-129 and directly controls the pending update at line 141, so an incorrect decision can create or suppress an interrupt. Availability yes: suppressing this event prevents pending state and the CPU interrupt indication at lines 141-142. Confidentiality no because the event is not exposed as secret data; undermined expected behavior no because no privileged, override, bypass or test behavior acts on it.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker can alter the writable trigger settings or input conditions to cause false trigger events or prevent real events from being latched.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        125,\n        126,\n        127,\n        128,\n        129\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C7\",\n      \"Concept Name\": \"Pending GPIO interrupt state\",\n      \"Unit\": \"neorv32_gpio\",\n      \"Information\": \"The latched per-pin pending-interrupt state and its CPU interrupt indication; the IP uses it to retain GPIO events until cleared and notify the CPU.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity yes: irq_pend is updated by the trigger, enable and clear controls at line 141, so it can be incorrectly set or cleared. Availability yes: losing or masking pending state prevents the CPU notification at line 142. Confidentiality no because pending status is intentionally readable at line 88; undermined expected behavior no because no privileged, override, bypass or test behavior acts on it.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker can clear or mask irq_pend, preventing cpu_irq_o from notifying the CPU or causing an incorrect interrupt indication.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\",\n        \"cpu_irq_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        138,\n        139,\n        141,\n        142\n      ],\n      \"Exit Lines\": [\n        88,\n        142\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"GPIO bus access transaction\",\n      \"Candidate Unit\": \"neorv32_gpio\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The request strobe, direction and address only perform or select register accesses, so the transaction fields are covered by the information they access rather than being a separate asset.\"\n    },\n    {\n      \"Candidate Name\": \"Second sampled GPIO-input copy\",\n      \"Candidate Unit\": \"neorv32_gpio\",\n      \"Merged Into\": \"C2\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Output staging path\",\n      \"Candidate Unit\": \"neorv32_gpio\",\n      \"Merged Into\": \"C1\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Bus response acknowledge and error\",\n      \"Candidate Unit\": \"neorv32_gpio\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The acknowledge repeats the request strobe at line 66 and the error is tied to a constant at line 67, so they are bus-handshake behavior rather than separate security information.\"\n    },\n    {\n      \"Candidate Name\": \"Clock and reset inputs\",\n      \"Candidate Unit\": \"neorv32_gpio\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"Clock and reset inputs are excluded by the clock-and-reset rule and only time or initialize the retained information.\"\n    },\n    {\n      \"Candidate Name\": \"GPIO_NUM build-time width\",\n      \"Candidate Unit\": \"neorv32_gpio\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"GPIO_NUM is a generic that fixes the implementation width at build time and cannot be changed or withheld at run time.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_gpio",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_gpio",
+    "concept": "GPIO output state",
+    "information": "The latched values driven on the GPIO output pins; the IP depends on them to control external GPIO signals and report the output state on reads.",
+    "rubric reason": "Integrity yes: bus_req_i.data writes port_out at line 74 when the bus access selects the output register at lines 71-73, allowing the driven GPIO state to be changed. Confidentiality no because gpio_o is intentionally exposed at line 112; availability no because no RTL path gates or withholds the output; undermined expected behavior no because no privileged, override, bypass or test behavior acts on it.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker able to issue an unchecked write selecting the output register can replace port_out and drive incorrect GPIO levels.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data",
+     "gpio_o"
+    ],
+    "entry lines": [
+     74
+    ],
+    "held lines": [
+     59,
+     74
+    ],
+    "exit lines": [
+     84,
+     112
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_gpio",
+    "concept": "GPIO input data",
+    "information": "The sampled values arriving on the GPIO input pins; the IP uses them for software reads and for detecting configured GPIO interrupt conditions.",
+    "rubric reason": "Confidentiality yes: port_in is returned through bus_rsp_o.data at line 83, and the sampled input also affects the interrupt indication through lines 125-142, creating direct and status-dependent exposure. Integrity no because the only non-reset assignment to port_in samples gpio_i at line 103, with no internal bus write path; availability no because no internal element blocks the input transfer; undermined expected behavior no because no privileged or override behavior acts on the input data.",
+    "objectives": [
+     "C"
+    ],
+    "attack": "An unauthorized bus read of the input register can recover sampled GPIO input values and observe input-dependent interrupt behavior.",
+    "enters through": [
+     "gpio_i"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data",
+     "cpu_irq_o"
+    ],
+    "entry lines": [
+     103
+    ],
+    "held lines": [
+     100,
+     103
+    ],
+    "exit lines": [
+     83,
+     142
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "no",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_gpio",
+    "concept": "GPIO interrupt trigger configuration",
+    "information": "The per-pin interrupt type and polarity settings; interrupt generation depends on them to distinguish level and edge conditions and their polarity.",
+    "rubric reason": "Integrity yes: bus writes load irq_typ and irq_pol at lines 75-76, and those settings select the trigger behavior at lines 123-129. Availability yes: the selected trigger behavior determines whether pending interrupts and cpu_irq_o are produced through lines 141-142, so changing it can suppress required interrupts. Confidentiality no because the settings are ordinary readable configuration at lines 85-86; undermined expected behavior no because no privileged, override, bypass or test behavior is implemented.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker can write the trigger type or polarity registers to convert real GPIO events into missed or spurious interrupts.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     75,
+     76
+    ],
+    "held lines": [
+     60,
+     61,
+     75,
+     76
+    ],
+    "exit lines": [
+     85,
+     86
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_gpio",
+    "concept": "GPIO interrupt enable mask",
+    "information": "The per-pin mask selecting which generated GPIO interrupt events are latched and signaled to the CPU.",
+    "rubric reason": "Integrity yes: bus_req_i.data writes irq_en at line 77, and irq_en directly masks the pending-state update at line 141. Availability yes: disabling a bit prevents the corresponding interrupt from reaching cpu_irq_o at line 142. Confidentiality no because the mask is readable at line 87; undermined expected behavior no because no privileged or override behavior acts on it.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker can write zeros to the interrupt-enable register and suppress selected GPIO interrupts.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     77
+    ],
+    "held lines": [
+     62,
+     77
+    ],
+    "exit lines": [
+     87
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_gpio",
+    "concept": "Interrupt pending clear control",
+    "information": "The per-pin clear or retain control applied to pending interrupt bits; it determines whether an already pending interrupt survives the next update.",
+    "rubric reason": "Integrity yes: a bus write loads irq_clrn at line 78 and the value controls pending-bit retention in line 141. Availability yes: clearing or masking pending bits can remove an interrupt before cpu_irq_o reports it at line 142. Confidentiality no because this control has no secret output; undermined expected behavior no because no privileged, override, bypass or test behavior is implemented.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker can write the interrupt-clear register to erase or suppress a pending interrupt before the CPU observes it.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     78
+    ],
+    "held lines": [
+     63,
+     69,
+     78
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C6",
+    "unit": "neorv32_gpio",
+    "concept": "GPIO interrupt trigger event",
+    "information": "The internally decoded per-pin event indicating that the sampled GPIO input meets its configured level or edge condition; this event causes pending interrupt state to be set.",
+    "rubric reason": "Integrity yes: the trigger decision is produced by the logic at lines 125-129 and directly controls the pending update at line 141, so an incorrect decision can create or suppress an interrupt. Availability yes: suppressing this event prevents pending state and the CPU interrupt indication at lines 141-142. Confidentiality no because the event is not exposed as secret data; undermined expected behavior no because no privileged, override, bypass or test behavior acts on it.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker can alter the writable trigger settings or input conditions to cause false trigger events or prevent real events from being latched.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     125,
+     126,
+     127,
+     128,
+     129
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C7",
+    "unit": "neorv32_gpio",
+    "concept": "Pending GPIO interrupt state",
+    "information": "The latched per-pin pending-interrupt state and its CPU interrupt indication; the IP uses it to retain GPIO events until cleared and notify the CPU.",
+    "rubric reason": "Integrity yes: irq_pend is updated by the trigger, enable and clear controls at line 141, so it can be incorrectly set or cleared. Availability yes: losing or masking pending state prevents the CPU notification at line 142. Confidentiality no because pending status is intentionally readable at line 88; undermined expected behavior no because no privileged, override, bypass or test behavior acts on it.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker can clear or mask irq_pend, preventing cpu_irq_o from notifying the CPU or causing an incorrect interrupt indication.",
+    "enters through": [],
+    "leaves through": [
+     "bus_rsp_o.data",
+     "cpu_irq_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     138,
+     139,
+     141,
+     142
+    ],
+    "exit lines": [
+     88,
+     142
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_gpio",
+    "concept": "GPIO bus access transaction",
+    "reason": "The request strobe, direction and address only perform or select register accesses, so the transaction fields are covered by the information they access rather than being a separate asset.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_gpio",
+    "concept": "Second sampled GPIO-input copy",
+    "reason": "merged into C2",
+    "merged into": "C2"
+   },
+   {
+    "unit": "neorv32_gpio",
+    "concept": "Output staging path",
+    "reason": "merged into C1",
+    "merged into": "C1"
+   },
+   {
+    "unit": "neorv32_gpio",
+    "concept": "Bus response acknowledge and error",
+    "reason": "The acknowledge repeats the request strobe at line 66 and the error is tied to a constant at line 67, so they are bus-handshake behavior rather than separate security information.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_gpio",
+    "concept": "Clock and reset inputs",
+    "reason": "Clock and reset inputs are excluded by the clock-and-reset rule and only time or initialize the retained information.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_gpio",
+    "concept": "GPIO_NUM build-time width",
+    "reason": "GPIO_NUM is a generic that fixes the implementation width at build time and cannot be changed or withheld at run time.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

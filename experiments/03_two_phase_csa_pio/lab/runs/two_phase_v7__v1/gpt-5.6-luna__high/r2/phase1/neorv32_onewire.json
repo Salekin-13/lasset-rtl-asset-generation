@@ -1,0 +1,283 @@
+{
+ "module": "neorv32_onewire",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "be3b3faab49b",
+ "user sha": "e3c473328195",
+ "usage": {
+  "in": 25774,
+  "out": 14296,
+  "reasoning": 11912,
+  "cached": 25771,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_043d1620438cbdad006ace83b879b487d18fdfb3ed3952913a",
+  "request key": "5267dcdf39f1"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_onewire\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"OneWire transmit command and data\",\n      \"Unit\": \"neorv32_onewire\",\n      \"Information\": \"Bus-written command and payload words are queued and serialized onto the OneWire output; OneWire transfers depend on their contents.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The command and payload may be sensitive bus data and can be exposed through the serialized onewire_o path at lines 201, 300, 302, and 342. A bus write and the serial engine determine the queued and transmitted value at lines 201, 328, and 342, so unauthorized alteration can corrupt a OneWire transfer.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could observe the OneWire waveform or inject altered bus data so that a different command or payload is transmitted.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"onewire_o\"\n      ],\n      \"Entry Lines\": [\n        201\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": [\n        300,\n        302,\n        342,\n        358\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"OneWire received data and presence result\",\n      \"Unit\": \"neorv32_onewire\",\n      \"Information\": \"Bits sampled from onewire_i are assembled into received words together with the OneWire presence result and returned to software; host operation depends on receiving these responses.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Received external data and presence information can be exposed in bus_rsp_o.data at lines 161 and 162. The input is sampled and assembled by the serial engine at lines 296, 347, 352, and 375, so altered sampled bits or presence state can change the returned response.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could monitor the bus readback or spoof OneWire bits and presence so software receives confidential or incorrect response data.\",\n      \"Enters Through\": [\n        \"onewire_i\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        296\n      ],\n      \"Held Lines\": [\n        347,\n        375\n      ],\n      \"Exit Lines\": [\n        161,\n        162\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"OneWire line-level sense\",\n      \"Unit\": \"neorv32_onewire\",\n      \"Information\": \"The sampled current OneWire line level is exposed as a software-readable sense value for monitoring or bit-level interaction with the bus.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The sampled line level can reveal external bus activity through the sense readback at line 158. The value is sampled from onewire_i at line 296 and can be changed by the sampled input or its processing before readback.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could read the sense field to observe OneWire activity or spoof the line so software makes an incorrect bus decision.\",\n      \"Enters Through\": [\n        \"onewire_i\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        296\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": [\n        158\n      ]\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"OneWire peripheral enable state\",\n      \"Unit\": \"neorv32_onewire\",\n      \"Information\": \"The runtime enable state activates the OneWire engine, clock generation, and FIFO operation, and controls the external clock-enable output.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"A bus write can modify the enable state at line 142, while the state is externally reflected at bus_rsp_o.data and clkgen_en_o at lines 150 and 273. Clearing or disabling the state clears the FIFOs, stops clock progression, and prevents engine activity through lines 199, 231, 258, and 311, threatening availability.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could write the enable control low or otherwise alter it to clear queued transfers and disable OneWire operation.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\",\n        \"clkgen_en_o\"\n      ],\n      \"Entry Lines\": [\n        142\n      ],\n      \"Held Lines\": [\n        130,\n        142\n      ],\n      \"Exit Lines\": [\n        150,\n        273\n      ]\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"OneWire timing configuration\",\n      \"Unit\": \"neorv32_onewire\",\n      \"Information\": \"The programmable prescaler and divider determine the tick rate used to pace OneWire slots, sampling, resets, and presence detection.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Bus writes modify the prescaler and divider at lines 144 and 145, and incorrect values alter tick generation and therefore OneWire timing through lines 260 to 265. The settings can be read back at lines 151 and 152, and a malicious value can prevent or badly delay required transfers.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could program an incorrect prescaler or divider so OneWire sampling and drive timing become invalid or transfers effectively stall.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        144,\n        145\n      ],\n      \"Held Lines\": [\n        131,\n        132,\n        144,\n        145\n      ],\n      \"Exit Lines\": [\n        151,\n        152\n      ]\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Concept Name\": \"OneWire service interrupt request\",\n      \"Unit\": \"neorv32_onewire\",\n      \"Information\": \"The interrupt request reports that the peripheral is enabled, the transmit FIFO is empty, and the serial engine is idle so the host can service the peripheral. It has no entry port because it is generated from internal control and engine state.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The interrupt value is generated from enable, FIFO, and busy state at line 243, so unauthorized alteration can cause a false or missing service indication. Withholding irq_o can prevent the host from supplying further work or servicing the peripheral, blocking progress.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could suppress or spuriously assert irq_o so the host misses required service or performs service at the wrong time.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"irq_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        241,\n        243\n      ],\n      \"Exit Lines\": [\n        243\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"FIFO and serial shift-register copies of transmit data\",\n      \"Candidate Unit\": \"neorv32_onewire\",\n      \"Merged Into\": \"C1\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"FIFO and serial shift-register copies of received data\",\n      \"Candidate Unit\": \"neorv32_onewire\",\n      \"Merged Into\": \"C2\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"FIFO clear command\",\n      \"Candidate Unit\": \"neorv32_onewire\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The command only clears FIFO buffers, which the Port buffers rule excludes as an information piece of its own.\"\n    },\n    {\n      \"Candidate Name\": \"FIFO occupancy and serial busy status\",\n      \"Candidate Unit\": \"neorv32_onewire\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"These are buffer or sequencing status bits reported by readback and are excluded by the Buffer and engine status bits rule.\"\n    },\n    {\n      \"Candidate Name\": \"Serial engine sequencing state and counters\",\n      \"Candidate Unit\": \"neorv32_onewire\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The state, bit counter, timing counter, tick pulses, busy flag, and done flag only sequence or pace transfers and are barred by the Sequencing state and Pacing pulses rules.\"\n    },\n    {\n      \"Candidate Name\": \"Bus access handshake and error response\",\n      \"Candidate Unit\": \"neorv32_onewire\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The acknowledge repeats the request strobe and the error response is tied to a constant at lines 136 and 137, so neither is an independent security asset.\"\n    },\n    {\n      \"Candidate Name\": \"Clock and reset inputs\",\n      \"Candidate Unit\": \"neorv32_onewire\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"Clock and reset inputs are explicitly excluded from conceptual assets.\"\n    },\n    {\n      \"Candidate Name\": \"ONEWIRE_FIFO build-time depth\",\n      \"Candidate Unit\": \"neorv32_onewire\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The FIFO depth is a generic build-time value at lines 20 and 176 to 209 that no element can change or withhold at run time.\"\n    }\n  ],\n  \"Notes\": [\n    \"The closed set tags serial.presence as copied, but RTL line 375 assigns the inverse of serial.wire_in(1), not an unchanged copy.\"\n  ]\n}",
+ "reply": {
+  "module name": "neorv32_onewire",
+  "notes": [
+   "The closed set tags serial.presence as copied, but RTL line 375 assigns the inverse of serial.wire_in(1), not an unchanged copy."
+  ],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_onewire",
+    "concept": "OneWire transmit command and data",
+    "information": "Bus-written command and payload words are queued and serialized onto the OneWire output; OneWire transfers depend on their contents.",
+    "rubric reason": "The command and payload may be sensitive bus data and can be exposed through the serialized onewire_o path at lines 201, 300, 302, and 342. A bus write and the serial engine determine the queued and transmitted value at lines 201, 328, and 342, so unauthorized alteration can corrupt a OneWire transfer.",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "attack": "An attacker could observe the OneWire waveform or inject altered bus data so that a different command or payload is transmitted.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "onewire_o"
+    ],
+    "entry lines": [
+     201
+    ],
+    "held lines": [],
+    "exit lines": [
+     300,
+     302,
+     342,
+     358
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_onewire",
+    "concept": "OneWire received data and presence result",
+    "information": "Bits sampled from onewire_i are assembled into received words together with the OneWire presence result and returned to software; host operation depends on receiving these responses.",
+    "rubric reason": "Received external data and presence information can be exposed in bus_rsp_o.data at lines 161 and 162. The input is sampled and assembled by the serial engine at lines 296, 347, 352, and 375, so altered sampled bits or presence state can change the returned response.",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "attack": "An attacker could monitor the bus readback or spoof OneWire bits and presence so software receives confidential or incorrect response data.",
+    "enters through": [
+     "onewire_i"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     296
+    ],
+    "held lines": [
+     347,
+     375
+    ],
+    "exit lines": [
+     161,
+     162
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_onewire",
+    "concept": "OneWire line-level sense",
+    "information": "The sampled current OneWire line level is exposed as a software-readable sense value for monitoring or bit-level interaction with the bus.",
+    "rubric reason": "The sampled line level can reveal external bus activity through the sense readback at line 158. The value is sampled from onewire_i at line 296 and can be changed by the sampled input or its processing before readback.",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "attack": "An attacker could read the sense field to observe OneWire activity or spoof the line so software makes an incorrect bus decision.",
+    "enters through": [
+     "onewire_i"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     296
+    ],
+    "held lines": [],
+    "exit lines": [
+     158
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_onewire",
+    "concept": "OneWire peripheral enable state",
+    "information": "The runtime enable state activates the OneWire engine, clock generation, and FIFO operation, and controls the external clock-enable output.",
+    "rubric reason": "A bus write can modify the enable state at line 142, while the state is externally reflected at bus_rsp_o.data and clkgen_en_o at lines 150 and 273. Clearing or disabling the state clears the FIFOs, stops clock progression, and prevents engine activity through lines 199, 231, 258, and 311, threatening availability.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could write the enable control low or otherwise alter it to clear queued transfers and disable OneWire operation.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data",
+     "clkgen_en_o"
+    ],
+    "entry lines": [
+     142
+    ],
+    "held lines": [
+     130,
+     142
+    ],
+    "exit lines": [
+     150,
+     273
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_onewire",
+    "concept": "OneWire timing configuration",
+    "information": "The programmable prescaler and divider determine the tick rate used to pace OneWire slots, sampling, resets, and presence detection.",
+    "rubric reason": "Bus writes modify the prescaler and divider at lines 144 and 145, and incorrect values alter tick generation and therefore OneWire timing through lines 260 to 265. The settings can be read back at lines 151 and 152, and a malicious value can prevent or badly delay required transfers.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could program an incorrect prescaler or divider so OneWire sampling and drive timing become invalid or transfers effectively stall.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     144,
+     145
+    ],
+    "held lines": [
+     131,
+     132,
+     144,
+     145
+    ],
+    "exit lines": [
+     151,
+     152
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C6",
+    "unit": "neorv32_onewire",
+    "concept": "OneWire service interrupt request",
+    "information": "The interrupt request reports that the peripheral is enabled, the transmit FIFO is empty, and the serial engine is idle so the host can service the peripheral. It has no entry port because it is generated from internal control and engine state.",
+    "rubric reason": "The interrupt value is generated from enable, FIFO, and busy state at line 243, so unauthorized alteration can cause a false or missing service indication. Withholding irq_o can prevent the host from supplying further work or servicing the peripheral, blocking progress.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could suppress or spuriously assert irq_o so the host misses required service or performs service at the wrong time.",
+    "enters through": [],
+    "leaves through": [
+     "irq_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     241,
+     243
+    ],
+    "exit lines": [
+     243
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_onewire",
+    "concept": "FIFO and serial shift-register copies of transmit data",
+    "reason": "merged into C1",
+    "merged into": "C1"
+   },
+   {
+    "unit": "neorv32_onewire",
+    "concept": "FIFO and serial shift-register copies of received data",
+    "reason": "merged into C2",
+    "merged into": "C2"
+   },
+   {
+    "unit": "neorv32_onewire",
+    "concept": "FIFO clear command",
+    "reason": "The command only clears FIFO buffers, which the Port buffers rule excludes as an information piece of its own.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_onewire",
+    "concept": "FIFO occupancy and serial busy status",
+    "reason": "These are buffer or sequencing status bits reported by readback and are excluded by the Buffer and engine status bits rule.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_onewire",
+    "concept": "Serial engine sequencing state and counters",
+    "reason": "The state, bit counter, timing counter, tick pulses, busy flag, and done flag only sequence or pace transfers and are barred by the Sequencing state and Pacing pulses rules.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_onewire",
+    "concept": "Bus access handshake and error response",
+    "reason": "The acknowledge repeats the request strobe and the error response is tied to a constant at lines 136 and 137, so neither is an independent security asset.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_onewire",
+    "concept": "Clock and reset inputs",
+    "reason": "Clock and reset inputs are explicitly excluded from conceptual assets.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_onewire",
+    "concept": "ONEWIRE_FIFO build-time depth",
+    "reason": "The FIFO depth is a generic build-time value at lines 20 and 176 to 209 that no element can change or withhold at run time.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

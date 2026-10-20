@@ -1,0 +1,199 @@
+{
+ "module": "neorv32_cpu_counters",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "be3b3faab49b",
+ "user sha": "6b1eb3f07054",
+ "usage": {
+  "in": 22413,
+  "out": 13093,
+  "reasoning": 11394,
+  "cached": 12982,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_09a380f8f170c0ba006ace83b8349c87d19e757e97a7a1ab7d",
+  "request key": "580529d9ef63"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_cpu_counters\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"Cycle count\",\n      \"Unit\": \"neorv32_cpu_counters\",\n      \"Information\": \"The accumulated number of clock cycles is used to report elapsed execution time through the cycle counter interface. It is internally accumulated and can also be written through the CSR data path.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"yes\"\n      },\n      \"Rubric Reason\": \"The cycle count can reveal execution timing or workload, and the cycle counter readback reaches rdata_o through lines 136 and 97. CSR write data can overwrite the cycle counter state through cycle_inst at lines 135, 303 and 326. The cpu_debug and cnt_halt conditions suppress the cycle counter enable at line 108, which drives its increment input at line 131 and can produce an incorrect count.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could read the cycle CSR to infer execution behavior, write a forged count, or force debug or halt control so subsequent reads report an incorrect value.\",\n      \"Enters Through\": [\n        \"ctrl_i.csr_wdata\"\n      ],\n      \"Leaves Through\": [\n        \"rdata_o\"\n      ],\n      \"Entry Lines\": [\n        135\n      ],\n      \"Held Lines\": [\n        300,\n        303,\n        305,\n        320,\n        322,\n        326,\n        328\n      ],\n      \"Exit Lines\": [\n        97\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"Instructions-retired count\",\n      \"Unit\": \"neorv32_cpu_counters\",\n      \"Information\": \"The accumulated number of retired instructions is used to report instruction-retirement progress through the instret counter interface. It is internally accumulated and can also be written through the CSR data path.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"yes\"\n      },\n      \"Rubric Reason\": \"The retired-instruction count can reveal execution behavior, and the instret counter readback reaches rdata_o through lines 155 and 97. CSR write data can overwrite the instret counter state through instret_inst at lines 154, 303 and 326. The cpu_debug and cnt_halt conditions suppress the instret counter enable at line 110, which drives its increment input at line 150 and can produce an incorrect count.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could read the instruction count to infer workload, write a forged value, or force debug or halt control so the reported retirement count becomes incorrect.\",\n      \"Enters Through\": [\n        \"ctrl_i.csr_wdata\"\n      ],\n      \"Leaves Through\": [\n        \"rdata_o\"\n      ],\n      \"Entry Lines\": [\n        154\n      ],\n      \"Held Lines\": [\n        300,\n        303,\n        305,\n        320,\n        322,\n        326,\n        328\n      ],\n      \"Exit Lines\": [\n        97\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"Hardware performance-monitoring counts\",\n      \"Unit\": \"neorv32_cpu_counters\",\n      \"Information\": \"The per-event HPM counter values record occurrences of selected processor events and are used for performance monitoring. They are accumulated in the HPM counter instances and returned through the CSR readback path.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"yes\"\n      },\n      \"Rubric Reason\": \"HPM counts can reveal processor activity or workload, and their values flow from hpmcnt through hpm_read_back to rdata_o at lines 190, 222, 227 and 97. CSR write data can overwrite HPM counter state through hpmcnt_inst at lines 189, 303 and 326. The cpu_debug and cnt_halt conditions suppress HPM counting at line 112, which drives the HPM counter increment input at line 185 and can make the reported measurements incorrect.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could read HPM counters to infer activity, write selected counters, or force debug or halt control to suppress events and corrupt performance measurements.\",\n      \"Enters Through\": [\n        \"ctrl_i.csr_wdata\"\n      ],\n      \"Leaves Through\": [\n        \"rdata_o\"\n      ],\n      \"Entry Lines\": [\n        189\n      ],\n      \"Held Lines\": [\n        300,\n        303,\n        305,\n        320,\n        322,\n        326,\n        328\n      ],\n      \"Exit Lines\": [\n        97\n      ]\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"HPM event-selection configuration\",\n      \"Unit\": \"neorv32_cpu_counters\",\n      \"Information\": \"The per-counter event-selection configuration determines which processor event bits contribute to each HPM count. It is held in hpmevent registers and can be read back through the CSR output.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"CSR write data changes the HPM event-selection registers when cfg_we is asserted at lines 199 and 200, so an unauthorized write can alter which events are counted. The configuration gates use of ctrl_i.cnt_event for HPM increments at line 112, so clearing or misprogramming it can disable the HPM monitoring function.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could issue a CSR write that changes or clears an HPM event selection, causing the counters to measure the wrong events or stop monitoring them.\",\n      \"Enters Through\": [\n        \"ctrl_i.csr_wdata\"\n      ],\n      \"Leaves Through\": [\n        \"rdata_o\"\n      ],\n      \"Entry Lines\": [\n        200\n      ],\n      \"Held Lines\": [\n        197,\n        200,\n        202\n      ],\n      \"Exit Lines\": [\n        97\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Time counter value\",\n      \"Candidate Unit\": \"neorv32_cpu_counters\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"time_rd is assigned only constant zero values at lines 140 and 164, so it holds no meaningful changing information that meets the asset test.\"\n    },\n    {\n      \"Candidate Name\": \"Counter increment enable\",\n      \"Candidate Unit\": \"neorv32_cpu_counters\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"cnt_en only paces the counter increment step through lines 108-112, 131, 150 and 185, so the pacing-pulse rule bars it as a separate conceptual piece.\"\n    },\n    {\n      \"Candidate Name\": \"CSR access command and selection\",\n      \"Candidate Unit\": \"neorv32_cpu_counters\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The csr_addr, csr_re and csr_we fields only select and control accesses to the kept counter or configuration information at lines 82-86 and are excluded as access-command fields rather than being assets of their own.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_cpu_counters",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_cpu_counters",
+    "concept": "Cycle count",
+    "information": "The accumulated number of clock cycles is used to report elapsed execution time through the cycle counter interface. It is internally accumulated and can also be written through the CSR data path.",
+    "rubric reason": "The cycle count can reveal execution timing or workload, and the cycle counter readback reaches rdata_o through lines 136 and 97. CSR write data can overwrite the cycle counter state through cycle_inst at lines 135, 303 and 326. The cpu_debug and cnt_halt conditions suppress the cycle counter enable at line 108, which drives its increment input at line 131 and can produce an incorrect count.",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "attack": "An attacker could read the cycle CSR to infer execution behavior, write a forged count, or force debug or halt control so subsequent reads report an incorrect value.",
+    "enters through": [
+     "ctrl_i.csr_wdata"
+    ],
+    "leaves through": [
+     "rdata_o"
+    ],
+    "entry lines": [
+     135
+    ],
+    "held lines": [
+     300,
+     303,
+     305,
+     320,
+     322,
+     326,
+     328
+    ],
+    "exit lines": [
+     97
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "yes"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_cpu_counters",
+    "concept": "Instructions-retired count",
+    "information": "The accumulated number of retired instructions is used to report instruction-retirement progress through the instret counter interface. It is internally accumulated and can also be written through the CSR data path.",
+    "rubric reason": "The retired-instruction count can reveal execution behavior, and the instret counter readback reaches rdata_o through lines 155 and 97. CSR write data can overwrite the instret counter state through instret_inst at lines 154, 303 and 326. The cpu_debug and cnt_halt conditions suppress the instret counter enable at line 110, which drives its increment input at line 150 and can produce an incorrect count.",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "attack": "An attacker could read the instruction count to infer workload, write a forged value, or force debug or halt control so the reported retirement count becomes incorrect.",
+    "enters through": [
+     "ctrl_i.csr_wdata"
+    ],
+    "leaves through": [
+     "rdata_o"
+    ],
+    "entry lines": [
+     154
+    ],
+    "held lines": [
+     300,
+     303,
+     305,
+     320,
+     322,
+     326,
+     328
+    ],
+    "exit lines": [
+     97
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "yes"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_cpu_counters",
+    "concept": "Hardware performance-monitoring counts",
+    "information": "The per-event HPM counter values record occurrences of selected processor events and are used for performance monitoring. They are accumulated in the HPM counter instances and returned through the CSR readback path.",
+    "rubric reason": "HPM counts can reveal processor activity or workload, and their values flow from hpmcnt through hpm_read_back to rdata_o at lines 190, 222, 227 and 97. CSR write data can overwrite HPM counter state through hpmcnt_inst at lines 189, 303 and 326. The cpu_debug and cnt_halt conditions suppress HPM counting at line 112, which drives the HPM counter increment input at line 185 and can make the reported measurements incorrect.",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "attack": "An attacker could read HPM counters to infer activity, write selected counters, or force debug or halt control to suppress events and corrupt performance measurements.",
+    "enters through": [
+     "ctrl_i.csr_wdata"
+    ],
+    "leaves through": [
+     "rdata_o"
+    ],
+    "entry lines": [
+     189
+    ],
+    "held lines": [
+     300,
+     303,
+     305,
+     320,
+     322,
+     326,
+     328
+    ],
+    "exit lines": [
+     97
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "yes"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_cpu_counters",
+    "concept": "HPM event-selection configuration",
+    "information": "The per-counter event-selection configuration determines which processor event bits contribute to each HPM count. It is held in hpmevent registers and can be read back through the CSR output.",
+    "rubric reason": "CSR write data changes the HPM event-selection registers when cfg_we is asserted at lines 199 and 200, so an unauthorized write can alter which events are counted. The configuration gates use of ctrl_i.cnt_event for HPM increments at line 112, so clearing or misprogramming it can disable the HPM monitoring function.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could issue a CSR write that changes or clears an HPM event selection, causing the counters to measure the wrong events or stop monitoring them.",
+    "enters through": [
+     "ctrl_i.csr_wdata"
+    ],
+    "leaves through": [
+     "rdata_o"
+    ],
+    "entry lines": [
+     200
+    ],
+    "held lines": [
+     197,
+     200,
+     202
+    ],
+    "exit lines": [
+     97
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_cpu_counters",
+    "concept": "Time counter value",
+    "reason": "time_rd is assigned only constant zero values at lines 140 and 164, so it holds no meaningful changing information that meets the asset test.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_counters",
+    "concept": "Counter increment enable",
+    "reason": "cnt_en only paces the counter increment step through lines 108-112, 131, 150 and 185, so the pacing-pulse rule bars it as a separate conceptual piece.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_counters",
+    "concept": "CSR access command and selection",
+    "reason": "The csr_addr, csr_re and csr_we fields only select and control accesses to the kept counter or configuration information at lines 82-86 and are excluded as access-command fields rather than being assets of their own.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

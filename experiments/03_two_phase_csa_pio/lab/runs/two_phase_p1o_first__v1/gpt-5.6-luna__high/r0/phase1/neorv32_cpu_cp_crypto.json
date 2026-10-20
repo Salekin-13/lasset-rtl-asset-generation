@@ -1,0 +1,205 @@
+{
+ "module": "neorv32_cpu_cp_crypto",
+ "prompt version": "two_phase_p1o_first",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "b4c962e16261",
+ "user sha": "a99bd61d04cf",
+ "usage": {
+  "in": 37474,
+  "out": 12253,
+  "reasoning": 10532,
+  "cached": 20474,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_015023a148afe233006ad59816971887d1b13790a3e503f363",
+  "request key": "b18e2531a0e5"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_cpu_cp_crypto\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"Crypto-operation acceptance control\",\n      \"Unit\": \"neorv32_cpu_cp_crypto\",\n      \"Information\": \"The decoded acceptance and start decision determines whether a supported cryptographic instruction is captured and begun. CPU execution depends on this decision to invoke the coprocessor.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because changing the decoded acceptance decision can accept the wrong request or ignore a valid one; cmd_valid is formed from the control input and decoded command at line 296 and controls operand capture and operation entry at lines 312-325. Availability is at risk because suppressing cmd_valid prevents the coprocessor from accepting the operation and producing a completion.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could alter the command-decode or acceptance logic so a crypto instruction is rejected, delayed, or started with an unintended operation selection.\",\n      \"Enters Through\": [\n        \"ctrl_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        296\n      ],\n      \"Held Lines\": [\n        296\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"Cryptographic operand data\",\n      \"Unit\": \"neorv32_cpu_cp_crypto\",\n      \"Information\": \"The operand words supplied to a cryptographic instruction, potentially including a key, plaintext, ciphertext, or other sensitive data, are retained while the operation computes. The cryptographic operation depends on these operand values.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality is relevant because the operand ports and their retained copies carry potentially secret cryptographic data, and the operands contribute to the observable result at lines 313-314 and 357-364. Integrity is relevant because modifying the captured operands at lines 313-314 changes the cryptographic computation and returned value.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could observe the operand boundary or alter the captured operand registers so that secret data is exposed or the cryptographic computation uses attacker-selected values.\",\n      \"Enters Through\": [\n        \"rs1_i\",\n        \"rs2_i\"\n      ],\n      \"Leaves Through\": [\n        \"res_o\"\n      ],\n      \"Entry Lines\": [\n        313,\n        314\n      ],\n      \"Held Lines\": [\n        304,\n        305,\n        313,\n        314\n      ],\n      \"Exit Lines\": [\n        357,\n        359,\n        362,\n        364\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"Cryptographic operation result\",\n      \"Unit\": \"neorv32_cpu_cp_crypto\",\n      \"Information\": \"The selected AES, SHA, SM3, SM4, or XPERM operation produces a 32-bit cryptographic result. Processor execution depends on the correctness and delivery of this result for instruction writeback.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality is relevant because the cryptographic result may be plaintext, ciphertext, or other sensitive derived data exposed through res_o at lines 357-364. Integrity is relevant because modifying the computation or result register changes the value returned to the processor, with the output selected and assigned at lines 355-365. Availability is relevant because clearing or withholding the result register prevents a completed crypto instruction from receiving its required output, as shown by the reset, clear, and done-gated assignments at lines 350-367.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could probe the result interface, corrupt an intermediate or output assignment, or force the result path to remain cleared so that sensitive or incorrect values are returned or no result is delivered.\",\n      \"Enters Through\": [\n        \"rs1_i\",\n        \"rs2_i\"\n      ],\n      \"Leaves Through\": [\n        \"res_o\"\n      ],\n      \"Entry Lines\": [\n        313,\n        314\n      ],\n      \"Held Lines\": [\n        351,\n        353,\n        357,\n        359,\n        362,\n        364\n      ],\n      \"Exit Lines\": [\n        357,\n        359,\n        362,\n        364\n      ]\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"Cryptographic operation progress and completion state\",\n      \"Unit\": \"neorv32_cpu_cp_crypto\",\n      \"Information\": \"The internal progress state records whether a multi-cycle cryptographic operation is idle, busy, or complete and whether its result is ready. The coprocessor depends on this state to sequence AES, SM4, and other operations and to assert completion.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because changing state or done can release an incomplete result or falsely report completion; these elements are assigned in the control process at lines 309, 325, 328, 333, 337, and 327, 336. Availability is at risk because forcing the progress state or done behavior can keep the operation from completing or prevent valid_o from asserting at line 343.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could force the progress state or completion flag to remain idle, terminate an operation early, or falsely signal completion.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"valid_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        303,\n        308,\n        309,\n        319,\n        325,\n        327,\n        328,\n        333,\n        336,\n        337\n      ],\n      \"Exit Lines\": [\n        343\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Operation selector and crypto instruction mode\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_crypto\",\n      \"Merged Into\": \"C3\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Intermediate cryptographic working values\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_crypto\",\n      \"Merged Into\": \"C3\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Build-time cryptographic feature configuration\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_crypto\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The EN_ZBKX, EN_ZKNH, EN_ZKNE, EN_ZKND, EN_ZKSED, and EN_ZKSH generics at lines 27-33 only fix which logic is built and cannot be changed or withheld at run time.\"\n    },\n    {\n      \"Candidate Name\": \"Clock and reset control\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_crypto\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The clk_i and rstn_i inputs at lines 37-38 only time or reset the retained state and result paths, so the clock/reset exclusion bars them as conceptual assets.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_cpu_cp_crypto",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_cpu_cp_crypto",
+    "concept": "Crypto-operation acceptance control",
+    "information": "The decoded acceptance and start decision determines whether a supported cryptographic instruction is captured and begun. CPU execution depends on this decision to invoke the coprocessor.",
+    "rubric reason": "Integrity is at risk because changing the decoded acceptance decision can accept the wrong request or ignore a valid one; cmd_valid is formed from the control input and decoded command at line 296 and controls operand capture and operation entry at lines 312-325. Availability is at risk because suppressing cmd_valid prevents the coprocessor from accepting the operation and producing a completion.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could alter the command-decode or acceptance logic so a crypto instruction is rejected, delayed, or started with an unintended operation selection.",
+    "enters through": [
+     "ctrl_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     296
+    ],
+    "held lines": [
+     296
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_cpu_cp_crypto",
+    "concept": "Cryptographic operand data",
+    "information": "The operand words supplied to a cryptographic instruction, potentially including a key, plaintext, ciphertext, or other sensitive data, are retained while the operation computes. The cryptographic operation depends on these operand values.",
+    "rubric reason": "Confidentiality is relevant because the operand ports and their retained copies carry potentially secret cryptographic data, and the operands contribute to the observable result at lines 313-314 and 357-364. Integrity is relevant because modifying the captured operands at lines 313-314 changes the cryptographic computation and returned value.",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "attack": "An attacker could observe the operand boundary or alter the captured operand registers so that secret data is exposed or the cryptographic computation uses attacker-selected values.",
+    "enters through": [
+     "rs1_i",
+     "rs2_i"
+    ],
+    "leaves through": [
+     "res_o"
+    ],
+    "entry lines": [
+     313,
+     314
+    ],
+    "held lines": [
+     304,
+     305,
+     313,
+     314
+    ],
+    "exit lines": [
+     357,
+     359,
+     362,
+     364
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_cpu_cp_crypto",
+    "concept": "Cryptographic operation result",
+    "information": "The selected AES, SHA, SM3, SM4, or XPERM operation produces a 32-bit cryptographic result. Processor execution depends on the correctness and delivery of this result for instruction writeback.",
+    "rubric reason": "Confidentiality is relevant because the cryptographic result may be plaintext, ciphertext, or other sensitive derived data exposed through res_o at lines 357-364. Integrity is relevant because modifying the computation or result register changes the value returned to the processor, with the output selected and assigned at lines 355-365. Availability is relevant because clearing or withholding the result register prevents a completed crypto instruction from receiving its required output, as shown by the reset, clear, and done-gated assignments at lines 350-367.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could probe the result interface, corrupt an intermediate or output assignment, or force the result path to remain cleared so that sensitive or incorrect values are returned or no result is delivered.",
+    "enters through": [
+     "rs1_i",
+     "rs2_i"
+    ],
+    "leaves through": [
+     "res_o"
+    ],
+    "entry lines": [
+     313,
+     314
+    ],
+    "held lines": [
+     351,
+     353,
+     357,
+     359,
+     362,
+     364
+    ],
+    "exit lines": [
+     357,
+     359,
+     362,
+     364
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_cpu_cp_crypto",
+    "concept": "Cryptographic operation progress and completion state",
+    "information": "The internal progress state records whether a multi-cycle cryptographic operation is idle, busy, or complete and whether its result is ready. The coprocessor depends on this state to sequence AES, SM4, and other operations and to assert completion.",
+    "rubric reason": "Integrity is at risk because changing state or done can release an incomplete result or falsely report completion; these elements are assigned in the control process at lines 309, 325, 328, 333, 337, and 327, 336. Availability is at risk because forcing the progress state or done behavior can keep the operation from completing or prevent valid_o from asserting at line 343.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could force the progress state or completion flag to remain idle, terminate an operation early, or falsely signal completion.",
+    "enters through": [],
+    "leaves through": [
+     "valid_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     303,
+     308,
+     309,
+     319,
+     325,
+     327,
+     328,
+     333,
+     336,
+     337
+    ],
+    "exit lines": [
+     343
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_cpu_cp_crypto",
+    "concept": "Operation selector and crypto instruction mode",
+    "reason": "merged into C3",
+    "merged into": "C3"
+   },
+   {
+    "unit": "neorv32_cpu_cp_crypto",
+    "concept": "Intermediate cryptographic working values",
+    "reason": "merged into C3",
+    "merged into": "C3"
+   },
+   {
+    "unit": "neorv32_cpu_cp_crypto",
+    "concept": "Build-time cryptographic feature configuration",
+    "reason": "The EN_ZBKX, EN_ZKNH, EN_ZKNE, EN_ZKND, EN_ZKSED, and EN_ZKSH generics at lines 27-33 only fix which logic is built and cannot be changed or withheld at run time.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_cp_crypto",
+    "concept": "Clock and reset control",
+    "reason": "The clk_i and rstn_i inputs at lines 37-38 only time or reset the retained state and result paths, so the clock/reset exclusion bars them as conceptual assets.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

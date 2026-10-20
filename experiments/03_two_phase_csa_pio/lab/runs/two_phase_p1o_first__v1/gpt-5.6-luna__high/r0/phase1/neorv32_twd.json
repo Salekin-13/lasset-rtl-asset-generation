@@ -1,0 +1,497 @@
+{
+ "module": "neorv32_twd",
+ "prompt version": "two_phase_p1o_first",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "b4c962e16261",
+ "user sha": "27dea96edca1",
+ "usage": {
+  "in": 38294,
+  "out": 19341,
+  "reasoning": 15020,
+  "cached": 20474,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_063d86ef50ae0788006ad59e0a0a3487d1b2cfc34f817b1705",
+  "request key": "c5050513c5fd"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_twd\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"TWD operational enable\",\n      \"Unit\": \"neorv32_twd\",\n      \"Information\": \"The stored enable controls whether the TWD peripheral operates, samples the link, and services its FIFOs. It is configured and readable through the bus interface.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because a bus write modifies ctrl.enable at line 159, while availability is at risk because it clears or disables the FIFOs and sampling at lines 230, 281, and 315 and gates protocol progress at lines 381-465.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An unauthorized bus write could clear the enable and disable normal TWD operation or discard queued data.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        159\n      ],\n      \"Held Lines\": [\n        138,\n        159\n      ],\n      \"Exit Lines\": [\n        172\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"Clock-generator enable request\",\n      \"Unit\": \"neorv32_twd\",\n      \"Information\": \"This enable value is exported to the clock-generation logic through clkgen_en_o, so downstream clocking depends on it.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because the bus can change the source enable at line 159, and availability is at risk because that value directly controls the clock-enable output at line 198.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An unauthorized bus write could suppress clkgen_en_o and stop clock-dependent logic from operating.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"clkgen_en_o\"\n      ],\n      \"Entry Lines\": [\n        159\n      ],\n      \"Held Lines\": [\n        138,\n        159\n      ],\n      \"Exit Lines\": [\n        198\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"TWD sampling-rate selection\",\n      \"Unit\": \"neorv32_twd\",\n      \"Information\": \"The frequency-selection setting chooses which clkgen_i timing source advances serial sampling. TWD protocol recognition depends on this rate selection.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because a bus write changes ctrl.fsel at line 162 and the selected timing path at line 329, while availability is at risk because an incorrect sampling rate can prevent valid events from being recognized at lines 315-320.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An unauthorized configuration write could select an incompatible sampling rate and make serial transfers fail.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        162\n      ],\n      \"Held Lines\": [\n        141,\n        162\n      ],\n      \"Exit Lines\": [\n        173\n      ]\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"TWD device address configuration\",\n      \"Unit\": \"neorv32_twd\",\n      \"Information\": \"The stored device address determines which serial address this unit accepts. TWD access depends on matching the incoming address against this setting.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because a bus write changes ctrl.device_addr at line 163 and the value is used in the address comparison at line 402, while availability is at risk because a wrong address prevents the protocol engine from entering S_RESP.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An unauthorized bus write could redirect the accepted address or make the peripheral ignore all intended transactions.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        163\n      ],\n      \"Held Lines\": [\n        142,\n        163\n      ],\n      \"Exit Lines\": [\n        174\n      ]\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"TX empty-data policy\",\n      \"Unit\": \"neorv32_twd\",\n      \"Information\": \"The tx_dummy_en setting determines whether a previously transmitted byte is used when the TX FIFO is empty instead of the all-ones fallback. The serial read result depends on this policy.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because a bus write changes ctrl.tx_dummy_en at line 167 and that setting selects the serial response source at lines 250-251.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An unauthorized bus write could change the byte returned when the TX FIFO is empty and produce an incorrect serial response.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        167\n      ],\n      \"Held Lines\": [\n        146,\n        167\n      ],\n      \"Exit Lines\": [\n        178\n      ]\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Concept Name\": \"TX read-suppression policy\",\n      \"Unit\": \"neorv32_twd\",\n      \"Information\": \"The hide-read setting controls whether a serial read is suppressed when the TX FIFO is full. It determines whether that class of TWD transaction is allowed to proceed.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because a bus write changes ctrl.hide_read at line 168 and alters the read acceptance decision at line 403, while availability is at risk because that decision can force S_IDLE instead of servicing the read at lines 403-406.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An unauthorized bus write could cause valid serial reads to be rejected whenever the TX FIFO is full.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        168\n      ],\n      \"Held Lines\": [\n        147,\n        168\n      ],\n      \"Exit Lines\": [\n        179\n      ]\n    },\n    {\n      \"Concept ID\": \"C7\",\n      \"Concept Name\": \"TWD interrupt indication\",\n      \"Unit\": \"neorv32_twd\",\n      \"Information\": \"irq_o reports configured receive and transmit FIFO events to the integrating system. The system may depend on this indication to service transfers and prevent data loss; it has no direct input port because it is generated from internal FIFO status and control.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because internal logic produces the interrupt level from enable, interrupt settings, and FIFO status at lines 293-296, and availability is at risk because withholding irq_o can prevent the system from servicing pending FIFO events.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker who can influence the interrupt-generation path could suppress required service notifications or cause false interrupts.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"irq_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        293,\n        294,\n        295,\n        296\n      ],\n      \"Exit Lines\": [\n        293\n      ]\n    },\n    {\n      \"Concept ID\": \"C8\",\n      \"Concept Name\": \"Outgoing TWD payload\",\n      \"Unit\": \"neorv32_twd\",\n      \"Information\": \"This is the byte data supplied by the bus and shifted onto the TWD serial data line. Serial transmission depends on preserving the payload while it moves through the TX FIFO and engine.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality is at risk because potentially private bus data becomes observable on twd_sda_o at line 454, integrity is at risk because bus write data enters the transmit path at line 232 and is shifted to the link at lines 428-456, and availability is at risk because empty or blocked TX handling can substitute or withhold the expected word at lines 250-251 and 403-406.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could observe transmitted bytes, alter bus-supplied payloads, or prevent the TX path from delivering the intended data.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"twd_sda_o\"\n      ],\n      \"Entry Lines\": [\n        232\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": [\n        454\n      ]\n    },\n    {\n      \"Concept ID\": \"C9\",\n      \"Concept Name\": \"Incoming TWD payload\",\n      \"Unit\": \"neorv32_twd\",\n      \"Information\": \"This is data sampled from twd_sda_i, including received bytes and the sensed serial data value returned through the bus interface. TWD receive operation and software readback depend on preserving it.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality is at risk because received data can be exposed through bus_rsp_o.data at lines 187 and 190, integrity is at risk because serial samples enter at line 311 and determine stored receive data, and availability is at risk because a full RX FIFO prevents further writes at lines 439-444.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could monitor receive readback, inject altered SDA bits, or fill the RX path so subsequent data is lost.\",\n      \"Enters Through\": [\n        \"twd_sda_i\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        311\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": [\n        187,\n        190\n      ]\n    },\n    {\n      \"Concept ID\": \"C10\",\n      \"Concept Name\": \"Serial read/write command\",\n      \"Unit\": \"neorv32_twd\",\n      \"Information\": \"The command bit received in the serial address selects whether the engine receives data or transmits data. It has no separate output because it is consumed internally to control the transaction path.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because the received command is stored in engine.cmd at line 420 and controls transmit versus receive behavior at lines 443, 453, and 477, while availability is at risk because the selected direction controls whether the transfer can proceed at lines 439-445.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could alter the serial command bit to make the engine perform the wrong transfer direction or refuse the intended operation.\",\n      \"Enters Through\": [\n        \"twd_sda_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        311\n      ],\n      \"Held Lines\": [\n        420\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C11\",\n      \"Concept Name\": \"Serial address-match acceptance decision\",\n      \"Unit\": \"neorv32_twd\",\n      \"Information\": \"This decision is the result of comparing the received serial address with the configured device address and determines whether the engine accepts the transaction. It is recomputed internally and has no boundary port of its own.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because the address comparison at line 402 selects the protocol state, and availability is at risk because changing that decision can prevent valid transactions from reaching S_RESP.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could cause the address check to accept an unintended request or reject every valid request.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        402\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C12\",\n      \"Concept Name\": \"Peer acknowledgement\",\n      \"Unit\": \"neorv32_twd\",\n      \"Information\": \"The acknowledgement bit sampled from the serial peer determines whether the engine continues or requests another transmit operation. It is internal protocol status with no separate output port.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because the peer acknowledgement is captured into engine.ack at line 474 and controls the next state at line 468, while availability is at risk because a false acknowledgement can stop or prevent continued transfer progress.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could manipulate the serial acknowledgement level to terminate or misdirect an otherwise valid transfer.\",\n      \"Enters Through\": [\n        \"twd_sda_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        311\n      ],\n      \"Held Lines\": [\n        474\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C13\",\n      \"Concept Name\": \"TX-full read-blocking decision\",\n      \"Unit\": \"neorv32_twd\",\n      \"Information\": \"This transient decision determines whether a serial read is blocked when the requested read direction, hide-read policy, and TX FIFO fullness coincide. It is computed internally and has no independent boundary port.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because the gate at line 403 selects the next engine state, and availability is at risk because it can withhold the transaction by taking the S_IDLE branch at lines 404-406.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could manipulate the blocking decision to suppress valid reads or allow a read when the required TX data is unavailable.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        403\n      ],\n      \"Exit Lines\": []\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"RX and TX FIFO occupancy and buffer status\",\n      \"Candidate Unit\": \"neorv32_twd\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The FIFO flags only report or control movement of buffered data between ports and are barred as independent information by the port-buffer and buffer-status rules.\"\n    },\n    {\n      \"Candidate Name\": \"FIFO clear commands\",\n      \"Candidate Unit\": \"neorv32_twd\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"ctrl.clr_rx and ctrl.clr_tx only command FIFO clear inputs, so the Port buffers rule bars them as concepts of their own.\"\n    },\n    {\n      \"Candidate Name\": \"Interrupt enable settings\",\n      \"Candidate Unit\": \"neorv32_twd\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The interrupt enable bits only tune the irq_o output, so the Port options rule bars them as independent concepts.\"\n    },\n    {\n      \"Candidate Name\": \"Engine sequencing state and counters\",\n      \"Candidate Unit\": \"neorv32_twd\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"engine.state and engine.cnt only order and pace transfer steps and are excluded by the Sequencing state rule.\"\n    },\n    {\n      \"Candidate Name\": \"Sampling and serial pacing pulses\",\n      \"Candidate Unit\": \"neorv32_twd\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"clkgen_i, smp.clk_en, smp.valid, smp.start, smp.stop, smp.scl_rise, and smp.scl_fall only pace or delimit engine steps and are excluded by the clock and pacing rules.\"\n    },\n    {\n      \"Candidate Name\": \"Serial clock lines\",\n      \"Candidate Unit\": \"neorv32_twd\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"twd_scl_i and twd_scl_o are the serial link clock line and are excluded by the Clocks and resets rule.\"\n    },\n    {\n      \"Candidate Name\": \"Bus response acknowledge and error\",\n      \"Candidate Unit\": \"neorv32_twd\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"bus_rsp_o.ack only repeats the request strobe and bus_rsp_o.err is tied to a constant, so the bus handshake-copy rule bars them as independent information.\"\n    },\n    {\n      \"Candidate Name\": \"TX backup register\",\n      \"Candidate Unit\": \"neorv32_twd\",\n      \"Merged Into\": \"C8\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"TX response selection wire\",\n      \"Candidate Unit\": \"neorv32_twd\",\n      \"Merged Into\": \"C8\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"FIFO depth and size settings\",\n      \"Candidate Unit\": \"neorv32_twd\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"TWD_RX_FIFO, TWD_TX_FIFO, and their derived sizes are build-time values that no element can change or withhold at run time.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_twd",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_twd",
+    "concept": "TWD operational enable",
+    "information": "The stored enable controls whether the TWD peripheral operates, samples the link, and services its FIFOs. It is configured and readable through the bus interface.",
+    "rubric reason": "Integrity is at risk because a bus write modifies ctrl.enable at line 159, while availability is at risk because it clears or disables the FIFOs and sampling at lines 230, 281, and 315 and gates protocol progress at lines 381-465.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An unauthorized bus write could clear the enable and disable normal TWD operation or discard queued data.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     159
+    ],
+    "held lines": [
+     138,
+     159
+    ],
+    "exit lines": [
+     172
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_twd",
+    "concept": "Clock-generator enable request",
+    "information": "This enable value is exported to the clock-generation logic through clkgen_en_o, so downstream clocking depends on it.",
+    "rubric reason": "Integrity is at risk because the bus can change the source enable at line 159, and availability is at risk because that value directly controls the clock-enable output at line 198.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An unauthorized bus write could suppress clkgen_en_o and stop clock-dependent logic from operating.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "clkgen_en_o"
+    ],
+    "entry lines": [
+     159
+    ],
+    "held lines": [
+     138,
+     159
+    ],
+    "exit lines": [
+     198
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_twd",
+    "concept": "TWD sampling-rate selection",
+    "information": "The frequency-selection setting chooses which clkgen_i timing source advances serial sampling. TWD protocol recognition depends on this rate selection.",
+    "rubric reason": "Integrity is at risk because a bus write changes ctrl.fsel at line 162 and the selected timing path at line 329, while availability is at risk because an incorrect sampling rate can prevent valid events from being recognized at lines 315-320.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An unauthorized configuration write could select an incompatible sampling rate and make serial transfers fail.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     162
+    ],
+    "held lines": [
+     141,
+     162
+    ],
+    "exit lines": [
+     173
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_twd",
+    "concept": "TWD device address configuration",
+    "information": "The stored device address determines which serial address this unit accepts. TWD access depends on matching the incoming address against this setting.",
+    "rubric reason": "Integrity is at risk because a bus write changes ctrl.device_addr at line 163 and the value is used in the address comparison at line 402, while availability is at risk because a wrong address prevents the protocol engine from entering S_RESP.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An unauthorized bus write could redirect the accepted address or make the peripheral ignore all intended transactions.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     163
+    ],
+    "held lines": [
+     142,
+     163
+    ],
+    "exit lines": [
+     174
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_twd",
+    "concept": "TX empty-data policy",
+    "information": "The tx_dummy_en setting determines whether a previously transmitted byte is used when the TX FIFO is empty instead of the all-ones fallback. The serial read result depends on this policy.",
+    "rubric reason": "Integrity is at risk because a bus write changes ctrl.tx_dummy_en at line 167 and that setting selects the serial response source at lines 250-251.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An unauthorized bus write could change the byte returned when the TX FIFO is empty and produce an incorrect serial response.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     167
+    ],
+    "held lines": [
+     146,
+     167
+    ],
+    "exit lines": [
+     178
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C6",
+    "unit": "neorv32_twd",
+    "concept": "TX read-suppression policy",
+    "information": "The hide-read setting controls whether a serial read is suppressed when the TX FIFO is full. It determines whether that class of TWD transaction is allowed to proceed.",
+    "rubric reason": "Integrity is at risk because a bus write changes ctrl.hide_read at line 168 and alters the read acceptance decision at line 403, while availability is at risk because that decision can force S_IDLE instead of servicing the read at lines 403-406.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An unauthorized bus write could cause valid serial reads to be rejected whenever the TX FIFO is full.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     168
+    ],
+    "held lines": [
+     147,
+     168
+    ],
+    "exit lines": [
+     179
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C7",
+    "unit": "neorv32_twd",
+    "concept": "TWD interrupt indication",
+    "information": "irq_o reports configured receive and transmit FIFO events to the integrating system. The system may depend on this indication to service transfers and prevent data loss; it has no direct input port because it is generated from internal FIFO status and control.",
+    "rubric reason": "Integrity is at risk because internal logic produces the interrupt level from enable, interrupt settings, and FIFO status at lines 293-296, and availability is at risk because withholding irq_o can prevent the system from servicing pending FIFO events.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker who can influence the interrupt-generation path could suppress required service notifications or cause false interrupts.",
+    "enters through": [],
+    "leaves through": [
+     "irq_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     293,
+     294,
+     295,
+     296
+    ],
+    "exit lines": [
+     293
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C8",
+    "unit": "neorv32_twd",
+    "concept": "Outgoing TWD payload",
+    "information": "This is the byte data supplied by the bus and shifted onto the TWD serial data line. Serial transmission depends on preserving the payload while it moves through the TX FIFO and engine.",
+    "rubric reason": "Confidentiality is at risk because potentially private bus data becomes observable on twd_sda_o at line 454, integrity is at risk because bus write data enters the transmit path at line 232 and is shifted to the link at lines 428-456, and availability is at risk because empty or blocked TX handling can substitute or withhold the expected word at lines 250-251 and 403-406.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could observe transmitted bytes, alter bus-supplied payloads, or prevent the TX path from delivering the intended data.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "twd_sda_o"
+    ],
+    "entry lines": [
+     232
+    ],
+    "held lines": [],
+    "exit lines": [
+     454
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C9",
+    "unit": "neorv32_twd",
+    "concept": "Incoming TWD payload",
+    "information": "This is data sampled from twd_sda_i, including received bytes and the sensed serial data value returned through the bus interface. TWD receive operation and software readback depend on preserving it.",
+    "rubric reason": "Confidentiality is at risk because received data can be exposed through bus_rsp_o.data at lines 187 and 190, integrity is at risk because serial samples enter at line 311 and determine stored receive data, and availability is at risk because a full RX FIFO prevents further writes at lines 439-444.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could monitor receive readback, inject altered SDA bits, or fill the RX path so subsequent data is lost.",
+    "enters through": [
+     "twd_sda_i"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     311
+    ],
+    "held lines": [],
+    "exit lines": [
+     187,
+     190
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C10",
+    "unit": "neorv32_twd",
+    "concept": "Serial read/write command",
+    "information": "The command bit received in the serial address selects whether the engine receives data or transmits data. It has no separate output because it is consumed internally to control the transaction path.",
+    "rubric reason": "Integrity is at risk because the received command is stored in engine.cmd at line 420 and controls transmit versus receive behavior at lines 443, 453, and 477, while availability is at risk because the selected direction controls whether the transfer can proceed at lines 439-445.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could alter the serial command bit to make the engine perform the wrong transfer direction or refuse the intended operation.",
+    "enters through": [
+     "twd_sda_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     311
+    ],
+    "held lines": [
+     420
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C11",
+    "unit": "neorv32_twd",
+    "concept": "Serial address-match acceptance decision",
+    "information": "This decision is the result of comparing the received serial address with the configured device address and determines whether the engine accepts the transaction. It is recomputed internally and has no boundary port of its own.",
+    "rubric reason": "Integrity is at risk because the address comparison at line 402 selects the protocol state, and availability is at risk because changing that decision can prevent valid transactions from reaching S_RESP.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could cause the address check to accept an unintended request or reject every valid request.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     402
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C12",
+    "unit": "neorv32_twd",
+    "concept": "Peer acknowledgement",
+    "information": "The acknowledgement bit sampled from the serial peer determines whether the engine continues or requests another transmit operation. It is internal protocol status with no separate output port.",
+    "rubric reason": "Integrity is at risk because the peer acknowledgement is captured into engine.ack at line 474 and controls the next state at line 468, while availability is at risk because a false acknowledgement can stop or prevent continued transfer progress.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could manipulate the serial acknowledgement level to terminate or misdirect an otherwise valid transfer.",
+    "enters through": [
+     "twd_sda_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     311
+    ],
+    "held lines": [
+     474
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C13",
+    "unit": "neorv32_twd",
+    "concept": "TX-full read-blocking decision",
+    "information": "This transient decision determines whether a serial read is blocked when the requested read direction, hide-read policy, and TX FIFO fullness coincide. It is computed internally and has no independent boundary port.",
+    "rubric reason": "Integrity is at risk because the gate at line 403 selects the next engine state, and availability is at risk because it can withhold the transaction by taking the S_IDLE branch at lines 404-406.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could manipulate the blocking decision to suppress valid reads or allow a read when the required TX data is unavailable.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     403
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_twd",
+    "concept": "RX and TX FIFO occupancy and buffer status",
+    "reason": "The FIFO flags only report or control movement of buffered data between ports and are barred as independent information by the port-buffer and buffer-status rules.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_twd",
+    "concept": "FIFO clear commands",
+    "reason": "ctrl.clr_rx and ctrl.clr_tx only command FIFO clear inputs, so the Port buffers rule bars them as concepts of their own.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_twd",
+    "concept": "Interrupt enable settings",
+    "reason": "The interrupt enable bits only tune the irq_o output, so the Port options rule bars them as independent concepts.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_twd",
+    "concept": "Engine sequencing state and counters",
+    "reason": "engine.state and engine.cnt only order and pace transfer steps and are excluded by the Sequencing state rule.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_twd",
+    "concept": "Sampling and serial pacing pulses",
+    "reason": "clkgen_i, smp.clk_en, smp.valid, smp.start, smp.stop, smp.scl_rise, and smp.scl_fall only pace or delimit engine steps and are excluded by the clock and pacing rules.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_twd",
+    "concept": "Serial clock lines",
+    "reason": "twd_scl_i and twd_scl_o are the serial link clock line and are excluded by the Clocks and resets rule.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_twd",
+    "concept": "Bus response acknowledge and error",
+    "reason": "bus_rsp_o.ack only repeats the request strobe and bus_rsp_o.err is tied to a constant, so the bus handshake-copy rule bars them as independent information.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_twd",
+    "concept": "TX backup register",
+    "reason": "merged into C8",
+    "merged into": "C8"
+   },
+   {
+    "unit": "neorv32_twd",
+    "concept": "TX response selection wire",
+    "reason": "merged into C8",
+    "merged into": "C8"
+   },
+   {
+    "unit": "neorv32_twd",
+    "concept": "FIFO depth and size settings",
+    "reason": "TWD_RX_FIFO, TWD_TX_FIFO, and their derived sizes are build-time values that no element can change or withhold at run time.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

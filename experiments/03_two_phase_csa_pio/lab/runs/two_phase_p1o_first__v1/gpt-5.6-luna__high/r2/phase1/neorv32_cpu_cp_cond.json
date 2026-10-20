@@ -1,0 +1,182 @@
+{
+ "module": "neorv32_cpu_cp_cond",
+ "prompt version": "two_phase_p1o_first",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "b4c962e16261",
+ "user sha": "58fb394200eb",
+ "usage": {
+  "in": 23601,
+  "out": 13583,
+  "reasoning": 12082,
+  "cached": 23598,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_070f36e5088d747e006ad5a6e9805087d1abbf3bc0a8be58c9",
+  "request key": "f185b7a66495"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_cpu_cp_cond\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"Conditional result data\",\n      \"Unit\": \"neorv32_cpu_cp_cond\",\n      \"Information\": \"The result word is the rs1_i value when the recognized conditional operation passes, and zero otherwise; the coprocessor's use depends on returning this word to the CPU.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality is at risk because res_o exposes the rs1-derived value at line 54. Integrity is at risk because lines 53-56 allow the condition and valid-command decode to replace the result with zero. Availability is at risk because the same gating can withhold the rs1-derived result by selecting zero at lines 53-56.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could alter the command or condition path to force zero instead of the intended result, or observe res_o to obtain a secret operand value.\",\n      \"Enters Through\": [\n        \"rs1_i\"\n      ],\n      \"Leaves Through\": [\n        \"res_o\"\n      ],\n      \"Entry Lines\": [\n        54\n      ],\n      \"Held Lines\": [\n        54,\n        56\n      ],\n      \"Exit Lines\": [\n        54,\n        56\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"Comparison operand\",\n      \"Unit\": \"neorv32_cpu_cp_cond\",\n      \"Information\": \"The rs2_i word supplies the operand whose zero or nonzero property determines the conditional operation; the operation depends on this input even though the word itself is not returned.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality is at risk because the zero-versus-rs1 behavior of res_o at lines 53-56 can disclose the operand's zero or nonzero property. Integrity is at risk because changing rs2_i changes rs2_zero at line 62 and can change the returned result. Availability is at risk because that changed predicate can prevent the intended rs1_i value from passing to res_o at lines 53-56.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could modify rs2_i or observe the conditional result to alter or infer the comparison operand's predicate.\",\n      \"Enters Through\": [\n        \"rs2_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        62\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"Conditional selection decision\",\n      \"Unit\": \"neorv32_cpu_cp_cond\",\n      \"Information\": \"This decision represents whether the instruction's zero or nonzero predicate is satisfied and selects whether rs1_i or zero is written to res_o; it is computed internally and has no standalone boundary exit because it only controls the result.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality is at risk because the selected value at res_o can reveal the decision at lines 53-56. Integrity is at risk because condition directly decides the result assignment at line 53. Availability is at risk because condition can block the intended result value and select zero at lines 53-56.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could tamper with the condition computation at line 63 to force or suppress the conditional result and infer the predicate from res_o.\",\n      \"Enters Through\": [\n        \"ctrl_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        63\n      ],\n      \"Held Lines\": [\n        63\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"Operation-validity indication\",\n      \"Unit\": \"neorv32_cpu_cp_cond\",\n      \"Information\": \"This indication reports whether ctrl_i encodes the supported conditional coprocessor operation; downstream logic depends on valid_o to recognize and use the operation result.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because the decode at lines 41-43 drives valid_o at line 66, so tampering can falsely accept an unsupported command or reject a supported one. Availability is at risk because deasserting valid_o at line 66 can prevent downstream logic from accepting the operation.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could tamper with the command-valid decode so that valid_o rejects the operation or falsely validates an unsupported command.\",\n      \"Enters Through\": [\n        \"ctrl_i\"\n      ],\n      \"Leaves Through\": [\n        \"valid_o\"\n      ],\n      \"Entry Lines\": [\n        41,\n        42,\n        43\n      ],\n      \"Held Lines\": [\n        66\n      ],\n      \"Exit Lines\": [\n        66\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Instruction operation-selector encoding\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_cond\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The opcode and function fields that only select or name the coprocessor operation are barred as separate pieces by the Operation selectors rule.\"\n    },\n    {\n      \"Candidate Name\": \"Zero-comparison intermediate\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_cond\",\n      \"Merged Into\": \"C3\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Internal command-valid decode\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_cond\",\n      \"Merged Into\": \"C4\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Clock and reset timing\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_cond\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"clk_i and rstn_i are excluded as conceptual assets by the clocks-and-resets rule because they only time or reset res_o.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_cpu_cp_cond",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_cpu_cp_cond",
+    "concept": "Conditional result data",
+    "information": "The result word is the rs1_i value when the recognized conditional operation passes, and zero otherwise; the coprocessor's use depends on returning this word to the CPU.",
+    "rubric reason": "Confidentiality is at risk because res_o exposes the rs1-derived value at line 54. Integrity is at risk because lines 53-56 allow the condition and valid-command decode to replace the result with zero. Availability is at risk because the same gating can withhold the rs1-derived result by selecting zero at lines 53-56.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could alter the command or condition path to force zero instead of the intended result, or observe res_o to obtain a secret operand value.",
+    "enters through": [
+     "rs1_i"
+    ],
+    "leaves through": [
+     "res_o"
+    ],
+    "entry lines": [
+     54
+    ],
+    "held lines": [
+     54,
+     56
+    ],
+    "exit lines": [
+     54,
+     56
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_cpu_cp_cond",
+    "concept": "Comparison operand",
+    "information": "The rs2_i word supplies the operand whose zero or nonzero property determines the conditional operation; the operation depends on this input even though the word itself is not returned.",
+    "rubric reason": "Confidentiality is at risk because the zero-versus-rs1 behavior of res_o at lines 53-56 can disclose the operand's zero or nonzero property. Integrity is at risk because changing rs2_i changes rs2_zero at line 62 and can change the returned result. Availability is at risk because that changed predicate can prevent the intended rs1_i value from passing to res_o at lines 53-56.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could modify rs2_i or observe the conditional result to alter or infer the comparison operand's predicate.",
+    "enters through": [
+     "rs2_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     62
+    ],
+    "held lines": [],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_cpu_cp_cond",
+    "concept": "Conditional selection decision",
+    "information": "This decision represents whether the instruction's zero or nonzero predicate is satisfied and selects whether rs1_i or zero is written to res_o; it is computed internally and has no standalone boundary exit because it only controls the result.",
+    "rubric reason": "Confidentiality is at risk because the selected value at res_o can reveal the decision at lines 53-56. Integrity is at risk because condition directly decides the result assignment at line 53. Availability is at risk because condition can block the intended result value and select zero at lines 53-56.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could tamper with the condition computation at line 63 to force or suppress the conditional result and infer the predicate from res_o.",
+    "enters through": [
+     "ctrl_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     63
+    ],
+    "held lines": [
+     63
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_cpu_cp_cond",
+    "concept": "Operation-validity indication",
+    "information": "This indication reports whether ctrl_i encodes the supported conditional coprocessor operation; downstream logic depends on valid_o to recognize and use the operation result.",
+    "rubric reason": "Integrity is at risk because the decode at lines 41-43 drives valid_o at line 66, so tampering can falsely accept an unsupported command or reject a supported one. Availability is at risk because deasserting valid_o at line 66 can prevent downstream logic from accepting the operation.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could tamper with the command-valid decode so that valid_o rejects the operation or falsely validates an unsupported command.",
+    "enters through": [
+     "ctrl_i"
+    ],
+    "leaves through": [
+     "valid_o"
+    ],
+    "entry lines": [
+     41,
+     42,
+     43
+    ],
+    "held lines": [
+     66
+    ],
+    "exit lines": [
+     66
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_cpu_cp_cond",
+    "concept": "Instruction operation-selector encoding",
+    "reason": "The opcode and function fields that only select or name the coprocessor operation are barred as separate pieces by the Operation selectors rule.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_cp_cond",
+    "concept": "Zero-comparison intermediate",
+    "reason": "merged into C3",
+    "merged into": "C3"
+   },
+   {
+    "unit": "neorv32_cpu_cp_cond",
+    "concept": "Internal command-valid decode",
+    "reason": "merged into C4",
+    "merged into": "C4"
+   },
+   {
+    "unit": "neorv32_cpu_cp_cond",
+    "concept": "Clock and reset timing",
+    "reason": "clk_i and rstn_i are excluded as conceptual assets by the clocks-and-resets rule because they only time or reset res_o.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

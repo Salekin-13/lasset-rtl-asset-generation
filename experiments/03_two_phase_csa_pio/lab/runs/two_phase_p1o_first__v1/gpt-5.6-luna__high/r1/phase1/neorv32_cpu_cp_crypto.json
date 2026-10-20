@@ -1,0 +1,199 @@
+{
+ "module": "neorv32_cpu_cp_crypto",
+ "prompt version": "two_phase_p1o_first",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "b4c962e16261",
+ "user sha": "a99bd61d04cf",
+ "usage": {
+  "in": 37474,
+  "out": 13718,
+  "reasoning": 11874,
+  "cached": 20474,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_099bf7c283f80cb8006ad5a01269bc87d19def53f267304f2b",
+  "request key": "b18e2531a0e5"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_cpu_cp_crypto\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"Crypto operation acceptance enable\",\n      \"Unit\": \"neorv32_cpu_cp_crypto\",\n      \"Information\": \"The decision that the current control record requests a supported cryptographic operation and that the operands may be captured and execution started. The coprocessor depends on this decision to accept a command and produce a valid result.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"This control decision is sensitive because changing ctrl_i.alu_cp_alu or the resulting command-valid logic can cause operands to be captured for an unintended operation or not captured at all (296, 312-316). Suppressing the decision prevents the state machine from starting or completing a requested operation and therefore prevents valid_o from being asserted (323-337, 343).\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could force the coprocessor-enable input or command-valid decision inactive to suppress a requested operation, or alter it to accept an unintended cryptographic command.\",\n      \"Enters Through\": [\n        \"ctrl_i.alu_cp_alu\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        296\n      ],\n      \"Held Lines\": [\n        296\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"Cryptographic operand data\",\n      \"Unit\": \"neorv32_cpu_cp_crypto\",\n      \"Information\": \"The two source operand words captured for cryptographic transformations and used by the supported XPERM, SHA, SM3, AES, and SM4 computations. The operands have no direct exit port; they are retained internally and consumed to produce cryptographic results.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The operands are sensitive cryptographic input material, and changing rs1_i or rs2_i changes the captured values and the computed results (313-314, 413-425, 441, 475).\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could tamper with rs1_i or rs2_i before capture so that the cryptographic operation processes attacker-chosen operands and returns an incorrect result.\",\n      \"Enters Through\": [\n        \"rs1_i\",\n        \"rs2_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        313,\n        314\n      ],\n      \"Held Lines\": [\n        304,\n        305,\n        313,\n        314\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"Cryptographic operation result\",\n      \"Unit\": \"neorv32_cpu_cp_crypto\",\n      \"Information\": \"The word produced by the selected cryptographic transformation and returned to the processor when the operation completes. The coprocessor's use depends on returning this computed result together with a valid indication.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"An integrator may treat a cryptographic result as secret, and the selected XPERM, block-cipher, SHA, or SM3 result is exposed through the observable res_o output (357-364). The result can be modified by changing captured operands, operation selection, or the internal result computation that drives res_o (353-367, 413-425, 441, 475). The output is cleared and only loaded when done is asserted, so corrupting the completion path can withhold the required result (319, 327, 336, 353-367).\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could observe res_o, alter operands or operation control to obtain an incorrect result, or suppress done so that the requested result is withheld.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"res_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        351,\n        353,\n        357,\n        359,\n        362,\n        364\n      ],\n      \"Exit Lines\": [\n        357,\n        359,\n        362,\n        364\n      ]\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"Cryptographic operation progress state\",\n      \"Unit\": \"neorv32_cpu_cp_crypto\",\n      \"Information\": \"The state and completion information governing whether a cryptographic operation is idle, in progress, or complete. The result and valid indication depend on this state reaching the completion condition.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The state and done registers are security-sensitive control state because altering their assignments can cause premature completion, missed completion, or an incorrect operation sequence (308-309, 319, 325, 327-337). Without correct progress state, the operation can remain idle or fail to assert valid_o and release its result (332-343, 354-367).\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could corrupt state or done so the coprocessor reports completion at the wrong time or remains unable to produce valid_o and the corresponding result.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"valid_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        308,\n        309,\n        319,\n        325,\n        327,\n        328,\n        333,\n        336,\n        337\n      ],\n      \"Exit Lines\": [\n        343\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Instruction operation selectors and result-form selectors\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_crypto\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The opcode, funct fields, command decode, and out_sel only select the cryptographic operation or result form, so the Operation selectors rule treats them as part of the operation rather than independent information (274-293, 355-372).\"\n    },\n    {\n      \"Candidate Name\": \"Intermediate cryptographic computation values\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_crypto\",\n      \"Merged Into\": \"C3\",\n      \"Why Not Kept\": \"AES, SM4, SHA, SM3, and XPERM partial results and lookup values are working values that contribute to the returned cryptographic result rather than concepts of their own (383-425, 441, 475, 500-565).\"\n    },\n    {\n      \"Candidate Name\": \"Completion indication\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_crypto\",\n      \"Merged Into\": \"C4\",\n      \"Why Not Kept\": \"The done register and valid_o output are the coprocessor progress state's completion information, not a separate asset (327, 336, 343).\"\n    },\n    {\n      \"Candidate Name\": \"Build-time algorithm feature values and fixed lookup tables\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_crypto\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The feature generics and fixed AES and SM4 S-box tables cannot be changed or withheld by a run-time element of this IP, so they do not form a run-time conceptual asset under the build-time-values rule (28-33, 59-114).\"\n    },\n    {\n      \"Candidate Name\": \"Clock and reset control\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_crypto\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"Clock and reset inputs only time or reset the operation and are excluded as conceptual assets by the clocks-and-resets rule (37-38, 301-310, 348-352).\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_cpu_cp_crypto",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_cpu_cp_crypto",
+    "concept": "Crypto operation acceptance enable",
+    "information": "The decision that the current control record requests a supported cryptographic operation and that the operands may be captured and execution started. The coprocessor depends on this decision to accept a command and produce a valid result.",
+    "rubric reason": "This control decision is sensitive because changing ctrl_i.alu_cp_alu or the resulting command-valid logic can cause operands to be captured for an unintended operation or not captured at all (296, 312-316). Suppressing the decision prevents the state machine from starting or completing a requested operation and therefore prevents valid_o from being asserted (323-337, 343).",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could force the coprocessor-enable input or command-valid decision inactive to suppress a requested operation, or alter it to accept an unintended cryptographic command.",
+    "enters through": [
+     "ctrl_i.alu_cp_alu"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     296
+    ],
+    "held lines": [
+     296
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_cpu_cp_crypto",
+    "concept": "Cryptographic operand data",
+    "information": "The two source operand words captured for cryptographic transformations and used by the supported XPERM, SHA, SM3, AES, and SM4 computations. The operands have no direct exit port; they are retained internally and consumed to produce cryptographic results.",
+    "rubric reason": "The operands are sensitive cryptographic input material, and changing rs1_i or rs2_i changes the captured values and the computed results (313-314, 413-425, 441, 475).",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could tamper with rs1_i or rs2_i before capture so that the cryptographic operation processes attacker-chosen operands and returns an incorrect result.",
+    "enters through": [
+     "rs1_i",
+     "rs2_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     313,
+     314
+    ],
+    "held lines": [
+     304,
+     305,
+     313,
+     314
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_cpu_cp_crypto",
+    "concept": "Cryptographic operation result",
+    "information": "The word produced by the selected cryptographic transformation and returned to the processor when the operation completes. The coprocessor's use depends on returning this computed result together with a valid indication.",
+    "rubric reason": "An integrator may treat a cryptographic result as secret, and the selected XPERM, block-cipher, SHA, or SM3 result is exposed through the observable res_o output (357-364). The result can be modified by changing captured operands, operation selection, or the internal result computation that drives res_o (353-367, 413-425, 441, 475). The output is cleared and only loaded when done is asserted, so corrupting the completion path can withhold the required result (319, 327, 336, 353-367).",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could observe res_o, alter operands or operation control to obtain an incorrect result, or suppress done so that the requested result is withheld.",
+    "enters through": [],
+    "leaves through": [
+     "res_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     351,
+     353,
+     357,
+     359,
+     362,
+     364
+    ],
+    "exit lines": [
+     357,
+     359,
+     362,
+     364
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_cpu_cp_crypto",
+    "concept": "Cryptographic operation progress state",
+    "information": "The state and completion information governing whether a cryptographic operation is idle, in progress, or complete. The result and valid indication depend on this state reaching the completion condition.",
+    "rubric reason": "The state and done registers are security-sensitive control state because altering their assignments can cause premature completion, missed completion, or an incorrect operation sequence (308-309, 319, 325, 327-337). Without correct progress state, the operation can remain idle or fail to assert valid_o and release its result (332-343, 354-367).",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could corrupt state or done so the coprocessor reports completion at the wrong time or remains unable to produce valid_o and the corresponding result.",
+    "enters through": [],
+    "leaves through": [
+     "valid_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     308,
+     309,
+     319,
+     325,
+     327,
+     328,
+     333,
+     336,
+     337
+    ],
+    "exit lines": [
+     343
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_cpu_cp_crypto",
+    "concept": "Instruction operation selectors and result-form selectors",
+    "reason": "The opcode, funct fields, command decode, and out_sel only select the cryptographic operation or result form, so the Operation selectors rule treats them as part of the operation rather than independent information (274-293, 355-372).",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_cp_crypto",
+    "concept": "Intermediate cryptographic computation values",
+    "reason": "merged into C3",
+    "merged into": "C3"
+   },
+   {
+    "unit": "neorv32_cpu_cp_crypto",
+    "concept": "Completion indication",
+    "reason": "merged into C4",
+    "merged into": "C4"
+   },
+   {
+    "unit": "neorv32_cpu_cp_crypto",
+    "concept": "Build-time algorithm feature values and fixed lookup tables",
+    "reason": "The feature generics and fixed AES and SM4 S-box tables cannot be changed or withheld by a run-time element of this IP, so they do not form a run-time conceptual asset under the build-time-values rule (28-33, 59-114).",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_cp_crypto",
+    "concept": "Clock and reset control",
+    "reason": "Clock and reset inputs only time or reset the operation and are excluded as conceptual assets by the clocks-and-resets rule (37-38, 301-310, 348-352).",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [
+  "consistency: not-kept entry 'Intermediate cryptographic computation values': both Merged Into and Why Not Kept are filled",
+  "consistency: not-kept entry 'Completion indication': both Merged Into and Why Not Kept are filled"
+ ],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

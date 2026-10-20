@@ -1,0 +1,225 @@
+{
+ "module": "neorv32_debug_dtm",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "be3b3faab49b",
+ "user sha": "3eab605f16f3",
+ "usage": {
+  "in": 24045,
+  "out": 13819,
+  "reasoning": 11693,
+  "cached": 24042,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_08d14547182db141006ace2f3e56e487d1b82ffcc287a1cf18",
+  "request key": "19ba6acaf5b5"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_debug_dtm\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"DMI access request\",\n      \"Unit\": \"neorv32_debug_dtm\",\n      \"Information\": \"The operation, target address, and write data of a debug-module access received over JTAG and issued through the DMI request interface; DMI reads and writes depend on it.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The request is captured in the scan register, decoded into controller fields, and driven to the DMI request output, so modifying those elements can change the issued operation, address, or data (lines 196, 266-269, 283-285). The controller accepts a request only when it is not busy and the scanned operation is valid, so its gating can withhold a required DMI transfer (lines 264-271).\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"Alter the scanned command or the controller fields to redirect or corrupt a DMI access, or keep the controller busy so no request is issued.\",\n      \"Enters Through\": [\n        \"jtag_tdi_i\"\n      ],\n      \"Leaves Through\": [\n        \"dmi_req_o\"\n      ],\n      \"Entry Lines\": [\n        100\n      ],\n      \"Held Lines\": [\n        196,\n        266,\n        267,\n        269\n      ],\n      \"Exit Lines\": [\n        283,\n        284,\n        285\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"DMI readback data\",\n      \"Unit\": \"neorv32_debug_dtm\",\n      \"Information\": \"Data returned by the debug module for a DMI access and serialized to JTAG; debugger read operations depend on this information to report the accessed value.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"DMI response data is registered, placed into the DMI scan word, and shifted onto jtag_tdo_o, allowing the integration-level JTAG path to observe it (lines 274, 229, 189, 209). The response is stored and shifted through mutable scan and controller state, so corruption of those elements can change the returned value (lines 274, 189, 196, 209). Response capture and completion are gated by the busy and acknowledge handling, so those elements can withhold a required readback (lines 250, 273-276, 202-209).\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"Observe jtag_tdo_o to obtain returned debug data, corrupt the response or scan registers to produce a false value, or prevent capture and shifting so the readback is withheld.\",\n      \"Enters Through\": [\n        \"dmi_rsp_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"jtag_tdo_o\"\n      ],\n      \"Entry Lines\": [\n        274\n      ],\n      \"Held Lines\": [\n        274,\n        229,\n        189\n      ],\n      \"Exit Lines\": [\n        209\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"DMI transaction-in-progress state\",\n      \"Unit\": \"neorv32_debug_dtm\",\n      \"Information\": \"The internal busy state indicating that a DMI request has been issued and its response is pending; controller behavior depends on it to prevent overlapping transactions and capture completion. It has no entry or exit port because JTAG and response acknowledge values only decide this state rather than crossing into or out of it as data.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The registered busy state controls request acceptance, response capture, and completion, so changing its set or clear behavior can cause overlapping or prematurely completed DMI transactions (lines 250, 264, 270, 276). A stuck or incorrectly cleared busy state can block new requests or prevent the pending response from being handled (lines 250, 264, 273-277).\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"Force the busy state high to stall all later accesses or clear it early to permit an overlapping request and corrupt transaction sequencing.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        237,\n        270,\n        276\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"DMI protocol error status\",\n      \"Unit\": \"neorv32_debug_dtm\",\n      \"Information\": \"The error indication generated when a DMI access is triggered while another access is busy and returned through the DTMCS or DMI scan data; debugger behavior depends on it to distinguish an invalid or failed protocol event.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The error status is stored in dmi_ctrl.err, packed into the scan results, and returned through JTAG, so modifying it can make the debugger accept a failed access or report a false error (lines 241, 257-259, 224, 229, 188-189, 208-209).\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"Force the error state clear or set so software misclassifies a rejected DMI access as successful or treats a valid access as failed.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"jtag_tdo_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        241,\n        257,\n        259,\n        224,\n        229,\n        188,\n        189\n      ],\n      \"Exit Lines\": [\n        208,\n        209\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"DMI operation selector\",\n      \"Candidate Unit\": \"neorv32_debug_dtm\",\n      \"Merged Into\": \"C1\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"DMI target address\",\n      \"Candidate Unit\": \"neorv32_debug_dtm\",\n      \"Merged Into\": \"C1\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"DMI write data\",\n      \"Candidate Unit\": \"neorv32_debug_dtm\",\n      \"Merged Into\": \"C1\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"DMI reset controls\",\n      \"Candidate Unit\": \"neorv32_debug_dtm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The dmireset and dmihardreset values only request or control reset behavior in the DMI controller, which the reset-path rule excludes as a conceptual asset (lines 247-252, 256).\"\n    },\n    {\n      \"Candidate Name\": \"DMI response acknowledge\",\n      \"Candidate Unit\": \"neorv32_debug_dtm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The acknowledge field only completes and clears the in-progress transaction; it is handshake timing information rather than an independent asset (lines 275-277).\"\n    },\n    {\n      \"Candidate Name\": \"TAP controller sequencing state\",\n      \"Candidate Unit\": \"neorv32_debug_dtm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The TAP state register only orders scan steps and is sequencing state, which is explicitly excluded as information of its own (lines 119-142).\"\n    },\n    {\n      \"Candidate Name\": \"DR update trigger\",\n      \"Candidate Unit\": \"neorv32_debug_dtm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The trigger is a one-cycle timing pulse used to initiate a scan update and is pacing or sequencing information rather than an independent asset (lines 151-161).\"\n    },\n    {\n      \"Candidate Name\": \"JTAG synchronization state\",\n      \"Candidate Unit\": \"neorv32_debug_dtm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The synchronizer stages and edge-detection signals only resample and pace the JTAG transfer, so synchronizer and pacing rules exclude them as separate information (lines 94-111).\"\n    },\n    {\n      \"Candidate Name\": \"JTAG IDCODE\",\n      \"Candidate Unit\": \"neorv32_debug_dtm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The value is fixed from build-time generic constants and only identifies the implementation, with no demonstrated confidentiality, integrity, or availability objective (lines 21-23, 187, 207).\"\n    },\n    {\n      \"Candidate Name\": \"JTAG bypass scan data\",\n      \"Candidate Unit\": \"neorv32_debug_dtm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The bypass register only relays scan data from TDI to TDO and does not store, compute, or control a separately security-relevant value (lines 197, 210).\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_debug_dtm",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_debug_dtm",
+    "concept": "DMI access request",
+    "information": "The operation, target address, and write data of a debug-module access received over JTAG and issued through the DMI request interface; DMI reads and writes depend on it.",
+    "rubric reason": "The request is captured in the scan register, decoded into controller fields, and driven to the DMI request output, so modifying those elements can change the issued operation, address, or data (lines 196, 266-269, 283-285). The controller accepts a request only when it is not busy and the scanned operation is valid, so its gating can withhold a required DMI transfer (lines 264-271).",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "Alter the scanned command or the controller fields to redirect or corrupt a DMI access, or keep the controller busy so no request is issued.",
+    "enters through": [
+     "jtag_tdi_i"
+    ],
+    "leaves through": [
+     "dmi_req_o"
+    ],
+    "entry lines": [
+     100
+    ],
+    "held lines": [
+     196,
+     266,
+     267,
+     269
+    ],
+    "exit lines": [
+     283,
+     284,
+     285
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_debug_dtm",
+    "concept": "DMI readback data",
+    "information": "Data returned by the debug module for a DMI access and serialized to JTAG; debugger read operations depend on this information to report the accessed value.",
+    "rubric reason": "DMI response data is registered, placed into the DMI scan word, and shifted onto jtag_tdo_o, allowing the integration-level JTAG path to observe it (lines 274, 229, 189, 209). The response is stored and shifted through mutable scan and controller state, so corruption of those elements can change the returned value (lines 274, 189, 196, 209). Response capture and completion are gated by the busy and acknowledge handling, so those elements can withhold a required readback (lines 250, 273-276, 202-209).",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "Observe jtag_tdo_o to obtain returned debug data, corrupt the response or scan registers to produce a false value, or prevent capture and shifting so the readback is withheld.",
+    "enters through": [
+     "dmi_rsp_i.data"
+    ],
+    "leaves through": [
+     "jtag_tdo_o"
+    ],
+    "entry lines": [
+     274
+    ],
+    "held lines": [
+     274,
+     229,
+     189
+    ],
+    "exit lines": [
+     209
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_debug_dtm",
+    "concept": "DMI transaction-in-progress state",
+    "information": "The internal busy state indicating that a DMI request has been issued and its response is pending; controller behavior depends on it to prevent overlapping transactions and capture completion. It has no entry or exit port because JTAG and response acknowledge values only decide this state rather than crossing into or out of it as data.",
+    "rubric reason": "The registered busy state controls request acceptance, response capture, and completion, so changing its set or clear behavior can cause overlapping or prematurely completed DMI transactions (lines 250, 264, 270, 276). A stuck or incorrectly cleared busy state can block new requests or prevent the pending response from being handled (lines 250, 264, 273-277).",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "Force the busy state high to stall all later accesses or clear it early to permit an overlapping request and corrupt transaction sequencing.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     237,
+     270,
+     276
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_debug_dtm",
+    "concept": "DMI protocol error status",
+    "information": "The error indication generated when a DMI access is triggered while another access is busy and returned through the DTMCS or DMI scan data; debugger behavior depends on it to distinguish an invalid or failed protocol event.",
+    "rubric reason": "The error status is stored in dmi_ctrl.err, packed into the scan results, and returned through JTAG, so modifying it can make the debugger accept a failed access or report a false error (lines 241, 257-259, 224, 229, 188-189, 208-209).",
+    "objectives": [
+     "I"
+    ],
+    "attack": "Force the error state clear or set so software misclassifies a rejected DMI access as successful or treats a valid access as failed.",
+    "enters through": [],
+    "leaves through": [
+     "jtag_tdo_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     241,
+     257,
+     259,
+     224,
+     229,
+     188,
+     189
+    ],
+    "exit lines": [
+     208,
+     209
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_debug_dtm",
+    "concept": "DMI operation selector",
+    "reason": "merged into C1",
+    "merged into": "C1"
+   },
+   {
+    "unit": "neorv32_debug_dtm",
+    "concept": "DMI target address",
+    "reason": "merged into C1",
+    "merged into": "C1"
+   },
+   {
+    "unit": "neorv32_debug_dtm",
+    "concept": "DMI write data",
+    "reason": "merged into C1",
+    "merged into": "C1"
+   },
+   {
+    "unit": "neorv32_debug_dtm",
+    "concept": "DMI reset controls",
+    "reason": "The dmireset and dmihardreset values only request or control reset behavior in the DMI controller, which the reset-path rule excludes as a conceptual asset (lines 247-252, 256).",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_debug_dtm",
+    "concept": "DMI response acknowledge",
+    "reason": "The acknowledge field only completes and clears the in-progress transaction; it is handshake timing information rather than an independent asset (lines 275-277).",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_debug_dtm",
+    "concept": "TAP controller sequencing state",
+    "reason": "The TAP state register only orders scan steps and is sequencing state, which is explicitly excluded as information of its own (lines 119-142).",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_debug_dtm",
+    "concept": "DR update trigger",
+    "reason": "The trigger is a one-cycle timing pulse used to initiate a scan update and is pacing or sequencing information rather than an independent asset (lines 151-161).",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_debug_dtm",
+    "concept": "JTAG synchronization state",
+    "reason": "The synchronizer stages and edge-detection signals only resample and pace the JTAG transfer, so synchronizer and pacing rules exclude them as separate information (lines 94-111).",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_debug_dtm",
+    "concept": "JTAG IDCODE",
+    "reason": "The value is fixed from build-time generic constants and only identifies the implementation, with no demonstrated confidentiality, integrity, or availability objective (lines 21-23, 187, 207).",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_debug_dtm",
+    "concept": "JTAG bypass scan data",
+    "reason": "The bypass register only relays scan data from TDI to TDO and does not store, compute, or control a separately security-relevant value (lines 197, 210).",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

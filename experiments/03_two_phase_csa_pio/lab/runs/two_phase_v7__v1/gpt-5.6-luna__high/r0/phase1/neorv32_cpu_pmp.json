@@ -1,0 +1,242 @@
+{
+ "module": "neorv32_cpu_pmp",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "be3b3faab49b",
+ "user sha": "a7c0976eb98b",
+ "usage": {
+  "in": 22716,
+  "out": 12362,
+  "reasoning": 10358,
+  "cached": 22713,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_012f69690962fe03006ace2f3e33f887d1b1a2d13554f41056",
+  "request key": "c93bfc27967b"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_cpu_pmp\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"PMP memory-protection configuration\",\n      \"Unit\": \"neorv32_cpu_pmp\",\n      \"Information\": \"The configuration consists of protected-region address bounds, matching modes, and read, write, and execute permissions on which PMP access enforcement depends. It is written through the CSR interface and returned through CSR read-back.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Unauthorized CSR writes can modify region bounds, modes, and permissions through the writes at lines 113-145 and 157-178; those settings determine whether accesses fault and can therefore block required accesses through lines 285-354.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could issue unauthorized CSR writes to alter a region or permission so protected accesses are permitted or required accesses are rejected.\",\n      \"Enters Through\": [\n        \"ctrl_i.csr_wdata\"\n      ],\n      \"Leaves Through\": [\n        \"csr_o\"\n      ],\n      \"Entry Lines\": [\n        129,\n        130,\n        131,\n        133,\n        173,\n        176\n      ],\n      \"Held Lines\": [\n        125,\n        129,\n        130,\n        131,\n        138,\n        140,\n        168,\n        173,\n        176\n      ],\n      \"Exit Lines\": [\n        190,\n        192\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"PMP configuration lock state\",\n      \"Unit\": \"neorv32_cpu_pmp\",\n      \"Information\": \"The per-region lock bits determine whether the associated PMP configuration and address can be changed. The state controls the immutability of the protection policy after configuration.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"A CSR write can set the lock bit at line 145, while the lock gates later configuration and address writes at lines 127 and 170; setting or corrupting it can both weaken policy integrity and prevent required reconfiguration.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could set or corrupt a lock bit to freeze an incorrect policy or alter the lock state before changing protected-region settings.\",\n      \"Enters Through\": [\n        \"ctrl_i.csr_wdata\"\n      ],\n      \"Leaves Through\": [\n        \"csr_o\"\n      ],\n      \"Entry Lines\": [\n        145\n      ],\n      \"Held Lines\": [\n        125,\n        145\n      ],\n      \"Exit Lines\": [\n        190\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"Current access address\",\n      \"Unit\": \"neorv32_cpu_pmp\",\n      \"Information\": \"The current instruction or load/store address selected for checking is the address whose region membership and permissions determine the access result. It is consumed by internal comparisons rather than returned as an address.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The address can reveal code or data access patterns through the address-dependent fault status at lines 285, 295-296, and 351-363; the selection at line 244 can substitute the checked address based on the operation mode, and the selected address controls whether the access is faulted and blocked.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could observe fault responses to infer protected access locations or steer the address-selection inputs so a different address is checked and the intended access is denied or misclassified.\",\n      \"Enters Through\": [\n        \"addr_ls_i\",\n        \"ctrl_i.pc_nxt\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        244\n      ],\n      \"Held Lines\": [\n        244\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"PMP region match selection\",\n      \"Unit\": \"neorv32_cpu_pmp\",\n      \"Information\": \"This internal decision identifies which PMP region applies to the current access. No port carries the selected-region result directly; it is computed internally and used to select the applicable policy.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The match logic selects the governing region from address comparisons and PMP modes at lines 303-312, and corruption of that selection can apply the wrong policy or propagate through line 354 to block the access.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could corrupt the region-match decision or its inputs so an access uses a permissive region or is falsely treated as unmatched and faulted.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        305,\n        307,\n        310,\n        312\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"PMP access permission and fault verdict\",\n      \"Unit\": \"neorv32_cpu_pmp\",\n      \"Information\": \"The verdict is the internally combined decision that the current access is allowed or should fault. It is registered and exposed as the fault status used by the surrounding processor.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"yes\"\n      },\n      \"Rubric Reason\": \"The combined failure decision drives the registered fault output at lines 351-363, so altering the verdict can create false faults or suppress required faults; the debug condition at line 363 can suppress the fault in normal protection operation and thereby produce an incorrect security result.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could corrupt the fail or fault path, or assert the debug input, to turn denied accesses into allowed ones or generate spurious faults that stop execution.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"fault_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        351,\n        354,\n        361,\n        363\n      ],\n      \"Exit Lines\": [\n        363\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Privilege and access-operation context\",\n      \"Candidate Unit\": \"neorv32_cpu_pmp\",\n      \"Merged Into\": \"C5\",\n      \"Why Not Kept\": \"The privilege, instruction/load-store, and read/write fields only refine the permission decision, so the processor-context-fields rule makes them part of that decision rather than concepts of their own.\"\n    },\n    {\n      \"Candidate Name\": \"Per-region permission results\",\n      \"Candidate Unit\": \"neorv32_cpu_pmp\",\n      \"Merged Into\": \"C5\",\n      \"Why Not Kept\": \"The per-region allow results are working values combined into the final failure decision at line 354, so the per-region-checks rule does not keep them separately.\"\n    },\n    {\n      \"Candidate Name\": \"NAPOT address-mask working value\",\n      \"Candidate Unit\": \"neorv32_cpu_pmp\",\n      \"Merged Into\": \"C1\",\n      \"Why Not Kept\": \"The mask is derived from and only supports the stored PMP address configuration at lines 254-269, so it is a working value of the configuration rather than a separate information piece.\"\n    },\n    {\n      \"Candidate Name\": \"CSR access command fields\",\n      \"Candidate Unit\": \"neorv32_cpu_pmp\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"CSR address and write-enable fields only select whether and which configuration element is accessed, so the access-command-fields rule bars them as information of their own.\"\n    },\n    {\n      \"Candidate Name\": \"CSR read-back word\",\n      \"Candidate Unit\": \"neorv32_cpu_pmp\",\n      \"Merged Into\": \"C1\",\n      \"Why Not Kept\": \"The CSR read-back is only a representation of the stored PMP configuration at lines 190-192 and does not form a separate asset.\"\n    },\n    {\n      \"Candidate Name\": \"Clock and reset\",\n      \"Candidate Unit\": \"neorv32_cpu_pmp\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"Clock and reset inputs and their reset paths are explicitly excluded from conceptual assets by the clock-and-reset rule.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_cpu_pmp",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_cpu_pmp",
+    "concept": "PMP memory-protection configuration",
+    "information": "The configuration consists of protected-region address bounds, matching modes, and read, write, and execute permissions on which PMP access enforcement depends. It is written through the CSR interface and returned through CSR read-back.",
+    "rubric reason": "Unauthorized CSR writes can modify region bounds, modes, and permissions through the writes at lines 113-145 and 157-178; those settings determine whether accesses fault and can therefore block required accesses through lines 285-354.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could issue unauthorized CSR writes to alter a region or permission so protected accesses are permitted or required accesses are rejected.",
+    "enters through": [
+     "ctrl_i.csr_wdata"
+    ],
+    "leaves through": [
+     "csr_o"
+    ],
+    "entry lines": [
+     129,
+     130,
+     131,
+     133,
+     173,
+     176
+    ],
+    "held lines": [
+     125,
+     129,
+     130,
+     131,
+     138,
+     140,
+     168,
+     173,
+     176
+    ],
+    "exit lines": [
+     190,
+     192
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_cpu_pmp",
+    "concept": "PMP configuration lock state",
+    "information": "The per-region lock bits determine whether the associated PMP configuration and address can be changed. The state controls the immutability of the protection policy after configuration.",
+    "rubric reason": "A CSR write can set the lock bit at line 145, while the lock gates later configuration and address writes at lines 127 and 170; setting or corrupting it can both weaken policy integrity and prevent required reconfiguration.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could set or corrupt a lock bit to freeze an incorrect policy or alter the lock state before changing protected-region settings.",
+    "enters through": [
+     "ctrl_i.csr_wdata"
+    ],
+    "leaves through": [
+     "csr_o"
+    ],
+    "entry lines": [
+     145
+    ],
+    "held lines": [
+     125,
+     145
+    ],
+    "exit lines": [
+     190
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_cpu_pmp",
+    "concept": "Current access address",
+    "information": "The current instruction or load/store address selected for checking is the address whose region membership and permissions determine the access result. It is consumed by internal comparisons rather than returned as an address.",
+    "rubric reason": "The address can reveal code or data access patterns through the address-dependent fault status at lines 285, 295-296, and 351-363; the selection at line 244 can substitute the checked address based on the operation mode, and the selected address controls whether the access is faulted and blocked.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could observe fault responses to infer protected access locations or steer the address-selection inputs so a different address is checked and the intended access is denied or misclassified.",
+    "enters through": [
+     "addr_ls_i",
+     "ctrl_i.pc_nxt"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     244
+    ],
+    "held lines": [
+     244
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_cpu_pmp",
+    "concept": "PMP region match selection",
+    "information": "This internal decision identifies which PMP region applies to the current access. No port carries the selected-region result directly; it is computed internally and used to select the applicable policy.",
+    "rubric reason": "The match logic selects the governing region from address comparisons and PMP modes at lines 303-312, and corruption of that selection can apply the wrong policy or propagate through line 354 to block the access.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could corrupt the region-match decision or its inputs so an access uses a permissive region or is falsely treated as unmatched and faulted.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     305,
+     307,
+     310,
+     312
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_cpu_pmp",
+    "concept": "PMP access permission and fault verdict",
+    "information": "The verdict is the internally combined decision that the current access is allowed or should fault. It is registered and exposed as the fault status used by the surrounding processor.",
+    "rubric reason": "The combined failure decision drives the registered fault output at lines 351-363, so altering the verdict can create false faults or suppress required faults; the debug condition at line 363 can suppress the fault in normal protection operation and thereby produce an incorrect security result.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could corrupt the fail or fault path, or assert the debug input, to turn denied accesses into allowed ones or generate spurious faults that stop execution.",
+    "enters through": [],
+    "leaves through": [
+     "fault_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     351,
+     354,
+     361,
+     363
+    ],
+    "exit lines": [
+     363
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "yes"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_cpu_pmp",
+    "concept": "Privilege and access-operation context",
+    "reason": "merged into C5",
+    "merged into": "C5"
+   },
+   {
+    "unit": "neorv32_cpu_pmp",
+    "concept": "Per-region permission results",
+    "reason": "merged into C5",
+    "merged into": "C5"
+   },
+   {
+    "unit": "neorv32_cpu_pmp",
+    "concept": "NAPOT address-mask working value",
+    "reason": "merged into C1",
+    "merged into": "C1"
+   },
+   {
+    "unit": "neorv32_cpu_pmp",
+    "concept": "CSR access command fields",
+    "reason": "CSR address and write-enable fields only select whether and which configuration element is accessed, so the access-command-fields rule bars them as information of their own.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_pmp",
+    "concept": "CSR read-back word",
+    "reason": "merged into C1",
+    "merged into": "C1"
+   },
+   {
+    "unit": "neorv32_cpu_pmp",
+    "concept": "Clock and reset",
+    "reason": "Clock and reset inputs and their reset paths are explicitly excluded from conceptual assets by the clock-and-reset rule.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [
+  "consistency: not-kept entry 'Privilege and access-operation context': both Merged Into and Why Not Kept are filled",
+  "consistency: not-kept entry 'Per-region permission results': both Merged Into and Why Not Kept are filled",
+  "consistency: not-kept entry 'NAPOT address-mask working value': both Merged Into and Why Not Kept are filled",
+  "consistency: not-kept entry 'CSR read-back word': both Merged Into and Why Not Kept are filled"
+ ],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

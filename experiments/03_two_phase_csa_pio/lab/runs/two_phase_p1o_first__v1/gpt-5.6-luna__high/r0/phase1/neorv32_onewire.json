@@ -1,0 +1,383 @@
+{
+ "module": "neorv32_onewire",
+ "prompt version": "two_phase_p1o_first",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "b4c962e16261",
+ "user sha": "e3c473328195",
+ "usage": {
+  "in": 33266,
+  "out": 15960,
+  "reasoning": 12539,
+  "cached": 20474,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_093a6300ed7029b2006ad59ca9e7b487d18c2579cd96e5baa0",
+  "request key": "d0304cba2b70"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_onewire\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"One-wire engine enable\",\n      \"Unit\": \"neorv32_onewire\",\n      \"Information\": \"The operational enable setting determines whether the one-wire engine, its FIFOs, and the exported clock-enable function are active. The setting is received through the bus and returned in the control read-back.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"A bus write changes the enable at line 142, while the setting controls FIFO clearing and serial operation at lines 199, 231, and 311, so unauthorized modification can corrupt operation. Clearing or disabling the setting suppresses the exported clock enable at line 273 and can stop transfers by clearing both FIFOs at lines 199 and 231.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker able to write the control register could clear or disable the engine, preventing queued one-wire transfers and clock generation.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\",\n        \"clkgen_en_o\"\n      ],\n      \"Entry Lines\": [\n        142\n      ],\n      \"Held Lines\": [\n        130,\n        142\n      ],\n      \"Exit Lines\": [\n        150,\n        273\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"FIFO clear control\",\n      \"Unit\": \"neorv32_onewire\",\n      \"Information\": \"The clear control requests clearing of the transmit and receive buffering. The one-wire engine depends on those buffers retaining queued commands and received results.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"A bus write stores the clear control at line 143, and it directly controls both FIFO clear inputs at lines 199 and 231, allowing unauthorized clearing or alteration of buffered information. Asserting the control can discard queued commands or received results through the FIFO clear paths at lines 199 and 231, withholding required transfers.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could issue a control write that asserts clear and erases pending transmit or receive data.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        143\n      ],\n      \"Held Lines\": [\n        133,\n        140,\n        143\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"One-wire timing configuration\",\n      \"Unit\": \"neorv32_onewire\",\n      \"Information\": \"The prescaler and divider settings determine the rate of the internal one-wire timing ticks used by serial transfers. The settings are needed for correctly timed one-wire communication and are returned in the control read-back.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Bus writes modify the prescaler and divider at lines 144 and 145, and those values control tick generation at lines 260 and 261, so unauthorized changes can produce incorrect transfer timing. A modified divider or prescaler can suppress or badly space the ticks required by the serial engine at lines 360 and 366, preventing communication.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could program an invalid prescaler or divider so one-wire bits are sampled or driven at the wrong rate.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        144,\n        145\n      ],\n      \"Held Lines\": [\n        131,\n        132,\n        144,\n        145\n      ],\n      \"Exit Lines\": [\n        151,\n        152\n      ]\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"One-wire transmit command\",\n      \"Unit\": \"neorv32_onewire\",\n      \"Information\": \"The command field selects the one-wire operation, such as bit, byte, reset, or no operation. The serial engine depends on this command to select the waveform and operation state.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The command is written into the transmit FIFO through line 201 and selects the serial state and operation at lines 331 through 335, so unauthorized modification can cause an incorrect one-wire operation. A changed command can select a no-op or reset path instead of the requested transfer, withholding or disrupting the output at lines 300 and 302.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could alter a queued command so the engine emits a reset, no-op, or wrong transfer type.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"onewire_o\"\n      ],\n      \"Entry Lines\": [\n        201\n      ],\n      \"Held Lines\": [\n        190,\n        201\n      ],\n      \"Exit Lines\": [\n        300,\n        302\n      ]\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"One-wire transmit payload\",\n      \"Unit\": \"neorv32_onewire\",\n      \"Information\": \"The payload byte written by the bus is queued and shifted onto the one-wire output during bit or byte operations. The one-wire transfer depends on this payload being retained and emitted unchanged.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The payload enters the transmit FIFO at line 201 and influences the serial output at lines 328, 342, 300, and 302, so an unauthorized observer of the one-wire line can expose it. Unauthorized modification of the bus-written payload at line 201 or its serial use at line 328 can cause an incorrect transmitted value. Clearing or disabling the transmit path at lines 199 and 231 can discard or withhold the payload before it reaches the output.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could observe the one-wire output, alter a queued payload, or clear the transmit FIFO before the payload is sent.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"onewire_o\"\n      ],\n      \"Entry Lines\": [\n        201\n      ],\n      \"Held Lines\": [\n        190,\n        201\n      ],\n      \"Exit Lines\": [\n        300,\n        302\n      ]\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Concept Name\": \"Received one-wire data\",\n      \"Unit\": \"neorv32_onewire\",\n      \"Information\": \"The byte sampled from the one-wire input is shifted into a receive result and queued for software read-back. The receive path depends on preserving the sampled byte until it is returned through the bus response.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The received value enters from the one-wire input at line 296 and is exposed through the bus response at lines 161 and 162, providing a path for unauthorized disclosure. An altered one-wire input can change the sampled result at lines 296 and 352, compromising the integrity of the returned byte. Clearing the receive FIFO at line 231 or consuming its data through line 234 can cause a required received result to be lost or withheld.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could monitor the bus read-back, drive a false one-wire value, or clear the receive FIFO before software reads the result.\",\n      \"Enters Through\": [\n        \"onewire_i\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        296\n      ],\n      \"Held Lines\": [\n        222,\n        232\n      ],\n      \"Exit Lines\": [\n        161,\n        162\n      ]\n    },\n    {\n      \"Concept ID\": \"C7\",\n      \"Concept Name\": \"One-wire presence result\",\n      \"Unit\": \"neorv32_onewire\",\n      \"Information\": \"The presence result records whether a one-wire device responded during the reset-presence interval. Software depends on this result in the receive word to determine whether a device is present.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The result is computed from the sampled one-wire input at line 375 and returned in the response at line 162, so an altered input or internal result can make software report the wrong device presence.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could alter the sampled one-wire response or the stored presence result so software accepts or rejects a device incorrectly.\",\n      \"Enters Through\": [\n        \"onewire_i\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        296\n      ],\n      \"Held Lines\": [\n        222,\n        232,\n        375\n      ],\n      \"Exit Lines\": [\n        162\n      ]\n    },\n    {\n      \"Concept ID\": \"C8\",\n      \"Concept Name\": \"Transfer interrupt request\",\n      \"Unit\": \"neorv32_onewire\",\n      \"Information\": \"The interrupt request reports that the enabled engine has no queued transmit work and is not busy. An interrupt-driven integrator may depend on this event to service or continue transfers.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The interrupt output is produced from enable, transmit availability, and serial busy state at line 243, so unauthorized changes to those conditions can create false or missing interrupt notifications. Withholding the request at line 243 can delay servicing and prevent an interrupt-driven system from progressing its transfers.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could manipulate the enable or engine-status conditions so the interrupt is falsely asserted or withheld while service is required.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"irq_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        241,\n        243\n      ],\n      \"Exit Lines\": [\n        243\n      ]\n    },\n    {\n      \"Concept ID\": \"C9\",\n      \"Concept Name\": \"One-wire sensed level\",\n      \"Unit\": \"neorv32_onewire\",\n      \"Information\": \"The sensed one-wire level is sampled from the external data line and returned as a diagnostic status bit. Software may depend on it to observe the current one-wire line state.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The sensed level comes from the one-wire input sampling path at line 296 and is exposed in the bus response at line 158, so modifying either path can make the reported line state incorrect.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could alter the sampled line value or its read-back path so software observes a false one-wire level.\",\n      \"Enters Through\": [\n        \"onewire_i\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        296\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": [\n        158\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Clock, reset, and clock-source signals\",\n      \"Candidate Unit\": \"neorv32_onewire\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The signals at lines 23, 24, and 276 are clock or reset paths, and the clock/reset rules exclude them as conceptual assets.\"\n    },\n    {\n      \"Candidate Name\": \"Internal pacing ticks\",\n      \"Candidate Unit\": \"neorv32_onewire\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The tick generation and delayed tick copy at lines 253 through 268 only pace serial steps, so the pacing-pulse rule excludes them as information of their own.\"\n    },\n    {\n      \"Candidate Name\": \"Serial sequencing state and progress counters\",\n      \"Candidate Unit\": \"neorv32_onewire\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The state and counters assigned at lines 287 through 289 and 316 through 380 only order transfers and are excluded as sequencing state.\"\n    },\n    {\n      \"Candidate Name\": \"FIFO fill and buffer status\",\n      \"Candidate Unit\": \"neorv32_onewire\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The FIFO availability and fullness values returned or used at lines 156 through 159 are buffer-status information, which the buffer and engine status rules do not keep as separate pieces.\"\n    },\n    {\n      \"Candidate Name\": \"Bus access command\",\n      \"Candidate Unit\": \"neorv32_onewire\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The strobe, direction, and address fields tested at lines 141, 148, 200, and 234 are access command fields rather than conceptual assets of their own.\"\n    },\n    {\n      \"Candidate Name\": \"Bus response handshake and fixed error\",\n      \"Candidate Unit\": \"neorv32_onewire\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The acknowledge and constant error assignments at lines 136 through 138 are bus handshake copies or constant status and are not separate information.\"\n    },\n    {\n      \"Candidate Name\": \"FIFO build configuration\",\n      \"Candidate Unit\": \"neorv32_onewire\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"ONEWIRE_FIFO and the FIFO generic mappings at lines 20 and 176 through 180 are build-time values that cannot be changed or withheld at run time.\"\n    },\n    {\n      \"Candidate Name\": \"Serial intermediate samples and waveform controls\",\n      \"Candidate Unit\": \"neorv32_onewire\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The synchronizer, sample, and drive-control values at lines 296, 347, 352, and 329 through 371 are working values or waveform controls covered by the received or transmitted information and are not pieces of their own.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_onewire",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_onewire",
+    "concept": "One-wire engine enable",
+    "information": "The operational enable setting determines whether the one-wire engine, its FIFOs, and the exported clock-enable function are active. The setting is received through the bus and returned in the control read-back.",
+    "rubric reason": "A bus write changes the enable at line 142, while the setting controls FIFO clearing and serial operation at lines 199, 231, and 311, so unauthorized modification can corrupt operation. Clearing or disabling the setting suppresses the exported clock enable at line 273 and can stop transfers by clearing both FIFOs at lines 199 and 231.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker able to write the control register could clear or disable the engine, preventing queued one-wire transfers and clock generation.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data",
+     "clkgen_en_o"
+    ],
+    "entry lines": [
+     142
+    ],
+    "held lines": [
+     130,
+     142
+    ],
+    "exit lines": [
+     150,
+     273
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_onewire",
+    "concept": "FIFO clear control",
+    "information": "The clear control requests clearing of the transmit and receive buffering. The one-wire engine depends on those buffers retaining queued commands and received results.",
+    "rubric reason": "A bus write stores the clear control at line 143, and it directly controls both FIFO clear inputs at lines 199 and 231, allowing unauthorized clearing or alteration of buffered information. Asserting the control can discard queued commands or received results through the FIFO clear paths at lines 199 and 231, withholding required transfers.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could issue a control write that asserts clear and erases pending transmit or receive data.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     143
+    ],
+    "held lines": [
+     133,
+     140,
+     143
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_onewire",
+    "concept": "One-wire timing configuration",
+    "information": "The prescaler and divider settings determine the rate of the internal one-wire timing ticks used by serial transfers. The settings are needed for correctly timed one-wire communication and are returned in the control read-back.",
+    "rubric reason": "Bus writes modify the prescaler and divider at lines 144 and 145, and those values control tick generation at lines 260 and 261, so unauthorized changes can produce incorrect transfer timing. A modified divider or prescaler can suppress or badly space the ticks required by the serial engine at lines 360 and 366, preventing communication.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could program an invalid prescaler or divider so one-wire bits are sampled or driven at the wrong rate.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     144,
+     145
+    ],
+    "held lines": [
+     131,
+     132,
+     144,
+     145
+    ],
+    "exit lines": [
+     151,
+     152
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_onewire",
+    "concept": "One-wire transmit command",
+    "information": "The command field selects the one-wire operation, such as bit, byte, reset, or no operation. The serial engine depends on this command to select the waveform and operation state.",
+    "rubric reason": "The command is written into the transmit FIFO through line 201 and selects the serial state and operation at lines 331 through 335, so unauthorized modification can cause an incorrect one-wire operation. A changed command can select a no-op or reset path instead of the requested transfer, withholding or disrupting the output at lines 300 and 302.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could alter a queued command so the engine emits a reset, no-op, or wrong transfer type.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "onewire_o"
+    ],
+    "entry lines": [
+     201
+    ],
+    "held lines": [
+     190,
+     201
+    ],
+    "exit lines": [
+     300,
+     302
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_onewire",
+    "concept": "One-wire transmit payload",
+    "information": "The payload byte written by the bus is queued and shifted onto the one-wire output during bit or byte operations. The one-wire transfer depends on this payload being retained and emitted unchanged.",
+    "rubric reason": "The payload enters the transmit FIFO at line 201 and influences the serial output at lines 328, 342, 300, and 302, so an unauthorized observer of the one-wire line can expose it. Unauthorized modification of the bus-written payload at line 201 or its serial use at line 328 can cause an incorrect transmitted value. Clearing or disabling the transmit path at lines 199 and 231 can discard or withhold the payload before it reaches the output.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could observe the one-wire output, alter a queued payload, or clear the transmit FIFO before the payload is sent.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "onewire_o"
+    ],
+    "entry lines": [
+     201
+    ],
+    "held lines": [
+     190,
+     201
+    ],
+    "exit lines": [
+     300,
+     302
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C6",
+    "unit": "neorv32_onewire",
+    "concept": "Received one-wire data",
+    "information": "The byte sampled from the one-wire input is shifted into a receive result and queued for software read-back. The receive path depends on preserving the sampled byte until it is returned through the bus response.",
+    "rubric reason": "The received value enters from the one-wire input at line 296 and is exposed through the bus response at lines 161 and 162, providing a path for unauthorized disclosure. An altered one-wire input can change the sampled result at lines 296 and 352, compromising the integrity of the returned byte. Clearing the receive FIFO at line 231 or consuming its data through line 234 can cause a required received result to be lost or withheld.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could monitor the bus read-back, drive a false one-wire value, or clear the receive FIFO before software reads the result.",
+    "enters through": [
+     "onewire_i"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     296
+    ],
+    "held lines": [
+     222,
+     232
+    ],
+    "exit lines": [
+     161,
+     162
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C7",
+    "unit": "neorv32_onewire",
+    "concept": "One-wire presence result",
+    "information": "The presence result records whether a one-wire device responded during the reset-presence interval. Software depends on this result in the receive word to determine whether a device is present.",
+    "rubric reason": "The result is computed from the sampled one-wire input at line 375 and returned in the response at line 162, so an altered input or internal result can make software report the wrong device presence.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could alter the sampled one-wire response or the stored presence result so software accepts or rejects a device incorrectly.",
+    "enters through": [
+     "onewire_i"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     296
+    ],
+    "held lines": [
+     222,
+     232,
+     375
+    ],
+    "exit lines": [
+     162
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C8",
+    "unit": "neorv32_onewire",
+    "concept": "Transfer interrupt request",
+    "information": "The interrupt request reports that the enabled engine has no queued transmit work and is not busy. An interrupt-driven integrator may depend on this event to service or continue transfers.",
+    "rubric reason": "The interrupt output is produced from enable, transmit availability, and serial busy state at line 243, so unauthorized changes to those conditions can create false or missing interrupt notifications. Withholding the request at line 243 can delay servicing and prevent an interrupt-driven system from progressing its transfers.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could manipulate the enable or engine-status conditions so the interrupt is falsely asserted or withheld while service is required.",
+    "enters through": [],
+    "leaves through": [
+     "irq_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     241,
+     243
+    ],
+    "exit lines": [
+     243
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C9",
+    "unit": "neorv32_onewire",
+    "concept": "One-wire sensed level",
+    "information": "The sensed one-wire level is sampled from the external data line and returned as a diagnostic status bit. Software may depend on it to observe the current one-wire line state.",
+    "rubric reason": "The sensed level comes from the one-wire input sampling path at line 296 and is exposed in the bus response at line 158, so modifying either path can make the reported line state incorrect.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could alter the sampled line value or its read-back path so software observes a false one-wire level.",
+    "enters through": [
+     "onewire_i"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     296
+    ],
+    "held lines": [],
+    "exit lines": [
+     158
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_onewire",
+    "concept": "Clock, reset, and clock-source signals",
+    "reason": "The signals at lines 23, 24, and 276 are clock or reset paths, and the clock/reset rules exclude them as conceptual assets.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_onewire",
+    "concept": "Internal pacing ticks",
+    "reason": "The tick generation and delayed tick copy at lines 253 through 268 only pace serial steps, so the pacing-pulse rule excludes them as information of their own.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_onewire",
+    "concept": "Serial sequencing state and progress counters",
+    "reason": "The state and counters assigned at lines 287 through 289 and 316 through 380 only order transfers and are excluded as sequencing state.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_onewire",
+    "concept": "FIFO fill and buffer status",
+    "reason": "The FIFO availability and fullness values returned or used at lines 156 through 159 are buffer-status information, which the buffer and engine status rules do not keep as separate pieces.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_onewire",
+    "concept": "Bus access command",
+    "reason": "The strobe, direction, and address fields tested at lines 141, 148, 200, and 234 are access command fields rather than conceptual assets of their own.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_onewire",
+    "concept": "Bus response handshake and fixed error",
+    "reason": "The acknowledge and constant error assignments at lines 136 through 138 are bus handshake copies or constant status and are not separate information.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_onewire",
+    "concept": "FIFO build configuration",
+    "reason": "ONEWIRE_FIFO and the FIFO generic mappings at lines 20 and 176 through 180 are build-time values that cannot be changed or withheld at run time.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_onewire",
+    "concept": "Serial intermediate samples and waveform controls",
+    "reason": "The synchronizer, sample, and drive-control values at lines 296, 347, 352, and 329 through 371 are working values or waveform controls covered by the received or transmitted information and are not pieces of their own.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

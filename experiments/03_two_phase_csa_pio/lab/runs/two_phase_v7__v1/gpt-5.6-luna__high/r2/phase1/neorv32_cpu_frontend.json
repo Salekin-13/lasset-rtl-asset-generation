@@ -1,0 +1,366 @@
+{
+ "module": "neorv32_cpu_frontend",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "be3b3faab49b",
+ "user sha": "af7b8e4239b6",
+ "usage": {
+  "in": 22314,
+  "out": 15144,
+  "reasoning": 12065,
+  "cached": 22311,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_089fd3a7f419214e006ace83b869e487d19ec9e30c88e63a93",
+  "request key": "3cd983a8a830"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_cpu_frontend\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"Fetched instruction stream\",\n      \"Unit\": \"neorv32_cpu_frontend\",\n      \"Information\": \"The instruction words and their compressed-format indication fetched from the instruction bus are used to produce the next instruction for the processor. They enter through the response data and leave as the instruction and format outputs.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"yes\"\n      },\n      \"Rubric Reason\": \"Instruction words may contain secret code, and the unit exposes them through frontend_o.instr and frontend_o.compr at lines 225, 226, 230, 231, 240, 241, 245, 246, 268 and 269. Changing ibus_rsp_i.data changes the buffered words and the emitted instruction at lines 137, 138, 225, 230, 240, 245 and 268. The fetch request and instruction acceptance can be withheld by the state and buffer conditions at lines 124, 145, 224, 229, 239, 244 and 267. The debug-qualified fetch request at line 130 can cause integration debug behavior to return or suppress an instruction different from normal operation.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could observe or alter instruction-bus data, manipulate fetch acceptance, or use the debug-qualified request to disclose, replace or withhold instructions.\",\n      \"Enters Through\": [\n        \"ibus_rsp_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"frontend_o.instr\",\n        \"frontend_o.compr\"\n      ],\n      \"Entry Lines\": [\n        137,\n        138\n      ],\n      \"Held Lines\": [\n        191,\n        225,\n        226,\n        230,\n        231,\n        240,\n        241,\n        245,\n        246,\n        268,\n        269\n      ],\n      \"Exit Lines\": [\n        225,\n        226,\n        230,\n        231,\n        240,\n        241,\n        245,\n        246,\n        268,\n        269\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"Instruction-fetch fault status\",\n      \"Unit\": \"neorv32_cpu_frontend\",\n      \"Information\": \"The error indication associated with a fetched instruction tells the processor that instruction retrieval faulted and is reported for fault handling.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Changing ibus_rsp_i.err changes the fault bit placed with the fetched word and reported on frontend_o.fault at lines 137, 138, 220, 235 and 270. A fault indication can cause the processor to stop or lose the required instruction transfer, and the unit exposes it at lines 220, 235 and 270.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could suppress or forge ibus_rsp_i.err so that a failed fetch is treated as valid or a valid fetch is turned into a fault.\",\n      \"Enters Through\": [\n        \"ibus_rsp_i.err\"\n      ],\n      \"Leaves Through\": [\n        \"frontend_o.fault\"\n      ],\n      \"Entry Lines\": [\n        137,\n        138\n      ],\n      \"Held Lines\": [\n        220,\n        235,\n        270\n      ],\n      \"Exit Lines\": [\n        220,\n        235,\n        270\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"Instruction transfer availability status\",\n      \"Unit\": \"neorv32_cpu_frontend\",\n      \"Information\": \"This status indicates whether an instruction is available for issue and whether the frontend is halted by unavailable prefetch-buffer space. The processor depends on these outputs to accept instructions and continue fetching.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Incorrect valid or halted status can make the processor accept unavailable data or stop accepting instructions, and the status is produced at lines 145, 224, 229, 239, 244 and 267. The same outputs can block or withhold instruction transfer when their buffer-derived conditions remain inactive.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could cause the frontend to report a false valid or halted condition, leading to execution of unavailable data or a persistent fetch stall.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"frontend_o.valid\",\n        \"frontend_o.halted\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        145,\n        224,\n        229,\n        239,\n        244,\n        267\n      ],\n      \"Exit Lines\": [\n        145,\n        224,\n        229,\n        239,\n        244,\n        267\n      ]\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"Program counter and fetch address\",\n      \"Unit\": \"neorv32_cpu_frontend\",\n      \"Information\": \"The program counter identifies the next instruction location and determines the address issued on the instruction bus. Fetch behavior depends on retaining and advancing this control-flow state.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The current control-flow address can reveal execution flow because fetch.pc is exposed as ibus_req_o.addr at line 123. Altering ctrl_i.pc_nxt or the registered counter changes the retained and issued address at lines 102, 103, 114 and 123. An incorrect or unusable fetch address can prevent required instruction transfers, with the address controlling the request at line 123.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could alter the next program counter or its retained value to observe control flow, redirect instruction fetches, or drive the frontend to an invalid or unavailable address.\",\n      \"Enters Through\": [\n        \"ctrl_i.pc_nxt\"\n      ],\n      \"Leaves Through\": [\n        \"ibus_req_o.addr\"\n      ],\n      \"Entry Lines\": [\n        114\n      ],\n      \"Held Lines\": [\n        84,\n        102,\n        103,\n        114\n      ],\n      \"Exit Lines\": [\n        123\n      ]\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"Instruction-fetch privilege mode\",\n      \"Unit\": \"neorv32_cpu_frontend\",\n      \"Information\": \"The privilege mode attached to an instruction fetch determines the protection context in which the instruction-bus access is made. The frontend retains the mode between fetch requests and emits it with the request.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Changing ctrl_i.cpu_priv changes the retained privilege value and the privilege attribute on the bus request at lines 115 and 129. A modified privilege attribute can cause a required fetch to be denied or performed under the wrong protection context, with the affected request emitted at line 129.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could alter the fetch privilege mode so that protected instructions are fetched under an unauthorized context or legitimate fetches are rejected.\",\n      \"Enters Through\": [\n        \"ctrl_i.cpu_priv\"\n      ],\n      \"Leaves Through\": [\n        \"ibus_req_o.priv\"\n      ],\n      \"Entry Lines\": [\n        115\n      ],\n      \"Held Lines\": [\n        85,\n        115\n      ],\n      \"Exit Lines\": [\n        129\n      ]\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Concept Name\": \"Debug-mode fetch attribute\",\n      \"Unit\": \"neorv32_cpu_frontend\",\n      \"Information\": \"The debug-mode indication qualifies the instruction-bus request and tells the receiving bus or memory system that the fetch is associated with debug operation.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Changing ctrl_i.cpu_debug changes the debug qualification sent with every request at line 130, which can alter the access context and compromise normal instruction-fetch integrity.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could forge or suppress the debug qualification so that an instruction fetch receives debug-only treatment or bypasses the expected access context.\",\n      \"Enters Through\": [\n        \"ctrl_i.cpu_debug\"\n      ],\n      \"Leaves Through\": [\n        \"ibus_req_o.debug\"\n      ],\n      \"Entry Lines\": [\n        130\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": [\n        130\n      ]\n    },\n    {\n      \"Concept ID\": \"C7\",\n      \"Concept Name\": \"Instruction-fetch fence request\",\n      \"Unit\": \"neorv32_cpu_frontend\",\n      \"Information\": \"The fence indication requests the instruction-bus side to apply the required ordering or synchronization semantics to a fetch. Correct instruction-stream behavior depends on preserving this request.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Changing ctrl_i.if_fence changes the fence attribute emitted on ibus_req_o at line 134, allowing fetch ordering or synchronization behavior to be altered.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could clear or assert the fence attribute so that the instruction bus observes an incorrect ordering requirement.\",\n      \"Enters Through\": [\n        \"ctrl_i.if_fence\"\n      ],\n      \"Leaves Through\": [\n        \"ibus_req_o.fence\"\n      ],\n      \"Entry Lines\": [\n        134\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": [\n        134\n      ]\n    },\n    {\n      \"Concept ID\": \"C8\",\n      \"Concept Name\": \"Instruction-fetch restart and flush control\",\n      \"Unit\": \"neorv32_cpu_frontend\",\n      \"Information\": \"The restart control causes the frontend to abandon or restart its current fetch sequence and clear the prefetch path. Correct operation depends on applying this control only when a restart is intended.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"ctrl_i.if_reset is retained in fetch.restart and changes fetch-state transitions at lines 91, 94, 100 and 104, while the retained restart clears the prefetch buffers at line 164. Repeated or spurious restart control can discard required instructions and prevent progress through the fetch sequence.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could assert the restart control during normal operation to repeatedly flush prefetched instructions and keep the frontend from making progress.\",\n      \"Enters Through\": [\n        \"ctrl_i.if_reset\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        91,\n        100\n      ],\n      \"Held Lines\": [\n        91,\n        100\n      ],\n      \"Exit Lines\": []\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Clock and reset signals\",\n      \"Candidate Unit\": \"neorv32_cpu_frontend\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"Clock and reset inputs are explicitly excluded from conceptual assets, and rstn_i only resets the frontend state and FIFO instances.\"\n    },\n    {\n      \"Candidate Name\": \"Fetch and issue sequencing state\",\n      \"Candidate Unit\": \"neorv32_cpu_frontend\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"fetch.state and issue.algn only sequence fetch, alignment and buffer steps, so the sequencing-state rule bars them as pieces of information of their own.\"\n    },\n    {\n      \"Candidate Name\": \"Bus handshake and pacing information\",\n      \"Candidate Unit\": \"neorv32_cpu_frontend\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"ibus_rsp_i.ack, ctrl_i.if_ack, ibus_req_o.stb, ipb.re and ipb.we only acknowledge, pace or complete movement of the instruction transfer.\"\n    },\n    {\n      \"Candidate Name\": \"Prefetch FIFO occupancy and fill flags\",\n      \"Candidate Unit\": \"neorv32_cpu_frontend\",\n      \"Merged Into\": \"C3\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Compressed-format marker as a separate asset\",\n      \"Candidate Unit\": \"neorv32_cpu_frontend\",\n      \"Merged Into\": \"C1\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Decompression intermediate value\",\n      \"Candidate Unit\": \"neorv32_cpu_frontend\",\n      \"Merged Into\": \"C1\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"RVC and FIFO build configuration\",\n      \"Candidate Unit\": \"neorv32_cpu_frontend\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"RVC_EN and the FIFO generic values only determine the built structure and cannot be changed or withheld at run time.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_cpu_frontend",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_cpu_frontend",
+    "concept": "Fetched instruction stream",
+    "information": "The instruction words and their compressed-format indication fetched from the instruction bus are used to produce the next instruction for the processor. They enter through the response data and leave as the instruction and format outputs.",
+    "rubric reason": "Instruction words may contain secret code, and the unit exposes them through frontend_o.instr and frontend_o.compr at lines 225, 226, 230, 231, 240, 241, 245, 246, 268 and 269. Changing ibus_rsp_i.data changes the buffered words and the emitted instruction at lines 137, 138, 225, 230, 240, 245 and 268. The fetch request and instruction acceptance can be withheld by the state and buffer conditions at lines 124, 145, 224, 229, 239, 244 and 267. The debug-qualified fetch request at line 130 can cause integration debug behavior to return or suppress an instruction different from normal operation.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could observe or alter instruction-bus data, manipulate fetch acceptance, or use the debug-qualified request to disclose, replace or withhold instructions.",
+    "enters through": [
+     "ibus_rsp_i.data"
+    ],
+    "leaves through": [
+     "frontend_o.instr",
+     "frontend_o.compr"
+    ],
+    "entry lines": [
+     137,
+     138
+    ],
+    "held lines": [
+     191,
+     225,
+     226,
+     230,
+     231,
+     240,
+     241,
+     245,
+     246,
+     268,
+     269
+    ],
+    "exit lines": [
+     225,
+     226,
+     230,
+     231,
+     240,
+     241,
+     245,
+     246,
+     268,
+     269
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "yes"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_cpu_frontend",
+    "concept": "Instruction-fetch fault status",
+    "information": "The error indication associated with a fetched instruction tells the processor that instruction retrieval faulted and is reported for fault handling.",
+    "rubric reason": "Changing ibus_rsp_i.err changes the fault bit placed with the fetched word and reported on frontend_o.fault at lines 137, 138, 220, 235 and 270. A fault indication can cause the processor to stop or lose the required instruction transfer, and the unit exposes it at lines 220, 235 and 270.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could suppress or forge ibus_rsp_i.err so that a failed fetch is treated as valid or a valid fetch is turned into a fault.",
+    "enters through": [
+     "ibus_rsp_i.err"
+    ],
+    "leaves through": [
+     "frontend_o.fault"
+    ],
+    "entry lines": [
+     137,
+     138
+    ],
+    "held lines": [
+     220,
+     235,
+     270
+    ],
+    "exit lines": [
+     220,
+     235,
+     270
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_cpu_frontend",
+    "concept": "Instruction transfer availability status",
+    "information": "This status indicates whether an instruction is available for issue and whether the frontend is halted by unavailable prefetch-buffer space. The processor depends on these outputs to accept instructions and continue fetching.",
+    "rubric reason": "Incorrect valid or halted status can make the processor accept unavailable data or stop accepting instructions, and the status is produced at lines 145, 224, 229, 239, 244 and 267. The same outputs can block or withhold instruction transfer when their buffer-derived conditions remain inactive.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could cause the frontend to report a false valid or halted condition, leading to execution of unavailable data or a persistent fetch stall.",
+    "enters through": [],
+    "leaves through": [
+     "frontend_o.valid",
+     "frontend_o.halted"
+    ],
+    "entry lines": [],
+    "held lines": [
+     145,
+     224,
+     229,
+     239,
+     244,
+     267
+    ],
+    "exit lines": [
+     145,
+     224,
+     229,
+     239,
+     244,
+     267
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_cpu_frontend",
+    "concept": "Program counter and fetch address",
+    "information": "The program counter identifies the next instruction location and determines the address issued on the instruction bus. Fetch behavior depends on retaining and advancing this control-flow state.",
+    "rubric reason": "The current control-flow address can reveal execution flow because fetch.pc is exposed as ibus_req_o.addr at line 123. Altering ctrl_i.pc_nxt or the registered counter changes the retained and issued address at lines 102, 103, 114 and 123. An incorrect or unusable fetch address can prevent required instruction transfers, with the address controlling the request at line 123.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could alter the next program counter or its retained value to observe control flow, redirect instruction fetches, or drive the frontend to an invalid or unavailable address.",
+    "enters through": [
+     "ctrl_i.pc_nxt"
+    ],
+    "leaves through": [
+     "ibus_req_o.addr"
+    ],
+    "entry lines": [
+     114
+    ],
+    "held lines": [
+     84,
+     102,
+     103,
+     114
+    ],
+    "exit lines": [
+     123
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_cpu_frontend",
+    "concept": "Instruction-fetch privilege mode",
+    "information": "The privilege mode attached to an instruction fetch determines the protection context in which the instruction-bus access is made. The frontend retains the mode between fetch requests and emits it with the request.",
+    "rubric reason": "Changing ctrl_i.cpu_priv changes the retained privilege value and the privilege attribute on the bus request at lines 115 and 129. A modified privilege attribute can cause a required fetch to be denied or performed under the wrong protection context, with the affected request emitted at line 129.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could alter the fetch privilege mode so that protected instructions are fetched under an unauthorized context or legitimate fetches are rejected.",
+    "enters through": [
+     "ctrl_i.cpu_priv"
+    ],
+    "leaves through": [
+     "ibus_req_o.priv"
+    ],
+    "entry lines": [
+     115
+    ],
+    "held lines": [
+     85,
+     115
+    ],
+    "exit lines": [
+     129
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C6",
+    "unit": "neorv32_cpu_frontend",
+    "concept": "Debug-mode fetch attribute",
+    "information": "The debug-mode indication qualifies the instruction-bus request and tells the receiving bus or memory system that the fetch is associated with debug operation.",
+    "rubric reason": "Changing ctrl_i.cpu_debug changes the debug qualification sent with every request at line 130, which can alter the access context and compromise normal instruction-fetch integrity.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could forge or suppress the debug qualification so that an instruction fetch receives debug-only treatment or bypasses the expected access context.",
+    "enters through": [
+     "ctrl_i.cpu_debug"
+    ],
+    "leaves through": [
+     "ibus_req_o.debug"
+    ],
+    "entry lines": [
+     130
+    ],
+    "held lines": [],
+    "exit lines": [
+     130
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C7",
+    "unit": "neorv32_cpu_frontend",
+    "concept": "Instruction-fetch fence request",
+    "information": "The fence indication requests the instruction-bus side to apply the required ordering or synchronization semantics to a fetch. Correct instruction-stream behavior depends on preserving this request.",
+    "rubric reason": "Changing ctrl_i.if_fence changes the fence attribute emitted on ibus_req_o at line 134, allowing fetch ordering or synchronization behavior to be altered.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could clear or assert the fence attribute so that the instruction bus observes an incorrect ordering requirement.",
+    "enters through": [
+     "ctrl_i.if_fence"
+    ],
+    "leaves through": [
+     "ibus_req_o.fence"
+    ],
+    "entry lines": [
+     134
+    ],
+    "held lines": [],
+    "exit lines": [
+     134
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C8",
+    "unit": "neorv32_cpu_frontend",
+    "concept": "Instruction-fetch restart and flush control",
+    "information": "The restart control causes the frontend to abandon or restart its current fetch sequence and clear the prefetch path. Correct operation depends on applying this control only when a restart is intended.",
+    "rubric reason": "ctrl_i.if_reset is retained in fetch.restart and changes fetch-state transitions at lines 91, 94, 100 and 104, while the retained restart clears the prefetch buffers at line 164. Repeated or spurious restart control can discard required instructions and prevent progress through the fetch sequence.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could assert the restart control during normal operation to repeatedly flush prefetched instructions and keep the frontend from making progress.",
+    "enters through": [
+     "ctrl_i.if_reset"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     91,
+     100
+    ],
+    "held lines": [
+     91,
+     100
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_cpu_frontend",
+    "concept": "Clock and reset signals",
+    "reason": "Clock and reset inputs are explicitly excluded from conceptual assets, and rstn_i only resets the frontend state and FIFO instances.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_frontend",
+    "concept": "Fetch and issue sequencing state",
+    "reason": "fetch.state and issue.algn only sequence fetch, alignment and buffer steps, so the sequencing-state rule bars them as pieces of information of their own.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_frontend",
+    "concept": "Bus handshake and pacing information",
+    "reason": "ibus_rsp_i.ack, ctrl_i.if_ack, ibus_req_o.stb, ipb.re and ipb.we only acknowledge, pace or complete movement of the instruction transfer.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_frontend",
+    "concept": "Prefetch FIFO occupancy and fill flags",
+    "reason": "merged into C3",
+    "merged into": "C3"
+   },
+   {
+    "unit": "neorv32_cpu_frontend",
+    "concept": "Compressed-format marker as a separate asset",
+    "reason": "merged into C1",
+    "merged into": "C1"
+   },
+   {
+    "unit": "neorv32_cpu_frontend",
+    "concept": "Decompression intermediate value",
+    "reason": "merged into C1",
+    "merged into": "C1"
+   },
+   {
+    "unit": "neorv32_cpu_frontend",
+    "concept": "RVC and FIFO build configuration",
+    "reason": "RVC_EN and the FIFO generic values only determine the built structure and cannot be changed or withheld at run time.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

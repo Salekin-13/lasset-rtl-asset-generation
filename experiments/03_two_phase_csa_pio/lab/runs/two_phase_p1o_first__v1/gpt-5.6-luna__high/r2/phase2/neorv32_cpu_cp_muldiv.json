@@ -1,0 +1,2403 @@
+{
+ "module": "neorv32_cpu_cp_muldiv",
+ "prompt version": "two_phase_p1o_first",
+ "input version": "v1",
+ "phase": 2,
+ "system sha": "021cc963702d",
+ "user sha": "fbefcc8283c5",
+ "usage": {
+  "in": 34357,
+  "out": 26072,
+  "reasoning": 11733,
+  "cached": 21986,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_0e384a1bc813e766006ad63b30a8fc87d18e1a5c100430d580",
+  "request key": "3c636acc0251"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_cpu_cp_muldiv\",\n  \"Concept Walks\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Points\": [\n        {\n          \"Point\": \"multiplier_core_in_reg\",\n          \"Reached By\": \"the rs1_i and rs2_i arrows carry the source operands into this holding block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [170, 171, 172],\n          \"Answer Reason\": \"The captured operand values are used to form the multiplier inputs, so tampering with them changes the arithmetic result.\"\n        },\n        {\n          \"Point\": \"multiplier_core\",\n          \"Reached By\": \"the rs1_i arrow carries rs1_i into this holding block and the multiplier_core_in_reg path carries the second operand\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [210, 212, 214, 215],\n          \"Answer Reason\": \"The serial multiplier loads and iteratively updates the product from the source operands, so alteration of its stored product corrupts the operation.\"\n        },\n        {\n          \"Point\": \"divider_core\",\n          \"Reached By\": \"the rs1_i and rs2_i arrows carry the source operands into this holding block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [261, 264, 266, 270, 272],\n          \"Answer Reason\": \"The divider captures operand magnitudes and the dividend from rs1_i and rs2_i, so alteration changes quotient or remainder computation.\"\n        },\n        {\n          \"Point\": \"mul_update\",\n          \"Reached By\": \"the rs2_i arrow carries the second source operand into this computation block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [225, 227],\n          \"Answer Reason\": \"The source operand is added to or subtracted from the partial product, so changing it changes the multiply result.\"\n        },\n        {\n          \"Point\": \"multiplier_core_parallel\",\n          \"Reached By\": \"the multiplier_core_in_reg arrow carries the captured operand values into this block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [178],\n          \"Answer Reason\": \"The parallel multiplier computes the product directly from the captured source operands, so modifying this computation corrupts the result.\"\n        },\n        {\n          \"Point\": \"multiplier_core_out_reg\",\n          \"Reached By\": \"the multiplier_core_parallel arrow carries mul.dsp_z into this result-register block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [183, 184],\n          \"Answer Reason\": \"The product derived from the source operands is stored in mul.prod, so altering that register changes the returned arithmetic value.\"\n        },\n        {\n          \"Point\": \"multiplier_core_serial\",\n          \"Reached By\": \"the multiplier_core arrow carries the product into this block through mul.prod\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [235],\n          \"Answer Reason\": \"The product sign extension derived from the operand-dependent product feeds the serial multiplier update, so changing it corrupts the result.\"\n        },\n        {\n          \"Point\": \"divider_core_serial\",\n          \"Reached By\": \"the divider_core arrow carries quotient, remainder, operand magnitude and sign information into this block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [296, 299, 300],\n          \"Answer Reason\": \"The final quotient or remainder is computed from operand-dependent divider state, so alteration changes the arithmetic result.\"\n        },\n        {\n          \"Point\": \"operation_result\",\n          \"Reached By\": \"the multiplier and divider datapath arrows carry operand-derived results into this result-selection block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [323, 325, 327, 329],\n          \"Answer Reason\": \"The selected output value is formed from operand-dependent product or division results, so tampering here produces an incorrect computation.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"rs1_i\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"multiplier_core_in_reg\", \"multiplier_core\", \"divider_core\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Carries the first source operand across the unit boundary into the multiply and divide datapaths.\",\n          \"Justification\": \"It is the whole input boundary at which the first source operand enters the unit and is therefore primary.\",\n          \"Asset Lines\": [34, 171, 212, 264, 266]\n        },\n        {\n          \"Asset RTL\": \"rs2_i\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"multiplier_core_in_reg\", \"divider_core\", \"mul_update\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Carries the second source operand across the unit boundary into the multiply and divide datapaths.\",\n          \"Justification\": \"It is the whole input boundary at which the second source operand enters the unit and is therefore primary.\",\n          \"Asset Lines\": [35, 172, 225, 227, 270, 272]\n        },\n        {\n          \"Asset RTL\": \"mul.dsp_x\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"multiplier_core_in_reg\", \"multiplier_core_parallel\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"rs1_i\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"rs2_i\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Stores the sign-extended first operand used by the parallel multiplier.\",\n          \"Justification\": \"It is a captured operand path whose alteration changes use of the primary source operands.\",\n          \"Asset Lines\": [171]\n        },\n        {\n          \"Asset RTL\": \"mul.dsp_y\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"multiplier_core_in_reg\", \"multiplier_core_parallel\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"rs1_i\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"rs2_i\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Stores the sign-extended second operand used by the parallel multiplier.\",\n          \"Justification\": \"It is a captured operand path whose alteration changes use of the primary source operands.\",\n          \"Asset Lines\": [172]\n        },\n        {\n          \"Asset RTL\": \"mul.dsp_z\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"multiplier_core_parallel\", \"multiplier_core_out_reg\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"rs1_i\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"rs2_i\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Carries the product computed from the source operands toward mul.prod.\",\n          \"Justification\": \"It is an operand-dependent computation path that can be altered before the product is stored.\",\n          \"Asset Lines\": [178]\n        },\n        {\n          \"Asset RTL\": \"mul.prod\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"multiplier_core\", \"multiplier_core_out_reg\", \"operation_result\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"rs1_i\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"rs2_i\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Stores and iteratively carries the product derived from the source operands.\",\n          \"Justification\": \"It is the product datapath copy whose corruption changes the source operands' computation.\",\n          \"Asset Lines\": [184, 208, 211, 212, 214, 215]\n        },\n        {\n          \"Asset RTL\": \"mul.p_sext\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"multiplier_core_serial\", \"mul_update\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"rs1_i\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"rs2_i\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Carries the sign extension derived from the operand-dependent partial product.\",\n          \"Justification\": \"It controls the serial multiply update and can therefore corrupt use of the source operands.\",\n          \"Asset Lines\": [235]\n        },\n        {\n          \"Asset RTL\": \"mul.add\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"mul_update\", \"multiplier_core\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"rs1_i\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"rs2_i\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Computes the operand-dependent add or subtract value loaded into the serial product.\",\n          \"Justification\": \"It is a modifiable arithmetic path from the source operands to the product.\",\n          \"Asset Lines\": [225, 227, 230]\n        },\n        {\n          \"Asset RTL\": \"div.quotient\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"divider_core\", \"divider_core_serial\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"rs1_i\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"rs2_i\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Stores the operand-dependent dividend and iteratively carries the quotient.\",\n          \"Justification\": \"It is divider state derived from the source operands whose alteration changes the computation.\",\n          \"Asset Lines\": [264, 266, 285, 289]\n        },\n        {\n          \"Asset RTL\": \"div.rs2_abs\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"divider_core\", \"divider_core_serial\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"rs1_i\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"rs2_i\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Stores the absolute-value form of rs2_i used by the divider.\",\n          \"Justification\": \"It is a captured operand-derived divisor value whose alteration changes division.\",\n          \"Asset Lines\": [270, 272]\n        },\n        {\n          \"Asset RTL\": \"div.remainder\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"divider_core\", \"divider_core_serial\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"rs1_i\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"rs2_i\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Stores the operand-dependent partial and final remainder.\",\n          \"Justification\": \"It is divider state derived from the source operands whose alteration changes quotient or remainder.\",\n          \"Asset Lines\": [283, 287, 289]\n        },\n        {\n          \"Asset RTL\": \"div.sub\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"divider_core_serial\", \"divider_core\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"rs1_i\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"rs2_i\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Computes the operand-dependent subtraction used to update quotient and remainder.\",\n          \"Justification\": \"It is an arithmetic influence path from the source operands into divider state.\",\n          \"Asset Lines\": [296]\n        },\n        {\n          \"Asset RTL\": \"div.res_u\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"divider_core_serial\", \"operation_result\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"rs1_i\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"rs2_i\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Selects the operand-dependent quotient or remainder before sign correction.\",\n          \"Justification\": \"It is a derived result path whose alteration changes the source operands' arithmetic result.\",\n          \"Asset Lines\": [299]\n        },\n        {\n          \"Asset RTL\": \"div.res\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"divider_core_serial\", \"operation_result\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"rs1_i\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"rs2_i\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Carries the signed quotient or remainder derived from the source operands to result selection.\",\n          \"Justification\": \"It is the final divider path whose corruption changes use of the primary operands.\",\n          \"Asset Lines\": [300, 329]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Points\": [\n        {\n          \"Point\": \"operation_result\",\n          \"Reached By\": \"holding block and the multiplier and divider result arrows into the result-selection block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [321, 322, 325, 327, 329],\n          \"Answer Reason\": \"This block computes and releases the arithmetic result to res_o, while ctrl.out_en can select zero instead and the result can be observed or altered here.\"\n        },\n        {\n          \"Point\": \"control\",\n          \"Reached By\": \"the control arrow reaches operation_result through ctrl.out_en, and this block is a control point for result production\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [112, 137, 322],\n          \"Answer Reason\": \"The control process creates the output-enable and operation state that can alter or withhold the result.\"\n        },\n        {\n          \"Point\": \"multiplier_core_in_reg\",\n          \"Reached By\": \"the rs1_i and rs2_i arrows carry source operands into the multiplier input registers\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [170, 171, 172],\n          \"Answer Reason\": \"The captured operands feed the product computation and are readable or modifiable at this datapath point.\"\n        },\n        {\n          \"Point\": \"multiplier_core_parallel\",\n          \"Reached By\": \"the multiplier_core_in_reg arrow carries mul.dsp_x and mul.dsp_y into the parallel multiplier\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [178],\n          \"Answer Reason\": \"The parallel multiplier computes the product here, exposing and determining the arithmetic result.\"\n        },\n        {\n          \"Point\": \"multiplier_core_out_reg\",\n          \"Reached By\": \"the multiplier_core_parallel arrow carries mul.dsp_z into the product register\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [183, 184],\n          \"Answer Reason\": \"The computed product is stored in mul.prod, where it can be observed or corrupted.\"\n        },\n        {\n          \"Point\": \"multiplier_core\",\n          \"Reached By\": \"the multiplier_core arrow carries the serial product into the result path\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [210, 213, 214, 215],\n          \"Answer Reason\": \"The serial product is stored and updated here, and its state-dependent update can be blocked or corrupted.\"\n        },\n        {\n          \"Point\": \"multiplier_core_serial\",\n          \"Reached By\": \"the multiplier_core arrow carries mul.prod into the sign-extension path\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [235],\n          \"Answer Reason\": \"The sign-extension value influences the serial product update and can expose or corrupt the result path.\"\n        },\n        {\n          \"Point\": \"mul_update\",\n          \"Reached By\": \"the multiplier_core_serial and rs2_i arrows reach the partial-product update block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [223, 225, 227, 230],\n          \"Answer Reason\": \"This block computes the next partial product from operand and product state, so its value can be observed or altered.\"\n        },\n        {\n          \"Point\": \"divider_core\",\n          \"Reached By\": \"the rs1_i and rs2_i arrows carry operands into the divider and the divider state feeds the result path\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [261, 264, 266, 270, 272, 284, 285, 287, 289],\n          \"Answer Reason\": \"The divider stores and iterates quotient and remainder state, and ctrl.state can prevent those updates.\"\n        },\n        {\n          \"Point\": \"divider_core_serial\",\n          \"Reached By\": \"the divider_core arrow carries quotient, remainder, divisor and sign state into final-result computation\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [296, 299, 300],\n          \"Answer Reason\": \"The final quotient or remainder is computed here and can be observed or changed before release.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"res_o\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"operation_result\"],\n          \"Security Objectives\": [\"C\", \"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Carries the selected multiply, quotient or remainder result out of the unit.\",\n          \"Justification\": \"It is the output boundary through which the arithmetic result leaves unmixed.\",\n          \"Asset Lines\": [325, 327, 329]\n        },\n        {\n          \"Asset RTL\": \"mul.prod\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"multiplier_core\", \"multiplier_core_out_reg\", \"operation_result\"],\n          \"Security Objectives\": [\"C\", \"I\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores and computes the multiply result used for write-back.\",\n          \"Justification\": \"It is the internal product value from which the multiplier result output is derived.\",\n          \"Asset Lines\": [184, 208, 211, 212, 214, 215]\n        },\n        {\n          \"Asset RTL\": \"div.res\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"divider_core_serial\", \"operation_result\"],\n          \"Security Objectives\": [\"C\", \"I\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Computes and carries the final signed quotient or remainder.\",\n          \"Justification\": \"It is the final internally computed divider result used by result selection.\",\n          \"Asset Lines\": [300, 329]\n        },\n        {\n          \"Asset RTL\": \"rs1_i\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"multiplier_core_in_reg\", \"divider_core\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"mul.prod\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"div.res\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Supplies an operand from which the arithmetic result is computed.\",\n          \"Justification\": \"Changing this input changes the product, quotient or remainder.\",\n          \"Asset Lines\": [171, 212, 264, 266]\n        },\n        {\n          \"Asset RTL\": \"rs2_i\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"multiplier_core_in_reg\", \"divider_core\", \"mul_update\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"mul.prod\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"div.res\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Supplies the second operand from which the arithmetic result is computed.\",\n          \"Justification\": \"Changing this input changes the product, quotient or remainder.\",\n          \"Asset Lines\": [172, 225, 227, 270, 272]\n        },\n        {\n          \"Asset RTL\": \"mul.dsp_x\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"multiplier_core_in_reg\", \"multiplier_core_parallel\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"mul.prod\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Stores the first multiplier operand used to compute the product.\",\n          \"Justification\": \"It is an operand path into the primary product computation.\",\n          \"Asset Lines\": [171]\n        },\n        {\n          \"Asset RTL\": \"mul.dsp_y\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"multiplier_core_in_reg\", \"multiplier_core_parallel\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"mul.prod\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Stores the second multiplier operand used to compute the product.\",\n          \"Justification\": \"It is an operand path into the primary product computation.\",\n          \"Asset Lines\": [172]\n        },\n        {\n          \"Asset RTL\": \"mul.dsp_z\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"multiplier_core_parallel\", \"multiplier_core_out_reg\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"mul.prod\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Carries the parallel product into the product register.\",\n          \"Justification\": \"It is an intermediate computation feeding the primary product storage.\",\n          \"Asset Lines\": [178]\n        },\n        {\n          \"Asset RTL\": \"mul.add\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"mul_update\", \"multiplier_core\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"mul.prod\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Computes the serial multiplier's next partial-product value.\",\n          \"Justification\": \"It controls the value loaded into the primary product register.\",\n          \"Asset Lines\": [225, 227, 230]\n        },\n        {\n          \"Asset RTL\": \"mul.p_sext\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"multiplier_core_serial\", \"mul_update\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"mul.prod\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Provides sign extension for the serial product update.\",\n          \"Justification\": \"It influences the next value of the primary product.\",\n          \"Asset Lines\": [235]\n        },\n        {\n          \"Asset RTL\": \"div.quotient\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"divider_core\", \"divider_core_serial\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"div.res\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Stores the quotient state used to form the final division result.\",\n          \"Justification\": \"It is an intermediate divider value feeding div.res.\",\n          \"Asset Lines\": [264, 266, 285, 289]\n        },\n        {\n          \"Asset RTL\": \"div.remainder\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"divider_core\", \"divider_core_serial\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"div.res\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Stores the remainder state used to form the final division result.\",\n          \"Justification\": \"It is an intermediate divider value feeding div.res.\",\n          \"Asset Lines\": [283, 287, 289]\n        },\n        {\n          \"Asset RTL\": \"div.rs2_abs\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"divider_core\", \"divider_core_serial\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"div.res\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Stores the absolute divisor used by divider arithmetic.\",\n          \"Justification\": \"It influences quotient and remainder computation feeding div.res.\",\n          \"Asset Lines\": [270, 272, 296]\n        },\n        {\n          \"Asset RTL\": \"div.sub\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"divider_core_serial\", \"divider_core\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"div.res\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Computes the subtraction used to update quotient and remainder.\",\n          \"Justification\": \"It controls intermediate divider state that feeds the primary result.\",\n          \"Asset Lines\": [296]\n        },\n        {\n          \"Asset RTL\": \"div.res_u\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"divider_core_serial\", \"operation_result\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"div.res\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Selects quotient or remainder before sign correction.\",\n          \"Justification\": \"It directly determines the value assigned to the primary divider result.\",\n          \"Asset Lines\": [299]\n        },\n        {\n          \"Asset RTL\": \"div.sign_mod\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"divider_core\", \"divider_core_serial\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"div.res\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Controls sign correction of the selected quotient or remainder.\",\n          \"Justification\": \"It decides the final value assigned to div.res.\",\n          \"Asset Lines\": [276, 278, 280, 300]\n        },\n        {\n          \"Asset RTL\": \"ctrl.out_en\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"control\", \"operation_result\"],\n          \"Security Objectives\": [\"C\", \"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"res_o\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Gates whether the computed arithmetic result is released on res_o.\",\n          \"Justification\": \"Its condition selects a zero value instead of the result, controlling release and availability.\",\n          \"Asset Lines\": [112, 137, 322]\n        },\n        {\n          \"Asset RTL\": \"ctrl.state\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"control\", \"multiplier_core\", \"divider_core\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"mul.prod\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"div.res\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"res_o\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Controls when multiplier and divider state updates occur and when output is valid.\",\n          \"Justification\": \"Changing the state can corrupt sequencing or prevent result production and release.\",\n          \"Asset Lines\": [116, 122, 124, 132, 138, 145, 213, 284]\n        },\n        {\n          \"Asset RTL\": \"ctrl.cnt\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"control\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"div.res\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Counts serial operation iterations and influences completion state.\",\n          \"Justification\": \"Changing or blocking the count can cause an incorrect or unavailable arithmetic result.\",\n          \"Asset Lines\": [108, 113, 130, 131]\n        },\n        {\n          \"Asset RTL\": \"ctrl_i\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"control\", \"operation_result\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"res_o\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Selects the operation and therefore which computed result is returned.\",\n          \"Justification\": \"Its instruction-function field decides result selection and operation-specific behavior.\",\n          \"Asset Lines\": [121, 275, 277, 299, 323]\n        },\n        {\n          \"Asset RTL\": \"clk_i\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"multiplier_core\", \"divider_core\", \"control\"],\n          \"Security Objectives\": [\"A\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"mul.prod\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"div.res\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Times updates of the stored arithmetic result state.\",\n          \"Justification\": \"Blocking the clock can prevent the product or divider result from becoming available.\",\n          \"Asset Lines\": [110, 183, 209, 260]\n        },\n        {\n          \"Asset RTL\": \"rstn_i\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"multiplier_core\", \"divider_core\", \"control\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"mul.prod\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"div.res\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Resets stored product and divider state.\",\n          \"Justification\": \"Asserting reset clears arithmetic state and can prevent the result from being produced.\",\n          \"Asset Lines\": [106, 166, 207, 255]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Points\": [\n        {\n          \"Point\": \"ctrl.rs1_is_signed\",\n          \"Reached By\": \"the ctrl_i.ir_funct3 selector arrow reaches the rs1 signedness logic\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [148, 149],\n          \"Answer Reason\": \"The instruction function field directly produces the rs1 signedness setting, so changing this logic changes operand interpretation.\"\n        },\n        {\n          \"Point\": \"ctrl.rs2_is_signed\",\n          \"Reached By\": \"the ctrl_i.ir_funct3 selector arrow reaches the rs2 signedness logic\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [150, 151],\n          \"Answer Reason\": \"The instruction function field directly produces the rs2 signedness setting, so changing this logic changes operand interpretation.\"\n        },\n        {\n          \"Point\": \"multiplier_core_in_reg\",\n          \"Reached By\": \"the ctrl.rs1_is_signed and ctrl.rs2_is_signed arrows carry signedness into operand extension\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [170, 171, 172],\n          \"Answer Reason\": \"The signedness settings control sign extension of both multiplier operands.\"\n        },\n        {\n          \"Point\": \"divider_core\",\n          \"Reached By\": \"the ctrl.rs1_is_signed and ctrl.rs2_is_signed decision arrows reach divider operand handling\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [263, 269],\n          \"Answer Reason\": \"The signedness settings decide whether the divider negates rs1_i and rs2_i before division.\"\n        },\n        {\n          \"Point\": \"multiplier_core_serial\",\n          \"Reached By\": \"the ctrl.rs2_is_signed arrow carries signedness into the serial sign-extension logic\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [235],\n          \"Answer Reason\": \"The rs2 signedness setting controls the sign extension used by the serial multiplier.\"\n        },\n        {\n          \"Point\": \"mul_update\",\n          \"Reached By\": \"the signedness decision arrows reach the partial-product update computation\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [224, 225, 227],\n          \"Answer Reason\": \"Signedness selects subtraction versus addition and operand extension in the serial multiplier update.\"\n        },\n        {\n          \"Point\": \"multiplier_core\",\n          \"Reached By\": \"the signedness-controlled mul_update path reaches the serial product register\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [214, 215],\n          \"Answer Reason\": \"The signedness-dependent partial product is stored into the serial product state.\"\n        },\n        {\n          \"Point\": \"multiplier_core_parallel\",\n          \"Reached By\": \"the multiplier_core_in_reg arrow carries signedness-extended operands into the parallel multiplier\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [171, 172, 178],\n          \"Answer Reason\": \"The parallel product depends on the signedness-controlled operand extensions.\"\n        },\n        {\n          \"Point\": \"multiplier_core_out_reg\",\n          \"Reached By\": \"the multiplier_core_parallel arrow carries the signedness-dependent product into the output register\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [184],\n          \"Answer Reason\": \"The product stored here reflects the selected signed interpretation.\"\n        },\n        {\n          \"Point\": \"divider_core_serial\",\n          \"Reached By\": \"the divider_core arrow carries signedness-dependent quotient, remainder and sign state into final result logic\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [299, 300],\n          \"Answer Reason\": \"The final divider result uses the signedness-dependent state and sign correction.\"\n        },\n        {\n          \"Point\": \"operation_result\",\n          \"Reached By\": \"the signedness-dependent multiplier and divider results reach result selection\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [325, 327, 329],\n          \"Answer Reason\": \"The selected result reflects the signedness setting used by the arithmetic datapaths.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"ctrl_i\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"ctrl.rs1_is_signed\", \"ctrl.rs2_is_signed\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Carries instruction function fields that enter the unit and determine operand signedness.\",\n          \"Justification\": \"The control record crosses the boundary with the fields from which this setting is decoded.\",\n          \"Asset Lines\": [148, 149, 150, 151]\n        },\n        {\n          \"Asset RTL\": \"ctrl.rs1_is_signed\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"ctrl.rs1_is_signed\", \"multiplier_core_in_reg\", \"divider_core\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Decodes whether rs1_i is treated as signed.\",\n          \"Justification\": \"It is the element where the rs1 signedness setting is computed and held for datapath use.\",\n          \"Asset Lines\": [148, 149]\n        },\n        {\n          \"Asset RTL\": \"ctrl.rs2_is_signed\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"ctrl.rs2_is_signed\", \"multiplier_core_in_reg\", \"divider_core\", \"multiplier_core_serial\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Decodes whether rs2_i is treated as signed.\",\n          \"Justification\": \"It is the element where the rs2 signedness setting is computed and held for datapath use.\",\n          \"Asset Lines\": [150, 151]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Points\": [\n        {\n          \"Point\": \"valid_cmd\",\n          \"Reached By\": \"the ctrl_i control-record arrow reaches the valid-command decode\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [97, 98, 99],\n          \"Answer Reason\": \"The decode decides whether a control record is accepted and whether operation start pulses are generated.\"\n        },\n        {\n          \"Point\": \"control\",\n          \"Reached By\": \"the valid_cmd arrow reaches the control process and decides its transition from S_IDLE\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [120, 121, 122, 124],\n          \"Answer Reason\": \"The accepted-command decision selects S_DONE or S_BUSY; changing it can launch the wrong path or keep the unit idle.\"\n        },\n        {\n          \"Point\": \"div.start\",\n          \"Reached By\": \"the valid_cmd and ctrl_i.ir_funct3 arrows reach the division start pulse\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [155],\n          \"Answer Reason\": \"The pulse decides whether a valid division command starts the divider.\"\n        },\n        {\n          \"Point\": \"mul.start\",\n          \"Reached By\": \"the valid_cmd and ctrl_i.ir_funct3 arrows reach the multiplication start pulse\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [154],\n          \"Answer Reason\": \"The pulse decides whether a valid multiplication command starts the multiplier.\"\n        },\n        {\n          \"Point\": \"divider_core\",\n          \"Reached By\": \"the div.start arrow reaches the divider initialization block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [261, 263, 264, 266, 270, 272, 283],\n          \"Answer Reason\": \"The start condition loads the divider operands and initial state, so suppressing or corrupting it blocks or mislaunches division.\"\n        },\n        {\n          \"Point\": \"multiplier_core\",\n          \"Reached By\": \"the mul.start arrow reaches the serial multiplier initialization block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [210, 211, 212],\n          \"Answer Reason\": \"The start condition initializes the serial product, so changing it can prevent or corrupt multiplication.\"\n        },\n        {\n          \"Point\": \"multiplier_core_in_reg\",\n          \"Reached By\": \"the mul.start arrow reaches the parallel multiplier input-register block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [170, 171, 172],\n          \"Answer Reason\": \"The start pulse controls capture of multiplier operands, so suppressing it prevents the selected operation from launching correctly.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"ctrl_i\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"valid_cmd\", \"mul.start\", \"div.start\", \"control\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Carries the instruction control fields from which command validity and operation-specific starts are decoded.\",\n          \"Justification\": \"It is the control-record boundary through which the accepted operation command enters.\",\n          \"Asset Lines\": [97, 98, 99, 154, 155]\n        },\n        {\n          \"Asset RTL\": \"valid_cmd\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"valid_cmd\", \"control\", \"mul.start\", \"div.start\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Produces the decision that an incoming control record is an accepted multiply/divide command.\",\n          \"Justification\": \"It is the element implementing the command-validation decision.\",\n          \"Asset Lines\": [97, 98, 99]\n        },\n        {\n          \"Asset RTL\": \"mul.start\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"mul.start\", \"multiplier_core\", \"multiplier_core_in_reg\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Generates the operation-specific pulse that launches multiplication.\",\n          \"Justification\": \"It is the element that directly decides whether the multiplier accepts a command.\",\n          \"Asset Lines\": [154, 170, 210]\n        },\n        {\n          \"Asset RTL\": \"div.start\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"div.start\", \"divider_core\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Generates the operation-specific pulse that launches division.\",\n          \"Justification\": \"It is the element that directly decides whether the divider accepts a command.\",\n          \"Asset Lines\": [155, 261]\n        },\n        {\n          \"Asset RTL\": \"ctrl.state\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"control\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"valid_cmd\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Stores the state selected after command validation and determines active operation entry.\",\n          \"Justification\": \"The valid-command decision controls its transition, and corrupting that transition can reject or mis-sequence a command.\",\n          \"Asset Lines\": [120, 121, 122, 124]\n        },\n        {\n          \"Asset RTL\": \"mul.prod\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"multiplier_core\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"mul.start\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Stores multiplier state initialized when the multiplication start pulse is accepted.\",\n          \"Justification\": \"The start pulse controls its initialization, so it is a path through which launch can be corrupted or blocked.\",\n          \"Asset Lines\": [210, 211, 212]\n        },\n        {\n          \"Asset RTL\": \"mul.dsp_x\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"multiplier_core_in_reg\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"mul.start\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Captures the first multiplier operand when multiplication starts.\",\n          \"Justification\": \"The start pulse gates this capture and therefore can prevent correct launch.\",\n          \"Asset Lines\": [170, 171]\n        },\n        {\n          \"Asset RTL\": \"mul.dsp_y\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"multiplier_core_in_reg\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"mul.start\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Captures the second multiplier operand when multiplication starts.\",\n          \"Justification\": \"The start pulse gates this capture and therefore can prevent correct launch.\",\n          \"Asset Lines\": [170, 172]\n        },\n        {\n          \"Asset RTL\": \"div.quotient\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"divider_core\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"div.start\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Initializes divider quotient state when division starts.\",\n          \"Justification\": \"The start pulse controls its initialization and can prevent or corrupt divider launch.\",\n          \"Asset Lines\": [261, 264, 266]\n        },\n        {\n          \"Asset RTL\": \"div.remainder\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"divider_core\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"div.start\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Initializes divider remainder state when division starts.\",\n          \"Justification\": \"The start pulse controls initialization of this operation state.\",\n          \"Asset Lines\": [261, 283]\n        },\n        {\n          \"Asset RTL\": \"div.rs2_abs\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"divider_core\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"div.start\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Captures the divisor magnitude when division starts.\",\n          \"Justification\": \"The start pulse controls capture of the divisor state.\",\n          \"Asset Lines\": [261, 269, 270, 272]\n        },\n        {\n          \"Asset RTL\": \"div.sign_mod\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"divider_core\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"div.start\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Captures divider sign-correction state when division starts.\",\n          \"Justification\": \"The start pulse controls whether the sign mode for the operation is established.\",\n          \"Asset Lines\": [261, 275, 276, 278, 280]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Points\": [\n        {\n          \"Point\": \"control\",\n          \"Reached By\": \"holding block for ctrl.state, ctrl.cnt and ctrl.out_en\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"yes\"\n          },\n          \"Answer Lines\": [107, 108, 109, 112, 120, 122, 124, 130, 131, 132, 137, 138],\n          \"Answer Reason\": \"The process stores progress state and output enable, can be stalled by clock or reset, and ctrl_i.cpu_trap forces S_DONE early at line 131.\"\n        },\n        {\n          \"Point\": \"valid_o\",\n          \"Reached By\": \"the control arrow reaches the concurrent valid_o assignment through ctrl.state\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [145],\n          \"Answer Reason\": \"The output directly reports S_DONE, so forcing or withholding this signal can falsely complete or suppress completion.\"\n        },\n        {\n          \"Point\": \"divider_core\",\n          \"Reached By\": \"the control arrow decides divider updates through ctrl.state\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [284, 285, 287, 289],\n          \"Answer Reason\": \"The divider advances only in S_BUSY or S_DONE, so a state change can block progress.\"\n        },\n        {\n          \"Point\": \"mul_update\",\n          \"Reached By\": \"the control arrow reaches the multiplier update through ctrl.state\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [224],\n          \"Answer Reason\": \"The state selects the terminal signed-update behavior, and a corrupted state can prevent normal serial progress.\"\n        },\n        {\n          \"Point\": \"multiplier_core\",\n          \"Reached By\": \"the control arrow decides serial product updates through ctrl.state\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [213, 214, 215],\n          \"Answer Reason\": \"The serial multiplier updates only when ctrl.state is not S_IDLE, so state manipulation can block operation progress.\"\n        },\n        {\n          \"Point\": \"operation_result\",\n          \"Reached By\": \"the control arrow reaches result release through ctrl.out_en\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [322],\n          \"Answer Reason\": \"The output result is released only when ctrl.out_en is asserted, so clearing it withholds completion data.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"ctrl.state\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"control\", \"divider_core\", \"multiplier_core\", \"valid_o\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores the coprocessor idle, busy and done progress state.\",\n          \"Justification\": \"It is the state register that directly holds and advances the operation progress state.\",\n          \"Asset Lines\": [107, 116, 122, 124, 132, 138, 145]\n        },\n        {\n          \"Asset RTL\": \"ctrl.cnt\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"control\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Counts serial operation iterations and determines when the busy phase ends.\",\n          \"Justification\": \"It is the coprocessor progress counter assigned and tested by the control process.\",\n          \"Asset Lines\": [108, 113, 130, 131]\n        },\n        {\n          \"Asset RTL\": \"ctrl.out_en\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"control\", \"operation_result\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores the one-cycle output-release state for the completed operation.\",\n          \"Justification\": \"It is the progress-state element that directly controls release of the result.\",\n          \"Asset Lines\": [109, 112, 137, 322]\n        },\n        {\n          \"Asset RTL\": \"valid_o\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"valid_o\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Reports that the coprocessor has reached its done state.\",\n          \"Justification\": \"It is the output boundary carrying the completion state out of the unit.\",\n          \"Asset Lines\": [145]\n        },\n        {\n          \"Asset RTL\": \"clk_i\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"control\"],\n          \"Security Objectives\": [\"A\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"ctrl.state\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"ctrl.cnt\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"ctrl.out_en\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Times progress-state and output-enable updates.\",\n          \"Justification\": \"Blocking the clock can stall progress and prevent valid completion.\",\n          \"Asset Lines\": [110]\n        },\n        {\n          \"Asset RTL\": \"rstn_i\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"control\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"ctrl.state\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"ctrl.cnt\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"ctrl.out_en\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Clears the progress state, count and output-enable state.\",\n          \"Justification\": \"Asserting reset clears or aborts progress and can prevent normal completion.\",\n          \"Asset Lines\": [106]\n        },\n        {\n          \"Asset RTL\": \"ctrl_i\",\n          \"Entity\": \"neorv32_cpu_cp_muldiv\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"control\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"ctrl.state\", \"Primary Entity\": \"neorv32_cpu_cp_muldiv\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Supplies cpu_trap, which can force the progress state to done.\",\n          \"Justification\": \"The control record's trap field decides the state transition at line 131, including early completion.\",\n          \"Asset Lines\": [131]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    }\n  ],\n  \"Notes\": [\n    \"CONCEPTS C1 describes source operands as integrity assets although the input ports are the only whole boundary crossings; internal operand copies are therefore reported as paths to those primaries.\",\n    \"The RTL has generic branches for FAST_MUL_EN and DIVISION_EN, so some datapath points exist only in the corresponding generate configuration.\"\n  ]\n}",
+ "reply": {
+  "module name": "neorv32_cpu_cp_muldiv",
+  "notes": [
+   "CONCEPTS C1 describes source operands as integrity assets although the input ports are the only whole boundary crossings; internal operand copies are therefore reported as paths to those primaries.",
+   "The RTL has generic branches for FAST_MUL_EN and DIVISION_EN, so some datapath points exist only in the corresponding generate configuration."
+  ],
+  "points": [
+   {
+    "concept id": "C1",
+    "point": "multiplier_core_in_reg",
+    "reached by": "the rs1_i and rs2_i arrows carry the source operands into this holding block",
+    "lines": [
+     170,
+     171,
+     172
+    ],
+    "reason": "The captured operand values are used to form the multiplier inputs, so tampering with them changes the arithmetic result.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "multiplier_core",
+    "reached by": "the rs1_i arrow carries rs1_i into this holding block and the multiplier_core_in_reg path carries the second operand",
+    "lines": [
+     210,
+     212,
+     214,
+     215
+    ],
+    "reason": "The serial multiplier loads and iteratively updates the product from the source operands, so alteration of its stored product corrupts the operation.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "divider_core",
+    "reached by": "the rs1_i and rs2_i arrows carry the source operands into this holding block",
+    "lines": [
+     261,
+     264,
+     266,
+     270,
+     272
+    ],
+    "reason": "The divider captures operand magnitudes and the dividend from rs1_i and rs2_i, so alteration changes quotient or remainder computation.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "mul_update",
+    "reached by": "the rs2_i arrow carries the second source operand into this computation block",
+    "lines": [
+     225,
+     227
+    ],
+    "reason": "The source operand is added to or subtracted from the partial product, so changing it changes the multiply result.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "multiplier_core_parallel",
+    "reached by": "the multiplier_core_in_reg arrow carries the captured operand values into this block",
+    "lines": [
+     178
+    ],
+    "reason": "The parallel multiplier computes the product directly from the captured source operands, so modifying this computation corrupts the result.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "multiplier_core_out_reg",
+    "reached by": "the multiplier_core_parallel arrow carries mul.dsp_z into this result-register block",
+    "lines": [
+     183,
+     184
+    ],
+    "reason": "The product derived from the source operands is stored in mul.prod, so altering that register changes the returned arithmetic value.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "multiplier_core_serial",
+    "reached by": "the multiplier_core arrow carries the product into this block through mul.prod",
+    "lines": [
+     235
+    ],
+    "reason": "The product sign extension derived from the operand-dependent product feeds the serial multiplier update, so changing it corrupts the result.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "divider_core_serial",
+    "reached by": "the divider_core arrow carries quotient, remainder, operand magnitude and sign information into this block",
+    "lines": [
+     296,
+     299,
+     300
+    ],
+    "reason": "The final quotient or remainder is computed from operand-dependent divider state, so alteration changes the arithmetic result.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "operation_result",
+    "reached by": "the multiplier and divider datapath arrows carry operand-derived results into this result-selection block",
+    "lines": [
+     323,
+     325,
+     327,
+     329
+    ],
+    "reason": "The selected output value is formed from operand-dependent product or division results, so tampering here produces an incorrect computation.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "operation_result",
+    "reached by": "holding block and the multiplier and divider result arrows into the result-selection block",
+    "lines": [
+     321,
+     322,
+     325,
+     327,
+     329
+    ],
+    "reason": "This block computes and releases the arithmetic result to res_o, while ctrl.out_en can select zero instead and the result can be observed or altered here.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "control",
+    "reached by": "the control arrow reaches operation_result through ctrl.out_en, and this block is a control point for result production",
+    "lines": [
+     112,
+     137,
+     322
+    ],
+    "reason": "The control process creates the output-enable and operation state that can alter or withhold the result.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "multiplier_core_in_reg",
+    "reached by": "the rs1_i and rs2_i arrows carry source operands into the multiplier input registers",
+    "lines": [
+     170,
+     171,
+     172
+    ],
+    "reason": "The captured operands feed the product computation and are readable or modifiable at this datapath point.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "multiplier_core_parallel",
+    "reached by": "the multiplier_core_in_reg arrow carries mul.dsp_x and mul.dsp_y into the parallel multiplier",
+    "lines": [
+     178
+    ],
+    "reason": "The parallel multiplier computes the product here, exposing and determining the arithmetic result.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "multiplier_core_out_reg",
+    "reached by": "the multiplier_core_parallel arrow carries mul.dsp_z into the product register",
+    "lines": [
+     183,
+     184
+    ],
+    "reason": "The computed product is stored in mul.prod, where it can be observed or corrupted.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "multiplier_core",
+    "reached by": "the multiplier_core arrow carries the serial product into the result path",
+    "lines": [
+     210,
+     213,
+     214,
+     215
+    ],
+    "reason": "The serial product is stored and updated here, and its state-dependent update can be blocked or corrupted.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "multiplier_core_serial",
+    "reached by": "the multiplier_core arrow carries mul.prod into the sign-extension path",
+    "lines": [
+     235
+    ],
+    "reason": "The sign-extension value influences the serial product update and can expose or corrupt the result path.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "mul_update",
+    "reached by": "the multiplier_core_serial and rs2_i arrows reach the partial-product update block",
+    "lines": [
+     223,
+     225,
+     227,
+     230
+    ],
+    "reason": "This block computes the next partial product from operand and product state, so its value can be observed or altered.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "divider_core",
+    "reached by": "the rs1_i and rs2_i arrows carry operands into the divider and the divider state feeds the result path",
+    "lines": [
+     261,
+     264,
+     266,
+     270,
+     272,
+     284,
+     285,
+     287,
+     289
+    ],
+    "reason": "The divider stores and iterates quotient and remainder state, and ctrl.state can prevent those updates.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "divider_core_serial",
+    "reached by": "the divider_core arrow carries quotient, remainder, divisor and sign state into final-result computation",
+    "lines": [
+     296,
+     299,
+     300
+    ],
+    "reason": "The final quotient or remainder is computed here and can be observed or changed before release.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "ctrl.rs1_is_signed",
+    "reached by": "the ctrl_i.ir_funct3 selector arrow reaches the rs1 signedness logic",
+    "lines": [
+     148,
+     149
+    ],
+    "reason": "The instruction function field directly produces the rs1 signedness setting, so changing this logic changes operand interpretation.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "ctrl.rs2_is_signed",
+    "reached by": "the ctrl_i.ir_funct3 selector arrow reaches the rs2 signedness logic",
+    "lines": [
+     150,
+     151
+    ],
+    "reason": "The instruction function field directly produces the rs2 signedness setting, so changing this logic changes operand interpretation.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "multiplier_core_in_reg",
+    "reached by": "the ctrl.rs1_is_signed and ctrl.rs2_is_signed arrows carry signedness into operand extension",
+    "lines": [
+     170,
+     171,
+     172
+    ],
+    "reason": "The signedness settings control sign extension of both multiplier operands.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "divider_core",
+    "reached by": "the ctrl.rs1_is_signed and ctrl.rs2_is_signed decision arrows reach divider operand handling",
+    "lines": [
+     263,
+     269
+    ],
+    "reason": "The signedness settings decide whether the divider negates rs1_i and rs2_i before division.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "multiplier_core_serial",
+    "reached by": "the ctrl.rs2_is_signed arrow carries signedness into the serial sign-extension logic",
+    "lines": [
+     235
+    ],
+    "reason": "The rs2 signedness setting controls the sign extension used by the serial multiplier.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "mul_update",
+    "reached by": "the signedness decision arrows reach the partial-product update computation",
+    "lines": [
+     224,
+     225,
+     227
+    ],
+    "reason": "Signedness selects subtraction versus addition and operand extension in the serial multiplier update.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "multiplier_core",
+    "reached by": "the signedness-controlled mul_update path reaches the serial product register",
+    "lines": [
+     214,
+     215
+    ],
+    "reason": "The signedness-dependent partial product is stored into the serial product state.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "multiplier_core_parallel",
+    "reached by": "the multiplier_core_in_reg arrow carries signedness-extended operands into the parallel multiplier",
+    "lines": [
+     171,
+     172,
+     178
+    ],
+    "reason": "The parallel product depends on the signedness-controlled operand extensions.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "multiplier_core_out_reg",
+    "reached by": "the multiplier_core_parallel arrow carries the signedness-dependent product into the output register",
+    "lines": [
+     184
+    ],
+    "reason": "The product stored here reflects the selected signed interpretation.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "divider_core_serial",
+    "reached by": "the divider_core arrow carries signedness-dependent quotient, remainder and sign state into final result logic",
+    "lines": [
+     299,
+     300
+    ],
+    "reason": "The final divider result uses the signedness-dependent state and sign correction.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "operation_result",
+    "reached by": "the signedness-dependent multiplier and divider results reach result selection",
+    "lines": [
+     325,
+     327,
+     329
+    ],
+    "reason": "The selected result reflects the signedness setting used by the arithmetic datapaths.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "valid_cmd",
+    "reached by": "the ctrl_i control-record arrow reaches the valid-command decode",
+    "lines": [
+     97,
+     98,
+     99
+    ],
+    "reason": "The decode decides whether a control record is accepted and whether operation start pulses are generated.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "control",
+    "reached by": "the valid_cmd arrow reaches the control process and decides its transition from S_IDLE",
+    "lines": [
+     120,
+     121,
+     122,
+     124
+    ],
+    "reason": "The accepted-command decision selects S_DONE or S_BUSY; changing it can launch the wrong path or keep the unit idle.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "div.start",
+    "reached by": "the valid_cmd and ctrl_i.ir_funct3 arrows reach the division start pulse",
+    "lines": [
+     155
+    ],
+    "reason": "The pulse decides whether a valid division command starts the divider.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "mul.start",
+    "reached by": "the valid_cmd and ctrl_i.ir_funct3 arrows reach the multiplication start pulse",
+    "lines": [
+     154
+    ],
+    "reason": "The pulse decides whether a valid multiplication command starts the multiplier.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "divider_core",
+    "reached by": "the div.start arrow reaches the divider initialization block",
+    "lines": [
+     261,
+     263,
+     264,
+     266,
+     270,
+     272,
+     283
+    ],
+    "reason": "The start condition loads the divider operands and initial state, so suppressing or corrupting it blocks or mislaunches division.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "multiplier_core",
+    "reached by": "the mul.start arrow reaches the serial multiplier initialization block",
+    "lines": [
+     210,
+     211,
+     212
+    ],
+    "reason": "The start condition initializes the serial product, so changing it can prevent or corrupt multiplication.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "multiplier_core_in_reg",
+    "reached by": "the mul.start arrow reaches the parallel multiplier input-register block",
+    "lines": [
+     170,
+     171,
+     172
+    ],
+    "reason": "The start pulse controls capture of multiplier operands, so suppressing it prevents the selected operation from launching correctly.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C5",
+    "point": "control",
+    "reached by": "holding block for ctrl.state, ctrl.cnt and ctrl.out_en",
+    "lines": [
+     107,
+     108,
+     109,
+     112,
+     120,
+     122,
+     124,
+     130,
+     131,
+     132,
+     137,
+     138
+    ],
+    "reason": "The process stores progress state and output enable, can be stalled by clock or reset, and ctrl_i.cpu_trap forces S_DONE early at line 131.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "yes"
+   },
+   {
+    "concept id": "C5",
+    "point": "valid_o",
+    "reached by": "the control arrow reaches the concurrent valid_o assignment through ctrl.state",
+    "lines": [
+     145
+    ],
+    "reason": "The output directly reports S_DONE, so forcing or withholding this signal can falsely complete or suppress completion.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C5",
+    "point": "divider_core",
+    "reached by": "the control arrow decides divider updates through ctrl.state",
+    "lines": [
+     284,
+     285,
+     287,
+     289
+    ],
+    "reason": "The divider advances only in S_BUSY or S_DONE, so a state change can block progress.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C5",
+    "point": "mul_update",
+    "reached by": "the control arrow reaches the multiplier update through ctrl.state",
+    "lines": [
+     224
+    ],
+    "reason": "The state selects the terminal signed-update behavior, and a corrupted state can prevent normal serial progress.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C5",
+    "point": "multiplier_core",
+    "reached by": "the control arrow decides serial product updates through ctrl.state",
+    "lines": [
+     213,
+     214,
+     215
+    ],
+    "reason": "The serial multiplier updates only when ctrl.state is not S_IDLE, so state manipulation can block operation progress.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C5",
+    "point": "operation_result",
+    "reached by": "the control arrow reaches result release through ctrl.out_en",
+    "lines": [
+     322
+    ],
+    "reason": "The output result is released only when ctrl.out_en is asserted, so clearing it withholds completion data.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   }
+  ],
+  "structural assets": [
+   {
+    "concept id": "C1",
+    "element": "rs1_i",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "multiplier_core_in_reg",
+     "multiplier_core",
+     "divider_core"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     34,
+     171,
+     212,
+     264,
+     266
+    ],
+    "links": [],
+    "reason": "Carries the first source operand across the unit boundary into the multiply and divide datapaths. It is the whole input boundary at which the first source operand enters the unit and is therefore primary.",
+    "functionality": "Carries the first source operand across the unit boundary into the multiply and divide datapaths.",
+    "justification": "It is the whole input boundary at which the first source operand enters the unit and is therefore primary."
+   },
+   {
+    "concept id": "C1",
+    "element": "rs2_i",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "multiplier_core_in_reg",
+     "divider_core",
+     "mul_update"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     35,
+     172,
+     225,
+     227,
+     270,
+     272
+    ],
+    "links": [],
+    "reason": "Carries the second source operand across the unit boundary into the multiply and divide datapaths. It is the whole input boundary at which the second source operand enters the unit and is therefore primary.",
+    "functionality": "Carries the second source operand across the unit boundary into the multiply and divide datapaths.",
+    "justification": "It is the whole input boundary at which the second source operand enters the unit and is therefore primary."
+   },
+   {
+    "concept id": "C1",
+    "element": "mul.dsp_x",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "multiplier_core_in_reg",
+     "multiplier_core_parallel"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     171
+    ],
+    "links": [
+     {
+      "primary": "rs1_i",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     },
+     {
+      "primary": "rs2_i",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Stores the sign-extended first operand used by the parallel multiplier. It is a captured operand path whose alteration changes use of the primary source operands.",
+    "functionality": "Stores the sign-extended first operand used by the parallel multiplier.",
+    "justification": "It is a captured operand path whose alteration changes use of the primary source operands."
+   },
+   {
+    "concept id": "C1",
+    "element": "mul.dsp_y",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "multiplier_core_in_reg",
+     "multiplier_core_parallel"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     172
+    ],
+    "links": [
+     {
+      "primary": "rs1_i",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     },
+     {
+      "primary": "rs2_i",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Stores the sign-extended second operand used by the parallel multiplier. It is a captured operand path whose alteration changes use of the primary source operands.",
+    "functionality": "Stores the sign-extended second operand used by the parallel multiplier.",
+    "justification": "It is a captured operand path whose alteration changes use of the primary source operands."
+   },
+   {
+    "concept id": "C1",
+    "element": "mul.dsp_z",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "multiplier_core_parallel",
+     "multiplier_core_out_reg"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     178
+    ],
+    "links": [
+     {
+      "primary": "rs1_i",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     },
+     {
+      "primary": "rs2_i",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Carries the product computed from the source operands toward mul.prod. It is an operand-dependent computation path that can be altered before the product is stored.",
+    "functionality": "Carries the product computed from the source operands toward mul.prod.",
+    "justification": "It is an operand-dependent computation path that can be altered before the product is stored."
+   },
+   {
+    "concept id": "C1",
+    "element": "mul.prod",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "multiplier_core",
+     "multiplier_core_out_reg",
+     "operation_result"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     184,
+     208,
+     211,
+     212,
+     214,
+     215
+    ],
+    "links": [
+     {
+      "primary": "rs1_i",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     },
+     {
+      "primary": "rs2_i",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Stores and iteratively carries the product derived from the source operands. It is the product datapath copy whose corruption changes the source operands' computation.",
+    "functionality": "Stores and iteratively carries the product derived from the source operands.",
+    "justification": "It is the product datapath copy whose corruption changes the source operands' computation."
+   },
+   {
+    "concept id": "C1",
+    "element": "mul.p_sext",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "multiplier_core_serial",
+     "mul_update"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     235
+    ],
+    "links": [
+     {
+      "primary": "rs1_i",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     },
+     {
+      "primary": "rs2_i",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Carries the sign extension derived from the operand-dependent partial product. It controls the serial multiply update and can therefore corrupt use of the source operands.",
+    "functionality": "Carries the sign extension derived from the operand-dependent partial product.",
+    "justification": "It controls the serial multiply update and can therefore corrupt use of the source operands."
+   },
+   {
+    "concept id": "C1",
+    "element": "mul.add",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "mul_update",
+     "multiplier_core"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     225,
+     227,
+     230
+    ],
+    "links": [
+     {
+      "primary": "rs1_i",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     },
+     {
+      "primary": "rs2_i",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Computes the operand-dependent add or subtract value loaded into the serial product. It is a modifiable arithmetic path from the source operands to the product.",
+    "functionality": "Computes the operand-dependent add or subtract value loaded into the serial product.",
+    "justification": "It is a modifiable arithmetic path from the source operands to the product."
+   },
+   {
+    "concept id": "C1",
+    "element": "div.quotient",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "divider_core",
+     "divider_core_serial"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     264,
+     266,
+     285,
+     289
+    ],
+    "links": [
+     {
+      "primary": "rs1_i",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     },
+     {
+      "primary": "rs2_i",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Stores the operand-dependent dividend and iteratively carries the quotient. It is divider state derived from the source operands whose alteration changes the computation.",
+    "functionality": "Stores the operand-dependent dividend and iteratively carries the quotient.",
+    "justification": "It is divider state derived from the source operands whose alteration changes the computation."
+   },
+   {
+    "concept id": "C1",
+    "element": "div.rs2_abs",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "divider_core",
+     "divider_core_serial"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     270,
+     272
+    ],
+    "links": [
+     {
+      "primary": "rs1_i",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     },
+     {
+      "primary": "rs2_i",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Stores the absolute-value form of rs2_i used by the divider. It is a captured operand-derived divisor value whose alteration changes division.",
+    "functionality": "Stores the absolute-value form of rs2_i used by the divider.",
+    "justification": "It is a captured operand-derived divisor value whose alteration changes division."
+   },
+   {
+    "concept id": "C1",
+    "element": "div.remainder",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "divider_core",
+     "divider_core_serial"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     283,
+     287,
+     289
+    ],
+    "links": [
+     {
+      "primary": "rs1_i",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     },
+     {
+      "primary": "rs2_i",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Stores the operand-dependent partial and final remainder. It is divider state derived from the source operands whose alteration changes quotient or remainder.",
+    "functionality": "Stores the operand-dependent partial and final remainder.",
+    "justification": "It is divider state derived from the source operands whose alteration changes quotient or remainder."
+   },
+   {
+    "concept id": "C1",
+    "element": "div.sub",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "divider_core_serial",
+     "divider_core"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     296
+    ],
+    "links": [
+     {
+      "primary": "rs1_i",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     },
+     {
+      "primary": "rs2_i",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Computes the operand-dependent subtraction used to update quotient and remainder. It is an arithmetic influence path from the source operands into divider state.",
+    "functionality": "Computes the operand-dependent subtraction used to update quotient and remainder.",
+    "justification": "It is an arithmetic influence path from the source operands into divider state."
+   },
+   {
+    "concept id": "C1",
+    "element": "div.res_u",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "divider_core_serial",
+     "operation_result"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     299
+    ],
+    "links": [
+     {
+      "primary": "rs1_i",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     },
+     {
+      "primary": "rs2_i",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects the operand-dependent quotient or remainder before sign correction. It is a derived result path whose alteration changes the source operands' arithmetic result.",
+    "functionality": "Selects the operand-dependent quotient or remainder before sign correction.",
+    "justification": "It is a derived result path whose alteration changes the source operands' arithmetic result."
+   },
+   {
+    "concept id": "C1",
+    "element": "div.res",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "divider_core_serial",
+     "operation_result"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     300,
+     329
+    ],
+    "links": [
+     {
+      "primary": "rs1_i",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     },
+     {
+      "primary": "rs2_i",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Carries the signed quotient or remainder derived from the source operands to result selection. It is the final divider path whose corruption changes use of the primary operands.",
+    "functionality": "Carries the signed quotient or remainder derived from the source operands to result selection.",
+    "justification": "It is the final divider path whose corruption changes use of the primary operands."
+   },
+   {
+    "concept id": "C2",
+    "element": "res_o",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "operation_result"
+    ],
+    "label": "primary",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "lines": [
+     325,
+     327,
+     329
+    ],
+    "links": [],
+    "reason": "Carries the selected multiply, quotient or remainder result out of the unit. It is the output boundary through which the arithmetic result leaves unmixed.",
+    "functionality": "Carries the selected multiply, quotient or remainder result out of the unit.",
+    "justification": "It is the output boundary through which the arithmetic result leaves unmixed."
+   },
+   {
+    "concept id": "C2",
+    "element": "mul.prod",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "multiplier_core",
+     "multiplier_core_out_reg",
+     "operation_result"
+    ],
+    "label": "primary",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "lines": [
+     184,
+     208,
+     211,
+     212,
+     214,
+     215
+    ],
+    "links": [],
+    "reason": "Stores and computes the multiply result used for write-back. It is the internal product value from which the multiplier result output is derived.",
+    "functionality": "Stores and computes the multiply result used for write-back.",
+    "justification": "It is the internal product value from which the multiplier result output is derived."
+   },
+   {
+    "concept id": "C2",
+    "element": "div.res",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "divider_core_serial",
+     "operation_result"
+    ],
+    "label": "primary",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "lines": [
+     300,
+     329
+    ],
+    "links": [],
+    "reason": "Computes and carries the final signed quotient or remainder. It is the final internally computed divider result used by result selection.",
+    "functionality": "Computes and carries the final signed quotient or remainder.",
+    "justification": "It is the final internally computed divider result used by result selection."
+   },
+   {
+    "concept id": "C2",
+    "element": "rs1_i",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "multiplier_core_in_reg",
+     "divider_core"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     171,
+     212,
+     264,
+     266
+    ],
+    "links": [
+     {
+      "primary": "mul.prod",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     },
+     {
+      "primary": "div.res",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies an operand from which the arithmetic result is computed. Changing this input changes the product, quotient or remainder.",
+    "functionality": "Supplies an operand from which the arithmetic result is computed.",
+    "justification": "Changing this input changes the product, quotient or remainder."
+   },
+   {
+    "concept id": "C2",
+    "element": "rs2_i",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "multiplier_core_in_reg",
+     "divider_core",
+     "mul_update"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     172,
+     225,
+     227,
+     270,
+     272
+    ],
+    "links": [
+     {
+      "primary": "mul.prod",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     },
+     {
+      "primary": "div.res",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies the second operand from which the arithmetic result is computed. Changing this input changes the product, quotient or remainder.",
+    "functionality": "Supplies the second operand from which the arithmetic result is computed.",
+    "justification": "Changing this input changes the product, quotient or remainder."
+   },
+   {
+    "concept id": "C2",
+    "element": "mul.dsp_x",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "multiplier_core_in_reg",
+     "multiplier_core_parallel"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     171
+    ],
+    "links": [
+     {
+      "primary": "mul.prod",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Stores the first multiplier operand used to compute the product. It is an operand path into the primary product computation.",
+    "functionality": "Stores the first multiplier operand used to compute the product.",
+    "justification": "It is an operand path into the primary product computation."
+   },
+   {
+    "concept id": "C2",
+    "element": "mul.dsp_y",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "multiplier_core_in_reg",
+     "multiplier_core_parallel"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     172
+    ],
+    "links": [
+     {
+      "primary": "mul.prod",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Stores the second multiplier operand used to compute the product. It is an operand path into the primary product computation.",
+    "functionality": "Stores the second multiplier operand used to compute the product.",
+    "justification": "It is an operand path into the primary product computation."
+   },
+   {
+    "concept id": "C2",
+    "element": "mul.dsp_z",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "multiplier_core_parallel",
+     "multiplier_core_out_reg"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     178
+    ],
+    "links": [
+     {
+      "primary": "mul.prod",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Carries the parallel product into the product register. It is an intermediate computation feeding the primary product storage.",
+    "functionality": "Carries the parallel product into the product register.",
+    "justification": "It is an intermediate computation feeding the primary product storage."
+   },
+   {
+    "concept id": "C2",
+    "element": "mul.add",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "mul_update",
+     "multiplier_core"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     225,
+     227,
+     230
+    ],
+    "links": [
+     {
+      "primary": "mul.prod",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Computes the serial multiplier's next partial-product value. It controls the value loaded into the primary product register.",
+    "functionality": "Computes the serial multiplier's next partial-product value.",
+    "justification": "It controls the value loaded into the primary product register."
+   },
+   {
+    "concept id": "C2",
+    "element": "mul.p_sext",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "multiplier_core_serial",
+     "mul_update"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     235
+    ],
+    "links": [
+     {
+      "primary": "mul.prod",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Provides sign extension for the serial product update. It influences the next value of the primary product.",
+    "functionality": "Provides sign extension for the serial product update.",
+    "justification": "It influences the next value of the primary product."
+   },
+   {
+    "concept id": "C2",
+    "element": "div.quotient",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "divider_core",
+     "divider_core_serial"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     264,
+     266,
+     285,
+     289
+    ],
+    "links": [
+     {
+      "primary": "div.res",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Stores the quotient state used to form the final division result. It is an intermediate divider value feeding div.res.",
+    "functionality": "Stores the quotient state used to form the final division result.",
+    "justification": "It is an intermediate divider value feeding div.res."
+   },
+   {
+    "concept id": "C2",
+    "element": "div.remainder",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "divider_core",
+     "divider_core_serial"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     283,
+     287,
+     289
+    ],
+    "links": [
+     {
+      "primary": "div.res",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Stores the remainder state used to form the final division result. It is an intermediate divider value feeding div.res.",
+    "functionality": "Stores the remainder state used to form the final division result.",
+    "justification": "It is an intermediate divider value feeding div.res."
+   },
+   {
+    "concept id": "C2",
+    "element": "div.rs2_abs",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "divider_core",
+     "divider_core_serial"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     270,
+     272,
+     296
+    ],
+    "links": [
+     {
+      "primary": "div.res",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Stores the absolute divisor used by divider arithmetic. It influences quotient and remainder computation feeding div.res.",
+    "functionality": "Stores the absolute divisor used by divider arithmetic.",
+    "justification": "It influences quotient and remainder computation feeding div.res."
+   },
+   {
+    "concept id": "C2",
+    "element": "div.sub",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "divider_core_serial",
+     "divider_core"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     296
+    ],
+    "links": [
+     {
+      "primary": "div.res",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Computes the subtraction used to update quotient and remainder. It controls intermediate divider state that feeds the primary result.",
+    "functionality": "Computes the subtraction used to update quotient and remainder.",
+    "justification": "It controls intermediate divider state that feeds the primary result."
+   },
+   {
+    "concept id": "C2",
+    "element": "div.res_u",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "divider_core_serial",
+     "operation_result"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     299
+    ],
+    "links": [
+     {
+      "primary": "div.res",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects quotient or remainder before sign correction. It directly determines the value assigned to the primary divider result.",
+    "functionality": "Selects quotient or remainder before sign correction.",
+    "justification": "It directly determines the value assigned to the primary divider result."
+   },
+   {
+    "concept id": "C2",
+    "element": "div.sign_mod",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "divider_core",
+     "divider_core_serial"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     276,
+     278,
+     280,
+     300
+    ],
+    "links": [
+     {
+      "primary": "div.res",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Controls sign correction of the selected quotient or remainder. It decides the final value assigned to div.res.",
+    "functionality": "Controls sign correction of the selected quotient or remainder.",
+    "justification": "It decides the final value assigned to div.res."
+   },
+   {
+    "concept id": "C2",
+    "element": "ctrl.out_en",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "control",
+     "operation_result"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "lines": [
+     112,
+     137,
+     322
+    ],
+    "links": [
+     {
+      "primary": "res_o",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Gates whether the computed arithmetic result is released on res_o. Its condition selects a zero value instead of the result, controlling release and availability.",
+    "functionality": "Gates whether the computed arithmetic result is released on res_o.",
+    "justification": "Its condition selects a zero value instead of the result, controlling release and availability."
+   },
+   {
+    "concept id": "C2",
+    "element": "ctrl.state",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "control",
+     "multiplier_core",
+     "divider_core"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     116,
+     122,
+     124,
+     132,
+     138,
+     145,
+     213,
+     284
+    ],
+    "links": [
+     {
+      "primary": "mul.prod",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     },
+     {
+      "primary": "div.res",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     },
+     {
+      "primary": "res_o",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Controls when multiplier and divider state updates occur and when output is valid. Changing the state can corrupt sequencing or prevent result production and release.",
+    "functionality": "Controls when multiplier and divider state updates occur and when output is valid.",
+    "justification": "Changing the state can corrupt sequencing or prevent result production and release."
+   },
+   {
+    "concept id": "C2",
+    "element": "ctrl.cnt",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "control"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     108,
+     113,
+     130,
+     131
+    ],
+    "links": [
+     {
+      "primary": "div.res",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Counts serial operation iterations and influences completion state. Changing or blocking the count can cause an incorrect or unavailable arithmetic result.",
+    "functionality": "Counts serial operation iterations and influences completion state.",
+    "justification": "Changing or blocking the count can cause an incorrect or unavailable arithmetic result."
+   },
+   {
+    "concept id": "C2",
+    "element": "ctrl_i",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "control",
+     "operation_result"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     121,
+     275,
+     277,
+     299,
+     323
+    ],
+    "links": [
+     {
+      "primary": "res_o",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects the operation and therefore which computed result is returned. Its instruction-function field decides result selection and operation-specific behavior.",
+    "functionality": "Selects the operation and therefore which computed result is returned.",
+    "justification": "Its instruction-function field decides result selection and operation-specific behavior."
+   },
+   {
+    "concept id": "C2",
+    "element": "clk_i",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "multiplier_core",
+     "divider_core",
+     "control"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     110,
+     183,
+     209,
+     260
+    ],
+    "links": [
+     {
+      "primary": "mul.prod",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     },
+     {
+      "primary": "div.res",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Times updates of the stored arithmetic result state. Blocking the clock can prevent the product or divider result from becoming available.",
+    "functionality": "Times updates of the stored arithmetic result state.",
+    "justification": "Blocking the clock can prevent the product or divider result from becoming available."
+   },
+   {
+    "concept id": "C2",
+    "element": "rstn_i",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "multiplier_core",
+     "divider_core",
+     "control"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     106,
+     166,
+     207,
+     255
+    ],
+    "links": [
+     {
+      "primary": "mul.prod",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     },
+     {
+      "primary": "div.res",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Resets stored product and divider state. Asserting reset clears arithmetic state and can prevent the result from being produced.",
+    "functionality": "Resets stored product and divider state.",
+    "justification": "Asserting reset clears arithmetic state and can prevent the result from being produced."
+   },
+   {
+    "concept id": "C3",
+    "element": "ctrl_i",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "ctrl.rs1_is_signed",
+     "ctrl.rs2_is_signed"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     148,
+     149,
+     150,
+     151
+    ],
+    "links": [],
+    "reason": "Carries instruction function fields that enter the unit and determine operand signedness. The control record crosses the boundary with the fields from which this setting is decoded.",
+    "functionality": "Carries instruction function fields that enter the unit and determine operand signedness.",
+    "justification": "The control record crosses the boundary with the fields from which this setting is decoded."
+   },
+   {
+    "concept id": "C3",
+    "element": "ctrl.rs1_is_signed",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "ctrl.rs1_is_signed",
+     "multiplier_core_in_reg",
+     "divider_core"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     148,
+     149
+    ],
+    "links": [],
+    "reason": "Decodes whether rs1_i is treated as signed. It is the element where the rs1 signedness setting is computed and held for datapath use.",
+    "functionality": "Decodes whether rs1_i is treated as signed.",
+    "justification": "It is the element where the rs1 signedness setting is computed and held for datapath use."
+   },
+   {
+    "concept id": "C3",
+    "element": "ctrl.rs2_is_signed",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "ctrl.rs2_is_signed",
+     "multiplier_core_in_reg",
+     "divider_core",
+     "multiplier_core_serial"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     150,
+     151
+    ],
+    "links": [],
+    "reason": "Decodes whether rs2_i is treated as signed. It is the element where the rs2 signedness setting is computed and held for datapath use.",
+    "functionality": "Decodes whether rs2_i is treated as signed.",
+    "justification": "It is the element where the rs2 signedness setting is computed and held for datapath use."
+   },
+   {
+    "concept id": "C4",
+    "element": "ctrl_i",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "valid_cmd",
+     "mul.start",
+     "div.start",
+     "control"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     97,
+     98,
+     99,
+     154,
+     155
+    ],
+    "links": [],
+    "reason": "Carries the instruction control fields from which command validity and operation-specific starts are decoded. It is the control-record boundary through which the accepted operation command enters.",
+    "functionality": "Carries the instruction control fields from which command validity and operation-specific starts are decoded.",
+    "justification": "It is the control-record boundary through which the accepted operation command enters."
+   },
+   {
+    "concept id": "C4",
+    "element": "valid_cmd",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "valid_cmd",
+     "control",
+     "mul.start",
+     "div.start"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     97,
+     98,
+     99
+    ],
+    "links": [],
+    "reason": "Produces the decision that an incoming control record is an accepted multiply/divide command. It is the element implementing the command-validation decision.",
+    "functionality": "Produces the decision that an incoming control record is an accepted multiply/divide command.",
+    "justification": "It is the element implementing the command-validation decision."
+   },
+   {
+    "concept id": "C4",
+    "element": "mul.start",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "mul.start",
+     "multiplier_core",
+     "multiplier_core_in_reg"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     154,
+     170,
+     210
+    ],
+    "links": [],
+    "reason": "Generates the operation-specific pulse that launches multiplication. It is the element that directly decides whether the multiplier accepts a command.",
+    "functionality": "Generates the operation-specific pulse that launches multiplication.",
+    "justification": "It is the element that directly decides whether the multiplier accepts a command."
+   },
+   {
+    "concept id": "C4",
+    "element": "div.start",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "div.start",
+     "divider_core"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     155,
+     261
+    ],
+    "links": [],
+    "reason": "Generates the operation-specific pulse that launches division. It is the element that directly decides whether the divider accepts a command.",
+    "functionality": "Generates the operation-specific pulse that launches division.",
+    "justification": "It is the element that directly decides whether the divider accepts a command."
+   },
+   {
+    "concept id": "C4",
+    "element": "ctrl.state",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "control"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     120,
+     121,
+     122,
+     124
+    ],
+    "links": [
+     {
+      "primary": "valid_cmd",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Stores the state selected after command validation and determines active operation entry. The valid-command decision controls its transition, and corrupting that transition can reject or mis-sequence a command.",
+    "functionality": "Stores the state selected after command validation and determines active operation entry.",
+    "justification": "The valid-command decision controls its transition, and corrupting that transition can reject or mis-sequence a command."
+   },
+   {
+    "concept id": "C4",
+    "element": "mul.prod",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "multiplier_core"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     210,
+     211,
+     212
+    ],
+    "links": [
+     {
+      "primary": "mul.start",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Stores multiplier state initialized when the multiplication start pulse is accepted. The start pulse controls its initialization, so it is a path through which launch can be corrupted or blocked.",
+    "functionality": "Stores multiplier state initialized when the multiplication start pulse is accepted.",
+    "justification": "The start pulse controls its initialization, so it is a path through which launch can be corrupted or blocked."
+   },
+   {
+    "concept id": "C4",
+    "element": "mul.dsp_x",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "multiplier_core_in_reg"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     170,
+     171
+    ],
+    "links": [
+     {
+      "primary": "mul.start",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Captures the first multiplier operand when multiplication starts. The start pulse gates this capture and therefore can prevent correct launch.",
+    "functionality": "Captures the first multiplier operand when multiplication starts.",
+    "justification": "The start pulse gates this capture and therefore can prevent correct launch."
+   },
+   {
+    "concept id": "C4",
+    "element": "mul.dsp_y",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "multiplier_core_in_reg"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     170,
+     172
+    ],
+    "links": [
+     {
+      "primary": "mul.start",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Captures the second multiplier operand when multiplication starts. The start pulse gates this capture and therefore can prevent correct launch.",
+    "functionality": "Captures the second multiplier operand when multiplication starts.",
+    "justification": "The start pulse gates this capture and therefore can prevent correct launch."
+   },
+   {
+    "concept id": "C4",
+    "element": "div.quotient",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "divider_core"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     261,
+     264,
+     266
+    ],
+    "links": [
+     {
+      "primary": "div.start",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Initializes divider quotient state when division starts. The start pulse controls its initialization and can prevent or corrupt divider launch.",
+    "functionality": "Initializes divider quotient state when division starts.",
+    "justification": "The start pulse controls its initialization and can prevent or corrupt divider launch."
+   },
+   {
+    "concept id": "C4",
+    "element": "div.remainder",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "divider_core"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     261,
+     283
+    ],
+    "links": [
+     {
+      "primary": "div.start",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Initializes divider remainder state when division starts. The start pulse controls initialization of this operation state.",
+    "functionality": "Initializes divider remainder state when division starts.",
+    "justification": "The start pulse controls initialization of this operation state."
+   },
+   {
+    "concept id": "C4",
+    "element": "div.rs2_abs",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "divider_core"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     261,
+     269,
+     270,
+     272
+    ],
+    "links": [
+     {
+      "primary": "div.start",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Captures the divisor magnitude when division starts. The start pulse controls capture of the divisor state.",
+    "functionality": "Captures the divisor magnitude when division starts.",
+    "justification": "The start pulse controls capture of the divisor state."
+   },
+   {
+    "concept id": "C4",
+    "element": "div.sign_mod",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "divider_core"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     261,
+     275,
+     276,
+     278,
+     280
+    ],
+    "links": [
+     {
+      "primary": "div.start",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Captures divider sign-correction state when division starts. The start pulse controls whether the sign mode for the operation is established.",
+    "functionality": "Captures divider sign-correction state when division starts.",
+    "justification": "The start pulse controls whether the sign mode for the operation is established."
+   },
+   {
+    "concept id": "C5",
+    "element": "ctrl.state",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "control",
+     "divider_core",
+     "multiplier_core",
+     "valid_o"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     107,
+     116,
+     122,
+     124,
+     132,
+     138,
+     145
+    ],
+    "links": [],
+    "reason": "Stores the coprocessor idle, busy and done progress state. It is the state register that directly holds and advances the operation progress state.",
+    "functionality": "Stores the coprocessor idle, busy and done progress state.",
+    "justification": "It is the state register that directly holds and advances the operation progress state."
+   },
+   {
+    "concept id": "C5",
+    "element": "ctrl.cnt",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "control"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     108,
+     113,
+     130,
+     131
+    ],
+    "links": [],
+    "reason": "Counts serial operation iterations and determines when the busy phase ends. It is the coprocessor progress counter assigned and tested by the control process.",
+    "functionality": "Counts serial operation iterations and determines when the busy phase ends.",
+    "justification": "It is the coprocessor progress counter assigned and tested by the control process."
+   },
+   {
+    "concept id": "C5",
+    "element": "ctrl.out_en",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "control",
+     "operation_result"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     109,
+     112,
+     137,
+     322
+    ],
+    "links": [],
+    "reason": "Stores the one-cycle output-release state for the completed operation. It is the progress-state element that directly controls release of the result.",
+    "functionality": "Stores the one-cycle output-release state for the completed operation.",
+    "justification": "It is the progress-state element that directly controls release of the result."
+   },
+   {
+    "concept id": "C5",
+    "element": "valid_o",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "valid_o"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     145
+    ],
+    "links": [],
+    "reason": "Reports that the coprocessor has reached its done state. It is the output boundary carrying the completion state out of the unit.",
+    "functionality": "Reports that the coprocessor has reached its done state.",
+    "justification": "It is the output boundary carrying the completion state out of the unit."
+   },
+   {
+    "concept id": "C5",
+    "element": "clk_i",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "control"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     110
+    ],
+    "links": [
+     {
+      "primary": "ctrl.state",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.cnt",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.out_en",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Times progress-state and output-enable updates. Blocking the clock can stall progress and prevent valid completion.",
+    "functionality": "Times progress-state and output-enable updates.",
+    "justification": "Blocking the clock can stall progress and prevent valid completion."
+   },
+   {
+    "concept id": "C5",
+    "element": "rstn_i",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "control"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     106
+    ],
+    "links": [
+     {
+      "primary": "ctrl.state",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.cnt",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.out_en",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Clears the progress state, count and output-enable state. Asserting reset clears or aborts progress and can prevent normal completion.",
+    "functionality": "Clears the progress state, count and output-enable state.",
+    "justification": "Asserting reset clears or aborts progress and can prevent normal completion."
+   },
+   {
+    "concept id": "C5",
+    "element": "ctrl_i",
+    "entity": "neorv32_cpu_cp_muldiv",
+    "same role": [],
+    "points": [
+     "control"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     131
+    ],
+    "links": [
+     {
+      "primary": "ctrl.state",
+      "entity": "neorv32_cpu_cp_muldiv",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies cpu_trap, which can force the progress state to done. The control record's trap field decides the state transition at line 131, including early completion.",
+    "functionality": "Supplies cpu_trap, which can force the progress state to done.",
+    "justification": "The control record's trap field decides the state transition at line 131, including early completion."
+   }
+  ],
+  "not reported": [],
+  "no primary reason": {}
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

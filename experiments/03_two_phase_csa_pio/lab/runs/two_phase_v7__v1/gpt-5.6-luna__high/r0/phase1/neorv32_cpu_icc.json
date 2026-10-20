@@ -1,0 +1,218 @@
+{
+ "module": "neorv32_cpu_icc",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "be3b3faab49b",
+ "user sha": "4e93c9e57890",
+ "usage": {
+  "in": 15310,
+  "out": 15452,
+  "reasoning": 13462,
+  "cached": 15307,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_0315e23eb94d9728006ace83b8637887d1adea02d219197e3c",
+  "request key": "5a0299129b82"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_cpu_icc\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"Transmitted data\",\n      \"Unit\": \"neorv32_cpu_icc\",\n      \"Information\": \"CSR write data words queued for transmission and emitted on the ICC transmit data path. The IP depends on this information to transfer CPU-supplied words to the peer.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality: csr_wdata_i enters the FIFO at line 81 and the FIFO exposes its data on icc_tx_o.dat at line 86, so the transmitted value can be observed. Integrity: the CSR write path selects the FIFO write at lines 60 and 82, allowing the queued word to be changed before it is emitted at line 86. Availability: FIFO write and read handshakes at lines 82 and 85, together with availability at line 87, can prevent a queued word from being accepted or delivered.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An unauthorized CSR writer could inject or alter transmitted words, while manipulating the FIFO handshaking could prevent the intended words from being delivered.\",\n      \"Enters Through\": [\n        \"csr_wdata_i\"\n      ],\n      \"Leaves Through\": [\n        \"icc_tx_o.dat\"\n      ],\n      \"Entry Lines\": [\n        81\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": [\n        86\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"Received data\",\n      \"Unit\": \"neorv32_cpu_icc\",\n      \"Information\": \"Data words received on the ICC input and made available to software through the CSR read-data output. The IP depends on this path to receive and report peer-supplied data.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"no\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality: icc_rx_i.dat is copied directly into csr_rdata_o at line 52, providing an observable CSR read path. Availability: the read path is selected by csr_addr_i at lines 46 and 47 and is gated by icc_rx_i.rdy at line 51, so the returned word can be withheld.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"A\"\n      ],\n      \"Attack\": \"An unauthorized observer could read the received word through csr_rdata_o, or an attacker could force the address or ready conditions so that the word is not returned.\",\n      \"Enters Through\": [\n        \"icc_rx_i.dat\"\n      ],\n      \"Leaves Through\": [\n        \"csr_rdata_o\"\n      ],\n      \"Entry Lines\": [\n        52\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": [\n        52\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"Transmit availability indication\",\n      \"Unit\": \"neorv32_cpu_icc\",\n      \"Information\": \"The transmit FIFO availability indication exposed as icc_tx_o.rdy. The peer depends on it to determine when transmitted data can be consumed.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity: the FIFO directly drives icc_tx_o.rdy through its avail_o output at line 87, so corrupted FIFO state or flow control can present an incorrect availability indication. Availability: FIFO state and the read handshake at lines 85 and 87 determine whether the peer sees the transmit path as available, so the indication can be suppressed and transmission blocked.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could spoof or suppress the FIFO availability indication, causing the peer to accept invalid timing or to wait indefinitely for data.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"icc_tx_o.rdy\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        87\n      ],\n      \"Exit Lines\": [\n        87\n      ]\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"Transmit enqueue command\",\n      \"Unit\": \"neorv32_cpu_icc\",\n      \"Information\": \"The qualified CSR write command that selects the ICC data register and enqueues csr_wdata_i for transmission. The IP depends on this command to initiate outbound transfers.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity: csr_we_i and csr_addr_i form tx_fifo_we at line 60, which drives the FIFO write enable at line 82, so changing the command changes which data is enqueued. Availability: suppressing or misrouting this command at lines 60 and 82 prevents required transmit words from entering the queue.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could alter csr_we_i or csr_addr_i to inject an unsolicited transmission or prevent a required word from being enqueued.\",\n      \"Enters Through\": [\n        \"csr_we_i\",\n        \"csr_addr_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        60\n      ],\n      \"Held Lines\": [\n        60\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"Receive CSR-read command\",\n      \"Unit\": \"neorv32_cpu_icc\",\n      \"Information\": \"The CSR read request and address selection that choose the ICC receive data or status response and acknowledge a matching read. The IP depends on this command to expose received information to software.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity: csr_addr_i selects the receive response at lines 46 and 47, while csr_re_i and the address generate the read acknowledge at line 59, so altering the command changes the response behavior. Availability: the same address and read-request conditions at lines 46, 47, and 59 can select neither the required data path nor a matching acknowledgment, withholding the read operation.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could corrupt the CSR read request or address so that software receives the wrong response or cannot retrieve received data.\",\n      \"Enters Through\": [\n        \"csr_re_i\",\n        \"csr_addr_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        46,\n        47,\n        59\n      ],\n      \"Held Lines\": [\n        46,\n        47,\n        59\n      ],\n      \"Exit Lines\": []\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Transmit FIFO occupancy readback\",\n      \"Candidate Unit\": \"neorv32_cpu_icc\",\n      \"Merged Into\": \"C3\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Receive ready and transmit pop handshakes\",\n      \"Candidate Unit\": \"neorv32_cpu_icc\",\n      \"Merged Into\": \"C1\",\n      \"Why Not Kept\": \"icc_rx_i.ack and icc_rx_i.rdy only gate or time FIFO and receive-data transfers at lines 51 and 85, so they are not information pieces of their own.\"\n    },\n    {\n      \"Candidate Name\": \"CSR response acknowledge\",\n      \"Candidate Unit\": \"neorv32_cpu_icc\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"icc_tx_o.ack only acknowledges a matching CSR read request at line 59, so it is a bus-handshake copy rather than an independent asset.\"\n    },\n    {\n      \"Candidate Name\": \"FIFO status bits in csr_rdata_o\",\n      \"Candidate Unit\": \"neorv32_cpu_icc\",\n      \"Merged Into\": \"C3\",\n      \"Why Not Kept\": \"The bits assigned from icc_rx_i.rdy and tx_fifo_free at lines 48 and 49 only report handshake or FIFO-buffer status, which the buffer-status rules do not keep as a separate piece.\"\n    },\n    {\n      \"Candidate Name\": \"Clock and reset timing\",\n      \"Candidate Unit\": \"neorv32_cpu_icc\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"clk_i and rstn_i only provide clocking and reset to the FIFO at lines 75 and 76, and clocks, resets, and reset chains are explicitly excluded from conceptual assets.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_cpu_icc",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_cpu_icc",
+    "concept": "Transmitted data",
+    "information": "CSR write data words queued for transmission and emitted on the ICC transmit data path. The IP depends on this information to transfer CPU-supplied words to the peer.",
+    "rubric reason": "Confidentiality: csr_wdata_i enters the FIFO at line 81 and the FIFO exposes its data on icc_tx_o.dat at line 86, so the transmitted value can be observed. Integrity: the CSR write path selects the FIFO write at lines 60 and 82, allowing the queued word to be changed before it is emitted at line 86. Availability: FIFO write and read handshakes at lines 82 and 85, together with availability at line 87, can prevent a queued word from being accepted or delivered.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An unauthorized CSR writer could inject or alter transmitted words, while manipulating the FIFO handshaking could prevent the intended words from being delivered.",
+    "enters through": [
+     "csr_wdata_i"
+    ],
+    "leaves through": [
+     "icc_tx_o.dat"
+    ],
+    "entry lines": [
+     81
+    ],
+    "held lines": [],
+    "exit lines": [
+     86
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_cpu_icc",
+    "concept": "Received data",
+    "information": "Data words received on the ICC input and made available to software through the CSR read-data output. The IP depends on this path to receive and report peer-supplied data.",
+    "rubric reason": "Confidentiality: icc_rx_i.dat is copied directly into csr_rdata_o at line 52, providing an observable CSR read path. Availability: the read path is selected by csr_addr_i at lines 46 and 47 and is gated by icc_rx_i.rdy at line 51, so the returned word can be withheld.",
+    "objectives": [
+     "C",
+     "A"
+    ],
+    "attack": "An unauthorized observer could read the received word through csr_rdata_o, or an attacker could force the address or ready conditions so that the word is not returned.",
+    "enters through": [
+     "icc_rx_i.dat"
+    ],
+    "leaves through": [
+     "csr_rdata_o"
+    ],
+    "entry lines": [
+     52
+    ],
+    "held lines": [],
+    "exit lines": [
+     52
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "no",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_cpu_icc",
+    "concept": "Transmit availability indication",
+    "information": "The transmit FIFO availability indication exposed as icc_tx_o.rdy. The peer depends on it to determine when transmitted data can be consumed.",
+    "rubric reason": "Integrity: the FIFO directly drives icc_tx_o.rdy through its avail_o output at line 87, so corrupted FIFO state or flow control can present an incorrect availability indication. Availability: FIFO state and the read handshake at lines 85 and 87 determine whether the peer sees the transmit path as available, so the indication can be suppressed and transmission blocked.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could spoof or suppress the FIFO availability indication, causing the peer to accept invalid timing or to wait indefinitely for data.",
+    "enters through": [],
+    "leaves through": [
+     "icc_tx_o.rdy"
+    ],
+    "entry lines": [],
+    "held lines": [
+     87
+    ],
+    "exit lines": [
+     87
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_cpu_icc",
+    "concept": "Transmit enqueue command",
+    "information": "The qualified CSR write command that selects the ICC data register and enqueues csr_wdata_i for transmission. The IP depends on this command to initiate outbound transfers.",
+    "rubric reason": "Integrity: csr_we_i and csr_addr_i form tx_fifo_we at line 60, which drives the FIFO write enable at line 82, so changing the command changes which data is enqueued. Availability: suppressing or misrouting this command at lines 60 and 82 prevents required transmit words from entering the queue.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could alter csr_we_i or csr_addr_i to inject an unsolicited transmission or prevent a required word from being enqueued.",
+    "enters through": [
+     "csr_we_i",
+     "csr_addr_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     60
+    ],
+    "held lines": [
+     60
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_cpu_icc",
+    "concept": "Receive CSR-read command",
+    "information": "The CSR read request and address selection that choose the ICC receive data or status response and acknowledge a matching read. The IP depends on this command to expose received information to software.",
+    "rubric reason": "Integrity: csr_addr_i selects the receive response at lines 46 and 47, while csr_re_i and the address generate the read acknowledge at line 59, so altering the command changes the response behavior. Availability: the same address and read-request conditions at lines 46, 47, and 59 can select neither the required data path nor a matching acknowledgment, withholding the read operation.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could corrupt the CSR read request or address so that software receives the wrong response or cannot retrieve received data.",
+    "enters through": [
+     "csr_re_i",
+     "csr_addr_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     46,
+     47,
+     59
+    ],
+    "held lines": [
+     46,
+     47,
+     59
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_cpu_icc",
+    "concept": "Transmit FIFO occupancy readback",
+    "reason": "merged into C3",
+    "merged into": "C3"
+   },
+   {
+    "unit": "neorv32_cpu_icc",
+    "concept": "Receive ready and transmit pop handshakes",
+    "reason": "merged into C1",
+    "merged into": "C1"
+   },
+   {
+    "unit": "neorv32_cpu_icc",
+    "concept": "CSR response acknowledge",
+    "reason": "icc_tx_o.ack only acknowledges a matching CSR read request at line 59, so it is a bus-handshake copy rather than an independent asset.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_icc",
+    "concept": "FIFO status bits in csr_rdata_o",
+    "reason": "merged into C3",
+    "merged into": "C3"
+   },
+   {
+    "unit": "neorv32_cpu_icc",
+    "concept": "Clock and reset timing",
+    "reason": "clk_i and rstn_i only provide clocking and reset to the FIFO at lines 75 and 76, and clocks, resets, and reset chains are explicitly excluded from conceptual assets.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [
+  "consistency: not-kept entry 'Receive ready and transmit pop handshakes': both Merged Into and Why Not Kept are filled",
+  "consistency: not-kept entry 'FIFO status bits in csr_rdata_o': both Merged Into and Why Not Kept are filled"
+ ],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

@@ -1,0 +1,178 @@
+{
+ "module": "neorv32_cpu_cp_cond",
+ "prompt version": "two_phase_p1o_first",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "b4c962e16261",
+ "user sha": "58fb394200eb",
+ "usage": {
+  "in": 23601,
+  "out": 12417,
+  "reasoning": 10876,
+  "cached": 20474,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_03dffa80d4a22317006ad5a0060de887d1b2bec0b24f184d46",
+  "request key": "f185b7a66495"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_cpu_cp_cond\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"Conditional operation result data\",\n      \"Unit\": \"neorv32_cpu_cp_cond\",\n      \"Information\": \"The XLEN-bit result of the conditional operation, carrying rs1_i when the command is valid and the condition is true, and zero otherwise; downstream execution depends on this returned value.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"An integrator may treat the operand and computed result as private data, and res_o directly exposes rs1_i at line 54. The result can be changed by the valid and condition decisions that select rs1_i or zero at lines 53-57. Those same decisions can withhold the useful result by assigning zero at lines 55-56, preventing the required operation result from being delivered.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker who influences the operands or command-control inputs could observe res_o or force the unit to return zero or an incorrect result instead of the intended rs1_i value.\",\n      \"Enters Through\": [\n        \"rs1_i\"\n      ],\n      \"Leaves Through\": [\n        \"res_o\"\n      ],\n      \"Entry Lines\": [\n        54\n      ],\n      \"Held Lines\": [\n        51,\n        54,\n        56\n      ],\n      \"Exit Lines\": [\n        51,\n        54,\n        56\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"Condition operand data\",\n      \"Unit\": \"neorv32_cpu_cp_cond\",\n      \"Information\": \"The rs2_i operand value used to determine whether the conditional operation passes rs1_i; the raw operand is only tested internally and is not returned as a whole.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"An integrator may treat rs2_i as private operand data, and the choice between rs1_i and zero at lines 53-56 exposes information about whether the operand satisfies the tested condition at line 62. Changing rs2_i changes rs2_zero and the condition at lines 62-63, thereby changing the result decision. An altered operand can make the unit suppress the useful result and output zero at lines 55-56.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could alter or observe the condition operand so that the predicate is changed or inferred from whether res_o returns rs1_i or zero.\",\n      \"Enters Through\": [\n        \"rs2_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        62\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"Conditional execution decision\",\n      \"Unit\": \"neorv32_cpu_cp_cond\",\n      \"Information\": \"The decision indicating whether the selected comparison condition is satisfied, computed from rs2_i and ctrl_i.ir_funct3(1); it controls whether the result path passes rs1_i or returns zero.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The predicate can be sensitive because res_o reveals its effect by selecting rs1_i or zero at lines 53-56. The decision is produced by the comparison and XNOR logic at lines 62-63 and directly controls the result assignment at line 53. A false or blocked decision withholds the operation result and causes zero to be returned at lines 55-56.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could influence rs2_i or the condition-selecting control bit to force the decision true or false, corrupting or suppressing the conditional result.\",\n      \"Enters Through\": [\n        \"rs2_i\",\n        \"ctrl_i.ir_funct3\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        62,\n        63\n      ],\n      \"Held Lines\": [\n        62,\n        63\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"Conditional-operation valid status\",\n      \"Unit\": \"neorv32_cpu_cp_cond\",\n      \"Information\": \"The status indicating that the control input encodes this conditional operation, reported to the surrounding processor through valid_o; it is decoded from instruction-operation selector fields rather than stored.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The status is generated by the operation-valid decode at lines 41-43 and drives valid_o at line 66, so an altered decode or control value can report a valid operation when none is present or suppress a valid one. If valid_o is withheld or forced low, the surrounding processor can fail to recognize and use the operation result, as shown by the valid status output at line 66.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker who influences the control fields could falsely assert or suppress valid_o, causing the surrounding processor to accept an invalid operation or lose a valid one.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"valid_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        41,\n        42,\n        43,\n        66\n      ],\n      \"Exit Lines\": [\n        66\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"rs2_zero intermediate comparison\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_cond\",\n      \"Merged Into\": \"C3\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Instruction operation selector fields\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_cond\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"Operation Selectors (a) makes opcode, function and validity fields that only identify the operation part of the operation rather than a separate conceptual asset.\"\n    },\n    {\n      \"Candidate Name\": \"Clock and reset control\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_cond\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The clock and reset only time or reset res_o, so the Clocks and resets rule bars them as conceptual assets.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_cpu_cp_cond",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_cpu_cp_cond",
+    "concept": "Conditional operation result data",
+    "information": "The XLEN-bit result of the conditional operation, carrying rs1_i when the command is valid and the condition is true, and zero otherwise; downstream execution depends on this returned value.",
+    "rubric reason": "An integrator may treat the operand and computed result as private data, and res_o directly exposes rs1_i at line 54. The result can be changed by the valid and condition decisions that select rs1_i or zero at lines 53-57. Those same decisions can withhold the useful result by assigning zero at lines 55-56, preventing the required operation result from being delivered.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker who influences the operands or command-control inputs could observe res_o or force the unit to return zero or an incorrect result instead of the intended rs1_i value.",
+    "enters through": [
+     "rs1_i"
+    ],
+    "leaves through": [
+     "res_o"
+    ],
+    "entry lines": [
+     54
+    ],
+    "held lines": [
+     51,
+     54,
+     56
+    ],
+    "exit lines": [
+     51,
+     54,
+     56
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_cpu_cp_cond",
+    "concept": "Condition operand data",
+    "information": "The rs2_i operand value used to determine whether the conditional operation passes rs1_i; the raw operand is only tested internally and is not returned as a whole.",
+    "rubric reason": "An integrator may treat rs2_i as private operand data, and the choice between rs1_i and zero at lines 53-56 exposes information about whether the operand satisfies the tested condition at line 62. Changing rs2_i changes rs2_zero and the condition at lines 62-63, thereby changing the result decision. An altered operand can make the unit suppress the useful result and output zero at lines 55-56.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could alter or observe the condition operand so that the predicate is changed or inferred from whether res_o returns rs1_i or zero.",
+    "enters through": [
+     "rs2_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     62
+    ],
+    "held lines": [],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_cpu_cp_cond",
+    "concept": "Conditional execution decision",
+    "information": "The decision indicating whether the selected comparison condition is satisfied, computed from rs2_i and ctrl_i.ir_funct3(1); it controls whether the result path passes rs1_i or returns zero.",
+    "rubric reason": "The predicate can be sensitive because res_o reveals its effect by selecting rs1_i or zero at lines 53-56. The decision is produced by the comparison and XNOR logic at lines 62-63 and directly controls the result assignment at line 53. A false or blocked decision withholds the operation result and causes zero to be returned at lines 55-56.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could influence rs2_i or the condition-selecting control bit to force the decision true or false, corrupting or suppressing the conditional result.",
+    "enters through": [
+     "rs2_i",
+     "ctrl_i.ir_funct3"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     62,
+     63
+    ],
+    "held lines": [
+     62,
+     63
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_cpu_cp_cond",
+    "concept": "Conditional-operation valid status",
+    "information": "The status indicating that the control input encodes this conditional operation, reported to the surrounding processor through valid_o; it is decoded from instruction-operation selector fields rather than stored.",
+    "rubric reason": "The status is generated by the operation-valid decode at lines 41-43 and drives valid_o at line 66, so an altered decode or control value can report a valid operation when none is present or suppress a valid one. If valid_o is withheld or forced low, the surrounding processor can fail to recognize and use the operation result, as shown by the valid status output at line 66.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker who influences the control fields could falsely assert or suppress valid_o, causing the surrounding processor to accept an invalid operation or lose a valid one.",
+    "enters through": [],
+    "leaves through": [
+     "valid_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     41,
+     42,
+     43,
+     66
+    ],
+    "exit lines": [
+     66
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_cpu_cp_cond",
+    "concept": "rs2_zero intermediate comparison",
+    "reason": "merged into C3",
+    "merged into": "C3"
+   },
+   {
+    "unit": "neorv32_cpu_cp_cond",
+    "concept": "Instruction operation selector fields",
+    "reason": "Operation Selectors (a) makes opcode, function and validity fields that only identify the operation part of the operation rather than a separate conceptual asset.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_cp_cond",
+    "concept": "Clock and reset control",
+    "reason": "The clock and reset only time or reset res_o, so the Clocks and resets rule bars them as conceptual assets.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

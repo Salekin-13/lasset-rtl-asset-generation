@@ -7,8 +7,8 @@ listing three times as much, and study 2 had not closed the gap with a single ca
 (HO: state at each hand-off), `experiments/03_two_phase_csa_pio/lab/analysis/v10_diagnosis/DECISION_LOG.md` (D1 to D107) and each version's
 README under `experiments/03_two_phase_csa_pio/lab/prompts/`.
 
-Every number below was re-derived on 2026-10-20 from the stored runs (`experiments/03_two_phase_csa_pio/lab/runs/two_phase_<v>__v1/`, local,
-not published) by `experiments/03_two_phase_csa_pio/two_phase_ablation_log.ipynb`, with the lab's exact scorer (`compare_v8.score`,
+Every number below was re-derived on 2026-10-20 from the stored runs (`experiments/03_two_phase_csa_pio/lab/runs/two_phase_<v>__v1/`; only
+`two_phase_p1o_first` and `two_phase_v7` are published, the rest is local) by `experiments/03_two_phase_csa_pio/two_phase_ablation_log.ipynb`, with the lab's exact scorer (`compare_v8.score`,
 self-test PASS). A figure marked (log) comes from the logs and was not re-derived: judge readings, blind-test
 estimates, rule-firing counts and element lists read by the per-version scripts. Precision = correct / listed;
 recall = correct / findable (reference entries whose name is in the module's closed set: 109 per run on the 15

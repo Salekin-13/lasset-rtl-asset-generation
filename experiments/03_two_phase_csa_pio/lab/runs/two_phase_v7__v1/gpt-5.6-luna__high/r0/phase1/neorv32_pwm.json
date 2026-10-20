@@ -1,0 +1,322 @@
+{
+ "module": "neorv32_pwm",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "be3b3faab49b",
+ "user sha": "3107f435e770",
+ "usage": {
+  "in": 19983,
+  "out": 15011,
+  "reasoning": 12457,
+  "cached": 12982,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_0c3ad49307f93bf7006ace83b854e487d18004853078025d01",
+  "request key": "07b7a16000dc"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_pwm\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"PWM channel enable state\",\n      \"Unit\": \"neorv32_pwm\",\n      \"Information\": \"The per-channel enable state controls whether PWM generation runs and whether the clock generator is requested. The state is written through the channel configuration path and is exposed by configuration read-back and the aggregate clock-enable output.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The channel configuration write can modify cfg_en (lines 183-184), threatening the enable state's integrity. Clearing cfg_en resets the counters and disables channel operation (lines 212-225), and cfg_en drives the clock-enable outputs (lines 197 and 121), so it can block PWM operation.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could overwrite a channel's enable bit to disable PWM generation or enable an unintended channel.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\",\n        \"clkgen_en_o\"\n      ],\n      \"Entry Lines\": [\n        101,\n        184\n      ],\n      \"Held Lines\": [\n        177,\n        184\n      ],\n      \"Exit Lines\": [\n        70,\n        86,\n        88,\n        102,\n        121,\n        194,\n        197\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"PWM timebase configuration\",\n      \"Unit\": \"neorv32_pwm\",\n      \"Information\": \"The prescaler and clock-divider settings select and divide the clock-generator tick used to advance each channel's PWM timing. PWM behavior depends on this configured timebase.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"A bus write changes cfg_prsc and cfg_cdiv (lines 183 and 185-187), so unauthorized modification can change the PWM timebase. The selected clkgen_i bit and divider comparison control whether and when timing advances (lines 214-220), so a bad setting can delay or withhold PWM updates.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could write a prescaler or divider value that selects an inactive tick source or makes PWM timing incorrect or effectively stalled.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        101,\n        185,\n        187\n      ],\n      \"Held Lines\": [\n        178,\n        180,\n        185,\n        187\n      ],\n      \"Exit Lines\": [\n        70,\n        86,\n        88,\n        102,\n        194\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"PWM duty-cycle setting\",\n      \"Unit\": \"neorv32_pwm\",\n      \"Information\": \"The duty-cycle setting determines how long each PWM cycle presents its active level. Each channel's configured duty value is used when generating the external PWM waveform and is available through read-back.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"A channel write changes cfg_duty (lines 183 and 188), and cfg_duty participates in the PWM level decision (line 231), so unauthorized modification can produce an incorrect duty cycle.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could overwrite the duty value so an external load receives an unintended PWM duty cycle.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        101,\n        188\n      ],\n      \"Held Lines\": [\n        181,\n        188\n      ],\n      \"Exit Lines\": [\n        70,\n        86,\n        88,\n        102,\n        194\n      ]\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"PWM polarity setting\",\n      \"Unit\": \"neorv32_pwm\",\n      \"Information\": \"The polarity setting determines which logic level is active for each channel's PWM output. It is stored as part of the channel configuration and returned by configuration read-back.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"A channel configuration write changes cfg_pol (lines 183 and 186), and cfg_pol selects the output level in both PWM branches (lines 231-234), so unauthorized modification can invert the externally consumed waveform.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could change the polarity bit and invert a channel's control waveform.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        101,\n        186\n      ],\n      \"Held Lines\": [\n        179,\n        186\n      ],\n      \"Exit Lines\": [\n        70,\n        86,\n        88,\n        102,\n        194\n      ]\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"PWM channel access selection\",\n      \"Unit\": \"neorv32_pwm\",\n      \"Information\": \"The decoded bus address selects which PWM channel receives a read or configuration write. This internal selection determines which repeated channel instance an access reaches and has no separate output representation.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The address comparison creates the per-channel selection that controls we and re (lines 109-111), so corruption can direct an access to the wrong channel and compromise configuration integrity. If no channel is selected, the access strobes are not generated, so a required configuration transfer can be withheld (lines 109-111).\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could spoof or corrupt the bus address so a write changes the wrong channel or no channel accepts the requested access.\",\n      \"Enters Through\": [\n        \"bus_req_i.addr\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        109\n      ],\n      \"Held Lines\": [\n        109\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Concept Name\": \"PWM output waveform\",\n      \"Unit\": \"neorv32_pwm\",\n      \"Information\": \"The PWM waveform is the externally consumed timing and level behavior produced on pwm_o for the configured channels. External operation depends on its duty, polarity, enable, and timing behavior.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The channel logic assigns pwm_o from cfg_pol, cfg_duty, cfg_en, and cnt_duty (lines 231-234), so modification of those values or the output-producing logic can make the waveform incorrect. Disabling cfg_en resets the timing state and prevents normal PWM activity (lines 212-225), so the waveform can be blocked.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could alter channel configuration or PWM state so the external load receives an incorrect waveform or no PWM activity.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"pwm_o\"\n      ],\n      \"Entry Lines\": [\n        101,\n        184,\n        185,\n        186,\n        187,\n        188\n      ],\n      \"Held Lines\": [\n        207,\n        232,\n        234\n      ],\n      \"Exit Lines\": [\n        105,\n        117\n      ]\n    },\n    {\n      \"Concept ID\": \"C7\",\n      \"Concept Name\": \"PWM duty-cycle phase state\",\n      \"Unit\": \"neorv32_pwm\",\n      \"Information\": \"The per-channel duty-cycle phase count tracks the current position used to compare against the configured duty value. It is generated and held internally and is not carried whole through a unit port.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"cnt_duty is stored and incremented internally (lines 206, 225, and 227) and directly determines the PWM level decision (line 231), so unauthorized modification can corrupt the waveform's duty behavior. A stuck or corrupted phase state can prevent the expected PWM transitions and block normal waveform operation.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could corrupt the internal duty-phase count so a channel remains at an incorrect level or stops making the expected PWM transitions.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        206,\n        225,\n        227\n      ],\n      \"Exit Lines\": []\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Clock and reset inputs\",\n      \"Candidate Unit\": \"neorv32_pwm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"Clock and reset inputs are excluded by the clock-and-reset rule, although they time or reset the kept state.\"\n    },\n    {\n      \"Candidate Name\": \"Clock-generator tick vector\",\n      \"Candidate Unit\": \"neorv32_pwm\",\n      \"Merged Into\": \"C2\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"PWM divider counter and tick pulse\",\n      \"Candidate Unit\": \"neorv32_pwm\",\n      \"Merged Into\": \"C2\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Bus access command fields\",\n      \"Candidate Unit\": \"neorv32_pwm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The strobe and read/write fields only describe and gate a register access, so the access-command-fields rule gives them no separate conceptual asset.\"\n    },\n    {\n      \"Candidate Name\": \"Bus response handshake and error status\",\n      \"Candidate Unit\": \"neorv32_pwm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The acknowledge repeats the request strobe and the error flag is tied to a constant, so these are bus-handshake copies rather than independent information.\"\n    },\n    {\n      \"Candidate Name\": \"Configuration read-back word\",\n      \"Candidate Unit\": \"neorv32_pwm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The read-back word only exposes the kept channel configuration pieces and does not represent a distinct information use.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_pwm",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_pwm",
+    "concept": "PWM channel enable state",
+    "information": "The per-channel enable state controls whether PWM generation runs and whether the clock generator is requested. The state is written through the channel configuration path and is exposed by configuration read-back and the aggregate clock-enable output.",
+    "rubric reason": "The channel configuration write can modify cfg_en (lines 183-184), threatening the enable state's integrity. Clearing cfg_en resets the counters and disables channel operation (lines 212-225), and cfg_en drives the clock-enable outputs (lines 197 and 121), so it can block PWM operation.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could overwrite a channel's enable bit to disable PWM generation or enable an unintended channel.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data",
+     "clkgen_en_o"
+    ],
+    "entry lines": [
+     101,
+     184
+    ],
+    "held lines": [
+     177,
+     184
+    ],
+    "exit lines": [
+     70,
+     86,
+     88,
+     102,
+     121,
+     194,
+     197
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_pwm",
+    "concept": "PWM timebase configuration",
+    "information": "The prescaler and clock-divider settings select and divide the clock-generator tick used to advance each channel's PWM timing. PWM behavior depends on this configured timebase.",
+    "rubric reason": "A bus write changes cfg_prsc and cfg_cdiv (lines 183 and 185-187), so unauthorized modification can change the PWM timebase. The selected clkgen_i bit and divider comparison control whether and when timing advances (lines 214-220), so a bad setting can delay or withhold PWM updates.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could write a prescaler or divider value that selects an inactive tick source or makes PWM timing incorrect or effectively stalled.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     101,
+     185,
+     187
+    ],
+    "held lines": [
+     178,
+     180,
+     185,
+     187
+    ],
+    "exit lines": [
+     70,
+     86,
+     88,
+     102,
+     194
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_pwm",
+    "concept": "PWM duty-cycle setting",
+    "information": "The duty-cycle setting determines how long each PWM cycle presents its active level. Each channel's configured duty value is used when generating the external PWM waveform and is available through read-back.",
+    "rubric reason": "A channel write changes cfg_duty (lines 183 and 188), and cfg_duty participates in the PWM level decision (line 231), so unauthorized modification can produce an incorrect duty cycle.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could overwrite the duty value so an external load receives an unintended PWM duty cycle.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     101,
+     188
+    ],
+    "held lines": [
+     181,
+     188
+    ],
+    "exit lines": [
+     70,
+     86,
+     88,
+     102,
+     194
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_pwm",
+    "concept": "PWM polarity setting",
+    "information": "The polarity setting determines which logic level is active for each channel's PWM output. It is stored as part of the channel configuration and returned by configuration read-back.",
+    "rubric reason": "A channel configuration write changes cfg_pol (lines 183 and 186), and cfg_pol selects the output level in both PWM branches (lines 231-234), so unauthorized modification can invert the externally consumed waveform.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could change the polarity bit and invert a channel's control waveform.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     101,
+     186
+    ],
+    "held lines": [
+     179,
+     186
+    ],
+    "exit lines": [
+     70,
+     86,
+     88,
+     102,
+     194
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_pwm",
+    "concept": "PWM channel access selection",
+    "information": "The decoded bus address selects which PWM channel receives a read or configuration write. This internal selection determines which repeated channel instance an access reaches and has no separate output representation.",
+    "rubric reason": "The address comparison creates the per-channel selection that controls we and re (lines 109-111), so corruption can direct an access to the wrong channel and compromise configuration integrity. If no channel is selected, the access strobes are not generated, so a required configuration transfer can be withheld (lines 109-111).",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could spoof or corrupt the bus address so a write changes the wrong channel or no channel accepts the requested access.",
+    "enters through": [
+     "bus_req_i.addr"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     109
+    ],
+    "held lines": [
+     109
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C6",
+    "unit": "neorv32_pwm",
+    "concept": "PWM output waveform",
+    "information": "The PWM waveform is the externally consumed timing and level behavior produced on pwm_o for the configured channels. External operation depends on its duty, polarity, enable, and timing behavior.",
+    "rubric reason": "The channel logic assigns pwm_o from cfg_pol, cfg_duty, cfg_en, and cnt_duty (lines 231-234), so modification of those values or the output-producing logic can make the waveform incorrect. Disabling cfg_en resets the timing state and prevents normal PWM activity (lines 212-225), so the waveform can be blocked.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could alter channel configuration or PWM state so the external load receives an incorrect waveform or no PWM activity.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "pwm_o"
+    ],
+    "entry lines": [
+     101,
+     184,
+     185,
+     186,
+     187,
+     188
+    ],
+    "held lines": [
+     207,
+     232,
+     234
+    ],
+    "exit lines": [
+     105,
+     117
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C7",
+    "unit": "neorv32_pwm",
+    "concept": "PWM duty-cycle phase state",
+    "information": "The per-channel duty-cycle phase count tracks the current position used to compare against the configured duty value. It is generated and held internally and is not carried whole through a unit port.",
+    "rubric reason": "cnt_duty is stored and incremented internally (lines 206, 225, and 227) and directly determines the PWM level decision (line 231), so unauthorized modification can corrupt the waveform's duty behavior. A stuck or corrupted phase state can prevent the expected PWM transitions and block normal waveform operation.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could corrupt the internal duty-phase count so a channel remains at an incorrect level or stops making the expected PWM transitions.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     206,
+     225,
+     227
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_pwm",
+    "concept": "Clock and reset inputs",
+    "reason": "Clock and reset inputs are excluded by the clock-and-reset rule, although they time or reset the kept state.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_pwm",
+    "concept": "Clock-generator tick vector",
+    "reason": "merged into C2",
+    "merged into": "C2"
+   },
+   {
+    "unit": "neorv32_pwm",
+    "concept": "PWM divider counter and tick pulse",
+    "reason": "merged into C2",
+    "merged into": "C2"
+   },
+   {
+    "unit": "neorv32_pwm",
+    "concept": "Bus access command fields",
+    "reason": "The strobe and read/write fields only describe and gate a register access, so the access-command-fields rule gives them no separate conceptual asset.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_pwm",
+    "concept": "Bus response handshake and error status",
+    "reason": "The acknowledge repeats the request strobe and the error flag is tied to a constant, so these are bus-handshake copies rather than independent information.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_pwm",
+    "concept": "Configuration read-back word",
+    "reason": "The read-back word only exposes the kept channel configuration pieces and does not represent a distinct information use.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

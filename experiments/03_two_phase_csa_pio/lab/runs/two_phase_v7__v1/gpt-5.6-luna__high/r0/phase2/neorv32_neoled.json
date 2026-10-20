@@ -1,0 +1,1702 @@
+{
+ "module": "neorv32_neoled",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 2,
+ "system sha": "6e414c09e397",
+ "user sha": "7bf93a19ac6b",
+ "usage": {
+  "in": 28268,
+  "out": 21457,
+  "reasoning": 10971,
+  "cached": 15151,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_07c467a171b9582b006ace8470d79c87d19bace5aaf9e290e3",
+  "request key": "046d2964e275"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_neoled\",\n  \"Concept Walks\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Points\": [\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"bus_req_i ==> bus_access [bus_req_i.{addr,data,rw,stb}]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [130],\n          \"Answer Reason\": \"The bus write directly changes ctrl.enable, including writing zero to disable the engine.\"\n        },\n        {\n          \"Point\": \"tx_fifo.clear\",\n          \"Reached By\": \"bus_access ==> tx_fifo.clear [ctrl.enable]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [193],\n          \"Answer Reason\": \"The inverted enable drives the FIFO clear control, so disabling the setting can discard queued transfers.\"\n        },\n        {\n          \"Point\": \"data_buffer\",\n          \"Reached By\": \"tx_fifo.clear ==> data_buffer [tx_fifo.clear]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [177, 193],\n          \"Answer Reason\": \"The another-IP FIFO receives tx_fifo.clear and can clear the queued transmit data.\"\n        },\n        {\n          \"Point\": \"irq_generator\",\n          \"Reached By\": \"bus_access ==> irq_generator [ctrl.{enable,irq_conf}]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"This block uses enable only to qualify the interrupt request and does not store, clear, or gate the NeoLED engine itself.\"\n        },\n        {\n          \"Point\": \"serial_engine\",\n          \"Reached By\": \"bus_access ==> serial_engine [ctrl.enable]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [231, 232],\n          \"Answer Reason\": \"ctrl.enable is loaded into serial.state(2), and the state machine uses that state to enter or leave engine operation.\"\n        },\n        {\n          \"Point\": \"clkgen_en_o\",\n          \"Reached By\": \"bus_access ==> clkgen_en_o [ctrl.enable]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [160],\n          \"Answer Reason\": \"The output directly reflects ctrl.enable, so changing the setting changes the clock-generator request and can disable operation.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"ctrl.enable\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\", \"serial_engine\", \"tx_fifo.clear\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores the engine enable setting and controls the clock request, engine state, and FIFO clear.\",\n          \"Justification\": \"It is the register that directly holds the conceptual enable setting.\",\n          \"Asset Lines\": [112, 130, 160, 193, 231]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"ctrl.enable\", \"Primary Entity\": \"neorv32_neoled\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Provides the bus write bit that loads ctrl.enable.\",\n          \"Justification\": \"The bus request data can modify the primary enable and write zero to block operation.\",\n          \"Asset Lines\": [25, 130]\n        },\n        {\n          \"Asset RTL\": \"tx_fifo.clear\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"tx_fifo.clear\", \"data_buffer\"],\n          \"Security Objectives\": [\"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"ctrl.enable\", \"Primary Entity\": \"neorv32_neoled\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Carries the inverted enable setting into the FIFO clear input.\",\n          \"Justification\": \"It can clear queued transmit data when the primary enable is cleared.\",\n          \"Asset Lines\": [177, 193]\n        },\n        {\n          \"Asset RTL\": \"serial.state\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"serial_engine\"],\n          \"Security Objectives\": [\"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"ctrl.enable\", \"Primary Entity\": \"neorv32_neoled\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Uses the enable bit in state bit two to control whether the serial engine operates.\",\n          \"Justification\": \"The state machine can stop engine progress based on the enable-derived state.\",\n          \"Asset Lines\": [231, 232, 311]\n        },\n        {\n          \"Asset RTL\": \"clkgen_en_o\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"clkgen_en_o\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Exports the engine enable as the clock-generator enable request.\",\n          \"Justification\": \"It crosses the unit boundary as the unmodified enable value.\",\n          \"Asset Lines\": [160]\n        }\n      ],\n      \"Not Reported\": [\n        {\n          \"Element RTL\": \"bus_rsp_o.data\",\n          \"Element Entity\": \"neorv32_neoled\",\n          \"Why Not Reported\": \"It is a bus response record field carrying a readback copy, but confidentiality is not an objective for this concept and it does not control the enable.\"\n        }\n      ],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Points\": [\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"bus_req_i ==> bus_access [bus_req_i.{addr,data,rw,stb}]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [131],\n          \"Answer Reason\": \"A bus write directly replaces the stored serial mode setting.\"\n        },\n        {\n          \"Point\": \"tx_fifo.wdata\",\n          \"Reached By\": \"bus_access ==> tx_fifo.wdata [ctrl.{mode,strobe}]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"This signal only forwards the mode bit as part of a queued transmit word.\"\n        },\n        {\n          \"Point\": \"data_buffer\",\n          \"Reached By\": \"tx_fifo.wdata ==> data_buffer [tx_fifo.wdata]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [181, 182],\n          \"Answer Reason\": \"The FIFO buffers the queued word; the RTL shows no independent mode check or mode modification at this point.\"\n        },\n        {\n          \"Point\": \"serial_engine\",\n          \"Reached By\": \"data_buffer ==> serial_engine [tx_fifo.{avail,rdata}]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [240, 245],\n          \"Answer Reason\": \"The FIFO word's mode bit selects the serial mode and payload length, changing the generated frame.\"\n        },\n        {\n          \"Point\": \"serial.next_bit\",\n          \"Reached By\": \"serial_engine ==> serial.next_bit [serial.{mode,sreg}]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [318],\n          \"Answer Reason\": \"The selected serial mode chooses which shift-register bit becomes the next transmitted bit.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"ctrl.mode\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores the serial mode selected for queued LED transfers.\",\n          \"Justification\": \"It is the register holding the conceptual mode setting.\",\n          \"Asset Lines\": [113, 131, 192]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"ctrl.mode\", \"Primary Entity\": \"neorv32_neoled\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Supplies the bus write bit that loads ctrl.mode.\",\n          \"Justification\": \"The bus data field can overwrite the primary mode setting.\",\n          \"Asset Lines\": [25, 131]\n        },\n        {\n          \"Asset RTL\": \"serial.mode\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"serial_engine\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"ctrl.mode\", \"Primary Entity\": \"neorv32_neoled\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Holds the mode selected from the queued transfer word and controls bit selection.\",\n          \"Justification\": \"It is a derived mode decision that changes how the primary setting affects the serial output.\",\n          \"Asset Lines\": [240, 241, 244, 318]\n        }\n      ],\n      \"Not Reported\": [\n        {\n          \"Element RTL\": \"tx_fifo.wdata\",\n          \"Element Entity\": \"neorv32_neoled\",\n          \"Why Not Reported\": \"It is a FIFO write-data carrier and not an independently stored or controlling mode element.\"\n        },\n        {\n          \"Element RTL\": \"tx_fifo.rdata\",\n          \"Element Entity\": \"neorv32_neoled\",\n          \"Why Not Reported\": \"It is the FIFO read-data carrier for a queued transaction and has no independent mode state.\"\n        },\n        {\n          \"Element RTL\": \"bus_rsp_o.data\",\n          \"Element Entity\": \"neorv32_neoled\",\n          \"Why Not Reported\": \"It is a bus response record field carrying mode readback, but it does not modify or control the mode.\"\n        }\n      ],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Points\": [\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"bus_req_i ==> bus_access [bus_req_i.{addr,data,rw,stb}]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [132],\n          \"Answer Reason\": \"A bus write directly replaces the stored strobe setting.\"\n        },\n        {\n          \"Point\": \"tx_fifo.wdata\",\n          \"Reached By\": \"bus_access ==> tx_fifo.wdata [ctrl.{mode,strobe}]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"This signal only forwards the strobe bit as part of a queued transmit word.\"\n        },\n        {\n          \"Point\": \"data_buffer\",\n          \"Reached By\": \"tx_fifo.wdata ==> data_buffer [tx_fifo.wdata]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [181, 182],\n          \"Answer Reason\": \"The FIFO buffers the queued word and the RTL shows no independent strobe decision inside this unit at this point.\"\n        },\n        {\n          \"Point\": \"serial_engine\",\n          \"Reached By\": \"data_buffer ==> serial_engine [tx_fifo.{avail,rdata}]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [248, 251],\n          \"Answer Reason\": \"The queued strobe bit selects the serial engine state path through the condition on tx_fifo.rdata(33).\"\n        },\n        {\n          \"Point\": \"tx_fifo.re\",\n          \"Reached By\": \"serial_engine --> tx_fifo.re [serial.state]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [190],\n          \"Answer Reason\": \"The selected state controls when the queued strobe-bearing word is removed for transmission.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"ctrl.strobe\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores the strobe behavior selected for a queued transfer.\",\n          \"Justification\": \"It is the register holding the conceptual strobe setting.\",\n          \"Asset Lines\": [114, 132, 192]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"ctrl.strobe\", \"Primary Entity\": \"neorv32_neoled\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Supplies the bus write bit that loads ctrl.strobe.\",\n          \"Justification\": \"The bus data field can overwrite the primary strobe setting.\",\n          \"Asset Lines\": [25, 132]\n        },\n        {\n          \"Asset RTL\": \"serial.state\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"serial_engine\", \"tx_fifo.re\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"ctrl.strobe\", \"Primary Entity\": \"neorv32_neoled\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Implements the state path selected by the queued strobe bit and controls FIFO removal.\",\n          \"Justification\": \"The state decision determines which strobe-related serial path is executed.\",\n          \"Asset Lines\": [248, 249, 251, 190]\n        }\n      ],\n      \"Not Reported\": [\n        {\n          \"Element RTL\": \"tx_fifo.wdata\",\n          \"Element Entity\": \"neorv32_neoled\",\n          \"Why Not Reported\": \"It is a FIFO write-data carrier and not an independently stored or controlling strobe element.\"\n        },\n        {\n          \"Element RTL\": \"tx_fifo.rdata\",\n          \"Element Entity\": \"neorv32_neoled\",\n          \"Why Not Reported\": \"It is the FIFO read-data carrier for a queued transaction and has no independent strobe state.\"\n        },\n        {\n          \"Element RTL\": \"bus_rsp_o.data\",\n          \"Element Entity\": \"neorv32_neoled\",\n          \"Why Not Reported\": \"It is a bus response record field carrying strobe readback, but it does not modify or control the strobe behavior.\"\n        }\n      ],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Points\": [\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"bus_req_i ==> bus_access [bus_req_i.{addr,data,rw,stb}]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [133],\n          \"Answer Reason\": \"A bus write changes the stored clock-source selector, including selecting a source that does not provide useful pacing.\"\n        },\n        {\n          \"Point\": \"serial_engine\",\n          \"Reached By\": \"bus_access ==> serial_engine [ctrl.clk_prsc]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [225, 278, 293],\n          \"Answer Reason\": \"ctrl.clk_prsc indexes clkgen_i to make serial.pulse_clk, and the engine advances only when that pulse is asserted.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"ctrl.clk_prsc\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\", \"serial_engine\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores the selector for the clock-generator bit used as serial pacing.\",\n          \"Justification\": \"It is the register that holds the conceptual rate-selection setting.\",\n          \"Asset Lines\": [115, 133, 225]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"ctrl.clk_prsc\", \"Primary Entity\": \"neorv32_neoled\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Supplies the bus write bits that load ctrl.clk_prsc.\",\n          \"Justification\": \"The bus data field can replace the selector and choose a stalled clock source.\",\n          \"Asset Lines\": [25, 133]\n        },\n        {\n          \"Asset RTL\": \"serial.pulse_clk\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"serial_engine\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"ctrl.clk_prsc\", \"Primary Entity\": \"neorv32_neoled\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Holds the selected clock-generator bit and paces serial progress.\",\n          \"Justification\": \"It is the derived pacing signal that can alter or stop the timing controlled by the selector.\",\n          \"Asset Lines\": [225, 278, 293]\n        },\n        {\n          \"Asset RTL\": \"clkgen_i\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"serial_engine\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"ctrl.clk_prsc\", \"Primary Entity\": \"neorv32_neoled\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Provides the selectable clock-generator source from which serial.pulse_clk is sampled.\",\n          \"Justification\": \"Its selected bit determines whether the configured pacing source toggles and permits progress.\",\n          \"Asset Lines\": [28, 225]\n        }\n      ],\n      \"Not Reported\": [\n        {\n          \"Element RTL\": \"bus_rsp_o.data\",\n          \"Element Entity\": \"neorv32_neoled\",\n          \"Why Not Reported\": \"It is a bus response record field carrying selector readback and does not control pacing.\"\n        }\n      ],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Points\": [\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"bus_req_i ==> bus_access [bus_req_i.{addr,data,rw,stb}]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [135, 136, 137],\n          \"Answer Reason\": \"Bus writes directly replace the total-period and zero/one high-time settings.\"\n        },\n        {\n          \"Point\": \"serial_engine\",\n          \"Reached By\": \"bus_access ==> serial_engine [ctrl.{t0_high,t1_high,t_total}]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [260, 261, 263, 281, 285, 295],\n          \"Answer Reason\": \"The settings select t_high and determine pulse and strobe counter progression used to generate the waveform.\"\n        },\n        {\n          \"Point\": \"serial.next_bit\",\n          \"Reached By\": \"serial.next_bit --> serial_engine [serial.next_bit]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [260, 318],\n          \"Answer Reason\": \"The selected data bit decides whether t0_high or t1_high is loaded for the next waveform interval.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"ctrl.t_total\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\", \"serial_engine\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores the total waveform period used for serial state and counter progression.\",\n          \"Justification\": \"It is the register holding the total-period timing value.\",\n          \"Asset Lines\": [117, 135, 285, 295]\n        },\n        {\n          \"Asset RTL\": \"ctrl.t0_high\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\", \"serial_engine\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores the high-time value used for a zero data bit.\",\n          \"Justification\": \"It is the register holding one of the waveform timing values.\",\n          \"Asset Lines\": [118, 136, 261]\n        },\n        {\n          \"Asset RTL\": \"ctrl.t1_high\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\", \"serial_engine\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores the high-time value used for a one data bit.\",\n          \"Justification\": \"It is the register holding the other waveform timing value.\",\n          \"Asset Lines\": [119, 137, 263]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"ctrl.t_total\", \"Primary Entity\": \"neorv32_neoled\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"ctrl.t0_high\", \"Primary Entity\": \"neorv32_neoled\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"ctrl.t1_high\", \"Primary Entity\": \"neorv32_neoled\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Supplies the bus write fields that load the waveform timing registers.\",\n          \"Justification\": \"The bus data field can overwrite each primary timing value.\",\n          \"Asset Lines\": [25, 135, 136, 137]\n        },\n        {\n          \"Asset RTL\": \"serial.t_high\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"serial_engine\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"ctrl.t0_high\", \"Primary Entity\": \"neorv32_neoled\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"ctrl.t1_high\", \"Primary Entity\": \"neorv32_neoled\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Holds the selected zero or one high-time value used by the output timing compare.\",\n          \"Justification\": \"It is the derived timing value that controls the output transition point.\",\n          \"Asset Lines\": [260, 261, 263, 281]\n        },\n        {\n          \"Asset RTL\": \"serial.pulse_cnt\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"serial_engine\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"ctrl.t_total\", \"Primary Entity\": \"neorv32_neoled\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Counts timing pulses and compares them with the total period.\",\n          \"Justification\": \"Its progression and comparison implement the configured total-period behavior.\",\n          \"Asset Lines\": [278, 281, 285, 295]\n        },\n        {\n          \"Asset RTL\": \"serial.strobe_cnt\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"serial_engine\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"ctrl.t_total\", \"Primary Entity\": \"neorv32_neoled\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Counts strobe timing intervals using the configured total period.\",\n          \"Justification\": \"Its update condition is controlled by the total-period comparison.\",\n          \"Asset Lines\": [293, 295, 297, 303]\n        },\n        {\n          \"Asset RTL\": \"serial.next_bit\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"serial.next_bit\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"ctrl.t0_high\", \"Primary Entity\": \"neorv32_neoled\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"ctrl.t1_high\", \"Primary Entity\": \"neorv32_neoled\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Selects which high-time register is applied to the current serial bit.\",\n          \"Justification\": \"Its decision controls release of the selected timing value into serial.t_high.\",\n          \"Asset Lines\": [260, 318]\n        }\n      ],\n      \"Not Reported\": [\n        {\n          \"Element RTL\": \"bus_rsp_o.data\",\n          \"Element Entity\": \"neorv32_neoled\",\n          \"Why Not Reported\": \"It is a bus response record field carrying timing readback and does not control waveform timing.\"\n        }\n      ],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Points\": [\n        {\n          \"Point\": \"tx_fifo.wdata\",\n          \"Reached By\": \"bus_req_i ==> tx_fifo.wdata [bus_req_i.data]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [192],\n          \"Answer Reason\": \"The bus data is placed into the FIFO write word, so changing the input changes the queued payload.\"\n        },\n        {\n          \"Point\": \"tx_fifo.we\",\n          \"Reached By\": \"bus_req_i --> tx_fifo.we [bus_req_i.{addr,rw,stb}]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [191],\n          \"Answer Reason\": \"The address, direction, and strobe jointly decide whether a payload word is written, allowing a transfer to be omitted or gated.\"\n        },\n        {\n          \"Point\": \"data_buffer\",\n          \"Reached By\": \"tx_fifo.wdata ==> data_buffer [tx_fifo.wdata]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [181, 182, 186, 187],\n          \"Answer Reason\": \"By the another-IP black-box rule, the FIFO stores the write word and returns it on rdata, while its write and read controls can prevent the payload from reaching the engine.\"\n        },\n        {\n          \"Point\": \"tx_fifo.clear\",\n          \"Reached By\": \"backward from data_buffer through tx_fifo.clear ==> data_buffer [tx_fifo.clear]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [177, 193],\n          \"Answer Reason\": \"The enable-derived clear input can discard queued payload data before transmission.\"\n        },\n        {\n          \"Point\": \"tx_fifo.re\",\n          \"Reached By\": \"backward from data_buffer through tx_fifo.re ==> data_buffer [tx_fifo.re]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [185, 190],\n          \"Answer Reason\": \"The state-controlled read enable decides whether a queued payload is removed and presented to the serial engine.\"\n        },\n        {\n          \"Point\": \"serial_engine\",\n          \"Reached By\": \"data_buffer ==> serial_engine [tx_fifo.{avail,rdata}]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [239, 247, 248, 265, 268, 271],\n          \"Answer Reason\": \"The engine loads and shifts the FIFO word, while its state and bit-count decisions determine whether and how the payload is emitted.\"\n        },\n        {\n          \"Point\": \"serial.next_bit\",\n          \"Reached By\": \"serial_engine ==> serial.next_bit [serial.{mode,sreg}]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [260, 318],\n          \"Answer Reason\": \"The selected shift-register bit is used in the output timing decision, so a changed bit can alter the emitted waveform.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"neoled_o\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"serial_engine\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Emits the serialized payload bits as the NeoLED output waveform.\",\n          \"Justification\": \"The payload crosses the unit boundary one bit per serial step through this output port.\",\n          \"Asset Lines\": [222, 236, 266, 270, 282, 310]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"tx_fifo.wdata\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"neoled_o\", \"Primary Entity\": \"neorv32_neoled\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Provides the payload data copied into the transmit FIFO word.\",\n          \"Justification\": \"Changing the bus data changes the value eventually emitted on neooled_o.\",\n          \"Asset Lines\": [25, 192]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.addr\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"tx_fifo.we\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"neoled_o\", \"Primary Entity\": \"neorv32_neoled\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Selects whether a bus transaction is directed to the transmit FIFO.\",\n          \"Justification\": \"Its address test can prevent the payload write from occurring.\",\n          \"Asset Lines\": [25, 191]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.rw\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"tx_fifo.we\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"neoled_o\", \"Primary Entity\": \"neorv32_neoled\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Selects whether the bus transaction is a write that can enqueue payload data.\",\n          \"Justification\": \"Its value gates the FIFO write and can prevent the payload from becoming available.\",\n          \"Asset Lines\": [25, 191]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.stb\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"tx_fifo.we\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"neoled_o\", \"Primary Entity\": \"neorv32_neoled\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Qualifies the bus transaction that writes a payload word.\",\n          \"Justification\": \"Clearing the strobe prevents the payload from entering the FIFO.\",\n          \"Asset Lines\": [25, 191]\n        },\n        {\n          \"Asset RTL\": \"tx_fifo.clear\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"tx_fifo.clear\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"neoled_o\", \"Primary Entity\": \"neorv32_neoled\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Clears the FIFO that holds queued payload words.\",\n          \"Justification\": \"It can remove the payload before it reaches the output.\",\n          \"Asset Lines\": [177, 193]\n        },\n        {\n          \"Asset RTL\": \"tx_fifo.re\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"tx_fifo.re\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"neoled_o\", \"Primary Entity\": \"neorv32_neoled\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Requests removal of a queued payload word for transmission.\",\n          \"Justification\": \"Its state-controlled gating can delay or prevent payload delivery to the serial engine.\",\n          \"Asset Lines\": [185, 190]\n        },\n        {\n          \"Asset RTL\": \"serial.state\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"serial_engine\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"neoled_o\", \"Primary Entity\": \"neorv32_neoled\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Sequences payload loading, shifting, and output phases.\",\n          \"Justification\": \"The state machine controls whether the payload is loaded and which output phase is active.\",\n          \"Asset Lines\": [232, 247, 249, 251, 268, 271, 286, 305, 311]\n        },\n        {\n          \"Asset RTL\": \"serial.bit_cnt\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"serial_engine\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"neoled_o\", \"Primary Entity\": \"neorv32_neoled\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Counts payload bits and decides when serial output ends.\",\n          \"Justification\": \"Its terminal comparison can truncate or delay the emitted payload.\",\n          \"Asset Lines\": [242, 245, 258, 265, 268]\n        },\n        {\n          \"Asset RTL\": \"serial.pulse_clk\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"serial_engine\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"neoled_o\", \"Primary Entity\": \"neorv32_neoled\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Paces the timing steps that shift and emit payload bits.\",\n          \"Justification\": \"A missing pulse prevents the output state and counters from progressing.\",\n          \"Asset Lines\": [225, 278, 293]\n        },\n        {\n          \"Asset RTL\": \"serial.pulse_cnt\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"serial_engine\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"neoled_o\", \"Primary Entity\": \"neorv32_neoled\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Counts output timing pulses and controls transitions between output phases.\",\n          \"Justification\": \"Its timing comparisons can delay or terminate payload output.\",\n          \"Asset Lines\": [279, 281, 285, 295, 296, 299]\n        },\n        {\n          \"Asset RTL\": \"serial.t_high\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"serial_engine\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"neoled_o\", \"Primary Entity\": \"neorv32_neoled\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Controls the high-time portion of each serialized output bit.\",\n          \"Justification\": \"Its compare directly controls when neooled_o is driven low.\",\n          \"Asset Lines\": [261, 263, 281, 282]\n        }\n      ],\n      \"Not Reported\": [\n        {\n          \"Element RTL\": \"tx_fifo.wdata\",\n          \"Element Entity\": \"neorv32_neoled\",\n          \"Why Not Reported\": \"It is a FIFO write-data carrier and the FIFO rule bars it as a primary; it is not an independent output control.\"\n        },\n        {\n          \"Element RTL\": \"tx_fifo.rdata\",\n          \"Element Entity\": \"neorv32_neoled\",\n          \"Why Not Reported\": \"It is a FIFO read-data carrier governed by the FIFO buffering rule and is not an independent output control.\"\n        },\n        {\n          \"Element RTL\": \"serial.sreg\",\n          \"Element Entity\": \"neorv32_neoled\",\n          \"Why Not Reported\": \"It is a serial data shift register barred as a primary and not independently controllable at the output.\"\n        }\n      ],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C7\",\n      \"Points\": [\n        {\n          \"Point\": \"irq_generator\",\n          \"Reached By\": \"holding block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [201, 202, 203],\n          \"Answer Reason\": \"The block computes irq_o from enable, irq_conf, and FIFO conditions, so changing any input can create, suppress, or mis-time the interrupt.\"\n        },\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"bus_access ==> irq_generator [ctrl.{enable,irq_conf}]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [130, 134],\n          \"Answer Reason\": \"Bus writes can modify the enable and interrupt-configuration registers that feed irq_generator.\"\n        },\n        {\n          \"Point\": \"data_buffer\",\n          \"Reached By\": \"data_buffer ==> irq_generator [tx_fifo.{avail,half}]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [178, 187],\n          \"Answer Reason\": \"By the another-IP black-box rule, FIFO availability and half-full outputs can change the generated interrupt condition.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"irq_o\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"irq_generator\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Exports the transmit-buffer interrupt request.\",\n          \"Justification\": \"It is the output computed for and crossing the unit boundary as the conceptual interrupt request.\",\n          \"Asset Lines\": [199, 201, 202, 203]\n        },\n        {\n          \"Asset RTL\": \"ctrl.enable\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\", \"irq_generator\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_o\", \"Primary Entity\": \"neorv32_neoled\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Qualifies whether the interrupt generator can assert irq_o.\",\n          \"Justification\": \"The enable operand directly gates the interrupt result.\",\n          \"Asset Lines\": [130, 201]\n        },\n        {\n          \"Asset RTL\": \"ctrl.irq_conf\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\", \"irq_generator\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_o\", \"Primary Entity\": \"neorv32_neoled\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Selects whether the interrupt condition uses FIFO empty or half-full status.\",\n          \"Justification\": \"Its value changes which FIFO condition produces irq_o.\",\n          \"Asset Lines\": [134, 202, 203]\n        },\n        {\n          \"Asset RTL\": \"tx_fifo.avail\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"data_buffer\", \"irq_generator\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_o\", \"Primary Entity\": \"neorv32_neoled\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Reports FIFO availability for the empty-buffer interrupt condition.\",\n          \"Justification\": \"The FIFO status directly participates in the interrupt result.\",\n          \"Asset Lines\": [150, 187, 202]\n        },\n        {\n          \"Asset RTL\": \"tx_fifo.half\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"data_buffer\", \"irq_generator\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_o\", \"Primary Entity\": \"neorv32_neoled\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Reports the FIFO half-full condition for interrupt generation.\",\n          \"Justification\": \"The FIFO status directly participates in the configured interrupt result.\",\n          \"Asset Lines\": [151, 178, 203]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_neoled\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"irq_o\", \"Primary Entity\": \"neorv32_neoled\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Supplies bus-written enable and interrupt-configuration bits.\",\n          \"Justification\": \"The bus data can alter the registers that control irq_o.\",\n          \"Asset Lines\": [25, 130, 134]\n        }\n      ],\n      \"Not Reported\": [\n        {\n          \"Element RTL\": \"bus_req_i.addr\",\n          \"Element Entity\": \"neorv32_neoled\",\n          \"Why Not Reported\": \"It only selects whether the control-register write occurs and is not itself an interrupt condition at the generator.\"\n        },\n        {\n          \"Element RTL\": \"bus_req_i.rw\",\n          \"Element Entity\": \"neorv32_neoled\",\n          \"Why Not Reported\": \"It only selects read versus write access and is not an interrupt condition at the generator.\"\n        },\n        {\n          \"Element RTL\": \"bus_req_i.stb\",\n          \"Element Entity\": \"neorv32_neoled\",\n          \"Why Not Reported\": \"It only qualifies a bus access and is not an interrupt condition at the generator.\"\n        }\n      ],\n      \"No Primary Reason\": \"\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_neoled",
+  "notes": [],
+  "points": [
+   {
+    "concept id": "C1",
+    "point": "bus_access",
+    "reached by": "bus_req_i ==> bus_access [bus_req_i.{addr,data,rw,stb}]",
+    "lines": [
+     130
+    ],
+    "reason": "The bus write directly changes ctrl.enable, including writing zero to disable the engine.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "tx_fifo.clear",
+    "reached by": "bus_access ==> tx_fifo.clear [ctrl.enable]",
+    "lines": [
+     193
+    ],
+    "reason": "The inverted enable drives the FIFO clear control, so disabling the setting can discard queued transfers.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "data_buffer",
+    "reached by": "tx_fifo.clear ==> data_buffer [tx_fifo.clear]",
+    "lines": [
+     177,
+     193
+    ],
+    "reason": "The another-IP FIFO receives tx_fifo.clear and can clear the queued transmit data.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "irq_generator",
+    "reached by": "bus_access ==> irq_generator [ctrl.{enable,irq_conf}]",
+    "lines": [],
+    "reason": "This block uses enable only to qualify the interrupt request and does not store, clear, or gate the NeoLED engine itself.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "serial_engine",
+    "reached by": "bus_access ==> serial_engine [ctrl.enable]",
+    "lines": [
+     231,
+     232
+    ],
+    "reason": "ctrl.enable is loaded into serial.state(2), and the state machine uses that state to enter or leave engine operation.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "clkgen_en_o",
+    "reached by": "bus_access ==> clkgen_en_o [ctrl.enable]",
+    "lines": [
+     160
+    ],
+    "reason": "The output directly reflects ctrl.enable, so changing the setting changes the clock-generator request and can disable operation.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "bus_access",
+    "reached by": "bus_req_i ==> bus_access [bus_req_i.{addr,data,rw,stb}]",
+    "lines": [
+     131
+    ],
+    "reason": "A bus write directly replaces the stored serial mode setting.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "tx_fifo.wdata",
+    "reached by": "bus_access ==> tx_fifo.wdata [ctrl.{mode,strobe}]",
+    "lines": [],
+    "reason": "This signal only forwards the mode bit as part of a queued transmit word.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "data_buffer",
+    "reached by": "tx_fifo.wdata ==> data_buffer [tx_fifo.wdata]",
+    "lines": [
+     181,
+     182
+    ],
+    "reason": "The FIFO buffers the queued word; the RTL shows no independent mode check or mode modification at this point.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "serial_engine",
+    "reached by": "data_buffer ==> serial_engine [tx_fifo.{avail,rdata}]",
+    "lines": [
+     240,
+     245
+    ],
+    "reason": "The FIFO word's mode bit selects the serial mode and payload length, changing the generated frame.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "serial.next_bit",
+    "reached by": "serial_engine ==> serial.next_bit [serial.{mode,sreg}]",
+    "lines": [
+     318
+    ],
+    "reason": "The selected serial mode chooses which shift-register bit becomes the next transmitted bit.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "bus_access",
+    "reached by": "bus_req_i ==> bus_access [bus_req_i.{addr,data,rw,stb}]",
+    "lines": [
+     132
+    ],
+    "reason": "A bus write directly replaces the stored strobe setting.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "tx_fifo.wdata",
+    "reached by": "bus_access ==> tx_fifo.wdata [ctrl.{mode,strobe}]",
+    "lines": [],
+    "reason": "This signal only forwards the strobe bit as part of a queued transmit word.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "data_buffer",
+    "reached by": "tx_fifo.wdata ==> data_buffer [tx_fifo.wdata]",
+    "lines": [
+     181,
+     182
+    ],
+    "reason": "The FIFO buffers the queued word and the RTL shows no independent strobe decision inside this unit at this point.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "serial_engine",
+    "reached by": "data_buffer ==> serial_engine [tx_fifo.{avail,rdata}]",
+    "lines": [
+     248,
+     251
+    ],
+    "reason": "The queued strobe bit selects the serial engine state path through the condition on tx_fifo.rdata(33).",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "tx_fifo.re",
+    "reached by": "serial_engine --> tx_fifo.re [serial.state]",
+    "lines": [
+     190
+    ],
+    "reason": "The selected state controls when the queued strobe-bearing word is removed for transmission.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "bus_access",
+    "reached by": "bus_req_i ==> bus_access [bus_req_i.{addr,data,rw,stb}]",
+    "lines": [
+     133
+    ],
+    "reason": "A bus write changes the stored clock-source selector, including selecting a source that does not provide useful pacing.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "serial_engine",
+    "reached by": "bus_access ==> serial_engine [ctrl.clk_prsc]",
+    "lines": [
+     225,
+     278,
+     293
+    ],
+    "reason": "ctrl.clk_prsc indexes clkgen_i to make serial.pulse_clk, and the engine advances only when that pulse is asserted.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C5",
+    "point": "bus_access",
+    "reached by": "bus_req_i ==> bus_access [bus_req_i.{addr,data,rw,stb}]",
+    "lines": [
+     135,
+     136,
+     137
+    ],
+    "reason": "Bus writes directly replace the total-period and zero/one high-time settings.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C5",
+    "point": "serial_engine",
+    "reached by": "bus_access ==> serial_engine [ctrl.{t0_high,t1_high,t_total}]",
+    "lines": [
+     260,
+     261,
+     263,
+     281,
+     285,
+     295
+    ],
+    "reason": "The settings select t_high and determine pulse and strobe counter progression used to generate the waveform.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C5",
+    "point": "serial.next_bit",
+    "reached by": "serial.next_bit --> serial_engine [serial.next_bit]",
+    "lines": [
+     260,
+     318
+    ],
+    "reason": "The selected data bit decides whether t0_high or t1_high is loaded for the next waveform interval.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "tx_fifo.wdata",
+    "reached by": "bus_req_i ==> tx_fifo.wdata [bus_req_i.data]",
+    "lines": [
+     192
+    ],
+    "reason": "The bus data is placed into the FIFO write word, so changing the input changes the queued payload.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "tx_fifo.we",
+    "reached by": "bus_req_i --> tx_fifo.we [bus_req_i.{addr,rw,stb}]",
+    "lines": [
+     191
+    ],
+    "reason": "The address, direction, and strobe jointly decide whether a payload word is written, allowing a transfer to be omitted or gated.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "data_buffer",
+    "reached by": "tx_fifo.wdata ==> data_buffer [tx_fifo.wdata]",
+    "lines": [
+     181,
+     182,
+     186,
+     187
+    ],
+    "reason": "By the another-IP black-box rule, the FIFO stores the write word and returns it on rdata, while its write and read controls can prevent the payload from reaching the engine.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "tx_fifo.clear",
+    "reached by": "backward from data_buffer through tx_fifo.clear ==> data_buffer [tx_fifo.clear]",
+    "lines": [
+     177,
+     193
+    ],
+    "reason": "The enable-derived clear input can discard queued payload data before transmission.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "tx_fifo.re",
+    "reached by": "backward from data_buffer through tx_fifo.re ==> data_buffer [tx_fifo.re]",
+    "lines": [
+     185,
+     190
+    ],
+    "reason": "The state-controlled read enable decides whether a queued payload is removed and presented to the serial engine.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "serial_engine",
+    "reached by": "data_buffer ==> serial_engine [tx_fifo.{avail,rdata}]",
+    "lines": [
+     239,
+     247,
+     248,
+     265,
+     268,
+     271
+    ],
+    "reason": "The engine loads and shifts the FIFO word, while its state and bit-count decisions determine whether and how the payload is emitted.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "serial.next_bit",
+    "reached by": "serial_engine ==> serial.next_bit [serial.{mode,sreg}]",
+    "lines": [
+     260,
+     318
+    ],
+    "reason": "The selected shift-register bit is used in the output timing decision, so a changed bit can alter the emitted waveform.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C7",
+    "point": "irq_generator",
+    "reached by": "holding block",
+    "lines": [
+     201,
+     202,
+     203
+    ],
+    "reason": "The block computes irq_o from enable, irq_conf, and FIFO conditions, so changing any input can create, suppress, or mis-time the interrupt.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C7",
+    "point": "bus_access",
+    "reached by": "bus_access ==> irq_generator [ctrl.{enable,irq_conf}]",
+    "lines": [
+     130,
+     134
+    ],
+    "reason": "Bus writes can modify the enable and interrupt-configuration registers that feed irq_generator.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C7",
+    "point": "data_buffer",
+    "reached by": "data_buffer ==> irq_generator [tx_fifo.{avail,half}]",
+    "lines": [
+     178,
+     187
+    ],
+    "reason": "By the another-IP black-box rule, FIFO availability and half-full outputs can change the generated interrupt condition.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   }
+  ],
+  "structural assets": [
+   {
+    "concept id": "C1",
+    "element": "ctrl.enable",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "bus_access",
+     "serial_engine",
+     "tx_fifo.clear"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     112,
+     130,
+     160,
+     193,
+     231
+    ],
+    "links": [],
+    "reason": "Stores the engine enable setting and controls the clock request, engine state, and FIFO clear. It is the register that directly holds the conceptual enable setting.",
+    "functionality": "Stores the engine enable setting and controls the clock request, engine state, and FIFO clear.",
+    "justification": "It is the register that directly holds the conceptual enable setting."
+   },
+   {
+    "concept id": "C1",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     25,
+     130
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_neoled",
+      "direction": "b"
+     }
+    ],
+    "reason": "Provides the bus write bit that loads ctrl.enable. The bus request data can modify the primary enable and write zero to block operation.",
+    "functionality": "Provides the bus write bit that loads ctrl.enable.",
+    "justification": "The bus request data can modify the primary enable and write zero to block operation."
+   },
+   {
+    "concept id": "C1",
+    "element": "tx_fifo.clear",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "tx_fifo.clear",
+     "data_buffer"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     177,
+     193
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_neoled",
+      "direction": "b"
+     }
+    ],
+    "reason": "Carries the inverted enable setting into the FIFO clear input. It can clear queued transmit data when the primary enable is cleared.",
+    "functionality": "Carries the inverted enable setting into the FIFO clear input.",
+    "justification": "It can clear queued transmit data when the primary enable is cleared."
+   },
+   {
+    "concept id": "C1",
+    "element": "serial.state",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     231,
+     232,
+     311
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_neoled",
+      "direction": "b"
+     }
+    ],
+    "reason": "Uses the enable bit in state bit two to control whether the serial engine operates. The state machine can stop engine progress based on the enable-derived state.",
+    "functionality": "Uses the enable bit in state bit two to control whether the serial engine operates.",
+    "justification": "The state machine can stop engine progress based on the enable-derived state."
+   },
+   {
+    "concept id": "C1",
+    "element": "clkgen_en_o",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "clkgen_en_o"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     160
+    ],
+    "links": [],
+    "reason": "Exports the engine enable as the clock-generator enable request. It crosses the unit boundary as the unmodified enable value.",
+    "functionality": "Exports the engine enable as the clock-generator enable request.",
+    "justification": "It crosses the unit boundary as the unmodified enable value."
+   },
+   {
+    "concept id": "C2",
+    "element": "ctrl.mode",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     113,
+     131,
+     192
+    ],
+    "links": [],
+    "reason": "Stores the serial mode selected for queued LED transfers. It is the register holding the conceptual mode setting.",
+    "functionality": "Stores the serial mode selected for queued LED transfers.",
+    "justification": "It is the register holding the conceptual mode setting."
+   },
+   {
+    "concept id": "C2",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     25,
+     131
+    ],
+    "links": [
+     {
+      "primary": "ctrl.mode",
+      "entity": "neorv32_neoled",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies the bus write bit that loads ctrl.mode. The bus data field can overwrite the primary mode setting.",
+    "functionality": "Supplies the bus write bit that loads ctrl.mode.",
+    "justification": "The bus data field can overwrite the primary mode setting."
+   },
+   {
+    "concept id": "C2",
+    "element": "serial.mode",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     240,
+     241,
+     244,
+     318
+    ],
+    "links": [
+     {
+      "primary": "ctrl.mode",
+      "entity": "neorv32_neoled",
+      "direction": "b"
+     }
+    ],
+    "reason": "Holds the mode selected from the queued transfer word and controls bit selection. It is a derived mode decision that changes how the primary setting affects the serial output.",
+    "functionality": "Holds the mode selected from the queued transfer word and controls bit selection.",
+    "justification": "It is a derived mode decision that changes how the primary setting affects the serial output."
+   },
+   {
+    "concept id": "C3",
+    "element": "ctrl.strobe",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     114,
+     132,
+     192
+    ],
+    "links": [],
+    "reason": "Stores the strobe behavior selected for a queued transfer. It is the register holding the conceptual strobe setting.",
+    "functionality": "Stores the strobe behavior selected for a queued transfer.",
+    "justification": "It is the register holding the conceptual strobe setting."
+   },
+   {
+    "concept id": "C3",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     25,
+     132
+    ],
+    "links": [
+     {
+      "primary": "ctrl.strobe",
+      "entity": "neorv32_neoled",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies the bus write bit that loads ctrl.strobe. The bus data field can overwrite the primary strobe setting.",
+    "functionality": "Supplies the bus write bit that loads ctrl.strobe.",
+    "justification": "The bus data field can overwrite the primary strobe setting."
+   },
+   {
+    "concept id": "C3",
+    "element": "serial.state",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "serial_engine",
+     "tx_fifo.re"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     248,
+     249,
+     251,
+     190
+    ],
+    "links": [
+     {
+      "primary": "ctrl.strobe",
+      "entity": "neorv32_neoled",
+      "direction": "b"
+     }
+    ],
+    "reason": "Implements the state path selected by the queued strobe bit and controls FIFO removal. The state decision determines which strobe-related serial path is executed.",
+    "functionality": "Implements the state path selected by the queued strobe bit and controls FIFO removal.",
+    "justification": "The state decision determines which strobe-related serial path is executed."
+   },
+   {
+    "concept id": "C4",
+    "element": "ctrl.clk_prsc",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "bus_access",
+     "serial_engine"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     115,
+     133,
+     225
+    ],
+    "links": [],
+    "reason": "Stores the selector for the clock-generator bit used as serial pacing. It is the register that holds the conceptual rate-selection setting.",
+    "functionality": "Stores the selector for the clock-generator bit used as serial pacing.",
+    "justification": "It is the register that holds the conceptual rate-selection setting."
+   },
+   {
+    "concept id": "C4",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     25,
+     133
+    ],
+    "links": [
+     {
+      "primary": "ctrl.clk_prsc",
+      "entity": "neorv32_neoled",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies the bus write bits that load ctrl.clk_prsc. The bus data field can replace the selector and choose a stalled clock source.",
+    "functionality": "Supplies the bus write bits that load ctrl.clk_prsc.",
+    "justification": "The bus data field can replace the selector and choose a stalled clock source."
+   },
+   {
+    "concept id": "C4",
+    "element": "serial.pulse_clk",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     225,
+     278,
+     293
+    ],
+    "links": [
+     {
+      "primary": "ctrl.clk_prsc",
+      "entity": "neorv32_neoled",
+      "direction": "b"
+     }
+    ],
+    "reason": "Holds the selected clock-generator bit and paces serial progress. It is the derived pacing signal that can alter or stop the timing controlled by the selector.",
+    "functionality": "Holds the selected clock-generator bit and paces serial progress.",
+    "justification": "It is the derived pacing signal that can alter or stop the timing controlled by the selector."
+   },
+   {
+    "concept id": "C4",
+    "element": "clkgen_i",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     28,
+     225
+    ],
+    "links": [
+     {
+      "primary": "ctrl.clk_prsc",
+      "entity": "neorv32_neoled",
+      "direction": "b"
+     }
+    ],
+    "reason": "Provides the selectable clock-generator source from which serial.pulse_clk is sampled. Its selected bit determines whether the configured pacing source toggles and permits progress.",
+    "functionality": "Provides the selectable clock-generator source from which serial.pulse_clk is sampled.",
+    "justification": "Its selected bit determines whether the configured pacing source toggles and permits progress."
+   },
+   {
+    "concept id": "C5",
+    "element": "ctrl.t_total",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "bus_access",
+     "serial_engine"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     117,
+     135,
+     285,
+     295
+    ],
+    "links": [],
+    "reason": "Stores the total waveform period used for serial state and counter progression. It is the register holding the total-period timing value.",
+    "functionality": "Stores the total waveform period used for serial state and counter progression.",
+    "justification": "It is the register holding the total-period timing value."
+   },
+   {
+    "concept id": "C5",
+    "element": "ctrl.t0_high",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "bus_access",
+     "serial_engine"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     118,
+     136,
+     261
+    ],
+    "links": [],
+    "reason": "Stores the high-time value used for a zero data bit. It is the register holding one of the waveform timing values.",
+    "functionality": "Stores the high-time value used for a zero data bit.",
+    "justification": "It is the register holding one of the waveform timing values."
+   },
+   {
+    "concept id": "C5",
+    "element": "ctrl.t1_high",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "bus_access",
+     "serial_engine"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     119,
+     137,
+     263
+    ],
+    "links": [],
+    "reason": "Stores the high-time value used for a one data bit. It is the register holding the other waveform timing value.",
+    "functionality": "Stores the high-time value used for a one data bit.",
+    "justification": "It is the register holding the other waveform timing value."
+   },
+   {
+    "concept id": "C5",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     25,
+     135,
+     136,
+     137
+    ],
+    "links": [
+     {
+      "primary": "ctrl.t_total",
+      "entity": "neorv32_neoled",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.t0_high",
+      "entity": "neorv32_neoled",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.t1_high",
+      "entity": "neorv32_neoled",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies the bus write fields that load the waveform timing registers. The bus data field can overwrite each primary timing value.",
+    "functionality": "Supplies the bus write fields that load the waveform timing registers.",
+    "justification": "The bus data field can overwrite each primary timing value."
+   },
+   {
+    "concept id": "C5",
+    "element": "serial.t_high",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     260,
+     261,
+     263,
+     281
+    ],
+    "links": [
+     {
+      "primary": "ctrl.t0_high",
+      "entity": "neorv32_neoled",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.t1_high",
+      "entity": "neorv32_neoled",
+      "direction": "b"
+     }
+    ],
+    "reason": "Holds the selected zero or one high-time value used by the output timing compare. It is the derived timing value that controls the output transition point.",
+    "functionality": "Holds the selected zero or one high-time value used by the output timing compare.",
+    "justification": "It is the derived timing value that controls the output transition point."
+   },
+   {
+    "concept id": "C5",
+    "element": "serial.pulse_cnt",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     278,
+     281,
+     285,
+     295
+    ],
+    "links": [
+     {
+      "primary": "ctrl.t_total",
+      "entity": "neorv32_neoled",
+      "direction": "b"
+     }
+    ],
+    "reason": "Counts timing pulses and compares them with the total period. Its progression and comparison implement the configured total-period behavior.",
+    "functionality": "Counts timing pulses and compares them with the total period.",
+    "justification": "Its progression and comparison implement the configured total-period behavior."
+   },
+   {
+    "concept id": "C5",
+    "element": "serial.strobe_cnt",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     293,
+     295,
+     297,
+     303
+    ],
+    "links": [
+     {
+      "primary": "ctrl.t_total",
+      "entity": "neorv32_neoled",
+      "direction": "b"
+     }
+    ],
+    "reason": "Counts strobe timing intervals using the configured total period. Its update condition is controlled by the total-period comparison.",
+    "functionality": "Counts strobe timing intervals using the configured total period.",
+    "justification": "Its update condition is controlled by the total-period comparison."
+   },
+   {
+    "concept id": "C5",
+    "element": "serial.next_bit",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "serial.next_bit"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     260,
+     318
+    ],
+    "links": [
+     {
+      "primary": "ctrl.t0_high",
+      "entity": "neorv32_neoled",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.t1_high",
+      "entity": "neorv32_neoled",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects which high-time register is applied to the current serial bit. Its decision controls release of the selected timing value into serial.t_high.",
+    "functionality": "Selects which high-time register is applied to the current serial bit.",
+    "justification": "Its decision controls release of the selected timing value into serial.t_high."
+   },
+   {
+    "concept id": "C6",
+    "element": "neoled_o",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     222,
+     236,
+     266,
+     270,
+     282,
+     310
+    ],
+    "links": [],
+    "reason": "Emits the serialized payload bits as the NeoLED output waveform. The payload crosses the unit boundary one bit per serial step through this output port.",
+    "functionality": "Emits the serialized payload bits as the NeoLED output waveform.",
+    "justification": "The payload crosses the unit boundary one bit per serial step through this output port."
+   },
+   {
+    "concept id": "C6",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "tx_fifo.wdata"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     25,
+     192
+    ],
+    "links": [
+     {
+      "primary": "neoled_o",
+      "entity": "neorv32_neoled",
+      "direction": "b"
+     }
+    ],
+    "reason": "Provides the payload data copied into the transmit FIFO word. Changing the bus data changes the value eventually emitted on neooled_o.",
+    "functionality": "Provides the payload data copied into the transmit FIFO word.",
+    "justification": "Changing the bus data changes the value eventually emitted on neooled_o."
+   },
+   {
+    "concept id": "C6",
+    "element": "bus_req_i.addr",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "tx_fifo.we"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     25,
+     191
+    ],
+    "links": [
+     {
+      "primary": "neoled_o",
+      "entity": "neorv32_neoled",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects whether a bus transaction is directed to the transmit FIFO. Its address test can prevent the payload write from occurring.",
+    "functionality": "Selects whether a bus transaction is directed to the transmit FIFO.",
+    "justification": "Its address test can prevent the payload write from occurring."
+   },
+   {
+    "concept id": "C6",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "tx_fifo.we"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     25,
+     191
+    ],
+    "links": [
+     {
+      "primary": "neoled_o",
+      "entity": "neorv32_neoled",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects whether the bus transaction is a write that can enqueue payload data. Its value gates the FIFO write and can prevent the payload from becoming available.",
+    "functionality": "Selects whether the bus transaction is a write that can enqueue payload data.",
+    "justification": "Its value gates the FIFO write and can prevent the payload from becoming available."
+   },
+   {
+    "concept id": "C6",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "tx_fifo.we"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     25,
+     191
+    ],
+    "links": [
+     {
+      "primary": "neoled_o",
+      "entity": "neorv32_neoled",
+      "direction": "b"
+     }
+    ],
+    "reason": "Qualifies the bus transaction that writes a payload word. Clearing the strobe prevents the payload from entering the FIFO.",
+    "functionality": "Qualifies the bus transaction that writes a payload word.",
+    "justification": "Clearing the strobe prevents the payload from entering the FIFO."
+   },
+   {
+    "concept id": "C6",
+    "element": "tx_fifo.clear",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "tx_fifo.clear"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     177,
+     193
+    ],
+    "links": [
+     {
+      "primary": "neoled_o",
+      "entity": "neorv32_neoled",
+      "direction": "b"
+     }
+    ],
+    "reason": "Clears the FIFO that holds queued payload words. It can remove the payload before it reaches the output.",
+    "functionality": "Clears the FIFO that holds queued payload words.",
+    "justification": "It can remove the payload before it reaches the output."
+   },
+   {
+    "concept id": "C6",
+    "element": "tx_fifo.re",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "tx_fifo.re"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     185,
+     190
+    ],
+    "links": [
+     {
+      "primary": "neoled_o",
+      "entity": "neorv32_neoled",
+      "direction": "b"
+     }
+    ],
+    "reason": "Requests removal of a queued payload word for transmission. Its state-controlled gating can delay or prevent payload delivery to the serial engine.",
+    "functionality": "Requests removal of a queued payload word for transmission.",
+    "justification": "Its state-controlled gating can delay or prevent payload delivery to the serial engine."
+   },
+   {
+    "concept id": "C6",
+    "element": "serial.state",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     232,
+     247,
+     249,
+     251,
+     268,
+     271,
+     286,
+     305,
+     311
+    ],
+    "links": [
+     {
+      "primary": "neoled_o",
+      "entity": "neorv32_neoled",
+      "direction": "b"
+     }
+    ],
+    "reason": "Sequences payload loading, shifting, and output phases. The state machine controls whether the payload is loaded and which output phase is active.",
+    "functionality": "Sequences payload loading, shifting, and output phases.",
+    "justification": "The state machine controls whether the payload is loaded and which output phase is active."
+   },
+   {
+    "concept id": "C6",
+    "element": "serial.bit_cnt",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     242,
+     245,
+     258,
+     265,
+     268
+    ],
+    "links": [
+     {
+      "primary": "neoled_o",
+      "entity": "neorv32_neoled",
+      "direction": "b"
+     }
+    ],
+    "reason": "Counts payload bits and decides when serial output ends. Its terminal comparison can truncate or delay the emitted payload.",
+    "functionality": "Counts payload bits and decides when serial output ends.",
+    "justification": "Its terminal comparison can truncate or delay the emitted payload."
+   },
+   {
+    "concept id": "C6",
+    "element": "serial.pulse_clk",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     225,
+     278,
+     293
+    ],
+    "links": [
+     {
+      "primary": "neoled_o",
+      "entity": "neorv32_neoled",
+      "direction": "b"
+     }
+    ],
+    "reason": "Paces the timing steps that shift and emit payload bits. A missing pulse prevents the output state and counters from progressing.",
+    "functionality": "Paces the timing steps that shift and emit payload bits.",
+    "justification": "A missing pulse prevents the output state and counters from progressing."
+   },
+   {
+    "concept id": "C6",
+    "element": "serial.pulse_cnt",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     279,
+     281,
+     285,
+     295,
+     296,
+     299
+    ],
+    "links": [
+     {
+      "primary": "neoled_o",
+      "entity": "neorv32_neoled",
+      "direction": "b"
+     }
+    ],
+    "reason": "Counts output timing pulses and controls transitions between output phases. Its timing comparisons can delay or terminate payload output.",
+    "functionality": "Counts output timing pulses and controls transitions between output phases.",
+    "justification": "Its timing comparisons can delay or terminate payload output."
+   },
+   {
+    "concept id": "C6",
+    "element": "serial.t_high",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "serial_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     261,
+     263,
+     281,
+     282
+    ],
+    "links": [
+     {
+      "primary": "neoled_o",
+      "entity": "neorv32_neoled",
+      "direction": "b"
+     }
+    ],
+    "reason": "Controls the high-time portion of each serialized output bit. Its compare directly controls when neooled_o is driven low.",
+    "functionality": "Controls the high-time portion of each serialized output bit.",
+    "justification": "Its compare directly controls when neooled_o is driven low."
+   },
+   {
+    "concept id": "C7",
+    "element": "irq_o",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "irq_generator"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     199,
+     201,
+     202,
+     203
+    ],
+    "links": [],
+    "reason": "Exports the transmit-buffer interrupt request. It is the output computed for and crossing the unit boundary as the conceptual interrupt request.",
+    "functionality": "Exports the transmit-buffer interrupt request.",
+    "justification": "It is the output computed for and crossing the unit boundary as the conceptual interrupt request."
+   },
+   {
+    "concept id": "C7",
+    "element": "ctrl.enable",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "bus_access",
+     "irq_generator"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     130,
+     201
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_neoled",
+      "direction": "b"
+     }
+    ],
+    "reason": "Qualifies whether the interrupt generator can assert irq_o. The enable operand directly gates the interrupt result.",
+    "functionality": "Qualifies whether the interrupt generator can assert irq_o.",
+    "justification": "The enable operand directly gates the interrupt result."
+   },
+   {
+    "concept id": "C7",
+    "element": "ctrl.irq_conf",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "bus_access",
+     "irq_generator"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     134,
+     202,
+     203
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_neoled",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects whether the interrupt condition uses FIFO empty or half-full status. Its value changes which FIFO condition produces irq_o.",
+    "functionality": "Selects whether the interrupt condition uses FIFO empty or half-full status.",
+    "justification": "Its value changes which FIFO condition produces irq_o."
+   },
+   {
+    "concept id": "C7",
+    "element": "tx_fifo.avail",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "data_buffer",
+     "irq_generator"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     150,
+     187,
+     202
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_neoled",
+      "direction": "b"
+     }
+    ],
+    "reason": "Reports FIFO availability for the empty-buffer interrupt condition. The FIFO status directly participates in the interrupt result.",
+    "functionality": "Reports FIFO availability for the empty-buffer interrupt condition.",
+    "justification": "The FIFO status directly participates in the interrupt result."
+   },
+   {
+    "concept id": "C7",
+    "element": "tx_fifo.half",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "data_buffer",
+     "irq_generator"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     151,
+     178,
+     203
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_neoled",
+      "direction": "b"
+     }
+    ],
+    "reason": "Reports the FIFO half-full condition for interrupt generation. The FIFO status directly participates in the configured interrupt result.",
+    "functionality": "Reports the FIFO half-full condition for interrupt generation.",
+    "justification": "The FIFO status directly participates in the configured interrupt result."
+   },
+   {
+    "concept id": "C7",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_neoled",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     25,
+     130,
+     134
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_neoled",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies bus-written enable and interrupt-configuration bits. The bus data can alter the registers that control irq_o.",
+    "functionality": "Supplies bus-written enable and interrupt-configuration bits.",
+    "justification": "The bus data can alter the registers that control irq_o."
+   }
+  ],
+  "not reported": [
+   {
+    "concept id": "C1",
+    "element": "bus_rsp_o.data",
+    "entity": "neorv32_neoled",
+    "reason": "It is a bus response record field carrying a readback copy, but confidentiality is not an objective for this concept and it does not control the enable."
+   },
+   {
+    "concept id": "C2",
+    "element": "tx_fifo.wdata",
+    "entity": "neorv32_neoled",
+    "reason": "It is a FIFO write-data carrier and not an independently stored or controlling mode element."
+   },
+   {
+    "concept id": "C2",
+    "element": "tx_fifo.rdata",
+    "entity": "neorv32_neoled",
+    "reason": "It is the FIFO read-data carrier for a queued transaction and has no independent mode state."
+   },
+   {
+    "concept id": "C2",
+    "element": "bus_rsp_o.data",
+    "entity": "neorv32_neoled",
+    "reason": "It is a bus response record field carrying mode readback, but it does not modify or control the mode."
+   },
+   {
+    "concept id": "C3",
+    "element": "tx_fifo.wdata",
+    "entity": "neorv32_neoled",
+    "reason": "It is a FIFO write-data carrier and not an independently stored or controlling strobe element."
+   },
+   {
+    "concept id": "C3",
+    "element": "tx_fifo.rdata",
+    "entity": "neorv32_neoled",
+    "reason": "It is the FIFO read-data carrier for a queued transaction and has no independent strobe state."
+   },
+   {
+    "concept id": "C3",
+    "element": "bus_rsp_o.data",
+    "entity": "neorv32_neoled",
+    "reason": "It is a bus response record field carrying strobe readback, but it does not modify or control the strobe behavior."
+   },
+   {
+    "concept id": "C4",
+    "element": "bus_rsp_o.data",
+    "entity": "neorv32_neoled",
+    "reason": "It is a bus response record field carrying selector readback and does not control pacing."
+   },
+   {
+    "concept id": "C5",
+    "element": "bus_rsp_o.data",
+    "entity": "neorv32_neoled",
+    "reason": "It is a bus response record field carrying timing readback and does not control waveform timing."
+   },
+   {
+    "concept id": "C6",
+    "element": "tx_fifo.wdata",
+    "entity": "neorv32_neoled",
+    "reason": "It is a FIFO write-data carrier and the FIFO rule bars it as a primary; it is not an independent output control."
+   },
+   {
+    "concept id": "C6",
+    "element": "tx_fifo.rdata",
+    "entity": "neorv32_neoled",
+    "reason": "It is a FIFO read-data carrier governed by the FIFO buffering rule and is not an independent output control."
+   },
+   {
+    "concept id": "C6",
+    "element": "serial.sreg",
+    "entity": "neorv32_neoled",
+    "reason": "It is a serial data shift register barred as a primary and not independently controllable at the output."
+   },
+   {
+    "concept id": "C7",
+    "element": "bus_req_i.addr",
+    "entity": "neorv32_neoled",
+    "reason": "It only selects whether the control-register write occurs and is not itself an interrupt condition at the generator."
+   },
+   {
+    "concept id": "C7",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_neoled",
+    "reason": "It only selects read versus write access and is not an interrupt condition at the generator."
+   },
+   {
+    "concept id": "C7",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_neoled",
+    "reason": "It only qualifies a bus access and is not an interrupt condition at the generator."
+   }
+  ],
+  "no primary reason": {}
+ },
+ "problems": [
+  "C1: anchor port 'bus_rsp_o.data' is not among its structural assets",
+  "C2: anchor port 'bus_rsp_o.data' is not among its structural assets",
+  "C3: anchor port 'bus_rsp_o.data' is not among its structural assets",
+  "C4: anchor port 'bus_rsp_o.data' is not among its structural assets",
+  "C5: anchor port 'bus_rsp_o.data' is not among its structural assets"
+ ],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

@@ -11,6 +11,14 @@ During replication, these prompting effects were explored:
 * whether P3164's Conceptual and Structural Analysis (CSA) and Points of Influence and Observation (PIO) provide useful reasoning frameworks
 * whether the structure of the prompt, and where a rule appears in it, affects a model's performance and its inclination to follow the rule
 
+**Start here.** The final workflow is these files. Everything else is the research history, kept as an audit trail; the navigation table under *Running it* maps it.
+
+- `figures/pipeline_diagram.png` (below): the method in one picture.
+- `experiments/03_two_phase_csa_pio/lab/prompts/two_phase_p1o_first/`: the final prompt (`common.md`, `phase1.md`, `phase2.md`).
+- `experiments/03_two_phase_csa_pio/two_phase_asset_identification.ipynb`: the final study and its scoring; runs without an API key.
+- `experiments/03_two_phase_csa_pio/lab/runs/two_phase_p1o_first__v1/`: the model's replies of the three reported runs; `experiments/03_two_phase_csa_pio/lab/analysis/score_records_two_phase_p1o_first.csv` lists every hit, miss and false positive per module and run.
+- `logs/TWO_PHASE_ABLATION_LOG.md`: one line per version, what changed and what it did.
+
 ### The framework I arrived at
 
 ![The two-phase pipeline: three code-built inputs per module, Phase 1 (conceptual assets), checks, Phase 2 (structural assets), converter, scorer](figures/pipeline_diagram.png)
@@ -23,9 +31,7 @@ On all 41 modules (300 reference entries, 296 findable under the exact scorer, p
 | LAsset, RTL-only initial list (published) | 0.704 | 0.757  | one list |
 | Two-phase prompt (working version) | 0.708 (0.037) | 0.845 (0.018)  | 3 |
 
-Caveat: from v9 (14 Oct) on, the held-out 26 modules also helped write rules and choose between versions. From there the held-out numbers are not a blind test.
-
-The final two-phase approach achieved **0.708 precision / 0.845 recall** over all 41 modules, compared with **0.704 / 0.757** for LAsset's RTL-only initial list under the same exact scorer.
+The final two-phase approach achieved **0.708 precision / 0.845 recall** over all 41 modules, compared with **0.704 / 0.757** for LAsset's RTL-only initial list under the same exact scorer. **These are development results, not a blind estimate of how the prompt would do on unseen designs:** the 15 tuning modules were used throughout, and from v9 (14 Oct) on the held-out 26 also helped write rules and choose between versions. The small precision difference and the larger recall difference do not show that the method generalizes; see *Risk of Overtuning* under Debugging.
 More importantly, the experiments showed that better RTL grounding does not automatically solve asset identification: the remaining false positives often have the same RTL behaviour as reference assets.
 
 ## Related works & their contribution
@@ -299,7 +305,7 @@ than that are noise.
 | LAsset RTL only | 0.724 / 0.759 | 0.672 / 0.752 | 0.704 / 0.757 |
 | LAsset spec+RTL | 0.730 / 0.866 | 0.730 / 0.917 | 0.730 / 0.885 |
 
-The all-41 column pools the two splits (296 findable entries per run). The working version's tuning runs were made after it was chosen on the held-out set.
+The all-41 column pools the two splits (296 findable entries per run). The working version's tuning runs were made after it was chosen on the held-out set. No column is a blind test: from v9 (14 Oct) on the held-out 26 also helped write rules and choose between versions, so all three are development results.
 
 **Table 5. The final working prompt** (`experiments/03_two_phase_csa_pio/lab/prompts/two_phase_p1o_first/`)
 
@@ -335,8 +341,15 @@ Two notebooks, one per final pipeline:
 - `experiments/03_two_phase_csa_pio/two_phase_asset_identification.ipynb` (study 3): the working version
   `two_phase_p1o_first` on all 41 modules. Its run cells are off (`RUN_* = False`); the checks, the cost estimate and
   the scoring cells run without a key. `python experiments/03_two_phase_csa_pio/lab/chain_tests.py` tests the runner
-  with a fake client; nothing is sent. The replies are not published; the scoring reads
-  `experiments/03_two_phase_csa_pio/lab/analysis/score_versions.json`.
+  with a fake client; nothing is sent.
+  - Published replies: `experiments/03_two_phase_csa_pio/lab/runs/two_phase_p1o_first__v1/` (the working version) and
+    `two_phase_v7__v1/` (the scorer's self-test anchor), three runs each, every module, both phases and the converted
+    asset list; `_run_meta.json` gives model, effort and prompt hashes. The scoring cell re-scores these two from the
+    replies and keeps the saved rows of the other versions in `experiments/03_two_phase_csa_pio/lab/analysis/score_versions.json`.
+    `experiments/03_two_phase_csa_pio/lab/analysis/score_records_two_phase_p1o_first.csv` (from `score_records.py`) lists
+    every reference entry and listed element per module and run with its hits, misses and false positives.
+  - Not published: the other 89 run folders (614 MB). So `two_phase_ablation_log.ipynb`, which re-scores every version,
+    runs only on the author's copy; its numbers are in `logs/TWO_PHASE_ABLATION_LOG.md`. Any new run needs an API key.
 
 The folders were grouped by study on 20 October 2026. Older logs and notebook outputs use the old names;
 `logs/LAYOUT.md` maps them.
@@ -363,7 +376,7 @@ Some paths are long. On Windows, clone into a short folder or run `git config --
 |---|---|---|---|
 | prompts | `src/prompts.py`, `src/prompts_v2.py`, examples `src/icl_examples_*.py` | `assetgen_meta/prompt_opt/v1/exec_prompt.txt` (final); hand arms in `assetgen_meta/hand_arms/`; meta prompts `assetgen_meta/meta_prompt_*.txt` | `experiments/03_two_phase_csa_pio/lab/prompts/two_phase_<version>/`, one README each; final `two_phase_p1o_first` |
 | inputs | RTL in `data/RTL_data/` and `data/RTL_heldout/`; closed sets in `data/parsed_*/` | `assetgen_meta/traced_inputs_v2/`; profiles `map_pipeline/occurrence_profiles/`; maps `step1/lasset_step1/relation_map_code_*/` | `experiments/03_two_phase_csa_pio/lab/inputs/v1/` (RTL, closed set, diagram per module) |
-| runs | not published | `runs/assets_*` (gpt-5-mini winner, gpt-5.4 baseline and final, the Claude loop) | not published; per-run counts in `experiments/03_two_phase_csa_pio/lab/analysis/score_versions.json` |
+| runs | not published | `runs/assets_*` (gpt-5-mini winner, gpt-5.4 baseline and final, the Claude loop) | `experiments/03_two_phase_csa_pio/lab/runs/two_phase_p1o_first__v1/` and `two_phase_v7__v1/` (3 runs each); per-module record `experiments/03_two_phase_csa_pio/lab/analysis/score_records_two_phase_p1o_first.csv`; per-run counts of every version in `experiments/03_two_phase_csa_pio/lab/analysis/score_versions.json`; the other 89 run folders are local |
 | logs | `logs/ABLATION_LOG.md`, `logs/ABLATION_LOG_V2.md`, `logs/V02_HANDOFF.md`; short forms `logs/RECALL_ABLATION_LOG.md`, `logs/PRECISION_ABLATION_LOG.md`; parser `bahavioral_patterns_of_assets/PARSER_ABLATION_LOG.md` | `step1/lasset_step1/RELATION_EXPERIMENTS_LOG.md`, `assetgen_meta/prompt_opt/OPTIMIZATION_LOG.md`, pre-registrations `assetgen_meta/HELDOUT_PREREG.md`; short form `logs/MAP_ABLATION_LOG.md` | short form `logs/TWO_PHASE_ABLATION_LOG.md`; the per-version READMEs |
 | notebooks | `experiments/01_prompt_baselines/notebooks/finetuning_assetgen.ipynb`, `experiments/01_prompt_baselines/notebooks/finetuning_assetgen_v2.ipynb`; re-scoring `experiments/01_prompt_baselines/notebooks/recall_ablation_log.ipynb`, `experiments/01_prompt_baselines/notebooks/precision_ablation_log.ipynb` | `FINAL_NOTEBOOK.ipynb`; `experiments/02_rtl_structural_analysis/notebooks/assetgen_meta.ipynb`, `experiments/02_rtl_structural_analysis/notebooks/lasset_step1.ipynb`, `experiments/02_rtl_structural_analysis/notebooks/lasset_evidence_layer.ipynb`; re-scoring `experiments/02_rtl_structural_analysis/notebooks/map_ablation_log.ipynb` | re-scoring `experiments/03_two_phase_csa_pio/two_phase_ablation_log.ipynb` |
 | scoring and analysis | `src/eval_assets.py` (strict scorer), `map_pipeline/score_august.py` | `map_pipeline/results41.py`, `map_pipeline/levers41.py`, `map_pipeline/fp_trace41.py`; audit trail `map_pipeline/fp_trace41/gpt54/ledger.csv`; code filters `step2/`; side study `blind_agent/` | `experiments/03_two_phase_csa_pio/lab/analysis/.../compare_v8.py` (exact scorer), `score_versions.py`, `score_lasset_exact.py`; runner and checks `experiments/03_two_phase_csa_pio/lab/chain.py`, `labkit.py`, `check_lab_prompt.py` |

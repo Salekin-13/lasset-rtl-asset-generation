@@ -1,0 +1,2302 @@
+{
+ "module": "neorv32_gpio",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 2,
+ "system sha": "6e414c09e397",
+ "user sha": "3b6ac8cb5858",
+ "usage": {
+  "in": 22473,
+  "out": 23329,
+  "reasoning": 10509,
+  "cached": 15151,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_01d430e26a722043006ace8460520087d18f4353089c8c04a0",
+  "request key": "f8535ec65cc4"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_gpio\",\n  \"Concept Walks\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Points\": [\n        {\n          \"Point\": \"input_stage\",\n          \"Reached By\": \"holding block and entry through gpio_i\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [83, 103],\n          \"Answer Reason\": \"gpio_i is sampled into port_in at line 103, and port_in is later returned through bus_rsp_o.data at line 83; no availability or special-behavior mechanism is shown here.\"\n        },\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"input_stage ==> bus_access [port_in], with bus_rsp_o.data assigned from port_in\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [83],\n          \"Answer Reason\": \"A bus read copies port_in into bus_rsp_o.data at line 83, exposing the sampled input; this block does not modify the sampled value.\"\n        },\n        {\n          \"Point\": \"irq_trigger\",\n          \"Reached By\": \"input_stage ==> irq_trigger [port_in, port_in2]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [125, 126, 127, 128, 141, 142],\n          \"Answer Reason\": \"The sampled inputs affect irq_trig at lines 125-128 and consequently the pending and CPU interrupt behavior at lines 141-142, allowing the sampled level to be inferred indirectly.\"\n        },\n        {\n          \"Point\": \"irq_buffer\",\n          \"Reached By\": \"irq_trigger ==> irq_buffer [irq_trig]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [141, 142],\n          \"Answer Reason\": \"irq_trig changes irq_pend and the resulting cpu_irq_o at lines 141-142, providing an indirect status observation of sampled GPIO input.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"gpio_i\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"input_stage\"],\n          \"Security Objectives\": [\"C\", \"I\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Carries the external GPIO input values into the sampling logic.\",\n          \"Justification\": \"It is a non-record input copied into the sampled asset value at line 103 and therefore crosses the unit boundary whole.\",\n          \"Asset Lines\": [27, 103]\n        },\n        {\n          \"Asset RTL\": \"port_in\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"input_stage\", \"bus_access\"],\n          \"Security Objectives\": [\"C\", \"I\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores the sampled GPIO input values used for readback and interrupt detection.\",\n          \"Justification\": \"It is the register holding the sampled values at line 103 and is the source of the readback at line 83.\",\n          \"Asset Lines\": [44, 100, 103, 104, 120, 125, 126, 127, 128]\n        },\n        {\n          \"Asset RTL\": \"port_in2\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"input_stage\", \"irq_trigger\"],\n          \"Security Objectives\": [\"C\"],\n          \"Secondary To\": [{\"Primary RTL\": \"port_in\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"a\"}],\n          \"Functionality\": \"Carries a delayed copy of the sampled GPIO input into edge-trigger detection.\",\n          \"Justification\": \"It copies port_in at line 104 and can carry information about the sampled value into irq_trig.\",\n          \"Asset Lines\": [49, 101, 104, 120, 127, 128]\n        },\n        {\n          \"Asset RTL\": \"irq_trig\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"irq_trigger\", \"irq_buffer\"],\n          \"Security Objectives\": [\"C\"],\n          \"Secondary To\": [{\"Primary RTL\": \"port_in\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"a\"}],\n          \"Functionality\": \"Carries a trigger result computed from the sampled GPIO values.\",\n          \"Justification\": \"Its assignments at lines 125-128 depend on port_in and port_in2 and the result reaches the pending state at line 141, providing an indirect leakage path.\",\n          \"Asset Lines\": [49, 125, 126, 127, 128, 141]\n        },\n        {\n          \"Asset RTL\": \"irq_pend\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"irq_buffer\", \"bus_access\"],\n          \"Security Objectives\": [\"C\"],\n          \"Secondary To\": [{\"Primary RTL\": \"port_in\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"a\"}],\n          \"Functionality\": \"Stores trigger-derived status that can reveal sampled GPIO behavior through status outputs.\",\n          \"Justification\": \"It is updated from irq_trig at line 141 and is returned or reported at lines 88 and 142.\",\n          \"Asset Lines\": [49, 88, 138, 141, 142]\n        },\n        {\n          \"Asset RTL\": \"bus_rsp_o.data\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"C\"],\n          \"Secondary To\": [{\"Primary RTL\": \"port_in\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"a\"}],\n          \"Functionality\": \"Carries sampled GPIO data and derived status to the bus response.\",\n          \"Justification\": \"The bus response record field is barred from being primary, but it receives port_in at line 83 and can disclose the sampled value.\",\n          \"Asset Lines\": [25, 58, 68, 83, 84, 85, 86, 87, 88]\n        },\n        {\n          \"Asset RTL\": \"cpu_irq_o\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"irq_buffer\"],\n          \"Security Objectives\": [\"C\"],\n          \"Secondary To\": [{\"Primary RTL\": \"port_in\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"a\"}],\n          \"Functionality\": \"Carries an interrupt status derived from sampled GPIO input.\",\n          \"Justification\": \"irq_pend drives cpu_irq_o at line 142, so interrupt behavior can indirectly reveal sampled input activity.\",\n          \"Asset Lines\": [28, 139, 142]\n        },\n        {\n          \"Asset RTL\": \"clk_i\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"port_in\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Controls when the sampled input register updates.\",\n          \"Justification\": \"It clocks port_in at line 102, so withholding or disturbing the clock can leave the sampled value stale.\",\n          \"Asset Lines\": [22, 64, 97, 102, 135, 140]\n        },\n        {\n          \"Asset RTL\": \"rstn_i\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"port_in\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Clears the sampled input registers.\",\n          \"Justification\": \"Its reset arm assigns port_in to zero at line 100, allowing the stored sampled value to be cleared.\",\n          \"Asset Lines\": [23, 57, 97, 99, 135, 137]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Points\": [\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"holding block and entry through bus_req_i.data\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [74],\n          \"Answer Reason\": \"A bus write assigns port_out from bus_req_i.data at line 74, allowing the stored GPIO output value to be overwritten.\"\n        },\n        {\n          \"Point\": \"output_stage\",\n          \"Reached By\": \"bus_access ==> output_stage [port_out]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"This block forwards port_out to gpio_o at line 112 without an additional control, modification, or unauthorized access mechanism.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"port_out\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Supplies the write data that loads the GPIO output register.\",\n          \"Justification\": \"The bus request data field is barred from being primary, but it directly overwrites port_out at line 74.\",\n          \"Asset Lines\": [24, 74]\n        },\n        {\n          \"Asset RTL\": \"port_out\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\", \"output_stage\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores the programmed GPIO output value.\",\n          \"Justification\": \"It holds the value loaded at line 74 and directly determines both gpio_o and output readback.\",\n          \"Asset Lines\": [44, 59, 74, 84, 109, 112]\n        },\n        {\n          \"Asset RTL\": \"gpio_o\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"output_stage\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Carries the latched GPIO output value across the unit boundary.\",\n          \"Justification\": \"It is driven from port_out at line 112 and returns the output value unmixed.\",\n          \"Asset Lines\": [26, 111, 112]\n        },\n        {\n          \"Asset RTL\": \"bus_rsp_o.data\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"port_out\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"a\"}],\n          \"Functionality\": \"Carries a readback copy of port_out.\",\n          \"Justification\": \"This response field is barred from being primary and receives port_out at line 84.\",\n          \"Asset Lines\": [25, 58, 68, 84]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.addr\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"port_out\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Selects the register address for the port_out write.\",\n          \"Justification\": \"It selects the addr_out_c case that permits the assignment to port_out at line 73.\",\n          \"Asset Lines\": [24, 73]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.rw\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"port_out\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Selects the write path used to update port_out.\",\n          \"Justification\": \"The write/read condition at line 72 controls whether the port_out write case is executed.\",\n          \"Asset Lines\": [24, 72]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.stb\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"port_out\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Enables a bus transaction that can update port_out.\",\n          \"Justification\": \"The strobe condition at line 71 gates the write operation.\",\n          \"Asset Lines\": [24, 71]\n        },\n        {\n          \"Asset RTL\": \"clk_i\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"port_out\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Controls when the output register accepts a write.\",\n          \"Justification\": \"It clocks the port_out assignment process at line 64, so it can stall an update.\",\n          \"Asset Lines\": [22, 55, 64]\n        },\n        {\n          \"Asset RTL\": \"rstn_i\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"port_out\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Clears the stored GPIO output value.\",\n          \"Justification\": \"The reset arm assigns port_out to zero at line 59.\",\n          \"Asset Lines\": [23, 57, 59]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Points\": [\n        {\n          \"Point\": \"irq_trigger\",\n          \"Reached By\": \"holding block for irq_trig\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [123, 125, 126, 127, 128, 129],\n          \"Answer Reason\": \"irq_typ and irq_pol select the trigger computation and sampled GPIO values determine irq_trig at lines 123-129, so the decision can be corrupted or suppressed.\"\n        },\n        {\n          \"Point\": \"input_stage\",\n          \"Reached By\": \"input_stage ==> irq_trigger [port_in, port_in2]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [103, 125, 126, 127, 128],\n          \"Answer Reason\": \"Changing gpio_i changes the sampled operands at line 103, which can change the trigger decision selected at lines 125-128 and thereby cause false or missing interrupts.\"\n        },\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"bus_access --> irq_trigger [irq_pol, irq_typ]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [75, 76, 123, 125, 126, 127, 128],\n          \"Answer Reason\": \"Bus writes load irq_typ and irq_pol at lines 75-76, and those settings select the trigger result at lines 123-128.\"\n        },\n        {\n          \"Point\": \"irq_buffer\",\n          \"Reached By\": \"irq_trigger ==> irq_buffer [irq_trig]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [141],\n          \"Answer Reason\": \"irq_trig participates in the pending-state assignment at line 141, where it can produce or suppress the interrupt event represented by the decision.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"irq_trig\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"irq_trigger\", \"irq_buffer\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Computes the GPIO interrupt trigger decision.\",\n          \"Justification\": \"It is the element directly assigned by the trigger-mode case at lines 125-129.\",\n          \"Asset Lines\": [49, 125, 126, 127, 128, 129]\n        },\n        {\n          \"Asset RTL\": \"gpio_i\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"input_stage\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_trig\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Supplies the external input values from which the trigger decision is computed.\",\n          \"Justification\": \"It is sampled at line 103 and its value can change irq_trig through lines 125-128.\",\n          \"Asset Lines\": [27, 103]\n        },\n        {\n          \"Asset RTL\": \"port_in\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"input_stage\", \"irq_trigger\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_trig\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Provides the current sampled GPIO operand to trigger detection.\",\n          \"Justification\": \"The trigger assignments read port_in at lines 125-128.\",\n          \"Asset Lines\": [44, 103, 120, 125, 126, 127, 128]\n        },\n        {\n          \"Asset RTL\": \"port_in2\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"input_stage\", \"irq_trigger\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_trig\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Provides the delayed sampled operand used for edge detection.\",\n          \"Justification\": \"It is copied from port_in at line 104 and affects the edge cases at lines 127-128.\",\n          \"Asset Lines\": [49, 104, 120, 127, 128]\n        },\n        {\n          \"Asset RTL\": \"irq_typ\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\", \"irq_trigger\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_trig\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Selects level-versus-edge trigger behavior.\",\n          \"Justification\": \"It is loaded at line 75 and participates in the selector at line 123 that chooses the trigger assignment.\",\n          \"Asset Lines\": [45, 60, 75, 120, 123]\n        },\n        {\n          \"Asset RTL\": \"irq_pol\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\", \"irq_trigger\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_trig\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Selects the polarity used by trigger detection.\",\n          \"Justification\": \"It is loaded at line 76 and participates in the trigger selector at line 123.\",\n          \"Asset Lines\": [45, 61, 76, 120, 123]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_trig\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Supplies write data for trigger configuration.\",\n          \"Justification\": \"The bus request data field loads irq_typ and irq_pol at lines 75-76 and is barred from being primary.\",\n          \"Asset Lines\": [24, 75, 76]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.addr\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_trig\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Selects whether a trigger configuration register is written.\",\n          \"Justification\": \"The address case at line 73 selects the irq_typ and irq_pol writes.\",\n          \"Asset Lines\": [24, 73]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.rw\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_trig\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Selects the write operation that changes trigger configuration.\",\n          \"Justification\": \"The condition at line 72 gates configuration writes.\",\n          \"Asset Lines\": [24, 72]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.stb\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_trig\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Enables the bus transaction that changes trigger configuration.\",\n          \"Justification\": \"The strobe condition at line 71 gates the write path.\",\n          \"Asset Lines\": [24, 71]\n        },\n        {\n          \"Asset RTL\": \"irq_en\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"irq_buffer\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_trig\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Gates whether the trigger decision becomes pending.\",\n          \"Justification\": \"It participates in the pending update at line 141 and can suppress the effect of irq_trig.\",\n          \"Asset Lines\": [46, 62, 77, 141]\n        },\n        {\n          \"Asset RTL\": \"irq_clrn\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"irq_buffer\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_trig\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Controls retention of the trigger-derived pending state.\",\n          \"Justification\": \"It participates in the assignment at line 141 and can clear or retain the resulting event.\",\n          \"Asset Lines\": [46, 63, 78, 141]\n        }\n      ],\n      \"Not Reported\": [\n        {\n          \"Element RTL\": \"irq_pend\",\n          \"Element Entity\": \"neorv32_gpio\",\n          \"Why Not Reported\": \"It stores the later pending-interrupt state rather than the transient trigger decision and has no confidentiality objective permitting a carrier-only secondary label.\"\n        }\n      ],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Points\": [\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"holding block and entry through bus_req_i.data\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [75, 76],\n          \"Answer Reason\": \"Bus writes load irq_typ and irq_pol at lines 75-76, allowing the trigger mode and polarity to be changed and interrupt behavior to be suppressed or redirected.\"\n        },\n        {\n          \"Point\": \"irq_trigger\",\n          \"Reached By\": \"bus_access --> irq_trigger [irq_pol, irq_typ]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [123, 124, 125, 126, 127, 128, 129],\n          \"Answer Reason\": \"The stored mode and polarity form sel_v and select the trigger assignment at lines 123-129, so changing them changes or disables required interrupt behavior.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"irq_typ\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\", \"irq_trigger\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores the trigger mode configuration.\",\n          \"Justification\": \"It is the configuration register loaded at line 75 and directly participates in the trigger selector.\",\n          \"Asset Lines\": [45, 60, 75, 120, 123]\n        },\n        {\n          \"Asset RTL\": \"irq_pol\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\", \"irq_trigger\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores the trigger polarity configuration.\",\n          \"Justification\": \"It is the configuration register loaded at line 76 and directly participates in the trigger selector.\",\n          \"Asset Lines\": [45, 61, 76, 120, 123]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"irq_typ\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"irq_pol\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Supplies the values written into the trigger configuration registers.\",\n          \"Justification\": \"It loads irq_typ and irq_pol at lines 75-76 but, as a bus-request field, cannot be primary.\",\n          \"Asset Lines\": [24, 75, 76]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.addr\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"irq_typ\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"irq_pol\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Selects the trigger configuration register being written or read.\",\n          \"Justification\": \"The address case at lines 73 and 82 controls access to irq_typ and irq_pol.\",\n          \"Asset Lines\": [24, 73, 82]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.rw\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"irq_typ\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"irq_pol\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Selects whether configuration is written or read.\",\n          \"Justification\": \"The condition at line 72 determines whether irq_typ and irq_pol can be modified.\",\n          \"Asset Lines\": [24, 72]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.stb\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"irq_typ\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"irq_pol\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Enables the bus access that updates or reads the configuration.\",\n          \"Justification\": \"The strobe condition at line 71 gates the configuration access.\",\n          \"Asset Lines\": [24, 71]\n        },\n        {\n          \"Asset RTL\": \"bus_rsp_o.data\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [],\n          \"Secondary To\": [],\n          \"Functionality\": \"Carries readback copies of irq_typ and irq_pol.\",\n          \"Justification\": \"The response field is barred from being primary and receives the settings at lines 85-86, but this concept has no confidentiality objective for a carrier-only path.\",\n          \"Asset Lines\": [25, 85, 86]\n        },\n        {\n          \"Asset RTL\": \"clk_i\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"irq_typ\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"irq_pol\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Controls when trigger configuration writes take effect.\",\n          \"Justification\": \"It clocks the configuration assignments at line 64, so it can stall their update.\",\n          \"Asset Lines\": [22, 55, 64]\n        },\n        {\n          \"Asset RTL\": \"rstn_i\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"irq_typ\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"irq_pol\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Clears the trigger configuration registers.\",\n          \"Justification\": \"The reset arm assigns both settings to zero at lines 60-61.\",\n          \"Asset Lines\": [23, 57, 60, 61]\n        }\n      ],\n      \"Not Reported\": [\n        {\n          \"Element RTL\": \"irq_trig\",\n          \"Element Entity\": \"neorv32_gpio\",\n          \"Why Not Reported\": \"It is the trigger result selected by the configuration, not the mode or polarity setting itself, and it does not control either configuration register.\"\n        }\n      ],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Points\": [\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"holding block and entry through bus_req_i.data\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [77],\n          \"Answer Reason\": \"A bus write assigns irq_en at line 77, allowing interrupt notification to be enabled or suppressed incorrectly.\"\n        },\n        {\n          \"Point\": \"irq_buffer\",\n          \"Reached By\": \"bus_access ==> irq_buffer [irq_en]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [141],\n          \"Answer Reason\": \"irq_en gates the pending-interrupt update at line 141, so it can change or block interrupt generation.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"irq_en\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\", \"irq_buffer\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores the per-GPIO interrupt enable mask and gates pending updates.\",\n          \"Justification\": \"It is loaded at line 77 and is a direct operand of the pending-state assignment at line 141.\",\n          \"Asset Lines\": [46, 62, 77, 87, 141]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_en\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Supplies the value written into the interrupt enable mask.\",\n          \"Justification\": \"It loads irq_en at line 77 but is a bus-request field and cannot be primary.\",\n          \"Asset Lines\": [24, 77]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.addr\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_en\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Selects the interrupt-enable register access.\",\n          \"Justification\": \"The address case at line 73 selects the irq_en write.\",\n          \"Asset Lines\": [24, 73]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.rw\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_en\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Selects the write operation that changes irq_en.\",\n          \"Justification\": \"The write condition at line 72 gates the irq_en assignment.\",\n          \"Asset Lines\": [24, 72]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.stb\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_en\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Enables the transaction that can update irq_en.\",\n          \"Justification\": \"The strobe condition at line 71 gates the register write.\",\n          \"Asset Lines\": [24, 71]\n        },\n        {\n          \"Asset RTL\": \"bus_rsp_o.data\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [],\n          \"Secondary To\": [],\n          \"Functionality\": \"Carries a readback copy of irq_en.\",\n          \"Justification\": \"The response field receives irq_en at line 87 but is barred from being primary and this concept has no confidentiality objective.\",\n          \"Asset Lines\": [25, 87]\n        },\n        {\n          \"Asset RTL\": \"clk_i\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_en\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Controls when irq_en accepts a new value.\",\n          \"Justification\": \"It clocks the irq_en assignment at line 64 and can stall configuration changes.\",\n          \"Asset Lines\": [22, 55, 64]\n        },\n        {\n          \"Asset RTL\": \"rstn_i\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_en\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Clears the interrupt enable mask.\",\n          \"Justification\": \"The reset arm assigns irq_en to zero at line 62.\",\n          \"Asset Lines\": [23, 57, 62]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Points\": [\n        {\n          \"Point\": \"irq_buffer\",\n          \"Reached By\": \"holding block and exit to bus_rsp_o.data and cpu_irq_o\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [138, 141, 142],\n          \"Answer Reason\": \"irq_pend is reset and updated at lines 138-141 and drives cpu_irq_o at line 142, so it can be cleared, corrupted, or prevented from reaching the CPU.\"\n        },\n        {\n          \"Point\": \"irq_trigger\",\n          \"Reached By\": \"irq_trigger ==> irq_buffer [irq_trig]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [125, 126, 127, 128, 141],\n          \"Answer Reason\": \"The trigger computation at lines 125-128 determines an input to the pending-state update at line 141, allowing false or missing pending events.\"\n        },\n        {\n          \"Point\": \"input_stage\",\n          \"Reached By\": \"input_stage ==> irq_trigger [port_in, port_in2]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [103, 125, 126, 127, 128, 141],\n          \"Answer Reason\": \"The sampled GPIO value at line 103 can change the trigger input selected at lines 125-128 and therefore alter or suppress the pending interrupt at line 141.\"\n        },\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"irq_buffer ==> bus_access [irq_pend], and bus_access ==> irq_buffer [irq_clrn, irq_en]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [77, 78, 141],\n          \"Answer Reason\": \"Bus writes set irq_en and irq_clrn at lines 77-78, and those controls alter the pending update at line 141.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"irq_pend\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"irq_buffer\", \"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores pending GPIO interrupt state and supplies its readback.\",\n          \"Justification\": \"It is the register updated at line 141, returned at line 88, and used to generate the CPU request.\",\n          \"Asset Lines\": [49, 88, 138, 141, 142]\n        },\n        {\n          \"Asset RTL\": \"cpu_irq_o\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"irq_buffer\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Carries the aggregate pending-interrupt request across the unit boundary.\",\n          \"Justification\": \"It is computed directly from irq_pend at line 142 and is the externally visible CPU request.\",\n          \"Asset Lines\": [28, 139, 142]\n        },\n        {\n          \"Asset RTL\": \"gpio_i\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"input_stage\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_pend\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Supplies GPIO activity that can create pending interrupt bits.\",\n          \"Justification\": \"Its sampled value at line 103 affects irq_trig and then irq_pend at line 141.\",\n          \"Asset Lines\": [27, 103, 141]\n        },\n        {\n          \"Asset RTL\": \"port_in\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"input_stage\", \"irq_trigger\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_pend\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Carries sampled GPIO levels into interrupt trigger computation.\",\n          \"Justification\": \"It is read by the trigger equations at lines 125-128, whose result updates irq_pend at line 141.\",\n          \"Asset Lines\": [44, 103, 125, 126, 127, 128, 141]\n        },\n        {\n          \"Asset RTL\": \"port_in2\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"input_stage\", \"irq_trigger\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_pend\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Carries the delayed sample used to detect GPIO edges.\",\n          \"Justification\": \"It affects irq_trig at lines 127-128, which feeds the pending update at line 141.\",\n          \"Asset Lines\": [49, 104, 127, 128, 141]\n        },\n        {\n          \"Asset RTL\": \"irq_trig\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"irq_trigger\", \"irq_buffer\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_pend\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Supplies the trigger event used to set pending interrupt state.\",\n          \"Justification\": \"It is an operand of the irq_pend assignment at line 141 and can directly alter pending events.\",\n          \"Asset Lines\": [49, 125, 126, 127, 128, 141]\n        },\n        {\n          \"Asset RTL\": \"irq_en\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\", \"irq_buffer\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_pend\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Gates which trigger events become pending interrupts.\",\n          \"Justification\": \"It is an operand of the pending update at line 141 and can suppress or enable pending state.\",\n          \"Asset Lines\": [46, 62, 77, 141]\n        },\n        {\n          \"Asset RTL\": \"irq_clrn\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\", \"irq_buffer\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_pend\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Controls retention and clearing of pending interrupt bits.\",\n          \"Justification\": \"It is an operand of the pending update at line 141 and can clear or retain pending events.\",\n          \"Asset Lines\": [46, 63, 78, 141]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"irq_pend\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Supplies bus-controlled enable and clear values that affect pending state.\",\n          \"Justification\": \"It loads irq_en and irq_clrn at lines 77-78, and those values affect irq_pend at line 141.\",\n          \"Asset Lines\": [24, 77, 78, 141]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.addr\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_pend\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Selects the pending-state control registers being written.\",\n          \"Justification\": \"The address cases at line 73 select irq_en and irq_clrn writes that affect line 141.\",\n          \"Asset Lines\": [24, 73, 141]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.rw\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_pend\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Selects the write path for pending-state controls.\",\n          \"Justification\": \"The condition at line 72 gates writes to irq_en and irq_clrn, which affect irq_pend.\",\n          \"Asset Lines\": [24, 72, 141]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.stb\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_pend\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Enables bus writes that control pending state.\",\n          \"Justification\": \"The strobe condition at line 71 gates writes to the controls used at line 141.\",\n          \"Asset Lines\": [24, 71, 141]\n        },\n        {\n          \"Asset RTL\": \"clk_i\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_pend\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Controls pending-state and CPU-request updates.\",\n          \"Justification\": \"It clocks irq_pend and cpu_irq_o at lines 140 and 140, so withholding it can stall interrupt reporting.\",\n          \"Asset Lines\": [22, 135, 140]\n        },\n        {\n          \"Asset RTL\": \"rstn_i\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_pend\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Clears pending interrupt state and the CPU request.\",\n          \"Justification\": \"The reset arm assigns irq_pend and cpu_irq_o to zero at lines 138-139.\",\n          \"Asset Lines\": [23, 135, 137, 138, 139]\n        }\n      ],\n      \"Not Reported\": [\n        {\n          \"Element RTL\": \"bus_rsp_o.data\",\n          \"Element Entity\": \"neorv32_gpio\",\n          \"Why Not Reported\": \"It returns irq_pend at line 88 but is a response-record field barred from being primary, and this concept has no confidentiality objective for a carrier-only secondary.\"\n        }\n      ],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C7\",\n      \"Points\": [\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"holding block and entry through bus_req_i.data\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [78],\n          \"Answer Reason\": \"A bus write loads irq_clrn at line 78, allowing an attacker to select premature clearing or retention of pending interrupts.\"\n        },\n        {\n          \"Point\": \"irq_buffer\",\n          \"Reached By\": \"bus_access ==> irq_buffer [irq_clrn]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [141],\n          \"Answer Reason\": \"irq_clrn participates in the pending-state update at line 141 and can clear required pending events or prevent their clearing.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"irq_clrn\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\", \"irq_buffer\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores the clear-mask command used by the pending interrupt update.\",\n          \"Justification\": \"It is loaded from the bus at line 78 and directly participates in the pending assignment at line 141.\",\n          \"Asset Lines\": [46, 63, 69, 78, 141]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_clrn\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Supplies the clear-mask value written into irq_clrn.\",\n          \"Justification\": \"It directly loads irq_clrn at line 78 but is a bus-request field and cannot be primary.\",\n          \"Asset Lines\": [24, 78]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.addr\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_clrn\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Selects the interrupt-clear command register.\",\n          \"Justification\": \"The address case at line 73 selects the irq_clrn write.\",\n          \"Asset Lines\": [24, 73]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.rw\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_clrn\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Selects the write operation that supplies the clear command.\",\n          \"Justification\": \"The condition at line 72 gates the irq_clrn assignment.\",\n          \"Asset Lines\": [24, 72]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.stb\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_clrn\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Enables the bus transaction that loads irq_clrn.\",\n          \"Justification\": \"The strobe condition at line 71 gates the command write.\",\n          \"Asset Lines\": [24, 71]\n        },\n        {\n          \"Asset RTL\": \"clk_i\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_clrn\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Controls when the clear-mask command is loaded.\",\n          \"Justification\": \"It clocks irq_clrn at line 64, so it can stall command updates.\",\n          \"Asset Lines\": [22, 55, 64]\n        },\n        {\n          \"Asset RTL\": \"rstn_i\",\n          \"Entity\": \"neorv32_gpio\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_clrn\", \"Primary Entity\": \"neorv32_gpio\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Clears the stored clear-mask command.\",\n          \"Justification\": \"The reset arm assigns irq_clrn to zero at line 63.\",\n          \"Asset Lines\": [23, 57, 63]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_gpio",
+  "notes": [],
+  "points": [
+   {
+    "concept id": "C1",
+    "point": "input_stage",
+    "reached by": "holding block and entry through gpio_i",
+    "lines": [
+     83,
+     103
+    ],
+    "reason": "gpio_i is sampled into port_in at line 103, and port_in is later returned through bus_rsp_o.data at line 83; no availability or special-behavior mechanism is shown here.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "bus_access",
+    "reached by": "input_stage ==> bus_access [port_in], with bus_rsp_o.data assigned from port_in",
+    "lines": [
+     83
+    ],
+    "reason": "A bus read copies port_in into bus_rsp_o.data at line 83, exposing the sampled input; this block does not modify the sampled value.",
+    "confidentiality": "yes",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "irq_trigger",
+    "reached by": "input_stage ==> irq_trigger [port_in, port_in2]",
+    "lines": [
+     125,
+     126,
+     127,
+     128,
+     141,
+     142
+    ],
+    "reason": "The sampled inputs affect irq_trig at lines 125-128 and consequently the pending and CPU interrupt behavior at lines 141-142, allowing the sampled level to be inferred indirectly.",
+    "confidentiality": "yes",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "irq_buffer",
+    "reached by": "irq_trigger ==> irq_buffer [irq_trig]",
+    "lines": [
+     141,
+     142
+    ],
+    "reason": "irq_trig changes irq_pend and the resulting cpu_irq_o at lines 141-142, providing an indirect status observation of sampled GPIO input.",
+    "confidentiality": "yes",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "bus_access",
+    "reached by": "holding block and entry through bus_req_i.data",
+    "lines": [
+     74
+    ],
+    "reason": "A bus write assigns port_out from bus_req_i.data at line 74, allowing the stored GPIO output value to be overwritten.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "output_stage",
+    "reached by": "bus_access ==> output_stage [port_out]",
+    "lines": [],
+    "reason": "This block forwards port_out to gpio_o at line 112 without an additional control, modification, or unauthorized access mechanism.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "irq_trigger",
+    "reached by": "holding block for irq_trig",
+    "lines": [
+     123,
+     125,
+     126,
+     127,
+     128,
+     129
+    ],
+    "reason": "irq_typ and irq_pol select the trigger computation and sampled GPIO values determine irq_trig at lines 123-129, so the decision can be corrupted or suppressed.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "input_stage",
+    "reached by": "input_stage ==> irq_trigger [port_in, port_in2]",
+    "lines": [
+     103,
+     125,
+     126,
+     127,
+     128
+    ],
+    "reason": "Changing gpio_i changes the sampled operands at line 103, which can change the trigger decision selected at lines 125-128 and thereby cause false or missing interrupts.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "bus_access",
+    "reached by": "bus_access --> irq_trigger [irq_pol, irq_typ]",
+    "lines": [
+     75,
+     76,
+     123,
+     125,
+     126,
+     127,
+     128
+    ],
+    "reason": "Bus writes load irq_typ and irq_pol at lines 75-76, and those settings select the trigger result at lines 123-128.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "irq_buffer",
+    "reached by": "irq_trigger ==> irq_buffer [irq_trig]",
+    "lines": [
+     141
+    ],
+    "reason": "irq_trig participates in the pending-state assignment at line 141, where it can produce or suppress the interrupt event represented by the decision.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "bus_access",
+    "reached by": "holding block and entry through bus_req_i.data",
+    "lines": [
+     75,
+     76
+    ],
+    "reason": "Bus writes load irq_typ and irq_pol at lines 75-76, allowing the trigger mode and polarity to be changed and interrupt behavior to be suppressed or redirected.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "irq_trigger",
+    "reached by": "bus_access --> irq_trigger [irq_pol, irq_typ]",
+    "lines": [
+     123,
+     124,
+     125,
+     126,
+     127,
+     128,
+     129
+    ],
+    "reason": "The stored mode and polarity form sel_v and select the trigger assignment at lines 123-129, so changing them changes or disables required interrupt behavior.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C5",
+    "point": "bus_access",
+    "reached by": "holding block and entry through bus_req_i.data",
+    "lines": [
+     77
+    ],
+    "reason": "A bus write assigns irq_en at line 77, allowing interrupt notification to be enabled or suppressed incorrectly.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C5",
+    "point": "irq_buffer",
+    "reached by": "bus_access ==> irq_buffer [irq_en]",
+    "lines": [
+     141
+    ],
+    "reason": "irq_en gates the pending-interrupt update at line 141, so it can change or block interrupt generation.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "irq_buffer",
+    "reached by": "holding block and exit to bus_rsp_o.data and cpu_irq_o",
+    "lines": [
+     138,
+     141,
+     142
+    ],
+    "reason": "irq_pend is reset and updated at lines 138-141 and drives cpu_irq_o at line 142, so it can be cleared, corrupted, or prevented from reaching the CPU.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "irq_trigger",
+    "reached by": "irq_trigger ==> irq_buffer [irq_trig]",
+    "lines": [
+     125,
+     126,
+     127,
+     128,
+     141
+    ],
+    "reason": "The trigger computation at lines 125-128 determines an input to the pending-state update at line 141, allowing false or missing pending events.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "input_stage",
+    "reached by": "input_stage ==> irq_trigger [port_in, port_in2]",
+    "lines": [
+     103,
+     125,
+     126,
+     127,
+     128,
+     141
+    ],
+    "reason": "The sampled GPIO value at line 103 can change the trigger input selected at lines 125-128 and therefore alter or suppress the pending interrupt at line 141.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "bus_access",
+    "reached by": "irq_buffer ==> bus_access [irq_pend], and bus_access ==> irq_buffer [irq_clrn, irq_en]",
+    "lines": [
+     77,
+     78,
+     141
+    ],
+    "reason": "Bus writes set irq_en and irq_clrn at lines 77-78, and those controls alter the pending update at line 141.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C7",
+    "point": "bus_access",
+    "reached by": "holding block and entry through bus_req_i.data",
+    "lines": [
+     78
+    ],
+    "reason": "A bus write loads irq_clrn at line 78, allowing an attacker to select premature clearing or retention of pending interrupts.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C7",
+    "point": "irq_buffer",
+    "reached by": "bus_access ==> irq_buffer [irq_clrn]",
+    "lines": [
+     141
+    ],
+    "reason": "irq_clrn participates in the pending-state update at line 141 and can clear required pending events or prevent their clearing.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   }
+  ],
+  "structural assets": [
+   {
+    "concept id": "C1",
+    "element": "gpio_i",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "input_stage"
+    ],
+    "label": "primary",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "lines": [
+     27,
+     103
+    ],
+    "links": [],
+    "reason": "Carries the external GPIO input values into the sampling logic. It is a non-record input copied into the sampled asset value at line 103 and therefore crosses the unit boundary whole.",
+    "functionality": "Carries the external GPIO input values into the sampling logic.",
+    "justification": "It is a non-record input copied into the sampled asset value at line 103 and therefore crosses the unit boundary whole."
+   },
+   {
+    "concept id": "C1",
+    "element": "port_in",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "input_stage",
+     "bus_access"
+    ],
+    "label": "primary",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "lines": [
+     44,
+     100,
+     103,
+     104,
+     120,
+     125,
+     126,
+     127,
+     128
+    ],
+    "links": [],
+    "reason": "Stores the sampled GPIO input values used for readback and interrupt detection. It is the register holding the sampled values at line 103 and is the source of the readback at line 83.",
+    "functionality": "Stores the sampled GPIO input values used for readback and interrupt detection.",
+    "justification": "It is the register holding the sampled values at line 103 and is the source of the readback at line 83."
+   },
+   {
+    "concept id": "C1",
+    "element": "port_in2",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "input_stage",
+     "irq_trigger"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     49,
+     101,
+     104,
+     120,
+     127,
+     128
+    ],
+    "links": [
+     {
+      "primary": "port_in",
+      "entity": "neorv32_gpio",
+      "direction": "a"
+     }
+    ],
+    "reason": "Carries a delayed copy of the sampled GPIO input into edge-trigger detection. It copies port_in at line 104 and can carry information about the sampled value into irq_trig.",
+    "functionality": "Carries a delayed copy of the sampled GPIO input into edge-trigger detection.",
+    "justification": "It copies port_in at line 104 and can carry information about the sampled value into irq_trig."
+   },
+   {
+    "concept id": "C1",
+    "element": "irq_trig",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "irq_trigger",
+     "irq_buffer"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     49,
+     125,
+     126,
+     127,
+     128,
+     141
+    ],
+    "links": [
+     {
+      "primary": "port_in",
+      "entity": "neorv32_gpio",
+      "direction": "a"
+     }
+    ],
+    "reason": "Carries a trigger result computed from the sampled GPIO values. Its assignments at lines 125-128 depend on port_in and port_in2 and the result reaches the pending state at line 141, providing an indirect leakage path.",
+    "functionality": "Carries a trigger result computed from the sampled GPIO values.",
+    "justification": "Its assignments at lines 125-128 depend on port_in and port_in2 and the result reaches the pending state at line 141, providing an indirect leakage path."
+   },
+   {
+    "concept id": "C1",
+    "element": "irq_pend",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "irq_buffer",
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     49,
+     88,
+     138,
+     141,
+     142
+    ],
+    "links": [
+     {
+      "primary": "port_in",
+      "entity": "neorv32_gpio",
+      "direction": "a"
+     }
+    ],
+    "reason": "Stores trigger-derived status that can reveal sampled GPIO behavior through status outputs. It is updated from irq_trig at line 141 and is returned or reported at lines 88 and 142.",
+    "functionality": "Stores trigger-derived status that can reveal sampled GPIO behavior through status outputs.",
+    "justification": "It is updated from irq_trig at line 141 and is returned or reported at lines 88 and 142."
+   },
+   {
+    "concept id": "C1",
+    "element": "bus_rsp_o.data",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     25,
+     58,
+     68,
+     83,
+     84,
+     85,
+     86,
+     87,
+     88
+    ],
+    "links": [
+     {
+      "primary": "port_in",
+      "entity": "neorv32_gpio",
+      "direction": "a"
+     }
+    ],
+    "reason": "Carries sampled GPIO data and derived status to the bus response. The bus response record field is barred from being primary, but it receives port_in at line 83 and can disclose the sampled value.",
+    "functionality": "Carries sampled GPIO data and derived status to the bus response.",
+    "justification": "The bus response record field is barred from being primary, but it receives port_in at line 83 and can disclose the sampled value."
+   },
+   {
+    "concept id": "C1",
+    "element": "cpu_irq_o",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "irq_buffer"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     28,
+     139,
+     142
+    ],
+    "links": [
+     {
+      "primary": "port_in",
+      "entity": "neorv32_gpio",
+      "direction": "a"
+     }
+    ],
+    "reason": "Carries an interrupt status derived from sampled GPIO input. irq_pend drives cpu_irq_o at line 142, so interrupt behavior can indirectly reveal sampled input activity.",
+    "functionality": "Carries an interrupt status derived from sampled GPIO input.",
+    "justification": "irq_pend drives cpu_irq_o at line 142, so interrupt behavior can indirectly reveal sampled input activity."
+   },
+   {
+    "concept id": "C1",
+    "element": "clk_i",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     22,
+     64,
+     97,
+     102,
+     135,
+     140
+    ],
+    "links": [
+     {
+      "primary": "port_in",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Controls when the sampled input register updates. It clocks port_in at line 102, so withholding or disturbing the clock can leave the sampled value stale.",
+    "functionality": "Controls when the sampled input register updates.",
+    "justification": "It clocks port_in at line 102, so withholding or disturbing the clock can leave the sampled value stale."
+   },
+   {
+    "concept id": "C1",
+    "element": "rstn_i",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     23,
+     57,
+     97,
+     99,
+     135,
+     137
+    ],
+    "links": [
+     {
+      "primary": "port_in",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Clears the sampled input registers. Its reset arm assigns port_in to zero at line 100, allowing the stored sampled value to be cleared.",
+    "functionality": "Clears the sampled input registers.",
+    "justification": "Its reset arm assigns port_in to zero at line 100, allowing the stored sampled value to be cleared."
+   },
+   {
+    "concept id": "C2",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     24,
+     74
+    ],
+    "links": [
+     {
+      "primary": "port_out",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies the write data that loads the GPIO output register. The bus request data field is barred from being primary, but it directly overwrites port_out at line 74.",
+    "functionality": "Supplies the write data that loads the GPIO output register.",
+    "justification": "The bus request data field is barred from being primary, but it directly overwrites port_out at line 74."
+   },
+   {
+    "concept id": "C2",
+    "element": "port_out",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access",
+     "output_stage"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     44,
+     59,
+     74,
+     84,
+     109,
+     112
+    ],
+    "links": [],
+    "reason": "Stores the programmed GPIO output value. It holds the value loaded at line 74 and directly determines both gpio_o and output readback.",
+    "functionality": "Stores the programmed GPIO output value.",
+    "justification": "It holds the value loaded at line 74 and directly determines both gpio_o and output readback."
+   },
+   {
+    "concept id": "C2",
+    "element": "gpio_o",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "output_stage"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     26,
+     111,
+     112
+    ],
+    "links": [],
+    "reason": "Carries the latched GPIO output value across the unit boundary. It is driven from port_out at line 112 and returns the output value unmixed.",
+    "functionality": "Carries the latched GPIO output value across the unit boundary.",
+    "justification": "It is driven from port_out at line 112 and returns the output value unmixed."
+   },
+   {
+    "concept id": "C2",
+    "element": "bus_rsp_o.data",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     25,
+     58,
+     68,
+     84
+    ],
+    "links": [
+     {
+      "primary": "port_out",
+      "entity": "neorv32_gpio",
+      "direction": "a"
+     }
+    ],
+    "reason": "Carries a readback copy of port_out. This response field is barred from being primary and receives port_out at line 84.",
+    "functionality": "Carries a readback copy of port_out.",
+    "justification": "This response field is barred from being primary and receives port_out at line 84."
+   },
+   {
+    "concept id": "C2",
+    "element": "bus_req_i.addr",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     24,
+     73
+    ],
+    "links": [
+     {
+      "primary": "port_out",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects the register address for the port_out write. It selects the addr_out_c case that permits the assignment to port_out at line 73.",
+    "functionality": "Selects the register address for the port_out write.",
+    "justification": "It selects the addr_out_c case that permits the assignment to port_out at line 73."
+   },
+   {
+    "concept id": "C2",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     24,
+     72
+    ],
+    "links": [
+     {
+      "primary": "port_out",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects the write path used to update port_out. The write/read condition at line 72 controls whether the port_out write case is executed.",
+    "functionality": "Selects the write path used to update port_out.",
+    "justification": "The write/read condition at line 72 controls whether the port_out write case is executed."
+   },
+   {
+    "concept id": "C2",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     24,
+     71
+    ],
+    "links": [
+     {
+      "primary": "port_out",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Enables a bus transaction that can update port_out. The strobe condition at line 71 gates the write operation.",
+    "functionality": "Enables a bus transaction that can update port_out.",
+    "justification": "The strobe condition at line 71 gates the write operation."
+   },
+   {
+    "concept id": "C2",
+    "element": "clk_i",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     22,
+     55,
+     64
+    ],
+    "links": [
+     {
+      "primary": "port_out",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Controls when the output register accepts a write. It clocks the port_out assignment process at line 64, so it can stall an update.",
+    "functionality": "Controls when the output register accepts a write.",
+    "justification": "It clocks the port_out assignment process at line 64, so it can stall an update."
+   },
+   {
+    "concept id": "C2",
+    "element": "rstn_i",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     23,
+     57,
+     59
+    ],
+    "links": [
+     {
+      "primary": "port_out",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Clears the stored GPIO output value. The reset arm assigns port_out to zero at line 59.",
+    "functionality": "Clears the stored GPIO output value.",
+    "justification": "The reset arm assigns port_out to zero at line 59."
+   },
+   {
+    "concept id": "C3",
+    "element": "irq_trig",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "irq_trigger",
+     "irq_buffer"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     49,
+     125,
+     126,
+     127,
+     128,
+     129
+    ],
+    "links": [],
+    "reason": "Computes the GPIO interrupt trigger decision. It is the element directly assigned by the trigger-mode case at lines 125-129.",
+    "functionality": "Computes the GPIO interrupt trigger decision.",
+    "justification": "It is the element directly assigned by the trigger-mode case at lines 125-129."
+   },
+   {
+    "concept id": "C3",
+    "element": "gpio_i",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "input_stage"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     27,
+     103
+    ],
+    "links": [
+     {
+      "primary": "irq_trig",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies the external input values from which the trigger decision is computed. It is sampled at line 103 and its value can change irq_trig through lines 125-128.",
+    "functionality": "Supplies the external input values from which the trigger decision is computed.",
+    "justification": "It is sampled at line 103 and its value can change irq_trig through lines 125-128."
+   },
+   {
+    "concept id": "C3",
+    "element": "port_in",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "input_stage",
+     "irq_trigger"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     44,
+     103,
+     120,
+     125,
+     126,
+     127,
+     128
+    ],
+    "links": [
+     {
+      "primary": "irq_trig",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Provides the current sampled GPIO operand to trigger detection. The trigger assignments read port_in at lines 125-128.",
+    "functionality": "Provides the current sampled GPIO operand to trigger detection.",
+    "justification": "The trigger assignments read port_in at lines 125-128."
+   },
+   {
+    "concept id": "C3",
+    "element": "port_in2",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "input_stage",
+     "irq_trigger"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     49,
+     104,
+     120,
+     127,
+     128
+    ],
+    "links": [
+     {
+      "primary": "irq_trig",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Provides the delayed sampled operand used for edge detection. It is copied from port_in at line 104 and affects the edge cases at lines 127-128.",
+    "functionality": "Provides the delayed sampled operand used for edge detection.",
+    "justification": "It is copied from port_in at line 104 and affects the edge cases at lines 127-128."
+   },
+   {
+    "concept id": "C3",
+    "element": "irq_typ",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access",
+     "irq_trigger"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     45,
+     60,
+     75,
+     120,
+     123
+    ],
+    "links": [
+     {
+      "primary": "irq_trig",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects level-versus-edge trigger behavior. It is loaded at line 75 and participates in the selector at line 123 that chooses the trigger assignment.",
+    "functionality": "Selects level-versus-edge trigger behavior.",
+    "justification": "It is loaded at line 75 and participates in the selector at line 123 that chooses the trigger assignment."
+   },
+   {
+    "concept id": "C3",
+    "element": "irq_pol",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access",
+     "irq_trigger"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     45,
+     61,
+     76,
+     120,
+     123
+    ],
+    "links": [
+     {
+      "primary": "irq_trig",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects the polarity used by trigger detection. It is loaded at line 76 and participates in the trigger selector at line 123.",
+    "functionality": "Selects the polarity used by trigger detection.",
+    "justification": "It is loaded at line 76 and participates in the trigger selector at line 123."
+   },
+   {
+    "concept id": "C3",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     24,
+     75,
+     76
+    ],
+    "links": [
+     {
+      "primary": "irq_trig",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies write data for trigger configuration. The bus request data field loads irq_typ and irq_pol at lines 75-76 and is barred from being primary.",
+    "functionality": "Supplies write data for trigger configuration.",
+    "justification": "The bus request data field loads irq_typ and irq_pol at lines 75-76 and is barred from being primary."
+   },
+   {
+    "concept id": "C3",
+    "element": "bus_req_i.addr",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     24,
+     73
+    ],
+    "links": [
+     {
+      "primary": "irq_trig",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects whether a trigger configuration register is written. The address case at line 73 selects the irq_typ and irq_pol writes.",
+    "functionality": "Selects whether a trigger configuration register is written.",
+    "justification": "The address case at line 73 selects the irq_typ and irq_pol writes."
+   },
+   {
+    "concept id": "C3",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     24,
+     72
+    ],
+    "links": [
+     {
+      "primary": "irq_trig",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects the write operation that changes trigger configuration. The condition at line 72 gates configuration writes.",
+    "functionality": "Selects the write operation that changes trigger configuration.",
+    "justification": "The condition at line 72 gates configuration writes."
+   },
+   {
+    "concept id": "C3",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     24,
+     71
+    ],
+    "links": [
+     {
+      "primary": "irq_trig",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Enables the bus transaction that changes trigger configuration. The strobe condition at line 71 gates the write path.",
+    "functionality": "Enables the bus transaction that changes trigger configuration.",
+    "justification": "The strobe condition at line 71 gates the write path."
+   },
+   {
+    "concept id": "C3",
+    "element": "irq_en",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "irq_buffer"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     46,
+     62,
+     77,
+     141
+    ],
+    "links": [
+     {
+      "primary": "irq_trig",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Gates whether the trigger decision becomes pending. It participates in the pending update at line 141 and can suppress the effect of irq_trig.",
+    "functionality": "Gates whether the trigger decision becomes pending.",
+    "justification": "It participates in the pending update at line 141 and can suppress the effect of irq_trig."
+   },
+   {
+    "concept id": "C3",
+    "element": "irq_clrn",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "irq_buffer"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     46,
+     63,
+     78,
+     141
+    ],
+    "links": [
+     {
+      "primary": "irq_trig",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Controls retention of the trigger-derived pending state. It participates in the assignment at line 141 and can clear or retain the resulting event.",
+    "functionality": "Controls retention of the trigger-derived pending state.",
+    "justification": "It participates in the assignment at line 141 and can clear or retain the resulting event."
+   },
+   {
+    "concept id": "C4",
+    "element": "irq_typ",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access",
+     "irq_trigger"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     45,
+     60,
+     75,
+     120,
+     123
+    ],
+    "links": [],
+    "reason": "Stores the trigger mode configuration. It is the configuration register loaded at line 75 and directly participates in the trigger selector.",
+    "functionality": "Stores the trigger mode configuration.",
+    "justification": "It is the configuration register loaded at line 75 and directly participates in the trigger selector."
+   },
+   {
+    "concept id": "C4",
+    "element": "irq_pol",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access",
+     "irq_trigger"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     45,
+     61,
+     76,
+     120,
+     123
+    ],
+    "links": [],
+    "reason": "Stores the trigger polarity configuration. It is the configuration register loaded at line 76 and directly participates in the trigger selector.",
+    "functionality": "Stores the trigger polarity configuration.",
+    "justification": "It is the configuration register loaded at line 76 and directly participates in the trigger selector."
+   },
+   {
+    "concept id": "C4",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     24,
+     75,
+     76
+    ],
+    "links": [
+     {
+      "primary": "irq_typ",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     },
+     {
+      "primary": "irq_pol",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies the values written into the trigger configuration registers. It loads irq_typ and irq_pol at lines 75-76 but, as a bus-request field, cannot be primary.",
+    "functionality": "Supplies the values written into the trigger configuration registers.",
+    "justification": "It loads irq_typ and irq_pol at lines 75-76 but, as a bus-request field, cannot be primary."
+   },
+   {
+    "concept id": "C4",
+    "element": "bus_req_i.addr",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     24,
+     73,
+     82
+    ],
+    "links": [
+     {
+      "primary": "irq_typ",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     },
+     {
+      "primary": "irq_pol",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects the trigger configuration register being written or read. The address case at lines 73 and 82 controls access to irq_typ and irq_pol.",
+    "functionality": "Selects the trigger configuration register being written or read.",
+    "justification": "The address case at lines 73 and 82 controls access to irq_typ and irq_pol."
+   },
+   {
+    "concept id": "C4",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     24,
+     72
+    ],
+    "links": [
+     {
+      "primary": "irq_typ",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     },
+     {
+      "primary": "irq_pol",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects whether configuration is written or read. The condition at line 72 determines whether irq_typ and irq_pol can be modified.",
+    "functionality": "Selects whether configuration is written or read.",
+    "justification": "The condition at line 72 determines whether irq_typ and irq_pol can be modified."
+   },
+   {
+    "concept id": "C4",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     24,
+     71
+    ],
+    "links": [
+     {
+      "primary": "irq_typ",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     },
+     {
+      "primary": "irq_pol",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Enables the bus access that updates or reads the configuration. The strobe condition at line 71 gates the configuration access.",
+    "functionality": "Enables the bus access that updates or reads the configuration.",
+    "justification": "The strobe condition at line 71 gates the configuration access."
+   },
+   {
+    "concept id": "C4",
+    "element": "bus_rsp_o.data",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [],
+    "lines": [
+     25,
+     85,
+     86
+    ],
+    "links": [],
+    "reason": "Carries readback copies of irq_typ and irq_pol. The response field is barred from being primary and receives the settings at lines 85-86, but this concept has no confidentiality objective for a carrier-only path.",
+    "functionality": "Carries readback copies of irq_typ and irq_pol.",
+    "justification": "The response field is barred from being primary and receives the settings at lines 85-86, but this concept has no confidentiality objective for a carrier-only path."
+   },
+   {
+    "concept id": "C4",
+    "element": "clk_i",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     22,
+     55,
+     64
+    ],
+    "links": [
+     {
+      "primary": "irq_typ",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     },
+     {
+      "primary": "irq_pol",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Controls when trigger configuration writes take effect. It clocks the configuration assignments at line 64, so it can stall their update.",
+    "functionality": "Controls when trigger configuration writes take effect.",
+    "justification": "It clocks the configuration assignments at line 64, so it can stall their update."
+   },
+   {
+    "concept id": "C4",
+    "element": "rstn_i",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     23,
+     57,
+     60,
+     61
+    ],
+    "links": [
+     {
+      "primary": "irq_typ",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     },
+     {
+      "primary": "irq_pol",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Clears the trigger configuration registers. The reset arm assigns both settings to zero at lines 60-61.",
+    "functionality": "Clears the trigger configuration registers.",
+    "justification": "The reset arm assigns both settings to zero at lines 60-61."
+   },
+   {
+    "concept id": "C5",
+    "element": "irq_en",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access",
+     "irq_buffer"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     46,
+     62,
+     77,
+     87,
+     141
+    ],
+    "links": [],
+    "reason": "Stores the per-GPIO interrupt enable mask and gates pending updates. It is loaded at line 77 and is a direct operand of the pending-state assignment at line 141.",
+    "functionality": "Stores the per-GPIO interrupt enable mask and gates pending updates.",
+    "justification": "It is loaded at line 77 and is a direct operand of the pending-state assignment at line 141."
+   },
+   {
+    "concept id": "C5",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     24,
+     77
+    ],
+    "links": [
+     {
+      "primary": "irq_en",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies the value written into the interrupt enable mask. It loads irq_en at line 77 but is a bus-request field and cannot be primary.",
+    "functionality": "Supplies the value written into the interrupt enable mask.",
+    "justification": "It loads irq_en at line 77 but is a bus-request field and cannot be primary."
+   },
+   {
+    "concept id": "C5",
+    "element": "bus_req_i.addr",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     24,
+     73
+    ],
+    "links": [
+     {
+      "primary": "irq_en",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects the interrupt-enable register access. The address case at line 73 selects the irq_en write.",
+    "functionality": "Selects the interrupt-enable register access.",
+    "justification": "The address case at line 73 selects the irq_en write."
+   },
+   {
+    "concept id": "C5",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     24,
+     72
+    ],
+    "links": [
+     {
+      "primary": "irq_en",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects the write operation that changes irq_en. The write condition at line 72 gates the irq_en assignment.",
+    "functionality": "Selects the write operation that changes irq_en.",
+    "justification": "The write condition at line 72 gates the irq_en assignment."
+   },
+   {
+    "concept id": "C5",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     24,
+     71
+    ],
+    "links": [
+     {
+      "primary": "irq_en",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Enables the transaction that can update irq_en. The strobe condition at line 71 gates the register write.",
+    "functionality": "Enables the transaction that can update irq_en.",
+    "justification": "The strobe condition at line 71 gates the register write."
+   },
+   {
+    "concept id": "C5",
+    "element": "bus_rsp_o.data",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [],
+    "lines": [
+     25,
+     87
+    ],
+    "links": [],
+    "reason": "Carries a readback copy of irq_en. The response field receives irq_en at line 87 but is barred from being primary and this concept has no confidentiality objective.",
+    "functionality": "Carries a readback copy of irq_en.",
+    "justification": "The response field receives irq_en at line 87 but is barred from being primary and this concept has no confidentiality objective."
+   },
+   {
+    "concept id": "C5",
+    "element": "clk_i",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     22,
+     55,
+     64
+    ],
+    "links": [
+     {
+      "primary": "irq_en",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Controls when irq_en accepts a new value. It clocks the irq_en assignment at line 64 and can stall configuration changes.",
+    "functionality": "Controls when irq_en accepts a new value.",
+    "justification": "It clocks the irq_en assignment at line 64 and can stall configuration changes."
+   },
+   {
+    "concept id": "C5",
+    "element": "rstn_i",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     23,
+     57,
+     62
+    ],
+    "links": [
+     {
+      "primary": "irq_en",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Clears the interrupt enable mask. The reset arm assigns irq_en to zero at line 62.",
+    "functionality": "Clears the interrupt enable mask.",
+    "justification": "The reset arm assigns irq_en to zero at line 62."
+   },
+   {
+    "concept id": "C6",
+    "element": "irq_pend",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "irq_buffer",
+     "bus_access"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     49,
+     88,
+     138,
+     141,
+     142
+    ],
+    "links": [],
+    "reason": "Stores pending GPIO interrupt state and supplies its readback. It is the register updated at line 141, returned at line 88, and used to generate the CPU request.",
+    "functionality": "Stores pending GPIO interrupt state and supplies its readback.",
+    "justification": "It is the register updated at line 141, returned at line 88, and used to generate the CPU request."
+   },
+   {
+    "concept id": "C6",
+    "element": "cpu_irq_o",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "irq_buffer"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     28,
+     139,
+     142
+    ],
+    "links": [],
+    "reason": "Carries the aggregate pending-interrupt request across the unit boundary. It is computed directly from irq_pend at line 142 and is the externally visible CPU request.",
+    "functionality": "Carries the aggregate pending-interrupt request across the unit boundary.",
+    "justification": "It is computed directly from irq_pend at line 142 and is the externally visible CPU request."
+   },
+   {
+    "concept id": "C6",
+    "element": "gpio_i",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "input_stage"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     27,
+     103,
+     141
+    ],
+    "links": [
+     {
+      "primary": "irq_pend",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies GPIO activity that can create pending interrupt bits. Its sampled value at line 103 affects irq_trig and then irq_pend at line 141.",
+    "functionality": "Supplies GPIO activity that can create pending interrupt bits.",
+    "justification": "Its sampled value at line 103 affects irq_trig and then irq_pend at line 141."
+   },
+   {
+    "concept id": "C6",
+    "element": "port_in",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "input_stage",
+     "irq_trigger"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     44,
+     103,
+     125,
+     126,
+     127,
+     128,
+     141
+    ],
+    "links": [
+     {
+      "primary": "irq_pend",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Carries sampled GPIO levels into interrupt trigger computation. It is read by the trigger equations at lines 125-128, whose result updates irq_pend at line 141.",
+    "functionality": "Carries sampled GPIO levels into interrupt trigger computation.",
+    "justification": "It is read by the trigger equations at lines 125-128, whose result updates irq_pend at line 141."
+   },
+   {
+    "concept id": "C6",
+    "element": "port_in2",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "input_stage",
+     "irq_trigger"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     49,
+     104,
+     127,
+     128,
+     141
+    ],
+    "links": [
+     {
+      "primary": "irq_pend",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Carries the delayed sample used to detect GPIO edges. It affects irq_trig at lines 127-128, which feeds the pending update at line 141.",
+    "functionality": "Carries the delayed sample used to detect GPIO edges.",
+    "justification": "It affects irq_trig at lines 127-128, which feeds the pending update at line 141."
+   },
+   {
+    "concept id": "C6",
+    "element": "irq_trig",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "irq_trigger",
+     "irq_buffer"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     49,
+     125,
+     126,
+     127,
+     128,
+     141
+    ],
+    "links": [
+     {
+      "primary": "irq_pend",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies the trigger event used to set pending interrupt state. It is an operand of the irq_pend assignment at line 141 and can directly alter pending events.",
+    "functionality": "Supplies the trigger event used to set pending interrupt state.",
+    "justification": "It is an operand of the irq_pend assignment at line 141 and can directly alter pending events."
+   },
+   {
+    "concept id": "C6",
+    "element": "irq_en",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access",
+     "irq_buffer"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     46,
+     62,
+     77,
+     141
+    ],
+    "links": [
+     {
+      "primary": "irq_pend",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Gates which trigger events become pending interrupts. It is an operand of the pending update at line 141 and can suppress or enable pending state.",
+    "functionality": "Gates which trigger events become pending interrupts.",
+    "justification": "It is an operand of the pending update at line 141 and can suppress or enable pending state."
+   },
+   {
+    "concept id": "C6",
+    "element": "irq_clrn",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access",
+     "irq_buffer"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     46,
+     63,
+     78,
+     141
+    ],
+    "links": [
+     {
+      "primary": "irq_pend",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Controls retention and clearing of pending interrupt bits. It is an operand of the pending update at line 141 and can clear or retain pending events.",
+    "functionality": "Controls retention and clearing of pending interrupt bits.",
+    "justification": "It is an operand of the pending update at line 141 and can clear or retain pending events."
+   },
+   {
+    "concept id": "C6",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     24,
+     77,
+     78,
+     141
+    ],
+    "links": [
+     {
+      "primary": "irq_pend",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies bus-controlled enable and clear values that affect pending state. It loads irq_en and irq_clrn at lines 77-78, and those values affect irq_pend at line 141.",
+    "functionality": "Supplies bus-controlled enable and clear values that affect pending state.",
+    "justification": "It loads irq_en and irq_clrn at lines 77-78, and those values affect irq_pend at line 141."
+   },
+   {
+    "concept id": "C6",
+    "element": "bus_req_i.addr",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     24,
+     73,
+     141
+    ],
+    "links": [
+     {
+      "primary": "irq_pend",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects the pending-state control registers being written. The address cases at line 73 select irq_en and irq_clrn writes that affect line 141.",
+    "functionality": "Selects the pending-state control registers being written.",
+    "justification": "The address cases at line 73 select irq_en and irq_clrn writes that affect line 141."
+   },
+   {
+    "concept id": "C6",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     24,
+     72,
+     141
+    ],
+    "links": [
+     {
+      "primary": "irq_pend",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects the write path for pending-state controls. The condition at line 72 gates writes to irq_en and irq_clrn, which affect irq_pend.",
+    "functionality": "Selects the write path for pending-state controls.",
+    "justification": "The condition at line 72 gates writes to irq_en and irq_clrn, which affect irq_pend."
+   },
+   {
+    "concept id": "C6",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     24,
+     71,
+     141
+    ],
+    "links": [
+     {
+      "primary": "irq_pend",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Enables bus writes that control pending state. The strobe condition at line 71 gates writes to the controls used at line 141.",
+    "functionality": "Enables bus writes that control pending state.",
+    "justification": "The strobe condition at line 71 gates writes to the controls used at line 141."
+   },
+   {
+    "concept id": "C6",
+    "element": "clk_i",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     22,
+     135,
+     140
+    ],
+    "links": [
+     {
+      "primary": "irq_pend",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Controls pending-state and CPU-request updates. It clocks irq_pend and cpu_irq_o at lines 140 and 140, so withholding it can stall interrupt reporting.",
+    "functionality": "Controls pending-state and CPU-request updates.",
+    "justification": "It clocks irq_pend and cpu_irq_o at lines 140 and 140, so withholding it can stall interrupt reporting."
+   },
+   {
+    "concept id": "C6",
+    "element": "rstn_i",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     23,
+     135,
+     137,
+     138,
+     139
+    ],
+    "links": [
+     {
+      "primary": "irq_pend",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Clears pending interrupt state and the CPU request. The reset arm assigns irq_pend and cpu_irq_o to zero at lines 138-139.",
+    "functionality": "Clears pending interrupt state and the CPU request.",
+    "justification": "The reset arm assigns irq_pend and cpu_irq_o to zero at lines 138-139."
+   },
+   {
+    "concept id": "C7",
+    "element": "irq_clrn",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access",
+     "irq_buffer"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     46,
+     63,
+     69,
+     78,
+     141
+    ],
+    "links": [],
+    "reason": "Stores the clear-mask command used by the pending interrupt update. It is loaded from the bus at line 78 and directly participates in the pending assignment at line 141.",
+    "functionality": "Stores the clear-mask command used by the pending interrupt update.",
+    "justification": "It is loaded from the bus at line 78 and directly participates in the pending assignment at line 141."
+   },
+   {
+    "concept id": "C7",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     24,
+     78
+    ],
+    "links": [
+     {
+      "primary": "irq_clrn",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies the clear-mask value written into irq_clrn. It directly loads irq_clrn at line 78 but is a bus-request field and cannot be primary.",
+    "functionality": "Supplies the clear-mask value written into irq_clrn.",
+    "justification": "It directly loads irq_clrn at line 78 but is a bus-request field and cannot be primary."
+   },
+   {
+    "concept id": "C7",
+    "element": "bus_req_i.addr",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     24,
+     73
+    ],
+    "links": [
+     {
+      "primary": "irq_clrn",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects the interrupt-clear command register. The address case at line 73 selects the irq_clrn write.",
+    "functionality": "Selects the interrupt-clear command register.",
+    "justification": "The address case at line 73 selects the irq_clrn write."
+   },
+   {
+    "concept id": "C7",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     24,
+     72
+    ],
+    "links": [
+     {
+      "primary": "irq_clrn",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects the write operation that supplies the clear command. The condition at line 72 gates the irq_clrn assignment.",
+    "functionality": "Selects the write operation that supplies the clear command.",
+    "justification": "The condition at line 72 gates the irq_clrn assignment."
+   },
+   {
+    "concept id": "C7",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     24,
+     71
+    ],
+    "links": [
+     {
+      "primary": "irq_clrn",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Enables the bus transaction that loads irq_clrn. The strobe condition at line 71 gates the command write.",
+    "functionality": "Enables the bus transaction that loads irq_clrn.",
+    "justification": "The strobe condition at line 71 gates the command write."
+   },
+   {
+    "concept id": "C7",
+    "element": "clk_i",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     22,
+     55,
+     64
+    ],
+    "links": [
+     {
+      "primary": "irq_clrn",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Controls when the clear-mask command is loaded. It clocks irq_clrn at line 64, so it can stall command updates.",
+    "functionality": "Controls when the clear-mask command is loaded.",
+    "justification": "It clocks irq_clrn at line 64, so it can stall command updates."
+   },
+   {
+    "concept id": "C7",
+    "element": "rstn_i",
+    "entity": "neorv32_gpio",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     23,
+     57,
+     63
+    ],
+    "links": [
+     {
+      "primary": "irq_clrn",
+      "entity": "neorv32_gpio",
+      "direction": "b"
+     }
+    ],
+    "reason": "Clears the stored clear-mask command. The reset arm assigns irq_clrn to zero at line 63.",
+    "functionality": "Clears the stored clear-mask command.",
+    "justification": "The reset arm assigns irq_clrn to zero at line 63."
+   }
+  ],
+  "not reported": [
+   {
+    "concept id": "C3",
+    "element": "irq_pend",
+    "entity": "neorv32_gpio",
+    "reason": "It stores the later pending-interrupt state rather than the transient trigger decision and has no confidentiality objective permitting a carrier-only secondary label."
+   },
+   {
+    "concept id": "C4",
+    "element": "irq_trig",
+    "entity": "neorv32_gpio",
+    "reason": "It is the trigger result selected by the configuration, not the mode or polarity setting itself, and it does not control either configuration register."
+   },
+   {
+    "concept id": "C6",
+    "element": "bus_rsp_o.data",
+    "entity": "neorv32_gpio",
+    "reason": "It returns irq_pend at line 88 but is a response-record field barred from being primary, and this concept has no confidentiality objective for a carrier-only secondary."
+   }
+  ],
+  "no primary reason": {}
+ },
+ "problems": [
+  "C4: secondary 'bus_rsp_o.data' has no links",
+  "C5: secondary 'bus_rsp_o.data' has no links",
+  "C6: anchor port 'bus_rsp_o.data' is not among its structural assets"
+ ],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

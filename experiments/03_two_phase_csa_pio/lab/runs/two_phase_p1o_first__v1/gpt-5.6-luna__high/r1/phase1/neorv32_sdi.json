@@ -1,0 +1,268 @@
+{
+ "module": "neorv32_sdi",
+ "prompt version": "two_phase_p1o_first",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "b4c962e16261",
+ "user sha": "2c7b382823d2",
+ "usage": {
+  "in": 32297,
+  "out": 13323,
+  "reasoning": 10977,
+  "cached": 32294,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_0e373ab5839cd76c006ad5a44e90c887d188310519f71f81ef",
+  "request key": "ef7ddfbc3425"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_sdi\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"SDI enable configuration\",\n      \"Unit\": \"neorv32_sdi\",\n      \"Information\": \"The enable setting controls whether the SDI subsystem and its receive and transmit paths are active; normal operation depends on it. It enters through the bus write data and is readable through the bus response.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because a bus write assigns the setting at line 133, allowing it to be changed. Availability is at risk because the setting clears both FIFOs at lines 200 and 239 and controls serial-engine state at line 296, allowing transfers to be disabled.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker able to issue a bus write can clear the FIFOs or disable the serial engine by changing the enable setting.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        133\n      ],\n      \"Held Lines\": [\n        117,\n        133\n      ],\n      \"Exit Lines\": [\n        143\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"Transmit serial payload\",\n      \"Unit\": \"neorv32_sdi\",\n      \"Information\": \"Payload words written by the host for serial transmission are shifted onto the SDI data output; the transmit function depends on these words.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality is at risk because host data enters at line 201 and is exposed at the serial output at line 345. Integrity is at risk because the transmit word is loaded from the bus/FIFO path at lines 201 and 305 and is shifted by serial logic at line 327. Availability is at risk because the enable setting clears the transmit FIFO at line 200 and chip-select-controlled serial sequencing at line 307 can withhold transmission.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker can replace a queued transmit word, prevent it from being sent, or observe it at the SDI output.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"sdi_dat_o\"\n      ],\n      \"Entry Lines\": [\n        201\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": [\n        345\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"Received serial payload\",\n      \"Unit\": \"neorv32_sdi\",\n      \"Information\": \"Payload words sampled from the serial data input are collected and made available for host reads; the receive function depends on these words.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality is at risk because serial input data enters at line 270 and a received word is returned through the bus response at line 162. Integrity is at risk because sampled bits are shifted into the receive word at line 327 and written into the receive FIFO through lines 235 and 236, so the returned word can be altered. Availability is at risk because the receive FIFO is cleared when enable is inactive at line 239 and receive completion depends on the serial framing conditions at lines 324 and 326.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker can inject or alter serial bits, clear or block the receive path, or cause received data to be exposed through a bus read.\",\n      \"Enters Through\": [\n        \"sdi_dat_i\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        270\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": [\n        162\n      ]\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"Serial chip-select handshake\",\n      \"Unit\": \"neorv32_sdi\",\n      \"Information\": \"The serial chip-select state frames transactions and determines when serial transfers are accepted. The state is sampled from the chip-select input and is also reported in the bus response.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because the sampled chip-select value controls serial state transitions at lines 307, 315, and 324, so an altered value can corrupt transaction framing. Availability is at risk because the same conditions can keep the serial engine inactive or terminate a transfer, withholding serial data.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker can hold or alter chip select so that transfers are framed incorrectly or prevented from completing.\",\n      \"Enters Through\": [\n        \"sdi_csn_i\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        269\n      ],\n      \"Held Lines\": [\n        275\n      ],\n      \"Exit Lines\": [\n        160\n      ]\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"Interrupt notification\",\n      \"Unit\": \"neorv32_sdi\",\n      \"Information\": \"The interrupt notification reports FIFO-related conditions to the integrating system so that queued receive or transmit work can be serviced. It has no entry port because it is generated internally from control state and FIFO status.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because the registered interrupt output is computed from internal control and FIFO conditions at lines 249 through 254, allowing false or missing notifications. Availability is at risk because the enable term at line 249 can suppress the notification and prevent an interrupt-driven system from servicing queued work.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker can cause false interrupts or suppress a required interrupt, preventing the host from servicing SDI transfers.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"irq_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        247,\n        249\n      ],\n      \"Exit Lines\": [\n        249\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Interrupt-enable configuration\",\n      \"Candidate Unit\": \"neorv32_sdi\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"It only tunes the interrupt request output and is excluded as a port option by the Port options rule.\"\n    },\n    {\n      \"Candidate Name\": \"FIFO occupancy and buffer status\",\n      \"Candidate Unit\": \"neorv32_sdi\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The status bits only report whether buffered data can move or was lost, so the Buffer and engine status bits rule does not treat them as information of their own.\"\n    },\n    {\n      \"Candidate Name\": \"Transmit FIFO buffering\",\n      \"Candidate Unit\": \"neorv32_sdi\",\n      \"Merged Into\": \"C2\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Receive FIFO buffering\",\n      \"Candidate Unit\": \"neorv32_sdi\",\n      \"Merged Into\": \"C3\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Transmit shift-register staging\",\n      \"Candidate Unit\": \"neorv32_sdi\",\n      \"Merged Into\": \"C2\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Receive shift-register staging\",\n      \"Candidate Unit\": \"neorv32_sdi\",\n      \"Merged Into\": \"C3\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Serial engine sequencing state\",\n      \"Candidate Unit\": \"neorv32_sdi\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The serial state and bit count only order and pace transfer steps, so Sequencing state bars them as concepts of their own.\"\n    },\n    {\n      \"Candidate Name\": \"Serial pacing pulses\",\n      \"Candidate Unit\": \"neorv32_sdi\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The start and done strobes only pace FIFO transfers and are excluded by the Pacing pulses rule.\"\n    },\n    {\n      \"Candidate Name\": \"Synchronizer samples\",\n      \"Candidate Unit\": \"neorv32_sdi\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The synchronizer registers and derived wires only resample external serial signals, so Working values bars them as independent concepts.\"\n    },\n    {\n      \"Candidate Name\": \"Bus access command\",\n      \"Candidate Unit\": \"neorv32_sdi\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The address, direction, and strobe fields only specify accesses to this unit's registers or FIFOs and are excluded by Access command fields.\"\n    },\n    {\n      \"Candidate Name\": \"Bus response handshake\",\n      \"Candidate Unit\": \"neorv32_sdi\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The acknowledge repeats the request strobe and the error flag is tied to a constant, so Bus handshake copies excludes them as information of their own.\"\n    },\n    {\n      \"Candidate Name\": \"FIFO size configuration\",\n      \"Candidate Unit\": \"neorv32_sdi\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"RTX_FIFO and its derived size only fix the build and cannot be changed or withheld at run time, so Build-time values excludes them.\"\n    },\n    {\n      \"Candidate Name\": \"Serial link clock\",\n      \"Candidate Unit\": \"neorv32_sdi\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"sdi_clk_i is the serial peer's clock line and is excluded by the Clocks and resets rule.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_sdi",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_sdi",
+    "concept": "SDI enable configuration",
+    "information": "The enable setting controls whether the SDI subsystem and its receive and transmit paths are active; normal operation depends on it. It enters through the bus write data and is readable through the bus response.",
+    "rubric reason": "Integrity is at risk because a bus write assigns the setting at line 133, allowing it to be changed. Availability is at risk because the setting clears both FIFOs at lines 200 and 239 and controls serial-engine state at line 296, allowing transfers to be disabled.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker able to issue a bus write can clear the FIFOs or disable the serial engine by changing the enable setting.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     133
+    ],
+    "held lines": [
+     117,
+     133
+    ],
+    "exit lines": [
+     143
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_sdi",
+    "concept": "Transmit serial payload",
+    "information": "Payload words written by the host for serial transmission are shifted onto the SDI data output; the transmit function depends on these words.",
+    "rubric reason": "Confidentiality is at risk because host data enters at line 201 and is exposed at the serial output at line 345. Integrity is at risk because the transmit word is loaded from the bus/FIFO path at lines 201 and 305 and is shifted by serial logic at line 327. Availability is at risk because the enable setting clears the transmit FIFO at line 200 and chip-select-controlled serial sequencing at line 307 can withhold transmission.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker can replace a queued transmit word, prevent it from being sent, or observe it at the SDI output.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "sdi_dat_o"
+    ],
+    "entry lines": [
+     201
+    ],
+    "held lines": [],
+    "exit lines": [
+     345
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_sdi",
+    "concept": "Received serial payload",
+    "information": "Payload words sampled from the serial data input are collected and made available for host reads; the receive function depends on these words.",
+    "rubric reason": "Confidentiality is at risk because serial input data enters at line 270 and a received word is returned through the bus response at line 162. Integrity is at risk because sampled bits are shifted into the receive word at line 327 and written into the receive FIFO through lines 235 and 236, so the returned word can be altered. Availability is at risk because the receive FIFO is cleared when enable is inactive at line 239 and receive completion depends on the serial framing conditions at lines 324 and 326.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker can inject or alter serial bits, clear or block the receive path, or cause received data to be exposed through a bus read.",
+    "enters through": [
+     "sdi_dat_i"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     270
+    ],
+    "held lines": [],
+    "exit lines": [
+     162
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_sdi",
+    "concept": "Serial chip-select handshake",
+    "information": "The serial chip-select state frames transactions and determines when serial transfers are accepted. The state is sampled from the chip-select input and is also reported in the bus response.",
+    "rubric reason": "Integrity is at risk because the sampled chip-select value controls serial state transitions at lines 307, 315, and 324, so an altered value can corrupt transaction framing. Availability is at risk because the same conditions can keep the serial engine inactive or terminate a transfer, withholding serial data.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker can hold or alter chip select so that transfers are framed incorrectly or prevented from completing.",
+    "enters through": [
+     "sdi_csn_i"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     269
+    ],
+    "held lines": [
+     275
+    ],
+    "exit lines": [
+     160
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_sdi",
+    "concept": "Interrupt notification",
+    "information": "The interrupt notification reports FIFO-related conditions to the integrating system so that queued receive or transmit work can be serviced. It has no entry port because it is generated internally from control state and FIFO status.",
+    "rubric reason": "Integrity is at risk because the registered interrupt output is computed from internal control and FIFO conditions at lines 249 through 254, allowing false or missing notifications. Availability is at risk because the enable term at line 249 can suppress the notification and prevent an interrupt-driven system from servicing queued work.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker can cause false interrupts or suppress a required interrupt, preventing the host from servicing SDI transfers.",
+    "enters through": [],
+    "leaves through": [
+     "irq_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     247,
+     249
+    ],
+    "exit lines": [
+     249
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_sdi",
+    "concept": "Interrupt-enable configuration",
+    "reason": "It only tunes the interrupt request output and is excluded as a port option by the Port options rule.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_sdi",
+    "concept": "FIFO occupancy and buffer status",
+    "reason": "The status bits only report whether buffered data can move or was lost, so the Buffer and engine status bits rule does not treat them as information of their own.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_sdi",
+    "concept": "Transmit FIFO buffering",
+    "reason": "merged into C2",
+    "merged into": "C2"
+   },
+   {
+    "unit": "neorv32_sdi",
+    "concept": "Receive FIFO buffering",
+    "reason": "merged into C3",
+    "merged into": "C3"
+   },
+   {
+    "unit": "neorv32_sdi",
+    "concept": "Transmit shift-register staging",
+    "reason": "merged into C2",
+    "merged into": "C2"
+   },
+   {
+    "unit": "neorv32_sdi",
+    "concept": "Receive shift-register staging",
+    "reason": "merged into C3",
+    "merged into": "C3"
+   },
+   {
+    "unit": "neorv32_sdi",
+    "concept": "Serial engine sequencing state",
+    "reason": "The serial state and bit count only order and pace transfer steps, so Sequencing state bars them as concepts of their own.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_sdi",
+    "concept": "Serial pacing pulses",
+    "reason": "The start and done strobes only pace FIFO transfers and are excluded by the Pacing pulses rule.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_sdi",
+    "concept": "Synchronizer samples",
+    "reason": "The synchronizer registers and derived wires only resample external serial signals, so Working values bars them as independent concepts.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_sdi",
+    "concept": "Bus access command",
+    "reason": "The address, direction, and strobe fields only specify accesses to this unit's registers or FIFOs and are excluded by Access command fields.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_sdi",
+    "concept": "Bus response handshake",
+    "reason": "The acknowledge repeats the request strobe and the error flag is tied to a constant, so Bus handshake copies excludes them as information of their own.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_sdi",
+    "concept": "FIFO size configuration",
+    "reason": "RTX_FIFO and its derived size only fix the build and cannot be changed or withheld at run time, so Build-time values excludes them.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_sdi",
+    "concept": "Serial link clock",
+    "reason": "sdi_clk_i is the serial peer's clock line and is excluded by the Clocks and resets rule.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

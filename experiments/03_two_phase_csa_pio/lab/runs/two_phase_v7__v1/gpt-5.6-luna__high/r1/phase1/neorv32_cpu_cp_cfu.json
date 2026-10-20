@@ -1,0 +1,271 @@
+{
+ "module": "neorv32_cpu_cp_cfu",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "be3b3faab49b",
+ "user sha": "508f93f2f4c4",
+ "usage": {
+  "in": 18648,
+  "out": 15341,
+  "reasoning": 12891,
+  "cached": 12982,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_02d10fe5eed16ea9006ace2f3e446087d1ad9ff8bb4a87e2f8",
+  "request key": "0b905c5ef644"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_cpu_cp_cfu\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"XTEA key material\",\n      \"Unit\": \"neorv32_cpu_cp_cfu\",\n      \"Information\": \"The four 32-bit words stored in key_mem are XTEA key material used by the encryption and decryption computations. The key material is also exposed through the CSR readback interface.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The key words can be exposed directly through csr_rdata_o at line 185. The key words can be overwritten through the CSR write at line 179, changing the cryptographic behavior.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\"\n      ],\n      \"Attack\": \"Read csr_rdata_o to recover a key word or issue an unintended CSR write to replace one.\",\n      \"Enters Through\": [\n        \"csr_wdata_i\"\n      ],\n      \"Leaves Through\": [\n        \"csr_rdata_o\"\n      ],\n      \"Entry Lines\": [\n        179\n      ],\n      \"Held Lines\": [\n        176,\n        179\n      ],\n      \"Exit Lines\": [\n        185\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"XTEA operand block\",\n      \"Unit\": \"neorv32_cpu_cp_cfu\",\n      \"Information\": \"The two 32-bit operand words captured for an XTEA operation are the data block processed with the stored key. The operands are held internally while the result is computed and are not returned unchanged.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The operand registers are loaded from rs1_i and rs2_i at lines 205-206 and feed the result computation at lines 222-238, so altering their capture can produce an incorrect result. The start and type condition at line 204 can prevent the operands from being captured, losing the required operation.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"Alter or suppress operand capture when start_i is accepted so the CFU computes from incorrect or absent input data.\",\n      \"Enters Through\": [\n        \"rs1_i\",\n        \"rs2_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        205,\n        206\n      ],\n      \"Held Lines\": [\n        205,\n        206\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"CSR key-access command\",\n      \"Unit\": \"neorv32_cpu_cp_cfu\",\n      \"Information\": \"csr_we_i together with csr_addr_i commands whether a key word is written and selects which key word is accessed. The command controls the key-configuration transfer rather than storing key data itself.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The write enable and selected address determine whether and which key word is modified at lines 178-179, so corrupting the command can cause an unintended key update. The same command path can withhold a required key write or select the wrong word at lines 178-185.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"Assert or suppress csr_we_i, or provide a wrong csr_addr_i, to redirect or block a required key access.\",\n      \"Enters Through\": [\n        \"csr_addr_i\",\n        \"csr_we_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        178,\n        179,\n        185\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"Custom-operation start control\",\n      \"Unit\": \"neorv32_cpu_cp_cfu\",\n      \"Information\": \"The start command initiates capture of operands and the selected custom XTEA operation. The operation-type and function fields select the accepted operation and its result behavior.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The start and operation-type conditions control operand capture and operation initiation at lines 204-207, while the selected function controls the computation and returned result at lines 213-225 and 247-256; changing them can produce an incorrect operation. The same conditions can prevent operation acceptance or suppress a valid result at lines 204 and 254-262.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"Corrupt or withhold the start or accepted operation control so the CFU performs the wrong operation or does not produce one.\",\n      \"Enters Through\": [\n        \"start_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        204\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"XTEA operation result\",\n      \"Unit\": \"neorv32_cpu_cp_cfu\",\n      \"Information\": \"The XTEA result computed from the captured operands and key is returned for the selected encryption or decryption operation. For decryption operations, the returned value may be sensitive plaintext.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The computed result is exposed at result_o on line 249, including values that can be plaintext for the decryption operations selected at line 248. The result register is computed from the operand and key-dependent datapath at lines 222-238, so corruption can change the returned value. The result and its delivery can be withheld by the result-selection logic at lines 249-262.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"Observe a sensitive returned result, corrupt the result datapath, or prevent result_o from returning the computed value.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"result_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        222,\n        224\n      ],\n      \"Exit Lines\": [\n        249\n      ]\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Concept Name\": \"Result-valid status\",\n      \"Unit\": \"neorv32_cpu_cp_cfu\",\n      \"Information\": \"valid_o indicates whether the selected operation has a result available or whether the initialization operation is accepted. The receiving processor depends on this status to recognize a usable result.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The status returned on valid_o is generated from the completion state and operation selection at lines 250-256, so an incorrect status can make the consumer accept an invalid result or reject a valid one. The result-selection branches can hold valid_o low and withhold the result transfer at lines 254-262.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"Force valid_o high or low so the processor consumes an invalid result or never recognizes a completed operation.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"valid_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        250,\n        253,\n        256,\n        262\n      ],\n      \"Exit Lines\": [\n        250,\n        253,\n        256,\n        262\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Clock and reset timing\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_cfu\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"Clock and reset inputs and their reset or timing effects are explicitly excluded as conceptual assets by the clock and reset rule, as used at lines 175-177 and 192-198.\"\n    },\n    {\n      \"Candidate Name\": \"active_i\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_cfu\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The port is never read or used in the RTL, so no security objective or mechanism is shown; its only occurrence is its declaration at line 26.\"\n    },\n    {\n      \"Candidate Name\": \"funct7_i\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_cfu\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The port is never read or used in the RTL, so no security objective or mechanism is shown; its only occurrence is its declaration at line 35.\"\n    },\n    {\n      \"Candidate Name\": \"rs3_i\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_cfu\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The port is never read or used in the RTL, so no security objective or mechanism is shown; its only occurrence is its declaration at line 38.\"\n    },\n    {\n      \"Candidate Name\": \"Internal XTEA sequencing state\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_cfu\",\n      \"Merged Into\": \"C6\",\n      \"Why Not Kept\": \"xtea.done only sequences and delays the result-valid indication, so the sequencing-state rule bars it as a separate piece; its assignments are at lines 200-207.\"\n    },\n    {\n      \"Candidate Name\": \"XTEA intermediate working values\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_cfu\",\n      \"Merged Into\": \"C5\",\n      \"Why Not Kept\": \"xtea.sum and the tmp_* signals are partial or working values of the operation result, not separate information, under the working-values rule at lines 214-238.\"\n    },\n    {\n      \"Candidate Name\": \"Operation-selector fields\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_cfu\",\n      \"Merged Into\": \"C4\",\n      \"Why Not Kept\": \"The funct3_i and rtype_i fields only select the custom operation or result form, so the operation-selector rule folds them into the operation control rather than keeping a separate concept.\"\n    },\n    {\n      \"Candidate Name\": \"CSR key readback word\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_cfu\",\n      \"Merged Into\": \"C1\",\n      \"Why Not Kept\": \"The readback word is the selected key material itself and is covered by the key concept rather than being a separate information piece at line 185.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_cpu_cp_cfu",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_cpu_cp_cfu",
+    "concept": "XTEA key material",
+    "information": "The four 32-bit words stored in key_mem are XTEA key material used by the encryption and decryption computations. The key material is also exposed through the CSR readback interface.",
+    "rubric reason": "The key words can be exposed directly through csr_rdata_o at line 185. The key words can be overwritten through the CSR write at line 179, changing the cryptographic behavior.",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "attack": "Read csr_rdata_o to recover a key word or issue an unintended CSR write to replace one.",
+    "enters through": [
+     "csr_wdata_i"
+    ],
+    "leaves through": [
+     "csr_rdata_o"
+    ],
+    "entry lines": [
+     179
+    ],
+    "held lines": [
+     176,
+     179
+    ],
+    "exit lines": [
+     185
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_cpu_cp_cfu",
+    "concept": "XTEA operand block",
+    "information": "The two 32-bit operand words captured for an XTEA operation are the data block processed with the stored key. The operands are held internally while the result is computed and are not returned unchanged.",
+    "rubric reason": "The operand registers are loaded from rs1_i and rs2_i at lines 205-206 and feed the result computation at lines 222-238, so altering their capture can produce an incorrect result. The start and type condition at line 204 can prevent the operands from being captured, losing the required operation.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "Alter or suppress operand capture when start_i is accepted so the CFU computes from incorrect or absent input data.",
+    "enters through": [
+     "rs1_i",
+     "rs2_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     205,
+     206
+    ],
+    "held lines": [
+     205,
+     206
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_cpu_cp_cfu",
+    "concept": "CSR key-access command",
+    "information": "csr_we_i together with csr_addr_i commands whether a key word is written and selects which key word is accessed. The command controls the key-configuration transfer rather than storing key data itself.",
+    "rubric reason": "The write enable and selected address determine whether and which key word is modified at lines 178-179, so corrupting the command can cause an unintended key update. The same command path can withhold a required key write or select the wrong word at lines 178-185.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "Assert or suppress csr_we_i, or provide a wrong csr_addr_i, to redirect or block a required key access.",
+    "enters through": [
+     "csr_addr_i",
+     "csr_we_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     178,
+     179,
+     185
+    ],
+    "held lines": [],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_cpu_cp_cfu",
+    "concept": "Custom-operation start control",
+    "information": "The start command initiates capture of operands and the selected custom XTEA operation. The operation-type and function fields select the accepted operation and its result behavior.",
+    "rubric reason": "The start and operation-type conditions control operand capture and operation initiation at lines 204-207, while the selected function controls the computation and returned result at lines 213-225 and 247-256; changing them can produce an incorrect operation. The same conditions can prevent operation acceptance or suppress a valid result at lines 204 and 254-262.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "Corrupt or withhold the start or accepted operation control so the CFU performs the wrong operation or does not produce one.",
+    "enters through": [
+     "start_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     204
+    ],
+    "held lines": [],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_cpu_cp_cfu",
+    "concept": "XTEA operation result",
+    "information": "The XTEA result computed from the captured operands and key is returned for the selected encryption or decryption operation. For decryption operations, the returned value may be sensitive plaintext.",
+    "rubric reason": "The computed result is exposed at result_o on line 249, including values that can be plaintext for the decryption operations selected at line 248. The result register is computed from the operand and key-dependent datapath at lines 222-238, so corruption can change the returned value. The result and its delivery can be withheld by the result-selection logic at lines 249-262.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "Observe a sensitive returned result, corrupt the result datapath, or prevent result_o from returning the computed value.",
+    "enters through": [],
+    "leaves through": [
+     "result_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     222,
+     224
+    ],
+    "exit lines": [
+     249
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C6",
+    "unit": "neorv32_cpu_cp_cfu",
+    "concept": "Result-valid status",
+    "information": "valid_o indicates whether the selected operation has a result available or whether the initialization operation is accepted. The receiving processor depends on this status to recognize a usable result.",
+    "rubric reason": "The status returned on valid_o is generated from the completion state and operation selection at lines 250-256, so an incorrect status can make the consumer accept an invalid result or reject a valid one. The result-selection branches can hold valid_o low and withhold the result transfer at lines 254-262.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "Force valid_o high or low so the processor consumes an invalid result or never recognizes a completed operation.",
+    "enters through": [],
+    "leaves through": [
+     "valid_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     250,
+     253,
+     256,
+     262
+    ],
+    "exit lines": [
+     250,
+     253,
+     256,
+     262
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_cpu_cp_cfu",
+    "concept": "Clock and reset timing",
+    "reason": "Clock and reset inputs and their reset or timing effects are explicitly excluded as conceptual assets by the clock and reset rule, as used at lines 175-177 and 192-198.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_cp_cfu",
+    "concept": "active_i",
+    "reason": "The port is never read or used in the RTL, so no security objective or mechanism is shown; its only occurrence is its declaration at line 26.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_cp_cfu",
+    "concept": "funct7_i",
+    "reason": "The port is never read or used in the RTL, so no security objective or mechanism is shown; its only occurrence is its declaration at line 35.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_cp_cfu",
+    "concept": "rs3_i",
+    "reason": "The port is never read or used in the RTL, so no security objective or mechanism is shown; its only occurrence is its declaration at line 38.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_cp_cfu",
+    "concept": "Internal XTEA sequencing state",
+    "reason": "merged into C6",
+    "merged into": "C6"
+   },
+   {
+    "unit": "neorv32_cpu_cp_cfu",
+    "concept": "XTEA intermediate working values",
+    "reason": "merged into C5",
+    "merged into": "C5"
+   },
+   {
+    "unit": "neorv32_cpu_cp_cfu",
+    "concept": "Operation-selector fields",
+    "reason": "merged into C4",
+    "merged into": "C4"
+   },
+   {
+    "unit": "neorv32_cpu_cp_cfu",
+    "concept": "CSR key readback word",
+    "reason": "merged into C1",
+    "merged into": "C1"
+   }
+  ]
+ },
+ "problems": [
+  "consistency: not-kept entry 'Internal XTEA sequencing state': both Merged Into and Why Not Kept are filled",
+  "consistency: not-kept entry 'XTEA intermediate working values': both Merged Into and Why Not Kept are filled",
+  "consistency: not-kept entry 'Operation-selector fields': both Merged Into and Why Not Kept are filled",
+  "consistency: not-kept entry 'CSR key readback word': both Merged Into and Why Not Kept are filled"
+ ],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

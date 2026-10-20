@@ -1,0 +1,2049 @@
+{
+ "module": "neorv32_twi",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 2,
+ "system sha": "6e414c09e397",
+ "user sha": "eb2cb2b56690",
+ "usage": {
+  "in": 30512,
+  "out": 19290,
+  "reasoning": 6943,
+  "cached": 15151,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_038a43f9bcf7da97006ace2fb5068887d198b743c75321fb16",
+  "request key": "377d2cb4c615"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_twi\",\n  \"Concept Walks\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Points\": [\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"holding block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [133, 136, 168],\n          \"Answer Reason\": \"A bus write directly overwrites ctrl.enable and the resulting value can disable operation and clear both FIFOs.\"\n        },\n        {\n          \"Point\": \"fifo.clear\",\n          \"Reached By\": \"the bus_access ==> fifo.clear arrow carrying ctrl.enable\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [168, 184, 215],\n          \"Answer Reason\": \"The derived clear signal can clear both FIFO instances, making queued TWI data unavailable.\"\n        },\n        {\n          \"Point\": \"tx_fifo_inst\",\n          \"Reached By\": \"the fifo.clear ==> tx_fifo_inst arrow\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [184],\n          \"Answer Reason\": \"Under the another-IP black-box rule, fifo.clear can clear the transmit FIFO and prevent operation.\"\n        },\n        {\n          \"Point\": \"rx_fifo_inst\",\n          \"Reached By\": \"the fifo.clear ==> rx_fifo_inst arrow\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [215],\n          \"Answer Reason\": \"Under the another-IP black-box rule, fifo.clear can clear the receive FIFO and prevent operation.\"\n        },\n        {\n          \"Point\": \"clock_generator\",\n          \"Reached By\": \"the bus_access --> clock_generator arrow controlled by ctrl.enable\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [252, 253, 254],\n          \"Answer Reason\": \"A cleared enable resets the clock-generator counter and tick, withholding transfer timing.\"\n        },\n        {\n          \"Point\": \"phase_generator\",\n          \"Reached By\": \"the bus_access --> phase_generator arrow controlled by ctrl.enable\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [280, 281],\n          \"Answer Reason\": \"ctrl.enable forces the phase generator to its idle phase when cleared, preventing normal transfer phases.\"\n        },\n        {\n          \"Point\": \"twi_engine\",\n          \"Reached By\": \"the bus_access ==> twi_engine arrow carrying ctrl.enable\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [321, 392, 393],\n          \"Answer Reason\": \"The enable controls engine state and a disabled engine returns the serial outputs to idle instead of progressing a transfer.\"\n        },\n        {\n          \"Point\": \"engine.busy\",\n          \"Reached By\": \"the twi_engine --> engine.busy arrow carrying engine.state\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [401],\n          \"Answer Reason\": \"The enable-controlled engine state determines busy, so disabling the engine removes the active-operation indication.\"\n        },\n        {\n          \"Point\": \"irq_generator\",\n          \"Reached By\": \"the bus_access ==> irq_generator arrow carrying ctrl.enable\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [239],\n          \"Answer Reason\": \"ctrl.enable gates irq_o generation, so clearing it can suppress the service indication.\"\n        },\n        {\n          \"Point\": \"clkgen_en_o\",\n          \"Reached By\": \"the bus_access ==> clkgen_en_o arrow carrying ctrl.enable\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [136, 270],\n          \"Answer Reason\": \"The externally visible clock-generator enable is directly driven by the bus-programmable ctrl.enable state.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"ctrl.enable\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\", \"fifo.clear\", \"clock_generator\", \"phase_generator\", \"twi_engine\", \"irq_generator\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores the programmed operational enable state and controls FIFO clearing, clock generation, engine activity, and interrupt generation.\",\n          \"Justification\": \"It is the register that directly holds the conceptual enable state and is overwritten by a bus write.\",\n          \"Asset Lines\": [124, 136, 168, 239, 252, 280, 321]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"ctrl.enable\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Supplies the value written into ctrl.enable.\",\n          \"Justification\": \"The bus data field can modify the primary enable register through the write path.\",\n          \"Asset Lines\": [136]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.addr\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"ctrl.enable\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Selects whether the bus write reaches the control register.\",\n          \"Justification\": \"The address condition gates assignment of ctrl.enable.\",\n          \"Asset Lines\": [133, 135]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.rw\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"ctrl.enable\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Selects a write operation that can update ctrl.enable.\",\n          \"Justification\": \"The read/write condition gates the enable-register assignment.\",\n          \"Asset Lines\": [133, 134]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.stb\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"ctrl.enable\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Enables a bus transaction that can update ctrl.enable.\",\n          \"Justification\": \"The strobe gates the complete bus-access write path.\",\n          \"Asset Lines\": [133]\n        },\n        {\n          \"Asset RTL\": \"fifo.clear\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"fifo.clear\", \"tx_fifo_inst\", \"rx_fifo_inst\"],\n          \"Security Objectives\": [\"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"ctrl.enable\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Clears the transmit and receive FIFO instances when ctrl.enable is low.\",\n          \"Justification\": \"It is a derived control path through which the enable state can remove queued transfer data.\",\n          \"Asset Lines\": [168, 184, 215]\n        },\n        {\n          \"Asset RTL\": \"clk_gen.cnt\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"clock_generator\"],\n          \"Security Objectives\": [\"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"ctrl.enable\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Counts clock-generator cycles while the controller is enabled.\",\n          \"Justification\": \"ctrl.enable clears and prevents progress of this timing state.\",\n          \"Asset Lines\": [252, 254]\n        },\n        {\n          \"Asset RTL\": \"clk_gen.tick\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"clock_generator\"],\n          \"Security Objectives\": [\"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"ctrl.enable\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Provides the timing pulse used to advance TWI operation.\",\n          \"Justification\": \"ctrl.enable forces tick low and therefore can block transfer progress.\",\n          \"Asset Lines\": [252, 253, 256]\n        },\n        {\n          \"Asset RTL\": \"engine.state\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"twi_engine\", \"engine.busy\"],\n          \"Security Objectives\": [\"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"ctrl.enable\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Reflects and sequences the enabled or idle engine operation.\",\n          \"Justification\": \"The enable is copied into the state and can force the engine into idle behavior.\",\n          \"Asset Lines\": [321, 392, 393, 401]\n        },\n        {\n          \"Asset RTL\": \"irq_o\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"irq_generator\"],\n          \"Security Objectives\": [\"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"ctrl.enable\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Reports an interrupt condition that is gated by ctrl.enable.\",\n          \"Justification\": \"The enable state can suppress the operational interrupt indication.\",\n          \"Asset Lines\": [239]\n        },\n        {\n          \"Asset RTL\": \"bus_rsp_o.data\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"ctrl.enable\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Returns the stored enable state in the control-register readback word.\",\n          \"Justification\": \"The enable value is released through this response field, although the bus response record is not itself primary.\",\n          \"Asset Lines\": [143]\n        },\n        {\n          \"Asset RTL\": \"clkgen_en_o\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"clkgen_en_o\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Exports the operational enable state directly to the external clock generator.\",\n          \"Justification\": \"It crosses the unit boundary unmixed as the value of ctrl.enable.\",\n          \"Asset Lines\": [270]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Points\": [\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"holding block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [133, 137, 138],\n          \"Answer Reason\": \"Bus writes overwrite the prescaler and divider configuration, allowing the programmed serial timing to be changed or disabled.\"\n        },\n        {\n          \"Point\": \"clock_generator\",\n          \"Reached By\": \"the bus_access --> clock_generator arrow carrying ctrl.cdiv and ctrl.prsc\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [257, 258, 262],\n          \"Answer Reason\": \"The configuration selects the clkgen_i index and counter limit, so altered values change or withhold tick generation.\"\n        },\n        {\n          \"Point\": \"phase_generator\",\n          \"Reached By\": \"the clock_generator --> phase_generator arrow carrying clk_gen.tick\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [282, 283],\n          \"Answer Reason\": \"The generated tick controls phase advancement, so a missing or unsuitable tick stalls serial phases.\"\n        },\n        {\n          \"Point\": \"clk_gen.phase\",\n          \"Reached By\": \"the phase_generator ==> clk_gen.phase arrow\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [289, 292],\n          \"Answer Reason\": \"The generated phase signals determine when engine outputs and state transitions occur.\"\n        },\n        {\n          \"Point\": \"fifo.tx_re\",\n          \"Reached By\": \"the clock_generator --> fifo.tx_re arrow carrying clk_gen.tick\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [199],\n          \"Answer Reason\": \"The timing tick gates removal of queued transmit commands, so unsuitable timing can prevent the transfer from starting.\"\n        },\n        {\n          \"Point\": \"twi_engine\",\n          \"Reached By\": \"the clock_generator --> twi_engine arrow carrying clk_gen.tick\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [328, 334, 381],\n          \"Answer Reason\": \"The generated timing controls command loading, serial phases, bit shifting, and completion.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"ctrl.prsc\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\", \"clock_generator\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores the programmed prescaler selection used to select the clock-generator input.\",\n          \"Justification\": \"It is a configuration register directly overwritten by bus data and used in timing generation.\",\n          \"Asset Lines\": [125, 137, 257]\n        },\n        {\n          \"Asset RTL\": \"ctrl.cdiv\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\", \"clock_generator\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores the programmed clock-divider limit used to generate transfer ticks.\",\n          \"Justification\": \"It is the register holding the divider setting and is directly compared with the timing counter.\",\n          \"Asset Lines\": [126, 138, 258]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"ctrl.prsc\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"ctrl.cdiv\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Supplies the prescaler and divider fields written into the timing registers.\",\n          \"Justification\": \"The bus data field can modify both timing primaries through lines 137 and 138.\",\n          \"Asset Lines\": [137, 138]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.addr\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"ctrl.prsc\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"ctrl.cdiv\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Selects the control-register address for a timing configuration write.\",\n          \"Justification\": \"The address condition gates assignment of both timing fields.\",\n          \"Asset Lines\": [135]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.rw\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"ctrl.prsc\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"ctrl.cdiv\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Selects a write transaction that can update timing configuration.\",\n          \"Justification\": \"The read/write test gates the timing-register assignments.\",\n          \"Asset Lines\": [134]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.stb\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"ctrl.prsc\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"ctrl.cdiv\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Enables the bus transaction that writes timing configuration.\",\n          \"Justification\": \"The strobe gates the control-register write path.\",\n          \"Asset Lines\": [133]\n        },\n        {\n          \"Asset RTL\": \"clk_gen.cnt\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"clock_generator\"],\n          \"Security Objectives\": [\"A\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"ctrl.prsc\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"ctrl.cdiv\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Counts selected clock-generator input cycles toward the divider limit.\",\n          \"Justification\": \"The timing settings control its indexing, comparison, reset, and increment behavior.\",\n          \"Asset Lines\": [257, 258, 260, 262]\n        },\n        {\n          \"Asset RTL\": \"clk_gen.tick\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"clock_generator\", \"phase_generator\", \"fifo.tx_re\", \"twi_engine\"],\n          \"Security Objectives\": [\"A\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"ctrl.prsc\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"ctrl.cdiv\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Pulses when the configured timing counter reaches its limit and paces transfers.\",\n          \"Justification\": \"The timing registers determine whether and when this pulse is asserted.\",\n          \"Asset Lines\": [257, 258, 259, 328]\n        },\n        {\n          \"Asset RTL\": \"bus_rsp_o.data\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [\n            {\"Primary RTL\": \"ctrl.prsc\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"},\n            {\"Primary RTL\": \"ctrl.cdiv\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"}\n          ],\n          \"Functionality\": \"Returns the timing settings in the control-register readback word.\",\n          \"Justification\": \"The response field carries the primary configuration values to the bus.\",\n          \"Asset Lines\": [144, 145]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Points\": [\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"the bus_req_i ==> bus_access arrow carrying bus_req_i.data\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"This block only forwards command data into the transmit FIFO path; it does not itself store or compute the transaction command.\"\n        },\n        {\n          \"Point\": \"fifo.tx_wdata\",\n          \"Reached By\": \"the bus_req_i ==> fifo.tx_wdata arrow carrying bus_req_i.data\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [197, 198],\n          \"Answer Reason\": \"A bus write supplies the queued command word, so the command content can be replaced before execution.\"\n        },\n        {\n          \"Point\": \"tx_fifo_inst\",\n          \"Reached By\": \"the fifo.tx_wdata ==> tx_fifo_inst arrow\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [188, 189, 192],\n          \"Answer Reason\": \"The another-IP FIFO stores and returns the command word under its write, read, and clear controls; this uses the black-box rule.\"\n        },\n        {\n          \"Point\": \"twi_engine\",\n          \"Reached By\": \"the tx_fifo_inst ==> twi_engine arrow carrying fifo.tx_rdata\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [327, 328, 329, 334, 394],\n          \"Answer Reason\": \"The returned command bits select engine.state and therefore select or suppress the serial operation states.\"\n        }\n      ],\n      \"Assets\": [],\n      \"Not Reported\": [\n        {\n          \"Element RTL\": \"bus_req_i.data\",\n          \"Element Entity\": \"neorv32_twi\",\n          \"Why Not Reported\": \"It is a field of a bus request record and only supplies a FIFO transaction, so it is not primary and no primary qualifies for a secondary link.\"\n        },\n        {\n          \"Element RTL\": \"fifo.tx_wdata\",\n          \"Element Entity\": \"neorv32_twi\",\n          \"Why Not Reported\": \"It is the signal feeding a FIFO that buffers the command while it moves.\"\n        },\n        {\n          \"Element RTL\": \"fifo.tx_rdata\",\n          \"Element Entity\": \"neorv32_twi\",\n          \"Why Not Reported\": \"It is the FIFO output carrier for the command and is not the command's storage or computation in this unit.\"\n        },\n        {\n          \"Element RTL\": \"engine.state\",\n          \"Element Entity\": \"neorv32_twi\",\n          \"Why Not Reported\": \"It is sequencing state and is barred from being primary for this transaction-control concept.\"\n        },\n        {\n          \"Element RTL\": \"engine.sreg\",\n          \"Element Entity\": \"neorv32_twi\",\n          \"Why Not Reported\": \"It is a serial shift register that temporarily carries transaction bits rather than storing the conceptual command.\"\n        }\n      ],\n      \"No Primary Reason\": \"The command is only copied through a bus field, FIFO buffers, and sequencing or shift state; all such elements are barred from being primary by the structural rules.\"\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Points\": [\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"the bus_req_i ==> bus_access arrow carrying bus_req_i.data\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"The bus-access process does not itself store, compute, or release the payload value.\"\n        },\n        {\n          \"Point\": \"fifo.tx_wdata\",\n          \"Reached By\": \"the bus_req_i ==> fifo.tx_wdata arrow carrying bus_req_i.data\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [197, 198],\n          \"Answer Reason\": \"The bus data is written into the transmit data path, allowing the queued payload to be changed.\"\n        },\n        {\n          \"Point\": \"tx_fifo_inst\",\n          \"Reached By\": \"the fifo.tx_wdata ==> tx_fifo_inst arrow\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [184, 188, 189, 192],\n          \"Answer Reason\": \"The transmit FIFO buffers the payload and its write, read, and clear controls can replace or discard the queued word; the FIFO behavior uses the black-box rule.\"\n        },\n        {\n          \"Point\": \"twi_engine\",\n          \"Reached By\": \"the tx_fifo_inst ==> twi_engine arrow carrying fifo.tx_rdata\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [327, 334, 374, 378],\n          \"Answer Reason\": \"The engine loads the queued value into the shift register and can shift or replace it while phase and state controls determine whether transmission proceeds.\"\n        },\n        {\n          \"Point\": \"twi_sda_o\",\n          \"Reached By\": \"the twi_engine ==> twi_sda_o arrow carrying io_con.sda_out\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [374, 406],\n          \"Answer Reason\": \"The payload bits are driven onto the externally observable SDA output.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"twi_sda_o\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"twi_sda_o\"],\n          \"Security Objectives\": [\"C\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Carries each transmitted payload bit across the TWI unit boundary.\",\n          \"Justification\": \"The serial output crosses the boundary one bit per step and therefore carries the complete payload value over the transfer.\",\n          \"Asset Lines\": [406]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"C\"],\n          \"Secondary To\": [{\"Primary RTL\": \"twi_sda_o\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"a\"}],\n          \"Functionality\": \"Supplies bus-written payload data for transmission.\",\n          \"Justification\": \"The payload flows from this input field toward the serial output.\",\n          \"Asset Lines\": [198]\n        },\n        {\n          \"Asset RTL\": \"fifo.tx_wdata\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"fifo.tx_wdata\"],\n          \"Security Objectives\": [\"C\"],\n          \"Secondary To\": [{\"Primary RTL\": \"twi_sda_o\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"a\"}],\n          \"Functionality\": \"Carries bus payload data into the transmit FIFO.\",\n          \"Justification\": \"It is a FIFO input carrier on the path to the serial output.\",\n          \"Asset Lines\": [188, 198]\n        },\n        {\n          \"Asset RTL\": \"fifo.tx_rdata\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"tx_fifo_inst\"],\n          \"Security Objectives\": [\"C\"],\n          \"Secondary To\": [{\"Primary RTL\": \"twi_sda_o\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"a\"}],\n          \"Functionality\": \"Carries the queued payload from the transmit FIFO to the engine.\",\n          \"Justification\": \"It is the FIFO output carrier preceding the shift path.\",\n          \"Asset Lines\": [193, 327]\n        },\n        {\n          \"Asset RTL\": \"engine.sreg\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"twi_engine\"],\n          \"Security Objectives\": [\"C\"],\n          \"Secondary To\": [{\"Primary RTL\": \"twi_sda_o\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"a\"}],\n          \"Functionality\": \"Shifts the transmit payload toward the SDA output.\",\n          \"Justification\": \"It carries the payload immediately before the output driver, but the serial shift register is not primary.\",\n          \"Asset Lines\": [327, 374, 378]\n        },\n        {\n          \"Asset RTL\": \"io_con.sda_out\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"twi_engine\", \"twi_sda_o\"],\n          \"Security Objectives\": [\"C\"],\n          \"Secondary To\": [{\"Primary RTL\": \"twi_sda_o\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"a\"}],\n          \"Functionality\": \"Forwards the shifted payload bit to twi_sda_o.\",\n          \"Justification\": \"It is the forwarding register directly driving the payload output.\",\n          \"Asset Lines\": [374, 406]\n        },\n        {\n          \"Asset RTL\": \"fifo.tx_we\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"tx_fifo_inst\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"twi_sda_o\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Controls whether bus data is enqueued for transmission.\",\n          \"Justification\": \"Its bus-derived condition can prevent or permit a payload to enter the transmit path.\",\n          \"Asset Lines\": [197, 189]\n        },\n        {\n          \"Asset RTL\": \"fifo.clear\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"tx_fifo_inst\"],\n          \"Security Objectives\": [\"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"twi_sda_o\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Clears queued transmit data.\",\n          \"Justification\": \"The clear path can remove the payload before it reaches the serial output.\",\n          \"Asset Lines\": [168, 184]\n        },\n        {\n          \"Asset RTL\": \"ctrl.enable\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"tx_fifo_inst\", \"twi_engine\"],\n          \"Security Objectives\": [\"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"twi_sda_o\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Enables the FIFO and engine activity needed to transmit the payload.\",\n          \"Justification\": \"Clearing it clears the FIFO and disables engine progress.\",\n          \"Asset Lines\": [168, 252, 321]\n        },\n        {\n          \"Asset RTL\": \"clk_gen.phase\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"twi_engine\"],\n          \"Security Objectives\": [\"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"twi_sda_o\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Determines when payload bits are placed on the serial output.\",\n          \"Justification\": \"The phase conditions gate SDA updates and can block or alter transmission timing.\",\n          \"Asset Lines\": [334, 336, 349, 351, 371, 373]\n        }\n      ],\n      \"Not Reported\": [\n        {\n          \"Element RTL\": \"bus_req_i.addr\",\n          \"Element Entity\": \"neorv32_twi\",\n          \"Why Not Reported\": \"It only selects the bus FIFO address and does not carry or control the payload at the transmission point.\"\n        },\n        {\n          \"Element RTL\": \"bus_req_i.rw\",\n          \"Element Entity\": \"neorv32_twi\",\n          \"Why Not Reported\": \"It only selects a bus write and has no independent payload flow at the reported point.\"\n        },\n        {\n          \"Element RTL\": \"bus_req_i.stb\",\n          \"Element Entity\": \"neorv32_twi\",\n          \"Why Not Reported\": \"It only qualifies the bus transaction and is not itself a payload carrier.\"\n        }\n      ],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Points\": [\n        {\n          \"Point\": \"io_con.sda_in\",\n          \"Reached By\": \"the twi_sda_i ==> io_con.sda_in arrow\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [408],\n          \"Answer Reason\": \"This point only converts and forwards the externally supplied SDA sample.\"\n        },\n        {\n          \"Point\": \"twi_engine\",\n          \"Reached By\": \"the io_con.sda_in ==> twi_engine arrow\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [314, 378],\n          \"Answer Reason\": \"The sampled SDA bit is shifted into the receive word, while engine state and phase determine whether reception progresses.\"\n        },\n        {\n          \"Point\": \"fifo.rx_wdata\",\n          \"Reached By\": \"the twi_engine ==> fifo.rx_wdata arrow carrying engine.sreg\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [228],\n          \"Answer Reason\": \"The completed receive word is supplied to the receive FIFO and can be changed by the preceding shift path.\"\n        },\n        {\n          \"Point\": \"fifo.rx_we\",\n          \"Reached By\": \"the twi_engine ==> fifo.rx_we arrow carrying engine.done\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [229, 386],\n          \"Answer Reason\": \"The done-controlled write enable determines whether the received word is committed to the receive FIFO.\"\n        },\n        {\n          \"Point\": \"rx_fifo_inst\",\n          \"Reached By\": \"the fifo.rx_wdata ==> rx_fifo_inst arrow\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [215, 219, 220, 223],\n          \"Answer Reason\": \"The another-IP FIFO stores, clears, and releases received data under the shown data, write, read, and clear connections.\"\n        },\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"the rx_fifo_inst ==> bus_access arrow carrying fifo.rx_rdata\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [142, 156, 230],\n          \"Answer Reason\": \"A bus read releases fifo.rx_rdata in bus_rsp_o.data, while the read-selection path can prevent the received value from being returned.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"twi_sda_i\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"io_con.sda_in\"],\n          \"Security Objectives\": [\"C\", \"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Carries received SDA bits across the unit boundary into the receive path.\",\n          \"Justification\": \"The serial input supplies every bit of the received payload and therefore crosses the boundary as the payload is assembled.\",\n          \"Asset Lines\": [408]\n        },\n        {\n          \"Asset RTL\": \"io_con.sda_in\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"io_con.sda_in\"],\n          \"Security Objectives\": [\"C\"],\n          \"Secondary To\": [{\"Primary RTL\": \"twi_sda_i\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"a\"}],\n          \"Functionality\": \"Forwards the sampled SDA input to the synchronizing receive logic.\",\n          \"Justification\": \"It is a direct carrier between the input port and the receive engine.\",\n          \"Asset Lines\": [408]\n        },\n        {\n          \"Asset RTL\": \"io_con.sda_in_ff\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"twi_engine\"],\n          \"Security Objectives\": [\"C\"],\n          \"Secondary To\": [{\"Primary RTL\": \"twi_sda_i\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"a\"}],\n          \"Functionality\": \"Synchronizes SDA samples before they enter the receive shift register.\",\n          \"Justification\": \"It carries the input payload through synchronizer stages and is not primary.\",\n          \"Asset Lines\": [314, 378]\n        },\n        {\n          \"Asset RTL\": \"engine.sreg\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"twi_engine\", \"fifo.rx_wdata\"],\n          \"Security Objectives\": [\"C\"],\n          \"Secondary To\": [{\"Primary RTL\": \"twi_sda_i\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"a\"}],\n          \"Functionality\": \"Assembles received SDA bits into the word written to the receive FIFO.\",\n          \"Justification\": \"It is a receive shift-register carrier; serial shift registers are not primary under the structural rules.\",\n          \"Asset Lines\": [378, 228]\n        },\n        {\n          \"Asset RTL\": \"fifo.rx_wdata\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"fifo.rx_wdata\"],\n          \"Security Objectives\": [\"C\"],\n          \"Secondary To\": [{\"Primary RTL\": \"twi_sda_i\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"a\"}],\n          \"Functionality\": \"Carries the assembled receive word into the receive FIFO.\",\n          \"Justification\": \"It is a FIFO input carrier for received data.\",\n          \"Asset Lines\": [219, 228]\n        },\n        {\n          \"Asset RTL\": \"fifo.rx_rdata\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"rx_fifo_inst\", \"bus_access\"],\n          \"Security Objectives\": [\"C\"],\n          \"Secondary To\": [{\"Primary RTL\": \"twi_sda_i\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"a\"}],\n          \"Functionality\": \"Carries received FIFO data to the bus response logic.\",\n          \"Justification\": \"It is the FIFO output carrier on the path to readback.\",\n          \"Asset Lines\": [224, 156]\n        },\n        {\n          \"Asset RTL\": \"bus_rsp_o.data\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"C\"],\n          \"Secondary To\": [{\"Primary RTL\": \"twi_sda_i\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"a\"}],\n          \"Functionality\": \"Returns the received FIFO word to the bus.\",\n          \"Justification\": \"The response field carries the received payload out of the unit, although a bus response field is not primary.\",\n          \"Asset Lines\": [156]\n        },\n        {\n          \"Asset RTL\": \"engine.state\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"twi_engine\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"twi_sda_i\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Controls whether the engine performs receive steps and completes a word.\",\n          \"Justification\": \"The state machine can gate or block capture of the input payload.\",\n          \"Asset Lines\": [322, 385, 387]\n        },\n        {\n          \"Asset RTL\": \"clk_gen.phase\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"twi_engine\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"twi_sda_i\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Controls the receive shift and completion timing.\",\n          \"Justification\": \"The phase conditions determine when sampled input is incorporated and when reception finishes.\",\n          \"Asset Lines\": [377, 385]\n        },\n        {\n          \"Asset RTL\": \"engine.done\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"fifo.rx_we\"],\n          \"Security Objectives\": [\"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"twi_sda_i\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Commits a completed received word to the receive FIFO.\",\n          \"Justification\": \"Without done, the receive FIFO write is not performed.\",\n          \"Asset Lines\": [229, 386]\n        },\n        {\n          \"Asset RTL\": \"fifo.rx_re\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"C\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"twi_sda_i\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Controls removal of received data for bus readback.\",\n          \"Justification\": \"The bus read condition controls whether the received value can leave the FIFO.\",\n          \"Asset Lines\": [223, 230]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.addr\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"C\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"twi_sda_i\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Selects the receive-data read address.\",\n          \"Justification\": \"The address condition decides whether receive data is released and consumed.\",\n          \"Asset Lines\": [142, 230]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.rw\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"C\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"twi_sda_i\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Selects a bus read for receive-data release.\",\n          \"Justification\": \"The read/write condition gates fifo.rx_re and the response data path.\",\n          \"Asset Lines\": [134, 230]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.stb\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"C\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"twi_sda_i\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Enables a bus transaction that reads received data.\",\n          \"Justification\": \"The strobe gates the receive FIFO read and response generation.\",\n          \"Asset Lines\": [133, 230]\n        }\n      ],\n      \"Not Reported\": [\n        {\n          \"Element RTL\": \"fifo.rx_we\",\n          \"Element Entity\": \"neorv32_twi\",\n          \"Why Not Reported\": \"It is already reported as a secondary control of receive-data availability.\"\n        },\n        {\n          \"Element RTL\": \"fifo.rx_avail\",\n          \"Element Entity\": \"neorv32_twi\",\n          \"Why Not Reported\": \"It reports FIFO status but does not carry the received payload itself or directly release its data.\"\n        }\n      ],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Points\": [\n        {\n          \"Point\": \"irq_generator\",\n          \"Reached By\": \"holding block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [239],\n          \"Answer Reason\": \"The interrupt output is computed from enable, transmit availability, and engine busy, so altering those inputs can create or suppress the request.\"\n        },\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"the bus_access ==> irq_generator arrow carrying ctrl.enable\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [136, 239],\n          \"Answer Reason\": \"A bus write can change ctrl.enable, which directly changes the interrupt condition.\"\n        },\n        {\n          \"Point\": \"tx_fifo_inst\",\n          \"Reached By\": \"the tx_fifo_inst ==> irq_generator arrow carrying fifo.tx_avail\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [189, 192, 194, 239],\n          \"Answer Reason\": \"Transmit FIFO contents and read activity determine fifo.tx_avail, which is an input to irq_o; the FIFO behavior uses the black-box rule.\"\n        },\n        {\n          \"Point\": \"twi_engine\",\n          \"Reached By\": \"the twi_engine --> engine.busy arrow\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [322, 401, 239],\n          \"Answer Reason\": \"Engine state determines busy, and busy directly participates in the interrupt condition.\"\n        },\n        {\n          \"Point\": \"engine.busy\",\n          \"Reached By\": \"the twi_engine --> engine.busy arrow carrying engine.state\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [401, 239],\n          \"Answer Reason\": \"The derived busy flag can make irq_o assert or remain suppressed through the line-239 condition.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"irq_o\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"irq_generator\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Exports the TWI service interrupt request.\",\n          \"Justification\": \"It is the unit output that directly returns the computed interrupt information.\",\n          \"Asset Lines\": [237, 239]\n        },\n        {\n          \"Asset RTL\": \"ctrl.enable\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_o\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Gates interrupt generation according to the operational enable state.\",\n          \"Justification\": \"The interrupt assignment directly tests ctrl.enable.\",\n          \"Asset Lines\": [239]\n        },\n        {\n          \"Asset RTL\": \"fifo.tx_avail\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"tx_fifo_inst\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_o\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Indicates whether queued transmit data prevents the idle interrupt condition.\",\n          \"Justification\": \"The FIFO availability status is directly tested in the irq_o assignment.\",\n          \"Asset Lines\": [194, 239]\n        },\n        {\n          \"Asset RTL\": \"engine.busy\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"twi_engine\", \"engine.busy\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_o\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Indicates whether the TWI engine is active and gates the interrupt request.\",\n          \"Justification\": \"The busy value is directly used in the interrupt condition.\",\n          \"Asset Lines\": [239, 401]\n        },\n        {\n          \"Asset RTL\": \"engine.state\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"twi_engine\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_o\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Determines engine.busy, which participates in irq_o generation.\",\n          \"Justification\": \"The state-derived busy signal can make the interrupt assert or remain low.\",\n          \"Asset Lines\": [401]\n        },\n        {\n          \"Asset RTL\": \"clk_i\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"irq_generator\"],\n          \"Security Objectives\": [\"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_o\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Clocks the registered interrupt output.\",\n          \"Justification\": \"An attacker able to stall the clock can prevent irq_o from updating.\",\n          \"Asset Lines\": [238]\n        },\n        {\n          \"Asset RTL\": \"rstn_i\",\n          \"Entity\": \"neorv32_twi\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"irq_generator\"],\n          \"Security Objectives\": [\"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_o\", \"Primary Entity\": \"neorv32_twi\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Resets the interrupt output to zero.\",\n          \"Justification\": \"Asserting reset clears irq_o and can suppress the service request.\",\n          \"Asset Lines\": [236]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    }\n  ],\n  \"Notes\": [\n    \"C3 has no qualifying primary because the command is buffered through a FIFO and then used only by barred sequencing or serial shift state.\",\n    \"The closed set marks bus_rsp_o as set to constants only, but the RTL also assigns ctrl, FIFO, engine, and input-derived fields into bus_rsp_o.data at lines 143-156; the field-level entries were used.\",\n    \"The conceptual entries C1 and C2 list bus_req_i.data as an entry even though the actual writes use distinct bit slices of that record field.\"\n  ]\n}",
+ "reply": {
+  "module name": "neorv32_twi",
+  "notes": [
+   "C3 has no qualifying primary because the command is buffered through a FIFO and then used only by barred sequencing or serial shift state.",
+   "The closed set marks bus_rsp_o as set to constants only, but the RTL also assigns ctrl, FIFO, engine, and input-derived fields into bus_rsp_o.data at lines 143-156; the field-level entries were used.",
+   "The conceptual entries C1 and C2 list bus_req_i.data as an entry even though the actual writes use distinct bit slices of that record field."
+  ],
+  "points": [
+   {
+    "concept id": "C1",
+    "point": "bus_access",
+    "reached by": "holding block",
+    "lines": [
+     133,
+     136,
+     168
+    ],
+    "reason": "A bus write directly overwrites ctrl.enable and the resulting value can disable operation and clear both FIFOs.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "fifo.clear",
+    "reached by": "the bus_access ==> fifo.clear arrow carrying ctrl.enable",
+    "lines": [
+     168,
+     184,
+     215
+    ],
+    "reason": "The derived clear signal can clear both FIFO instances, making queued TWI data unavailable.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "tx_fifo_inst",
+    "reached by": "the fifo.clear ==> tx_fifo_inst arrow",
+    "lines": [
+     184
+    ],
+    "reason": "Under the another-IP black-box rule, fifo.clear can clear the transmit FIFO and prevent operation.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "rx_fifo_inst",
+    "reached by": "the fifo.clear ==> rx_fifo_inst arrow",
+    "lines": [
+     215
+    ],
+    "reason": "Under the another-IP black-box rule, fifo.clear can clear the receive FIFO and prevent operation.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "clock_generator",
+    "reached by": "the bus_access --> clock_generator arrow controlled by ctrl.enable",
+    "lines": [
+     252,
+     253,
+     254
+    ],
+    "reason": "A cleared enable resets the clock-generator counter and tick, withholding transfer timing.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "phase_generator",
+    "reached by": "the bus_access --> phase_generator arrow controlled by ctrl.enable",
+    "lines": [
+     280,
+     281
+    ],
+    "reason": "ctrl.enable forces the phase generator to its idle phase when cleared, preventing normal transfer phases.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "twi_engine",
+    "reached by": "the bus_access ==> twi_engine arrow carrying ctrl.enable",
+    "lines": [
+     321,
+     392,
+     393
+    ],
+    "reason": "The enable controls engine state and a disabled engine returns the serial outputs to idle instead of progressing a transfer.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "engine.busy",
+    "reached by": "the twi_engine --> engine.busy arrow carrying engine.state",
+    "lines": [
+     401
+    ],
+    "reason": "The enable-controlled engine state determines busy, so disabling the engine removes the active-operation indication.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "irq_generator",
+    "reached by": "the bus_access ==> irq_generator arrow carrying ctrl.enable",
+    "lines": [
+     239
+    ],
+    "reason": "ctrl.enable gates irq_o generation, so clearing it can suppress the service indication.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "clkgen_en_o",
+    "reached by": "the bus_access ==> clkgen_en_o arrow carrying ctrl.enable",
+    "lines": [
+     136,
+     270
+    ],
+    "reason": "The externally visible clock-generator enable is directly driven by the bus-programmable ctrl.enable state.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "bus_access",
+    "reached by": "holding block",
+    "lines": [
+     133,
+     137,
+     138
+    ],
+    "reason": "Bus writes overwrite the prescaler and divider configuration, allowing the programmed serial timing to be changed or disabled.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "clock_generator",
+    "reached by": "the bus_access --> clock_generator arrow carrying ctrl.cdiv and ctrl.prsc",
+    "lines": [
+     257,
+     258,
+     262
+    ],
+    "reason": "The configuration selects the clkgen_i index and counter limit, so altered values change or withhold tick generation.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "phase_generator",
+    "reached by": "the clock_generator --> phase_generator arrow carrying clk_gen.tick",
+    "lines": [
+     282,
+     283
+    ],
+    "reason": "The generated tick controls phase advancement, so a missing or unsuitable tick stalls serial phases.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "clk_gen.phase",
+    "reached by": "the phase_generator ==> clk_gen.phase arrow",
+    "lines": [
+     289,
+     292
+    ],
+    "reason": "The generated phase signals determine when engine outputs and state transitions occur.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "fifo.tx_re",
+    "reached by": "the clock_generator --> fifo.tx_re arrow carrying clk_gen.tick",
+    "lines": [
+     199
+    ],
+    "reason": "The timing tick gates removal of queued transmit commands, so unsuitable timing can prevent the transfer from starting.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "twi_engine",
+    "reached by": "the clock_generator --> twi_engine arrow carrying clk_gen.tick",
+    "lines": [
+     328,
+     334,
+     381
+    ],
+    "reason": "The generated timing controls command loading, serial phases, bit shifting, and completion.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "bus_access",
+    "reached by": "the bus_req_i ==> bus_access arrow carrying bus_req_i.data",
+    "lines": [],
+    "reason": "This block only forwards command data into the transmit FIFO path; it does not itself store or compute the transaction command.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "fifo.tx_wdata",
+    "reached by": "the bus_req_i ==> fifo.tx_wdata arrow carrying bus_req_i.data",
+    "lines": [
+     197,
+     198
+    ],
+    "reason": "A bus write supplies the queued command word, so the command content can be replaced before execution.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "tx_fifo_inst",
+    "reached by": "the fifo.tx_wdata ==> tx_fifo_inst arrow",
+    "lines": [
+     188,
+     189,
+     192
+    ],
+    "reason": "The another-IP FIFO stores and returns the command word under its write, read, and clear controls; this uses the black-box rule.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "twi_engine",
+    "reached by": "the tx_fifo_inst ==> twi_engine arrow carrying fifo.tx_rdata",
+    "lines": [
+     327,
+     328,
+     329,
+     334,
+     394
+    ],
+    "reason": "The returned command bits select engine.state and therefore select or suppress the serial operation states.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "bus_access",
+    "reached by": "the bus_req_i ==> bus_access arrow carrying bus_req_i.data",
+    "lines": [],
+    "reason": "The bus-access process does not itself store, compute, or release the payload value.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "fifo.tx_wdata",
+    "reached by": "the bus_req_i ==> fifo.tx_wdata arrow carrying bus_req_i.data",
+    "lines": [
+     197,
+     198
+    ],
+    "reason": "The bus data is written into the transmit data path, allowing the queued payload to be changed.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "tx_fifo_inst",
+    "reached by": "the fifo.tx_wdata ==> tx_fifo_inst arrow",
+    "lines": [
+     184,
+     188,
+     189,
+     192
+    ],
+    "reason": "The transmit FIFO buffers the payload and its write, read, and clear controls can replace or discard the queued word; the FIFO behavior uses the black-box rule.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "twi_engine",
+    "reached by": "the tx_fifo_inst ==> twi_engine arrow carrying fifo.tx_rdata",
+    "lines": [
+     327,
+     334,
+     374,
+     378
+    ],
+    "reason": "The engine loads the queued value into the shift register and can shift or replace it while phase and state controls determine whether transmission proceeds.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "twi_sda_o",
+    "reached by": "the twi_engine ==> twi_sda_o arrow carrying io_con.sda_out",
+    "lines": [
+     374,
+     406
+    ],
+    "reason": "The payload bits are driven onto the externally observable SDA output.",
+    "confidentiality": "yes",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C5",
+    "point": "io_con.sda_in",
+    "reached by": "the twi_sda_i ==> io_con.sda_in arrow",
+    "lines": [
+     408
+    ],
+    "reason": "This point only converts and forwards the externally supplied SDA sample.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C5",
+    "point": "twi_engine",
+    "reached by": "the io_con.sda_in ==> twi_engine arrow",
+    "lines": [
+     314,
+     378
+    ],
+    "reason": "The sampled SDA bit is shifted into the receive word, while engine state and phase determine whether reception progresses.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C5",
+    "point": "fifo.rx_wdata",
+    "reached by": "the twi_engine ==> fifo.rx_wdata arrow carrying engine.sreg",
+    "lines": [
+     228
+    ],
+    "reason": "The completed receive word is supplied to the receive FIFO and can be changed by the preceding shift path.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C5",
+    "point": "fifo.rx_we",
+    "reached by": "the twi_engine ==> fifo.rx_we arrow carrying engine.done",
+    "lines": [
+     229,
+     386
+    ],
+    "reason": "The done-controlled write enable determines whether the received word is committed to the receive FIFO.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C5",
+    "point": "rx_fifo_inst",
+    "reached by": "the fifo.rx_wdata ==> rx_fifo_inst arrow",
+    "lines": [
+     215,
+     219,
+     220,
+     223
+    ],
+    "reason": "The another-IP FIFO stores, clears, and releases received data under the shown data, write, read, and clear connections.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C5",
+    "point": "bus_access",
+    "reached by": "the rx_fifo_inst ==> bus_access arrow carrying fifo.rx_rdata",
+    "lines": [
+     142,
+     156,
+     230
+    ],
+    "reason": "A bus read releases fifo.rx_rdata in bus_rsp_o.data, while the read-selection path can prevent the received value from being returned.",
+    "confidentiality": "yes",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "irq_generator",
+    "reached by": "holding block",
+    "lines": [
+     239
+    ],
+    "reason": "The interrupt output is computed from enable, transmit availability, and engine busy, so altering those inputs can create or suppress the request.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "bus_access",
+    "reached by": "the bus_access ==> irq_generator arrow carrying ctrl.enable",
+    "lines": [
+     136,
+     239
+    ],
+    "reason": "A bus write can change ctrl.enable, which directly changes the interrupt condition.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "tx_fifo_inst",
+    "reached by": "the tx_fifo_inst ==> irq_generator arrow carrying fifo.tx_avail",
+    "lines": [
+     189,
+     192,
+     194,
+     239
+    ],
+    "reason": "Transmit FIFO contents and read activity determine fifo.tx_avail, which is an input to irq_o; the FIFO behavior uses the black-box rule.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "twi_engine",
+    "reached by": "the twi_engine --> engine.busy arrow",
+    "lines": [
+     322,
+     401,
+     239
+    ],
+    "reason": "Engine state determines busy, and busy directly participates in the interrupt condition.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "engine.busy",
+    "reached by": "the twi_engine --> engine.busy arrow carrying engine.state",
+    "lines": [
+     401,
+     239
+    ],
+    "reason": "The derived busy flag can make irq_o assert or remain suppressed through the line-239 condition.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   }
+  ],
+  "structural assets": [
+   {
+    "concept id": "C1",
+    "element": "ctrl.enable",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "bus_access",
+     "fifo.clear",
+     "clock_generator",
+     "phase_generator",
+     "twi_engine",
+     "irq_generator"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     124,
+     136,
+     168,
+     239,
+     252,
+     280,
+     321
+    ],
+    "links": [],
+    "reason": "Stores the programmed operational enable state and controls FIFO clearing, clock generation, engine activity, and interrupt generation. It is the register that directly holds the conceptual enable state and is overwritten by a bus write.",
+    "functionality": "Stores the programmed operational enable state and controls FIFO clearing, clock generation, engine activity, and interrupt generation.",
+    "justification": "It is the register that directly holds the conceptual enable state and is overwritten by a bus write."
+   },
+   {
+    "concept id": "C1",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     136
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies the value written into ctrl.enable. The bus data field can modify the primary enable register through the write path.",
+    "functionality": "Supplies the value written into ctrl.enable.",
+    "justification": "The bus data field can modify the primary enable register through the write path."
+   },
+   {
+    "concept id": "C1",
+    "element": "bus_req_i.addr",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     133,
+     135
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects whether the bus write reaches the control register. The address condition gates assignment of ctrl.enable.",
+    "functionality": "Selects whether the bus write reaches the control register.",
+    "justification": "The address condition gates assignment of ctrl.enable."
+   },
+   {
+    "concept id": "C1",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     133,
+     134
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects a write operation that can update ctrl.enable. The read/write condition gates the enable-register assignment.",
+    "functionality": "Selects a write operation that can update ctrl.enable.",
+    "justification": "The read/write condition gates the enable-register assignment."
+   },
+   {
+    "concept id": "C1",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     133
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Enables a bus transaction that can update ctrl.enable. The strobe gates the complete bus-access write path.",
+    "functionality": "Enables a bus transaction that can update ctrl.enable.",
+    "justification": "The strobe gates the complete bus-access write path."
+   },
+   {
+    "concept id": "C1",
+    "element": "fifo.clear",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "fifo.clear",
+     "tx_fifo_inst",
+     "rx_fifo_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     168,
+     184,
+     215
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Clears the transmit and receive FIFO instances when ctrl.enable is low. It is a derived control path through which the enable state can remove queued transfer data.",
+    "functionality": "Clears the transmit and receive FIFO instances when ctrl.enable is low.",
+    "justification": "It is a derived control path through which the enable state can remove queued transfer data."
+   },
+   {
+    "concept id": "C1",
+    "element": "clk_gen.cnt",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "clock_generator"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     252,
+     254
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Counts clock-generator cycles while the controller is enabled. ctrl.enable clears and prevents progress of this timing state.",
+    "functionality": "Counts clock-generator cycles while the controller is enabled.",
+    "justification": "ctrl.enable clears and prevents progress of this timing state."
+   },
+   {
+    "concept id": "C1",
+    "element": "clk_gen.tick",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "clock_generator"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     252,
+     253,
+     256
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Provides the timing pulse used to advance TWI operation. ctrl.enable forces tick low and therefore can block transfer progress.",
+    "functionality": "Provides the timing pulse used to advance TWI operation.",
+    "justification": "ctrl.enable forces tick low and therefore can block transfer progress."
+   },
+   {
+    "concept id": "C1",
+    "element": "engine.state",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "twi_engine",
+     "engine.busy"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     321,
+     392,
+     393,
+     401
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Reflects and sequences the enabled or idle engine operation. The enable is copied into the state and can force the engine into idle behavior.",
+    "functionality": "Reflects and sequences the enabled or idle engine operation.",
+    "justification": "The enable is copied into the state and can force the engine into idle behavior."
+   },
+   {
+    "concept id": "C1",
+    "element": "irq_o",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "irq_generator"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     239
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Reports an interrupt condition that is gated by ctrl.enable. The enable state can suppress the operational interrupt indication.",
+    "functionality": "Reports an interrupt condition that is gated by ctrl.enable.",
+    "justification": "The enable state can suppress the operational interrupt indication."
+   },
+   {
+    "concept id": "C1",
+    "element": "bus_rsp_o.data",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     143
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Returns the stored enable state in the control-register readback word. The enable value is released through this response field, although the bus response record is not itself primary.",
+    "functionality": "Returns the stored enable state in the control-register readback word.",
+    "justification": "The enable value is released through this response field, although the bus response record is not itself primary."
+   },
+   {
+    "concept id": "C1",
+    "element": "clkgen_en_o",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "clkgen_en_o"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     270
+    ],
+    "links": [],
+    "reason": "Exports the operational enable state directly to the external clock generator. It crosses the unit boundary unmixed as the value of ctrl.enable.",
+    "functionality": "Exports the operational enable state directly to the external clock generator.",
+    "justification": "It crosses the unit boundary unmixed as the value of ctrl.enable."
+   },
+   {
+    "concept id": "C2",
+    "element": "ctrl.prsc",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "bus_access",
+     "clock_generator"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     125,
+     137,
+     257
+    ],
+    "links": [],
+    "reason": "Stores the programmed prescaler selection used to select the clock-generator input. It is a configuration register directly overwritten by bus data and used in timing generation.",
+    "functionality": "Stores the programmed prescaler selection used to select the clock-generator input.",
+    "justification": "It is a configuration register directly overwritten by bus data and used in timing generation."
+   },
+   {
+    "concept id": "C2",
+    "element": "ctrl.cdiv",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "bus_access",
+     "clock_generator"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     126,
+     138,
+     258
+    ],
+    "links": [],
+    "reason": "Stores the programmed clock-divider limit used to generate transfer ticks. It is the register holding the divider setting and is directly compared with the timing counter.",
+    "functionality": "Stores the programmed clock-divider limit used to generate transfer ticks.",
+    "justification": "It is the register holding the divider setting and is directly compared with the timing counter."
+   },
+   {
+    "concept id": "C2",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     137,
+     138
+    ],
+    "links": [
+     {
+      "primary": "ctrl.prsc",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.cdiv",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies the prescaler and divider fields written into the timing registers. The bus data field can modify both timing primaries through lines 137 and 138.",
+    "functionality": "Supplies the prescaler and divider fields written into the timing registers.",
+    "justification": "The bus data field can modify both timing primaries through lines 137 and 138."
+   },
+   {
+    "concept id": "C2",
+    "element": "bus_req_i.addr",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     135
+    ],
+    "links": [
+     {
+      "primary": "ctrl.prsc",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.cdiv",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects the control-register address for a timing configuration write. The address condition gates assignment of both timing fields.",
+    "functionality": "Selects the control-register address for a timing configuration write.",
+    "justification": "The address condition gates assignment of both timing fields."
+   },
+   {
+    "concept id": "C2",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     134
+    ],
+    "links": [
+     {
+      "primary": "ctrl.prsc",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.cdiv",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects a write transaction that can update timing configuration. The read/write test gates the timing-register assignments.",
+    "functionality": "Selects a write transaction that can update timing configuration.",
+    "justification": "The read/write test gates the timing-register assignments."
+   },
+   {
+    "concept id": "C2",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     133
+    ],
+    "links": [
+     {
+      "primary": "ctrl.prsc",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.cdiv",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Enables the bus transaction that writes timing configuration. The strobe gates the control-register write path.",
+    "functionality": "Enables the bus transaction that writes timing configuration.",
+    "justification": "The strobe gates the control-register write path."
+   },
+   {
+    "concept id": "C2",
+    "element": "clk_gen.cnt",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "clock_generator"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     257,
+     258,
+     260,
+     262
+    ],
+    "links": [
+     {
+      "primary": "ctrl.prsc",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.cdiv",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Counts selected clock-generator input cycles toward the divider limit. The timing settings control its indexing, comparison, reset, and increment behavior.",
+    "functionality": "Counts selected clock-generator input cycles toward the divider limit.",
+    "justification": "The timing settings control its indexing, comparison, reset, and increment behavior."
+   },
+   {
+    "concept id": "C2",
+    "element": "clk_gen.tick",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "clock_generator",
+     "phase_generator",
+     "fifo.tx_re",
+     "twi_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     257,
+     258,
+     259,
+     328
+    ],
+    "links": [
+     {
+      "primary": "ctrl.prsc",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.cdiv",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Pulses when the configured timing counter reaches its limit and paces transfers. The timing registers determine whether and when this pulse is asserted.",
+    "functionality": "Pulses when the configured timing counter reaches its limit and paces transfers.",
+    "justification": "The timing registers determine whether and when this pulse is asserted."
+   },
+   {
+    "concept id": "C2",
+    "element": "bus_rsp_o.data",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     144,
+     145
+    ],
+    "links": [
+     {
+      "primary": "ctrl.prsc",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.cdiv",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Returns the timing settings in the control-register readback word. The response field carries the primary configuration values to the bus.",
+    "functionality": "Returns the timing settings in the control-register readback word.",
+    "justification": "The response field carries the primary configuration values to the bus."
+   },
+   {
+    "concept id": "C4",
+    "element": "twi_sda_o",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "twi_sda_o"
+    ],
+    "label": "primary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     406
+    ],
+    "links": [],
+    "reason": "Carries each transmitted payload bit across the TWI unit boundary. The serial output crosses the boundary one bit per step and therefore carries the complete payload value over the transfer.",
+    "functionality": "Carries each transmitted payload bit across the TWI unit boundary.",
+    "justification": "The serial output crosses the boundary one bit per step and therefore carries the complete payload value over the transfer."
+   },
+   {
+    "concept id": "C4",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     198
+    ],
+    "links": [
+     {
+      "primary": "twi_sda_o",
+      "entity": "neorv32_twi",
+      "direction": "a"
+     }
+    ],
+    "reason": "Supplies bus-written payload data for transmission. The payload flows from this input field toward the serial output.",
+    "functionality": "Supplies bus-written payload data for transmission.",
+    "justification": "The payload flows from this input field toward the serial output."
+   },
+   {
+    "concept id": "C4",
+    "element": "fifo.tx_wdata",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "fifo.tx_wdata"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     188,
+     198
+    ],
+    "links": [
+     {
+      "primary": "twi_sda_o",
+      "entity": "neorv32_twi",
+      "direction": "a"
+     }
+    ],
+    "reason": "Carries bus payload data into the transmit FIFO. It is a FIFO input carrier on the path to the serial output.",
+    "functionality": "Carries bus payload data into the transmit FIFO.",
+    "justification": "It is a FIFO input carrier on the path to the serial output."
+   },
+   {
+    "concept id": "C4",
+    "element": "fifo.tx_rdata",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "tx_fifo_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     193,
+     327
+    ],
+    "links": [
+     {
+      "primary": "twi_sda_o",
+      "entity": "neorv32_twi",
+      "direction": "a"
+     }
+    ],
+    "reason": "Carries the queued payload from the transmit FIFO to the engine. It is the FIFO output carrier preceding the shift path.",
+    "functionality": "Carries the queued payload from the transmit FIFO to the engine.",
+    "justification": "It is the FIFO output carrier preceding the shift path."
+   },
+   {
+    "concept id": "C4",
+    "element": "engine.sreg",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "twi_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     327,
+     374,
+     378
+    ],
+    "links": [
+     {
+      "primary": "twi_sda_o",
+      "entity": "neorv32_twi",
+      "direction": "a"
+     }
+    ],
+    "reason": "Shifts the transmit payload toward the SDA output. It carries the payload immediately before the output driver, but the serial shift register is not primary.",
+    "functionality": "Shifts the transmit payload toward the SDA output.",
+    "justification": "It carries the payload immediately before the output driver, but the serial shift register is not primary."
+   },
+   {
+    "concept id": "C4",
+    "element": "io_con.sda_out",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "twi_engine",
+     "twi_sda_o"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     374,
+     406
+    ],
+    "links": [
+     {
+      "primary": "twi_sda_o",
+      "entity": "neorv32_twi",
+      "direction": "a"
+     }
+    ],
+    "reason": "Forwards the shifted payload bit to twi_sda_o. It is the forwarding register directly driving the payload output.",
+    "functionality": "Forwards the shifted payload bit to twi_sda_o.",
+    "justification": "It is the forwarding register directly driving the payload output."
+   },
+   {
+    "concept id": "C4",
+    "element": "fifo.tx_we",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "tx_fifo_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     197,
+     189
+    ],
+    "links": [
+     {
+      "primary": "twi_sda_o",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Controls whether bus data is enqueued for transmission. Its bus-derived condition can prevent or permit a payload to enter the transmit path.",
+    "functionality": "Controls whether bus data is enqueued for transmission.",
+    "justification": "Its bus-derived condition can prevent or permit a payload to enter the transmit path."
+   },
+   {
+    "concept id": "C4",
+    "element": "fifo.clear",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "tx_fifo_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     168,
+     184
+    ],
+    "links": [
+     {
+      "primary": "twi_sda_o",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Clears queued transmit data. The clear path can remove the payload before it reaches the serial output.",
+    "functionality": "Clears queued transmit data.",
+    "justification": "The clear path can remove the payload before it reaches the serial output."
+   },
+   {
+    "concept id": "C4",
+    "element": "ctrl.enable",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "tx_fifo_inst",
+     "twi_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     168,
+     252,
+     321
+    ],
+    "links": [
+     {
+      "primary": "twi_sda_o",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Enables the FIFO and engine activity needed to transmit the payload. Clearing it clears the FIFO and disables engine progress.",
+    "functionality": "Enables the FIFO and engine activity needed to transmit the payload.",
+    "justification": "Clearing it clears the FIFO and disables engine progress."
+   },
+   {
+    "concept id": "C4",
+    "element": "clk_gen.phase",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "twi_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     334,
+     336,
+     349,
+     351,
+     371,
+     373
+    ],
+    "links": [
+     {
+      "primary": "twi_sda_o",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Determines when payload bits are placed on the serial output. The phase conditions gate SDA updates and can block or alter transmission timing.",
+    "functionality": "Determines when payload bits are placed on the serial output.",
+    "justification": "The phase conditions gate SDA updates and can block or alter transmission timing."
+   },
+   {
+    "concept id": "C5",
+    "element": "twi_sda_i",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "io_con.sda_in"
+    ],
+    "label": "primary",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "lines": [
+     408
+    ],
+    "links": [],
+    "reason": "Carries received SDA bits across the unit boundary into the receive path. The serial input supplies every bit of the received payload and therefore crosses the boundary as the payload is assembled.",
+    "functionality": "Carries received SDA bits across the unit boundary into the receive path.",
+    "justification": "The serial input supplies every bit of the received payload and therefore crosses the boundary as the payload is assembled."
+   },
+   {
+    "concept id": "C5",
+    "element": "io_con.sda_in",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "io_con.sda_in"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     408
+    ],
+    "links": [
+     {
+      "primary": "twi_sda_i",
+      "entity": "neorv32_twi",
+      "direction": "a"
+     }
+    ],
+    "reason": "Forwards the sampled SDA input to the synchronizing receive logic. It is a direct carrier between the input port and the receive engine.",
+    "functionality": "Forwards the sampled SDA input to the synchronizing receive logic.",
+    "justification": "It is a direct carrier between the input port and the receive engine."
+   },
+   {
+    "concept id": "C5",
+    "element": "io_con.sda_in_ff",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "twi_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     314,
+     378
+    ],
+    "links": [
+     {
+      "primary": "twi_sda_i",
+      "entity": "neorv32_twi",
+      "direction": "a"
+     }
+    ],
+    "reason": "Synchronizes SDA samples before they enter the receive shift register. It carries the input payload through synchronizer stages and is not primary.",
+    "functionality": "Synchronizes SDA samples before they enter the receive shift register.",
+    "justification": "It carries the input payload through synchronizer stages and is not primary."
+   },
+   {
+    "concept id": "C5",
+    "element": "engine.sreg",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "twi_engine",
+     "fifo.rx_wdata"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     378,
+     228
+    ],
+    "links": [
+     {
+      "primary": "twi_sda_i",
+      "entity": "neorv32_twi",
+      "direction": "a"
+     }
+    ],
+    "reason": "Assembles received SDA bits into the word written to the receive FIFO. It is a receive shift-register carrier; serial shift registers are not primary under the structural rules.",
+    "functionality": "Assembles received SDA bits into the word written to the receive FIFO.",
+    "justification": "It is a receive shift-register carrier; serial shift registers are not primary under the structural rules."
+   },
+   {
+    "concept id": "C5",
+    "element": "fifo.rx_wdata",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "fifo.rx_wdata"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     219,
+     228
+    ],
+    "links": [
+     {
+      "primary": "twi_sda_i",
+      "entity": "neorv32_twi",
+      "direction": "a"
+     }
+    ],
+    "reason": "Carries the assembled receive word into the receive FIFO. It is a FIFO input carrier for received data.",
+    "functionality": "Carries the assembled receive word into the receive FIFO.",
+    "justification": "It is a FIFO input carrier for received data."
+   },
+   {
+    "concept id": "C5",
+    "element": "fifo.rx_rdata",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "rx_fifo_inst",
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     224,
+     156
+    ],
+    "links": [
+     {
+      "primary": "twi_sda_i",
+      "entity": "neorv32_twi",
+      "direction": "a"
+     }
+    ],
+    "reason": "Carries received FIFO data to the bus response logic. It is the FIFO output carrier on the path to readback.",
+    "functionality": "Carries received FIFO data to the bus response logic.",
+    "justification": "It is the FIFO output carrier on the path to readback."
+   },
+   {
+    "concept id": "C5",
+    "element": "bus_rsp_o.data",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     156
+    ],
+    "links": [
+     {
+      "primary": "twi_sda_i",
+      "entity": "neorv32_twi",
+      "direction": "a"
+     }
+    ],
+    "reason": "Returns the received FIFO word to the bus. The response field carries the received payload out of the unit, although a bus response field is not primary.",
+    "functionality": "Returns the received FIFO word to the bus.",
+    "justification": "The response field carries the received payload out of the unit, although a bus response field is not primary."
+   },
+   {
+    "concept id": "C5",
+    "element": "engine.state",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "twi_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     322,
+     385,
+     387
+    ],
+    "links": [
+     {
+      "primary": "twi_sda_i",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Controls whether the engine performs receive steps and completes a word. The state machine can gate or block capture of the input payload.",
+    "functionality": "Controls whether the engine performs receive steps and completes a word.",
+    "justification": "The state machine can gate or block capture of the input payload."
+   },
+   {
+    "concept id": "C5",
+    "element": "clk_gen.phase",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "twi_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     377,
+     385
+    ],
+    "links": [
+     {
+      "primary": "twi_sda_i",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Controls the receive shift and completion timing. The phase conditions determine when sampled input is incorporated and when reception finishes.",
+    "functionality": "Controls the receive shift and completion timing.",
+    "justification": "The phase conditions determine when sampled input is incorporated and when reception finishes."
+   },
+   {
+    "concept id": "C5",
+    "element": "engine.done",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "fifo.rx_we"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     229,
+     386
+    ],
+    "links": [
+     {
+      "primary": "twi_sda_i",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Commits a completed received word to the receive FIFO. Without done, the receive FIFO write is not performed.",
+    "functionality": "Commits a completed received word to the receive FIFO.",
+    "justification": "Without done, the receive FIFO write is not performed."
+   },
+   {
+    "concept id": "C5",
+    "element": "fifo.rx_re",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C",
+     "A"
+    ],
+    "lines": [
+     223,
+     230
+    ],
+    "links": [
+     {
+      "primary": "twi_sda_i",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Controls removal of received data for bus readback. The bus read condition controls whether the received value can leave the FIFO.",
+    "functionality": "Controls removal of received data for bus readback.",
+    "justification": "The bus read condition controls whether the received value can leave the FIFO."
+   },
+   {
+    "concept id": "C5",
+    "element": "bus_req_i.addr",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C",
+     "A"
+    ],
+    "lines": [
+     142,
+     230
+    ],
+    "links": [
+     {
+      "primary": "twi_sda_i",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects the receive-data read address. The address condition decides whether receive data is released and consumed.",
+    "functionality": "Selects the receive-data read address.",
+    "justification": "The address condition decides whether receive data is released and consumed."
+   },
+   {
+    "concept id": "C5",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C",
+     "A"
+    ],
+    "lines": [
+     134,
+     230
+    ],
+    "links": [
+     {
+      "primary": "twi_sda_i",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects a bus read for receive-data release. The read/write condition gates fifo.rx_re and the response data path.",
+    "functionality": "Selects a bus read for receive-data release.",
+    "justification": "The read/write condition gates fifo.rx_re and the response data path."
+   },
+   {
+    "concept id": "C5",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C",
+     "A"
+    ],
+    "lines": [
+     133,
+     230
+    ],
+    "links": [
+     {
+      "primary": "twi_sda_i",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Enables a bus transaction that reads received data. The strobe gates the receive FIFO read and response generation.",
+    "functionality": "Enables a bus transaction that reads received data.",
+    "justification": "The strobe gates the receive FIFO read and response generation."
+   },
+   {
+    "concept id": "C6",
+    "element": "irq_o",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "irq_generator"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     237,
+     239
+    ],
+    "links": [],
+    "reason": "Exports the TWI service interrupt request. It is the unit output that directly returns the computed interrupt information.",
+    "functionality": "Exports the TWI service interrupt request.",
+    "justification": "It is the unit output that directly returns the computed interrupt information."
+   },
+   {
+    "concept id": "C6",
+    "element": "ctrl.enable",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     239
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Gates interrupt generation according to the operational enable state. The interrupt assignment directly tests ctrl.enable.",
+    "functionality": "Gates interrupt generation according to the operational enable state.",
+    "justification": "The interrupt assignment directly tests ctrl.enable."
+   },
+   {
+    "concept id": "C6",
+    "element": "fifo.tx_avail",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "tx_fifo_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     194,
+     239
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Indicates whether queued transmit data prevents the idle interrupt condition. The FIFO availability status is directly tested in the irq_o assignment.",
+    "functionality": "Indicates whether queued transmit data prevents the idle interrupt condition.",
+    "justification": "The FIFO availability status is directly tested in the irq_o assignment."
+   },
+   {
+    "concept id": "C6",
+    "element": "engine.busy",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "twi_engine",
+     "engine.busy"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     239,
+     401
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Indicates whether the TWI engine is active and gates the interrupt request. The busy value is directly used in the interrupt condition.",
+    "functionality": "Indicates whether the TWI engine is active and gates the interrupt request.",
+    "justification": "The busy value is directly used in the interrupt condition."
+   },
+   {
+    "concept id": "C6",
+    "element": "engine.state",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "twi_engine"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     401
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Determines engine.busy, which participates in irq_o generation. The state-derived busy signal can make the interrupt assert or remain low.",
+    "functionality": "Determines engine.busy, which participates in irq_o generation.",
+    "justification": "The state-derived busy signal can make the interrupt assert or remain low."
+   },
+   {
+    "concept id": "C6",
+    "element": "clk_i",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "irq_generator"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     238
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Clocks the registered interrupt output. An attacker able to stall the clock can prevent irq_o from updating.",
+    "functionality": "Clocks the registered interrupt output.",
+    "justification": "An attacker able to stall the clock can prevent irq_o from updating."
+   },
+   {
+    "concept id": "C6",
+    "element": "rstn_i",
+    "entity": "neorv32_twi",
+    "same role": [],
+    "points": [
+     "irq_generator"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     236
+    ],
+    "links": [
+     {
+      "primary": "irq_o",
+      "entity": "neorv32_twi",
+      "direction": "b"
+     }
+    ],
+    "reason": "Resets the interrupt output to zero. Asserting reset clears irq_o and can suppress the service request.",
+    "functionality": "Resets the interrupt output to zero.",
+    "justification": "Asserting reset clears irq_o and can suppress the service request."
+   }
+  ],
+  "not reported": [
+   {
+    "concept id": "C3",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_twi",
+    "reason": "It is a field of a bus request record and only supplies a FIFO transaction, so it is not primary and no primary qualifies for a secondary link."
+   },
+   {
+    "concept id": "C3",
+    "element": "fifo.tx_wdata",
+    "entity": "neorv32_twi",
+    "reason": "It is the signal feeding a FIFO that buffers the command while it moves."
+   },
+   {
+    "concept id": "C3",
+    "element": "fifo.tx_rdata",
+    "entity": "neorv32_twi",
+    "reason": "It is the FIFO output carrier for the command and is not the command's storage or computation in this unit."
+   },
+   {
+    "concept id": "C3",
+    "element": "engine.state",
+    "entity": "neorv32_twi",
+    "reason": "It is sequencing state and is barred from being primary for this transaction-control concept."
+   },
+   {
+    "concept id": "C3",
+    "element": "engine.sreg",
+    "entity": "neorv32_twi",
+    "reason": "It is a serial shift register that temporarily carries transaction bits rather than storing the conceptual command."
+   },
+   {
+    "concept id": "C4",
+    "element": "bus_req_i.addr",
+    "entity": "neorv32_twi",
+    "reason": "It only selects the bus FIFO address and does not carry or control the payload at the transmission point."
+   },
+   {
+    "concept id": "C4",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_twi",
+    "reason": "It only selects a bus write and has no independent payload flow at the reported point."
+   },
+   {
+    "concept id": "C4",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_twi",
+    "reason": "It only qualifies the bus transaction and is not itself a payload carrier."
+   },
+   {
+    "concept id": "C5",
+    "element": "fifo.rx_we",
+    "entity": "neorv32_twi",
+    "reason": "It is already reported as a secondary control of receive-data availability."
+   },
+   {
+    "concept id": "C5",
+    "element": "fifo.rx_avail",
+    "entity": "neorv32_twi",
+    "reason": "It reports FIFO status but does not carry the received payload itself or directly release its data."
+   }
+  ],
+  "no primary reason": {
+   "C3": "The command is only copied through a bus field, FIFO buffers, and sequencing or shift state; all such elements are barred from being primary by the structural rules."
+  }
+ },
+ "problems": [
+  "C3: anchor port 'bus_req_i.data' is not among its structural assets"
+ ],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

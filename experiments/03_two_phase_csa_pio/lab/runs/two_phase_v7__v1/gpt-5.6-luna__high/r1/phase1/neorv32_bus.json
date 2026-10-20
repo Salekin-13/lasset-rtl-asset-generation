@@ -1,0 +1,1234 @@
+{
+ "module": "neorv32_bus",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "be3b3faab49b",
+ "user sha": "6aed8f07ae7b",
+ "usage": {
+  "in": 90285,
+  "out": 25162,
+  "reasoning": 14735,
+  "cached": 12982,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_095b47fe866eaf30006ace2f3e461487d183c371a4b3f313d5",
+  "request key": "5f1b52c59011"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_bus\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"Bus arbitration grant\",\n      \"Unit\": \"neorv32_bus_switch\",\n      \"Information\": \"The current grant identifies which requester owns the shared downstream bus and whether a request strobe is issued. Correct arbitration is required to prevent one requester from blocking or corrupting another requester’s transfer.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because the state, select, and strobe logic determines the granted requester and the downstream request at lines 55, 79, 114, 118, 124, 128, and 158, so a fault could grant the wrong requester; availability is at risk because the same logic can withhold or continuously redirect the downstream request at lines 83, 113-130, and 158.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could force the arbiter state or selection so one requester is incorrectly granted or permanently denied service.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        49,\n        55,\n        79,\n        80,\n        114,\n        115,\n        118,\n        119,\n        124,\n        125,\n        128,\n        129\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"Locked transaction state\",\n      \"Unit\": \"neorv32_bus_switch\",\n      \"Information\": \"The lock indication records whether the selected requester must retain the shared bus across multiple transfers. The bus switch depends on it to keep a locked sequence active and to control the downstream lock field.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because input lock fields are stored in locked and control transaction completion at lines 57, 88-103, and 111; availability is at risk because an incorrect lock state can hold the arbiter busy or terminate a locked sequence early at lines 90-103.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could alter the stored lock indication to release another requester’s transaction early or hold the shared bus indefinitely.\",\n      \"Enters Through\": [\n        \"a_req_i.lock\",\n        \"b_req_i.lock\"\n      ],\n      \"Leaves Through\": [\n        \"x_req_o.lock\"\n      ],\n      \"Entry Lines\": [\n        111\n      ],\n      \"Held Lines\": [\n        51,\n        57,\n        111\n      ],\n      \"Exit Lines\": [\n        143\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"Bus access address and direction\",\n      \"Unit\": \"neorv32_bus_switch\",\n      \"Information\": \"The address and read/write direction identify the downstream bus access selected from requester A or B. Downstream operation depends on these fields reaching the shared bus unchanged and belonging to the granted requester.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because the select-controlled forwarding at lines 140 and 147 chooses which requester’s address and direction reach x_req_o, so a faulty selection can issue the wrong access.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could cause the switch to forward one requester’s address or direction with the other requester’s transfer.\",\n      \"Enters Through\": [\n        \"a_req_i.addr\",\n        \"a_req_i.rw\",\n        \"b_req_i.addr\",\n        \"b_req_i.rw\"\n      ],\n      \"Leaves Through\": [\n        \"x_req_o.addr\",\n        \"x_req_o.rw\"\n      ],\n      \"Entry Lines\": [\n        140,\n        147\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": [\n        140,\n        147\n      ]\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"Bus completion and fault status\",\n      \"Unit\": \"neorv32_bus_switch\",\n      \"Information\": \"Acknowledgement and error status indicate whether the selected downstream transfer completed and whether it faulted. Requesters depend on these response fields to retire or retry their transfers.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because x_rsp_i acknowledgement and error fields are selectively delivered to the requester outputs at lines 164-169; availability is at risk because an altered acknowledgement can prematurely complete or indefinitely withhold a transfer.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could suppress, fabricate, or route a downstream acknowledgement or error so a requester completes incorrectly or waits forever.\",\n      \"Enters Through\": [\n        \"x_rsp_i.ack\",\n        \"x_rsp_i.err\"\n      ],\n      \"Leaves Through\": [\n        \"a_rsp_o.ack\",\n        \"a_rsp_o.err\",\n        \"b_rsp_o.ack\",\n        \"b_rsp_o.err\"\n      ],\n      \"Entry Lines\": [\n        164,\n        165,\n        168,\n        169\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": [\n        164,\n        165,\n        168,\n        169\n      ]\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"Privilege and debug access attributes\",\n      \"Unit\": \"neorv32_bus_switch\",\n      \"Information\": \"Privilege and debug attributes qualify the requester’s authority for the forwarded bus access. Downstream protection and debug behavior can depend on these attributes.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"yes\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because the switch forwards the selected privilege and debug attributes at lines 144-145, so a faulty path can associate the wrong authority with a transfer; undermined expected behavior is at risk because the same fields directly propagate privileged or debug behavior to the downstream bus at lines 144-145.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could inject or misroute a privileged or debug-qualified request so normal access restrictions are bypassed.\",\n      \"Enters Through\": [\n        \"a_req_i.priv\",\n        \"a_req_i.debug\",\n        \"b_req_i.priv\",\n        \"b_req_i.debug\"\n      ],\n      \"Leaves Through\": [\n        \"x_req_o.priv\",\n        \"x_req_o.debug\"\n      ],\n      \"Entry Lines\": [\n        144,\n        145\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": [\n        144,\n        145\n      ]\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Concept Name\": \"Gateway target selection\",\n      \"Unit\": \"neorv32_bus_gateway\",\n      \"Information\": \"The target-selection decision identifies which enabled address region receives the request, including the fallback X target. Correct selection is required to prevent accesses from reaching the wrong downstream device.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because port_sel is computed from address-region comparisons at lines 356-361 and gates each downstream strobe at line 378; availability is at risk because an incorrect selection can suppress every valid target or route a request to an unusable target at lines 378 and 375-379.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could corrupt the address decode so a request is sent to the wrong gateway port or is not sent to any usable port.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        356,\n        357,\n        358,\n        361,\n        378\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C7\",\n      \"Concept Name\": \"Gateway access address and direction\",\n      \"Unit\": \"neorv32_bus_gateway\",\n      \"Information\": \"The request address and read/write direction identify the access forwarded to the selected gateway target. The selected downstream device depends on receiving the original access identity and direction.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because request records are copied to the selected output ports at lines 377 and 366-369, while the address also drives region selection at lines 356-361, so a corrupted path can perform a different access.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could modify or misassociate the forwarded address or read/write direction so a downstream device performs the wrong operation.\",\n      \"Enters Through\": [\n        \"req_i.addr\",\n        \"req_i.rw\"\n      ],\n      \"Leaves Through\": [\n        \"a_req_o.addr\",\n        \"a_req_o.rw\",\n        \"b_req_o.addr\",\n        \"b_req_o.rw\",\n        \"c_req_o.addr\",\n        \"c_req_o.rw\",\n        \"x_req_o.addr\",\n        \"x_req_o.rw\"\n      ],\n      \"Entry Lines\": [\n        377\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": [\n        366,\n        367,\n        368,\n        369\n      ]\n    },\n    {\n      \"Concept ID\": \"C8\",\n      \"Concept Name\": \"Gateway locked transaction state\",\n      \"Unit\": \"neorv32_bus_gateway\",\n      \"Information\": \"The stored lock state records whether the monitored request is part of a locked sequence. The monitor uses it to decide when the request may complete.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because req_i.lock is stored in keeper.lock at line 420 and controls completion at line 426; availability is at risk because a corrupted lock state can terminate a locked sequence or prevent the monitor from releasing it.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could alter keeper.lock so a locked transfer is released prematurely or held after its response.\",\n      \"Enters Through\": [\n        \"req_i.lock\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        420\n      ],\n      \"Held Lines\": [\n        410,\n        420,\n        426\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C9\",\n      \"Concept Name\": \"Gateway timeout and recovery state\",\n      \"Unit\": \"neorv32_bus_gateway\",\n      \"Information\": \"The busy state, timeout count, halt suppression, and generated error record monitor an outstanding request and recover when a response does not arrive. Gateway operation depends on this state to avoid indefinite stalls.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because keeper.cnt, keeper.halt, and keeper.err determine whether a timeout error is reported at lines 416 and 422-425; availability is at risk because keeper.busy and the timeout path control whether a stalled request is eventually released at lines 417-428.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could suppress the timeout or force a false timeout to stall a request, discard service, or report a completion that never occurred.\",\n      \"Enters Through\": [\n        \"req_i.stb\"\n      ],\n      \"Leaves Through\": [\n        \"rsp_o.ack\",\n        \"rsp_o.err\"\n      ],\n      \"Entry Lines\": [\n        419\n      ],\n      \"Held Lines\": [\n        409,\n        411,\n        412,\n        413,\n        415,\n        416,\n        418,\n        419,\n        422,\n        423,\n        424,\n        425,\n        427\n      ],\n      \"Exit Lines\": [\n        400,\n        401\n      ]\n    },\n    {\n      \"Concept ID\": \"C10\",\n      \"Concept Name\": \"Gateway completion and fault status\",\n      \"Unit\": \"neorv32_bus_gateway\",\n      \"Information\": \"Merged downstream acknowledgement and error status reports completion or fault of the routed access. The gateway and its requester depend on this status to retire the transaction.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because response acknowledgement and error fields from the downstream ports are OR-combined and returned at lines 390-401; availability is at risk because the same status controls keeper.busy at line 426 and can therefore terminate or prolong service.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could inject or suppress a downstream acknowledgement or error so the gateway returns a false result or remains blocked.\",\n      \"Enters Through\": [\n        \"a_rsp_i.ack\",\n        \"a_rsp_i.err\",\n        \"b_rsp_i.ack\",\n        \"b_rsp_i.err\",\n        \"c_rsp_i.ack\",\n        \"c_rsp_i.err\",\n        \"x_rsp_i.ack\",\n        \"x_rsp_i.err\"\n      ],\n      \"Leaves Through\": [\n        \"rsp_o.ack\",\n        \"rsp_o.err\"\n      ],\n      \"Entry Lines\": [\n        366,\n        367,\n        368,\n        369,\n        390,\n        391,\n        392\n      ],\n      \"Held Lines\": [\n        390,\n        391,\n        392,\n        395\n      ],\n      \"Exit Lines\": [\n        400,\n        401\n      ]\n    },\n    {\n      \"Concept ID\": \"C11\",\n      \"Concept Name\": \"Gateway privilege and debug access attributes\",\n      \"Unit\": \"neorv32_bus_gateway\",\n      \"Information\": \"Privilege and debug attributes qualify the access forwarded to a selected gateway target. Downstream access controls and debug behavior can depend on these attributes.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"yes\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because the request record carrying privilege and debug attributes is copied to the selected target at lines 377 and 366-369; undermined expected behavior is at risk because those attributes directly propagate privileged or debug access to downstream targets.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could inject a privileged or debug-qualified request and have the gateway forward it to a protected target.\",\n      \"Enters Through\": [\n        \"req_i.priv\",\n        \"req_i.debug\"\n      ],\n      \"Leaves Through\": [\n        \"a_req_o.priv\",\n        \"a_req_o.debug\",\n        \"b_req_o.priv\",\n        \"b_req_o.debug\",\n        \"c_req_o.priv\",\n        \"c_req_o.debug\",\n        \"x_req_o.priv\",\n        \"x_req_o.debug\"\n      ],\n      \"Entry Lines\": [\n        377\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": [\n        366,\n        367,\n        368,\n        369\n      ]\n    },\n    {\n      \"Concept ID\": \"C12\",\n      \"Concept Name\": \"Device target selection\",\n      \"Unit\": \"neorv32_bus_io_switch\",\n      \"Information\": \"The device-selection decision identifies which of the enabled device ports receives the main bus access. Correct selection is required to prevent an access from reaching the wrong device or no device.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because each device strobe is selected by address comparison at lines 661-665; availability is at risk because a bad selection can suppress all device strobes or activate the wrong device request.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could corrupt device address decoding so a main request reaches an unintended device or is discarded.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        661,\n        662,\n        664,\n        665\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C13\",\n      \"Concept Name\": \"Device access address and direction\",\n      \"Unit\": \"neorv32_bus_io_switch\",\n      \"Information\": \"The main request address and read/write direction identify the device access forwarded through the switch. Device behavior depends on these fields remaining associated with the request as it crosses the switch.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because the request register and device request logic copy the access record through lines 608, 610, 660, and 617-648, while address bits also select the device at line 661.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could alter the forwarded address or direction so a device performs a different access from the one requested.\",\n      \"Enters Through\": [\n        \"main_req_i.addr\",\n        \"main_req_i.rw\"\n      ],\n      \"Leaves Through\": [\n        \"dev_00_req_o.addr\",\n        \"dev_00_req_o.rw\",\n        \"dev_01_req_o.addr\",\n        \"dev_01_req_o.rw\",\n        \"dev_02_req_o.addr\",\n        \"dev_02_req_o.rw\",\n        \"dev_03_req_o.addr\",\n        \"dev_03_req_o.rw\",\n        \"dev_04_req_o.addr\",\n        \"dev_04_req_o.rw\",\n        \"dev_05_req_o.addr\",\n        \"dev_05_req_o.rw\",\n        \"dev_06_req_o.addr\",\n        \"dev_06_req_o.rw\",\n        \"dev_07_req_o.addr\",\n        \"dev_07_req_o.rw\",\n        \"dev_08_req_o.addr\",\n        \"dev_08_req_o.rw\",\n        \"dev_09_req_o.addr\",\n        \"dev_09_req_o.rw\",\n        \"dev_10_req_o.addr\",\n        \"dev_10_req_o.rw\",\n        \"dev_11_req_o.addr\",\n        \"dev_11_req_o.rw\",\n        \"dev_12_req_o.addr\",\n        \"dev_12_req_o.rw\",\n        \"dev_13_req_o.addr\",\n        \"dev_13_req_o.rw\",\n        \"dev_14_req_o.addr\",\n        \"dev_14_req_o.rw\",\n        \"dev_15_req_o.addr\",\n        \"dev_15_req_o.rw\",\n        \"dev_16_req_o.addr\",\n        \"dev_16_req_o.rw\",\n        \"dev_17_req_o.addr\",\n        \"dev_17_req_o.rw\",\n        \"dev_18_req_o.addr\",\n        \"dev_18_req_o.rw\",\n        \"dev_19_req_o.addr\",\n        \"dev_19_req_o.rw\",\n        \"dev_20_req_o.addr\",\n        \"dev_20_req_o.rw\",\n        \"dev_21_req_o.addr\",\n        \"dev_21_req_o.rw\",\n        \"dev_22_req_o.addr\",\n        \"dev_22_req_o.rw\",\n        \"dev_23_req_o.addr\",\n        \"dev_23_req_o.rw\",\n        \"dev_24_req_o.addr\",\n        \"dev_24_req_o.rw\",\n        \"dev_25_req_o.addr\",\n        \"dev_25_req_o.rw\",\n        \"dev_26_req_o.addr\",\n        \"dev_26_req_o.rw\",\n        \"dev_27_req_o.addr\",\n        \"dev_27_req_o.rw\",\n        \"dev_28_req_o.addr\",\n        \"dev_28_req_o.rw\",\n        \"dev_29_req_o.addr\",\n        \"dev_29_req_o.rw\",\n        \"dev_30_req_o.addr\",\n        \"dev_30_req_o.rw\",\n        \"dev_31_req_o.addr\",\n        \"dev_31_req_o.rw\"\n      ],\n      \"Entry Lines\": [\n        608,\n        610,\n        660\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": [\n        617,\n        618,\n        619,\n        620,\n        621,\n        622,\n        623,\n        624,\n        625,\n        626,\n        627,\n        628,\n        629,\n        630,\n        631,\n        632,\n        633,\n        634,\n        635,\n        636,\n        637,\n        638,\n        639,\n        640,\n        641,\n        642,\n        643,\n        644,\n        645,\n        646,\n        647,\n        648\n      ]\n    },\n    {\n      \"Concept ID\": \"C14\",\n      \"Concept Name\": \"Device response completion and fault status\",\n      \"Unit\": \"neorv32_bus_io_switch\",\n      \"Information\": \"Device acknowledgements and error flags are merged into the main response status. The main requester depends on this status to determine completion or failure of its access.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because device response acknowledgements and errors are OR-combined at lines 685-690 and passed through the bus register to main_rsp_o at line 609; availability is at risk because suppressing acknowledgement can leave the requester waiting indefinitely.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could fabricate or suppress a device acknowledgement or error so the main bus reports a false result or never completes.\",\n      \"Enters Through\": [\n        \"dev_00_rsp_i.ack\",\n        \"dev_00_rsp_i.err\",\n        \"dev_01_rsp_i.ack\",\n        \"dev_01_rsp_i.err\",\n        \"dev_02_rsp_i.ack\",\n        \"dev_02_rsp_i.err\",\n        \"dev_03_rsp_i.ack\",\n        \"dev_03_rsp_i.err\",\n        \"dev_04_rsp_i.ack\",\n        \"dev_04_rsp_i.err\",\n        \"dev_05_rsp_i.ack\",\n        \"dev_05_rsp_i.err\",\n        \"dev_06_rsp_i.ack\",\n        \"dev_06_rsp_i.err\",\n        \"dev_07_rsp_i.ack\",\n        \"dev_07_rsp_i.err\",\n        \"dev_08_rsp_i.ack\",\n        \"dev_08_rsp_i.err\",\n        \"dev_09_rsp_i.ack\",\n        \"dev_09_rsp_i.err\",\n        \"dev_10_rsp_i.ack\",\n        \"dev_10_rsp_i.err\",\n        \"dev_11_rsp_i.ack\",\n        \"dev_11_rsp_i.err\",\n        \"dev_12_rsp_i.ack\",\n        \"dev_12_rsp_i.err\",\n        \"dev_13_rsp_i.ack\",\n        \"dev_13_rsp_i.err\",\n        \"dev_14_rsp_i.ack\",\n        \"dev_14_rsp_i.err\",\n        \"dev_15_rsp_i.ack\",\n        \"dev_15_rsp_i.err\",\n        \"dev_16_rsp_i.ack\",\n        \"dev_16_rsp_i.err\",\n        \"dev_17_rsp_i.ack\",\n        \"dev_17_rsp_i.err\",\n        \"dev_18_rsp_i.ack\",\n        \"dev_18_rsp_i.err\",\n        \"dev_19_rsp_i.ack\",\n        \"dev_19_rsp_i.err\",\n        \"dev_20_rsp_i.ack\",\n        \"dev_20_rsp_i.err\",\n        \"dev_21_rsp_i.ack\",\n        \"dev_21_rsp_i.err\",\n        \"dev_22_rsp_i.ack\",\n        \"dev_22_rsp_i.err\",\n        \"dev_23_rsp_i.ack\",\n        \"dev_23_rsp_i.err\",\n        \"dev_24_rsp_i.ack\",\n        \"dev_24_rsp_i.err\",\n        \"dev_25_rsp_i.ack\",\n        \"dev_25_rsp_i.err\",\n        \"dev_26_rsp_i.ack\",\n        \"dev_26_rsp_i.err\",\n        \"dev_27_rsp_i.ack\",\n        \"dev_27_rsp_i.err\",\n        \"dev_28_rsp_i.ack\",\n        \"dev_28_rsp_i.err\",\n        \"dev_29_rsp_i.ack\",\n        \"dev_29_rsp_i.err\",\n        \"dev_30_rsp_i.ack\",\n        \"dev_30_rsp_i.err\",\n        \"dev_31_rsp_i.ack\",\n        \"dev_31_rsp_i.err\"\n      ],\n      \"Leaves Through\": [\n        \"main_rsp_o.ack\",\n        \"main_rsp_o.err\"\n      ],\n      \"Entry Lines\": [\n        617,\n        618,\n        619,\n        620,\n        621,\n        622,\n        623,\n        624,\n        625,\n        626,\n        627,\n        628,\n        629,\n        630,\n        631,\n        632,\n        633,\n        634,\n        635,\n        636,\n        637,\n        638,\n        639,\n        640,\n        641,\n        642,\n        643,\n        644,\n        645,\n        646,\n        647,\n        648\n      ],\n      \"Held Lines\": [\n        685,\n        686,\n        687,\n        690\n      ],\n      \"Exit Lines\": [\n        609\n      ]\n    },\n    {\n      \"Concept ID\": \"C15\",\n      \"Concept Name\": \"Device-switch privilege and debug access attributes\",\n      \"Unit\": \"neorv32_bus_io_switch\",\n      \"Information\": \"Privilege and debug attributes qualify the main access forwarded to a selected device. Device-side protection and debug behavior can depend on these attributes.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"yes\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because the bus register and device request paths forward privilege and debug attributes at lines 608, 610, and 617-648; undermined expected behavior is at risk because those fields directly propagate privileged or debug behavior to device ports without an internal restriction.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could inject a privileged or debug-qualified main request and have it forwarded to a protected device.\",\n      \"Enters Through\": [\n        \"main_req_i.priv\",\n        \"main_req_i.debug\"\n      ],\n      \"Leaves Through\": [\n        \"dev_00_req_o.priv\",\n        \"dev_00_req_o.debug\",\n        \"dev_01_req_o.priv\",\n        \"dev_01_req_o.debug\",\n        \"dev_02_req_o.priv\",\n        \"dev_02_req_o.debug\",\n        \"dev_03_req_o.priv\",\n        \"dev_03_req_o.debug\",\n        \"dev_04_req_o.priv\",\n        \"dev_04_req_o.debug\",\n        \"dev_05_req_o.priv\",\n        \"dev_05_req_o.debug\",\n        \"dev_06_req_o.priv\",\n        \"dev_06_req_o.debug\",\n        \"dev_07_req_o.priv\",\n        \"dev_07_req_o.debug\",\n        \"dev_08_req_o.priv\",\n        \"dev_08_req_o.debug\",\n        \"dev_09_req_o.priv\",\n        \"dev_09_req_o.debug\",\n        \"dev_10_req_o.priv\",\n        \"dev_10_req_o.debug\",\n        \"dev_11_req_o.priv\",\n        \"dev_11_req_o.debug\",\n        \"dev_12_req_o.priv\",\n        \"dev_12_req_o.debug\",\n        \"dev_13_req_o.priv\",\n        \"dev_13_req_o.debug\",\n        \"dev_14_req_o.priv\",\n        \"dev_14_req_o.debug\",\n        \"dev_15_req_o.priv\",\n        \"dev_15_req_o.debug\",\n        \"dev_16_req_o.priv\",\n        \"dev_16_req_o.debug\",\n        \"dev_17_req_o.priv\",\n        \"dev_17_req_o.debug\",\n        \"dev_18_req_o.priv\",\n        \"dev_18_req_o.debug\",\n        \"dev_19_req_o.priv\",\n        \"dev_19_req_o.debug\",\n        \"dev_20_req_o.priv\",\n        \"dev_20_req_o.debug\",\n        \"dev_21_req_o.priv\",\n        \"dev_21_req_o.debug\",\n        \"dev_22_req_o.priv\",\n        \"dev_22_req_o.debug\",\n        \"dev_23_req_o.priv\",\n        \"dev_23_req_o.debug\",\n        \"dev_24_req_o.priv\",\n        \"dev_24_req_o.debug\",\n        \"dev_25_req_o.priv\",\n        \"dev_25_req_o.debug\",\n        \"dev_26_req_o.priv\",\n        \"dev_26_req_o.debug\",\n        \"dev_27_req_o.priv\",\n        \"dev_27_req_o.debug\",\n        \"dev_28_req_o.priv\",\n        \"dev_28_req_o.debug\",\n        \"dev_29_req_o.priv\",\n        \"dev_29_req_o.debug\",\n        \"dev_30_req_o.priv\",\n        \"dev_30_req_o.debug\",\n        \"dev_31_req_o.priv\",\n        \"dev_31_req_o.debug\"\n      ],\n      \"Entry Lines\": [\n        608\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": [\n        617,\n        618,\n        619,\n        620,\n        621,\n        622,\n        623,\n        624,\n        625,\n        626,\n        627,\n        628,\n        629,\n        630,\n        631,\n        632,\n        633,\n        634,\n        635,\n        636,\n        637,\n        638,\n        639,\n        640,\n        641,\n        642,\n        643,\n        644,\n        645,\n        646,\n        647,\n        648\n      ]\n    },\n    {\n      \"Concept ID\": \"C16\",\n      \"Concept Name\": \"Atomic operation phase control\",\n      \"Unit\": \"neorv32_bus_amo_rmw\",\n      \"Information\": \"The operation phase state identifies idle, read-wait, execute, write, and write-wait phases of an atomic read-modify-write operation. Correct phase control is required to issue exactly one read followed by the corresponding atomic write.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because arbiter.state controls the generated write, read/write direction, and response selection at lines 813 and 815-828; availability is at risk because the phase state controls whether the operation advances or waits for acknowledgements at lines 780, 787, 792, 796, and 800-801.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could force the phase state to skip the read, issue an unintended write, or remain indefinitely in a wait phase.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        758,\n        763,\n        780,\n        787,\n        792,\n        796,\n        801,\n        806\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C17\",\n      \"Concept Name\": \"Atomic operation operands and update result\",\n      \"Unit\": \"neorv32_bus_amo_rmw\",\n      \"Information\": \"The asset is the selected atomic function together with its write operand, memory-read operand, and computed update value. The RMW operation depends on preserving these values and producing the corresponding system write and core response.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality is at risk because operand and result values are held in arbiter.rdata, arbiter.wdata, and alu_res and leave through core_rsp_o.data or sys_req_o.data at lines 785, 813, and 826; integrity is at risk because the command and operands select and compute the write-back value at lines 778-779 and 838-845, so corruption changes the atomic update.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could observe the stored RMW operands or alter the command or ALU result so the memory update contains an incorrect value.\",\n      \"Enters Through\": [\n        \"core_req_i.amoop\",\n        \"core_req_i.data\",\n        \"sys_rsp_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"sys_req_o.amoop\",\n        \"sys_req_o.data\",\n        \"core_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        778,\n        779,\n        785\n      ],\n      \"Held Lines\": [\n        759,\n        760,\n        761,\n        763,\n        778,\n        779,\n        785,\n        839,\n        840,\n        841,\n        842,\n        843,\n        844,\n        845\n      ],\n      \"Exit Lines\": [\n        813,\n        821,\n        826\n      ]\n    },\n    {\n      \"Concept ID\": \"C18\",\n      \"Concept Name\": \"Atomic operation completion and fault status\",\n      \"Unit\": \"neorv32_bus_amo_rmw\",\n      \"Information\": \"System acknowledgement and error status determine whether the atomic read or write phase completed and what status is returned to the core. The operation depends on these fields to advance and report correctly.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because sys_rsp_i.ack and sys_rsp_i.err are used to advance the phase and drive core_rsp_o at lines 786-801 and 827-828; availability is at risk because a missing or false acknowledgement can hold the operation in a wait state or complete it prematurely.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could fabricate or suppress a system acknowledgement or error so the atomic operation writes incorrectly or never completes.\",\n      \"Enters Through\": [\n        \"sys_rsp_i.ack\",\n        \"sys_rsp_i.err\"\n      ],\n      \"Leaves Through\": [\n        \"core_rsp_o.ack\",\n        \"core_rsp_o.err\"\n      ],\n      \"Entry Lines\": [\n        786,\n        800,\n        827,\n        828\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": [\n        827,\n        828\n      ]\n    },\n    {\n      \"Concept ID\": \"C19\",\n      \"Concept Name\": \"Atomic-operation privilege and debug attributes\",\n      \"Unit\": \"neorv32_bus_amo_rmw\",\n      \"Information\": \"Privilege and debug attributes qualify the atomic access forwarded to the system bus. System-side protection and debug behavior can depend on these attributes.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"yes\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because privilege and debug fields are forwarded from core_req_i to sys_req_o at lines 818-819; undermined expected behavior is at risk because those fields directly propagate privileged or debug behavior to the atomic system access.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could inject a privileged or debug-qualified atomic request and bypass normal system-side access restrictions.\",\n      \"Enters Through\": [\n        \"core_req_i.priv\",\n        \"core_req_i.debug\"\n      ],\n      \"Leaves Through\": [\n        \"sys_req_o.priv\",\n        \"sys_req_o.debug\"\n      ],\n      \"Entry Lines\": [\n        818,\n        819\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": [\n        818,\n        819\n      ]\n    },\n    {\n      \"Concept ID\": \"C20\",\n      \"Concept Name\": \"Reservation and conditional-store control state\",\n      \"Unit\": \"neorv32_bus_amo_rvs\",\n      \"Information\": \"The control state records the idle, reserved, and conditional-store-wait phases of the load-reserved/store-conditional sequence. Correct state is required to permit the conditional store only in the intended sequence.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because state is changed by request type, reservation detection, and system acknowledgement at lines 910-927, thereby controlling the conditional-store decision; availability is at risk because state gates sys_req_o.stb at lines 943-946 and can suppress or hold the conditional store.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could force the reservation state to accept an unreserved store or to suppress every conditional store.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        904,\n        905,\n        912,\n        914,\n        921,\n        927\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C21\",\n      \"Concept Name\": \"Conditional-store success or failure\",\n      \"Unit\": \"neorv32_bus_amo_rvs\",\n      \"Information\": \"The conditional-store result reports whether the store-conditional request failed and is encoded into the core response acknowledgement and data. Software depends on this result to know whether its reservation was honored.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because sc_fail is computed from the operation, request, and reservation state at line 957 and changes core_rsp_o.ack and core_rsp_o.data at lines 963-964, so corruption can report success for a failed store or failure for a successful one.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could alter the failure result so software accepts an unperformed conditional store or unnecessarily retries a valid one.\",\n      \"Enters Through\": [\n        \"core_req_i.rw\",\n        \"core_req_i.stb\"\n      ],\n      \"Leaves Through\": [\n        \"core_rsp_o.ack\",\n        \"core_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        957\n      ],\n      \"Held Lines\": [\n        955,\n        957\n      ],\n      \"Exit Lines\": [\n        963,\n        964\n      ]\n    },\n    {\n      \"Concept ID\": \"C22\",\n      \"Concept Name\": \"Reservation-operation completion and fault status\",\n      \"Unit\": \"neorv32_bus_amo_rvs\",\n      \"Information\": \"System acknowledgement and error status report completion or failure of the reservation-related bus transfer. The controller depends on acknowledgement to leave its pending state and on error status to report the transfer result.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because sys_rsp_i.ack advances the controller at lines 920-921 and sys_rsp_i.err is returned at line 962; availability is at risk because withholding acknowledgement leaves the controller in its pending state and blocks the operation.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could suppress or fabricate the system acknowledgement or error so the reservation operation hangs or reports the wrong completion status.\",\n      \"Enters Through\": [\n        \"sys_rsp_i.ack\",\n        \"sys_rsp_i.err\"\n      ],\n      \"Leaves Through\": [\n        \"core_rsp_o.ack\",\n        \"core_rsp_o.err\"\n      ],\n      \"Entry Lines\": [\n        920,\n        962,\n        963\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": [\n        962,\n        963\n      ]\n    },\n    {\n      \"Concept ID\": \"C23\",\n      \"Concept Name\": \"Reservation-operation privilege and debug attributes\",\n      \"Unit\": \"neorv32_bus_amo_rvs\",\n      \"Information\": \"Privilege and debug attributes qualify the reservation or conditional-store access forwarded to the system bus. System-side protection and debug behavior can depend on these attributes.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"yes\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because privilege and debug fields are copied from core_req_i to sys_req_o at line 942; undermined expected behavior is at risk because those fields directly propagate privileged or debug behavior to the reservation system access.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could inject a privileged or debug-qualified reservation request and bypass normal system-side restrictions.\",\n      \"Enters Through\": [\n        \"core_req_i.priv\",\n        \"core_req_i.debug\"\n      ],\n      \"Leaves Through\": [\n        \"sys_req_o.priv\",\n        \"sys_req_o.debug\"\n      ],\n      \"Entry Lines\": [\n        942\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": [\n        942\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Forwarded request and response payload data\",\n      \"Candidate Unit\": \"neorv32_bus_switch\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The switch only forwards bus data between ports and does not store or compute from it, so the forwarded payload is barred by the forwarded-transaction and relayed-data rules.\"\n    },\n    {\n      \"Candidate Name\": \"Pending request flags and round-robin history\",\n      \"Candidate Unit\": \"neorv32_bus_switch\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"a_req, b_req, and sel_q only retain or bias a bus access while it is being served and therefore are handshake copies or arbitration bookkeeping rather than independent information.\"\n    },\n    {\n      \"Candidate Name\": \"Gateway address-map generics and port enables\",\n      \"Candidate Unit\": \"neorv32_bus_gateway\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"A_BASE, A_SIZE, B_BASE, B_SIZE, C_BASE, C_SIZE, A_EN, B_EN, C_EN, and X_EN are build-time values that no RTL element can change at run time.\"\n    },\n    {\n      \"Candidate Name\": \"Gateway forwarded payload data\",\n      \"Candidate Unit\": \"neorv32_bus_gateway\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The gateway copies request and response data between ports without storing or computing from it, so relayed data is not a separate asset.\"\n    },\n    {\n      \"Candidate Name\": \"I/O device address-map generics and enables\",\n      \"Candidate Unit\": \"neorv32_bus_io_switch\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"DEV_SIZE, DEV_nn_BASE, DEV_nn_EN, and the derived device-map constants are build-time values that cannot be changed or withheld at run time.\"\n    },\n    {\n      \"Candidate Name\": \"I/O request and response staging copies\",\n      \"Candidate Unit\": \"neorv32_bus_io_switch\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The neorv32_bus_reg instance and main_req/main_rsp only buffer or forward whole bus records between ports, which is excluded by the forwarded-transaction and port-buffer rules.\"\n    },\n    {\n      \"Candidate Name\": \"I/O forwarded payload data\",\n      \"Candidate Unit\": \"neorv32_bus_io_switch\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The switch only copies request data to device ports and merges response data without storing or computing from it, so the data is relayed data.\"\n    },\n    {\n      \"Candidate Name\": \"AMO comparison working values\",\n      \"Candidate Unit\": \"neorv32_bus_amo_rmw\",\n      \"Merged Into\": \"C17\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"AMO operation selector\",\n      \"Candidate Unit\": \"neorv32_bus_amo_rmw\",\n      \"Merged Into\": \"C17\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"AMO forwarded non-data request fields\",\n      \"Candidate Unit\": \"neorv32_bus_amo_rmw\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"Address, handshake, lock, fence, and other fields that are only forwarded without being stored or interpreted as an independent decision are part of the forwarded transaction rather than separate assets.\"\n    },\n    {\n      \"Candidate Name\": \"RVS operation decode\",\n      \"Candidate Unit\": \"neorv32_bus_amo_rvs\",\n      \"Merged Into\": \"C21\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"RVS forwarded payload data\",\n      \"Candidate Unit\": \"neorv32_bus_amo_rvs\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The RVS unit forwards system response data and request data without storing or computing an independent data result, apart from the conditional-store status bit.\"\n    },\n    {\n      \"Candidate Name\": \"Clock and reset signals\",\n      \"Candidate Unit\": \"neorv32_bus\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"Clock and reset paths only time or reset the listed state and are excluded as conceptual assets by the clock-and-reset rule.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_bus",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_bus_switch",
+    "concept": "Bus arbitration grant",
+    "information": "The current grant identifies which requester owns the shared downstream bus and whether a request strobe is issued. Correct arbitration is required to prevent one requester from blocking or corrupting another requester’s transfer.",
+    "rubric reason": "Integrity is at risk because the state, select, and strobe logic determines the granted requester and the downstream request at lines 55, 79, 114, 118, 124, 128, and 158, so a fault could grant the wrong requester; availability is at risk because the same logic can withhold or continuously redirect the downstream request at lines 83, 113-130, and 158.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could force the arbiter state or selection so one requester is incorrectly granted or permanently denied service.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     49,
+     55,
+     79,
+     80,
+     114,
+     115,
+     118,
+     119,
+     124,
+     125,
+     128,
+     129
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_bus_switch",
+    "concept": "Locked transaction state",
+    "information": "The lock indication records whether the selected requester must retain the shared bus across multiple transfers. The bus switch depends on it to keep a locked sequence active and to control the downstream lock field.",
+    "rubric reason": "Integrity is at risk because input lock fields are stored in locked and control transaction completion at lines 57, 88-103, and 111; availability is at risk because an incorrect lock state can hold the arbiter busy or terminate a locked sequence early at lines 90-103.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could alter the stored lock indication to release another requester’s transaction early or hold the shared bus indefinitely.",
+    "enters through": [
+     "a_req_i.lock",
+     "b_req_i.lock"
+    ],
+    "leaves through": [
+     "x_req_o.lock"
+    ],
+    "entry lines": [
+     111
+    ],
+    "held lines": [
+     51,
+     57,
+     111
+    ],
+    "exit lines": [
+     143
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_bus_switch",
+    "concept": "Bus access address and direction",
+    "information": "The address and read/write direction identify the downstream bus access selected from requester A or B. Downstream operation depends on these fields reaching the shared bus unchanged and belonging to the granted requester.",
+    "rubric reason": "Integrity is at risk because the select-controlled forwarding at lines 140 and 147 chooses which requester’s address and direction reach x_req_o, so a faulty selection can issue the wrong access.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could cause the switch to forward one requester’s address or direction with the other requester’s transfer.",
+    "enters through": [
+     "a_req_i.addr",
+     "a_req_i.rw",
+     "b_req_i.addr",
+     "b_req_i.rw"
+    ],
+    "leaves through": [
+     "x_req_o.addr",
+     "x_req_o.rw"
+    ],
+    "entry lines": [
+     140,
+     147
+    ],
+    "held lines": [],
+    "exit lines": [
+     140,
+     147
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_bus_switch",
+    "concept": "Bus completion and fault status",
+    "information": "Acknowledgement and error status indicate whether the selected downstream transfer completed and whether it faulted. Requesters depend on these response fields to retire or retry their transfers.",
+    "rubric reason": "Integrity is at risk because x_rsp_i acknowledgement and error fields are selectively delivered to the requester outputs at lines 164-169; availability is at risk because an altered acknowledgement can prematurely complete or indefinitely withhold a transfer.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could suppress, fabricate, or route a downstream acknowledgement or error so a requester completes incorrectly or waits forever.",
+    "enters through": [
+     "x_rsp_i.ack",
+     "x_rsp_i.err"
+    ],
+    "leaves through": [
+     "a_rsp_o.ack",
+     "a_rsp_o.err",
+     "b_rsp_o.ack",
+     "b_rsp_o.err"
+    ],
+    "entry lines": [
+     164,
+     165,
+     168,
+     169
+    ],
+    "held lines": [],
+    "exit lines": [
+     164,
+     165,
+     168,
+     169
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_bus_switch",
+    "concept": "Privilege and debug access attributes",
+    "information": "Privilege and debug attributes qualify the requester’s authority for the forwarded bus access. Downstream protection and debug behavior can depend on these attributes.",
+    "rubric reason": "Integrity is at risk because the switch forwards the selected privilege and debug attributes at lines 144-145, so a faulty path can associate the wrong authority with a transfer; undermined expected behavior is at risk because the same fields directly propagate privileged or debug behavior to the downstream bus at lines 144-145.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could inject or misroute a privileged or debug-qualified request so normal access restrictions are bypassed.",
+    "enters through": [
+     "a_req_i.priv",
+     "a_req_i.debug",
+     "b_req_i.priv",
+     "b_req_i.debug"
+    ],
+    "leaves through": [
+     "x_req_o.priv",
+     "x_req_o.debug"
+    ],
+    "entry lines": [
+     144,
+     145
+    ],
+    "held lines": [],
+    "exit lines": [
+     144,
+     145
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "yes"
+    }
+   },
+   {
+    "id": "C6",
+    "unit": "neorv32_bus_gateway",
+    "concept": "Gateway target selection",
+    "information": "The target-selection decision identifies which enabled address region receives the request, including the fallback X target. Correct selection is required to prevent accesses from reaching the wrong downstream device.",
+    "rubric reason": "Integrity is at risk because port_sel is computed from address-region comparisons at lines 356-361 and gates each downstream strobe at line 378; availability is at risk because an incorrect selection can suppress every valid target or route a request to an unusable target at lines 378 and 375-379.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could corrupt the address decode so a request is sent to the wrong gateway port or is not sent to any usable port.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     356,
+     357,
+     358,
+     361,
+     378
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C7",
+    "unit": "neorv32_bus_gateway",
+    "concept": "Gateway access address and direction",
+    "information": "The request address and read/write direction identify the access forwarded to the selected gateway target. The selected downstream device depends on receiving the original access identity and direction.",
+    "rubric reason": "Integrity is at risk because request records are copied to the selected output ports at lines 377 and 366-369, while the address also drives region selection at lines 356-361, so a corrupted path can perform a different access.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could modify or misassociate the forwarded address or read/write direction so a downstream device performs the wrong operation.",
+    "enters through": [
+     "req_i.addr",
+     "req_i.rw"
+    ],
+    "leaves through": [
+     "a_req_o.addr",
+     "a_req_o.rw",
+     "b_req_o.addr",
+     "b_req_o.rw",
+     "c_req_o.addr",
+     "c_req_o.rw",
+     "x_req_o.addr",
+     "x_req_o.rw"
+    ],
+    "entry lines": [
+     377
+    ],
+    "held lines": [],
+    "exit lines": [
+     366,
+     367,
+     368,
+     369
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C8",
+    "unit": "neorv32_bus_gateway",
+    "concept": "Gateway locked transaction state",
+    "information": "The stored lock state records whether the monitored request is part of a locked sequence. The monitor uses it to decide when the request may complete.",
+    "rubric reason": "Integrity is at risk because req_i.lock is stored in keeper.lock at line 420 and controls completion at line 426; availability is at risk because a corrupted lock state can terminate a locked sequence or prevent the monitor from releasing it.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could alter keeper.lock so a locked transfer is released prematurely or held after its response.",
+    "enters through": [
+     "req_i.lock"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     420
+    ],
+    "held lines": [
+     410,
+     420,
+     426
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C9",
+    "unit": "neorv32_bus_gateway",
+    "concept": "Gateway timeout and recovery state",
+    "information": "The busy state, timeout count, halt suppression, and generated error record monitor an outstanding request and recover when a response does not arrive. Gateway operation depends on this state to avoid indefinite stalls.",
+    "rubric reason": "Integrity is at risk because keeper.cnt, keeper.halt, and keeper.err determine whether a timeout error is reported at lines 416 and 422-425; availability is at risk because keeper.busy and the timeout path control whether a stalled request is eventually released at lines 417-428.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could suppress the timeout or force a false timeout to stall a request, discard service, or report a completion that never occurred.",
+    "enters through": [
+     "req_i.stb"
+    ],
+    "leaves through": [
+     "rsp_o.ack",
+     "rsp_o.err"
+    ],
+    "entry lines": [
+     419
+    ],
+    "held lines": [
+     409,
+     411,
+     412,
+     413,
+     415,
+     416,
+     418,
+     419,
+     422,
+     423,
+     424,
+     425,
+     427
+    ],
+    "exit lines": [
+     400,
+     401
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C10",
+    "unit": "neorv32_bus_gateway",
+    "concept": "Gateway completion and fault status",
+    "information": "Merged downstream acknowledgement and error status reports completion or fault of the routed access. The gateway and its requester depend on this status to retire the transaction.",
+    "rubric reason": "Integrity is at risk because response acknowledgement and error fields from the downstream ports are OR-combined and returned at lines 390-401; availability is at risk because the same status controls keeper.busy at line 426 and can therefore terminate or prolong service.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could inject or suppress a downstream acknowledgement or error so the gateway returns a false result or remains blocked.",
+    "enters through": [
+     "a_rsp_i.ack",
+     "a_rsp_i.err",
+     "b_rsp_i.ack",
+     "b_rsp_i.err",
+     "c_rsp_i.ack",
+     "c_rsp_i.err",
+     "x_rsp_i.ack",
+     "x_rsp_i.err"
+    ],
+    "leaves through": [
+     "rsp_o.ack",
+     "rsp_o.err"
+    ],
+    "entry lines": [
+     366,
+     367,
+     368,
+     369,
+     390,
+     391,
+     392
+    ],
+    "held lines": [
+     390,
+     391,
+     392,
+     395
+    ],
+    "exit lines": [
+     400,
+     401
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C11",
+    "unit": "neorv32_bus_gateway",
+    "concept": "Gateway privilege and debug access attributes",
+    "information": "Privilege and debug attributes qualify the access forwarded to a selected gateway target. Downstream access controls and debug behavior can depend on these attributes.",
+    "rubric reason": "Integrity is at risk because the request record carrying privilege and debug attributes is copied to the selected target at lines 377 and 366-369; undermined expected behavior is at risk because those attributes directly propagate privileged or debug access to downstream targets.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could inject a privileged or debug-qualified request and have the gateway forward it to a protected target.",
+    "enters through": [
+     "req_i.priv",
+     "req_i.debug"
+    ],
+    "leaves through": [
+     "a_req_o.priv",
+     "a_req_o.debug",
+     "b_req_o.priv",
+     "b_req_o.debug",
+     "c_req_o.priv",
+     "c_req_o.debug",
+     "x_req_o.priv",
+     "x_req_o.debug"
+    ],
+    "entry lines": [
+     377
+    ],
+    "held lines": [],
+    "exit lines": [
+     366,
+     367,
+     368,
+     369
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "yes"
+    }
+   },
+   {
+    "id": "C12",
+    "unit": "neorv32_bus_io_switch",
+    "concept": "Device target selection",
+    "information": "The device-selection decision identifies which of the enabled device ports receives the main bus access. Correct selection is required to prevent an access from reaching the wrong device or no device.",
+    "rubric reason": "Integrity is at risk because each device strobe is selected by address comparison at lines 661-665; availability is at risk because a bad selection can suppress all device strobes or activate the wrong device request.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could corrupt device address decoding so a main request reaches an unintended device or is discarded.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     661,
+     662,
+     664,
+     665
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C13",
+    "unit": "neorv32_bus_io_switch",
+    "concept": "Device access address and direction",
+    "information": "The main request address and read/write direction identify the device access forwarded through the switch. Device behavior depends on these fields remaining associated with the request as it crosses the switch.",
+    "rubric reason": "Integrity is at risk because the request register and device request logic copy the access record through lines 608, 610, 660, and 617-648, while address bits also select the device at line 661.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could alter the forwarded address or direction so a device performs a different access from the one requested.",
+    "enters through": [
+     "main_req_i.addr",
+     "main_req_i.rw"
+    ],
+    "leaves through": [
+     "dev_00_req_o.addr",
+     "dev_00_req_o.rw",
+     "dev_01_req_o.addr",
+     "dev_01_req_o.rw",
+     "dev_02_req_o.addr",
+     "dev_02_req_o.rw",
+     "dev_03_req_o.addr",
+     "dev_03_req_o.rw",
+     "dev_04_req_o.addr",
+     "dev_04_req_o.rw",
+     "dev_05_req_o.addr",
+     "dev_05_req_o.rw",
+     "dev_06_req_o.addr",
+     "dev_06_req_o.rw",
+     "dev_07_req_o.addr",
+     "dev_07_req_o.rw",
+     "dev_08_req_o.addr",
+     "dev_08_req_o.rw",
+     "dev_09_req_o.addr",
+     "dev_09_req_o.rw",
+     "dev_10_req_o.addr",
+     "dev_10_req_o.rw",
+     "dev_11_req_o.addr",
+     "dev_11_req_o.rw",
+     "dev_12_req_o.addr",
+     "dev_12_req_o.rw",
+     "dev_13_req_o.addr",
+     "dev_13_req_o.rw",
+     "dev_14_req_o.addr",
+     "dev_14_req_o.rw",
+     "dev_15_req_o.addr",
+     "dev_15_req_o.rw",
+     "dev_16_req_o.addr",
+     "dev_16_req_o.rw",
+     "dev_17_req_o.addr",
+     "dev_17_req_o.rw",
+     "dev_18_req_o.addr",
+     "dev_18_req_o.rw",
+     "dev_19_req_o.addr",
+     "dev_19_req_o.rw",
+     "dev_20_req_o.addr",
+     "dev_20_req_o.rw",
+     "dev_21_req_o.addr",
+     "dev_21_req_o.rw",
+     "dev_22_req_o.addr",
+     "dev_22_req_o.rw",
+     "dev_23_req_o.addr",
+     "dev_23_req_o.rw",
+     "dev_24_req_o.addr",
+     "dev_24_req_o.rw",
+     "dev_25_req_o.addr",
+     "dev_25_req_o.rw",
+     "dev_26_req_o.addr",
+     "dev_26_req_o.rw",
+     "dev_27_req_o.addr",
+     "dev_27_req_o.rw",
+     "dev_28_req_o.addr",
+     "dev_28_req_o.rw",
+     "dev_29_req_o.addr",
+     "dev_29_req_o.rw",
+     "dev_30_req_o.addr",
+     "dev_30_req_o.rw",
+     "dev_31_req_o.addr",
+     "dev_31_req_o.rw"
+    ],
+    "entry lines": [
+     608,
+     610,
+     660
+    ],
+    "held lines": [],
+    "exit lines": [
+     617,
+     618,
+     619,
+     620,
+     621,
+     622,
+     623,
+     624,
+     625,
+     626,
+     627,
+     628,
+     629,
+     630,
+     631,
+     632,
+     633,
+     634,
+     635,
+     636,
+     637,
+     638,
+     639,
+     640,
+     641,
+     642,
+     643,
+     644,
+     645,
+     646,
+     647,
+     648
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C14",
+    "unit": "neorv32_bus_io_switch",
+    "concept": "Device response completion and fault status",
+    "information": "Device acknowledgements and error flags are merged into the main response status. The main requester depends on this status to determine completion or failure of its access.",
+    "rubric reason": "Integrity is at risk because device response acknowledgements and errors are OR-combined at lines 685-690 and passed through the bus register to main_rsp_o at line 609; availability is at risk because suppressing acknowledgement can leave the requester waiting indefinitely.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could fabricate or suppress a device acknowledgement or error so the main bus reports a false result or never completes.",
+    "enters through": [
+     "dev_00_rsp_i.ack",
+     "dev_00_rsp_i.err",
+     "dev_01_rsp_i.ack",
+     "dev_01_rsp_i.err",
+     "dev_02_rsp_i.ack",
+     "dev_02_rsp_i.err",
+     "dev_03_rsp_i.ack",
+     "dev_03_rsp_i.err",
+     "dev_04_rsp_i.ack",
+     "dev_04_rsp_i.err",
+     "dev_05_rsp_i.ack",
+     "dev_05_rsp_i.err",
+     "dev_06_rsp_i.ack",
+     "dev_06_rsp_i.err",
+     "dev_07_rsp_i.ack",
+     "dev_07_rsp_i.err",
+     "dev_08_rsp_i.ack",
+     "dev_08_rsp_i.err",
+     "dev_09_rsp_i.ack",
+     "dev_09_rsp_i.err",
+     "dev_10_rsp_i.ack",
+     "dev_10_rsp_i.err",
+     "dev_11_rsp_i.ack",
+     "dev_11_rsp_i.err",
+     "dev_12_rsp_i.ack",
+     "dev_12_rsp_i.err",
+     "dev_13_rsp_i.ack",
+     "dev_13_rsp_i.err",
+     "dev_14_rsp_i.ack",
+     "dev_14_rsp_i.err",
+     "dev_15_rsp_i.ack",
+     "dev_15_rsp_i.err",
+     "dev_16_rsp_i.ack",
+     "dev_16_rsp_i.err",
+     "dev_17_rsp_i.ack",
+     "dev_17_rsp_i.err",
+     "dev_18_rsp_i.ack",
+     "dev_18_rsp_i.err",
+     "dev_19_rsp_i.ack",
+     "dev_19_rsp_i.err",
+     "dev_20_rsp_i.ack",
+     "dev_20_rsp_i.err",
+     "dev_21_rsp_i.ack",
+     "dev_21_rsp_i.err",
+     "dev_22_rsp_i.ack",
+     "dev_22_rsp_i.err",
+     "dev_23_rsp_i.ack",
+     "dev_23_rsp_i.err",
+     "dev_24_rsp_i.ack",
+     "dev_24_rsp_i.err",
+     "dev_25_rsp_i.ack",
+     "dev_25_rsp_i.err",
+     "dev_26_rsp_i.ack",
+     "dev_26_rsp_i.err",
+     "dev_27_rsp_i.ack",
+     "dev_27_rsp_i.err",
+     "dev_28_rsp_i.ack",
+     "dev_28_rsp_i.err",
+     "dev_29_rsp_i.ack",
+     "dev_29_rsp_i.err",
+     "dev_30_rsp_i.ack",
+     "dev_30_rsp_i.err",
+     "dev_31_rsp_i.ack",
+     "dev_31_rsp_i.err"
+    ],
+    "leaves through": [
+     "main_rsp_o.ack",
+     "main_rsp_o.err"
+    ],
+    "entry lines": [
+     617,
+     618,
+     619,
+     620,
+     621,
+     622,
+     623,
+     624,
+     625,
+     626,
+     627,
+     628,
+     629,
+     630,
+     631,
+     632,
+     633,
+     634,
+     635,
+     636,
+     637,
+     638,
+     639,
+     640,
+     641,
+     642,
+     643,
+     644,
+     645,
+     646,
+     647,
+     648
+    ],
+    "held lines": [
+     685,
+     686,
+     687,
+     690
+    ],
+    "exit lines": [
+     609
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C15",
+    "unit": "neorv32_bus_io_switch",
+    "concept": "Device-switch privilege and debug access attributes",
+    "information": "Privilege and debug attributes qualify the main access forwarded to a selected device. Device-side protection and debug behavior can depend on these attributes.",
+    "rubric reason": "Integrity is at risk because the bus register and device request paths forward privilege and debug attributes at lines 608, 610, and 617-648; undermined expected behavior is at risk because those fields directly propagate privileged or debug behavior to device ports without an internal restriction.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could inject a privileged or debug-qualified main request and have it forwarded to a protected device.",
+    "enters through": [
+     "main_req_i.priv",
+     "main_req_i.debug"
+    ],
+    "leaves through": [
+     "dev_00_req_o.priv",
+     "dev_00_req_o.debug",
+     "dev_01_req_o.priv",
+     "dev_01_req_o.debug",
+     "dev_02_req_o.priv",
+     "dev_02_req_o.debug",
+     "dev_03_req_o.priv",
+     "dev_03_req_o.debug",
+     "dev_04_req_o.priv",
+     "dev_04_req_o.debug",
+     "dev_05_req_o.priv",
+     "dev_05_req_o.debug",
+     "dev_06_req_o.priv",
+     "dev_06_req_o.debug",
+     "dev_07_req_o.priv",
+     "dev_07_req_o.debug",
+     "dev_08_req_o.priv",
+     "dev_08_req_o.debug",
+     "dev_09_req_o.priv",
+     "dev_09_req_o.debug",
+     "dev_10_req_o.priv",
+     "dev_10_req_o.debug",
+     "dev_11_req_o.priv",
+     "dev_11_req_o.debug",
+     "dev_12_req_o.priv",
+     "dev_12_req_o.debug",
+     "dev_13_req_o.priv",
+     "dev_13_req_o.debug",
+     "dev_14_req_o.priv",
+     "dev_14_req_o.debug",
+     "dev_15_req_o.priv",
+     "dev_15_req_o.debug",
+     "dev_16_req_o.priv",
+     "dev_16_req_o.debug",
+     "dev_17_req_o.priv",
+     "dev_17_req_o.debug",
+     "dev_18_req_o.priv",
+     "dev_18_req_o.debug",
+     "dev_19_req_o.priv",
+     "dev_19_req_o.debug",
+     "dev_20_req_o.priv",
+     "dev_20_req_o.debug",
+     "dev_21_req_o.priv",
+     "dev_21_req_o.debug",
+     "dev_22_req_o.priv",
+     "dev_22_req_o.debug",
+     "dev_23_req_o.priv",
+     "dev_23_req_o.debug",
+     "dev_24_req_o.priv",
+     "dev_24_req_o.debug",
+     "dev_25_req_o.priv",
+     "dev_25_req_o.debug",
+     "dev_26_req_o.priv",
+     "dev_26_req_o.debug",
+     "dev_27_req_o.priv",
+     "dev_27_req_o.debug",
+     "dev_28_req_o.priv",
+     "dev_28_req_o.debug",
+     "dev_29_req_o.priv",
+     "dev_29_req_o.debug",
+     "dev_30_req_o.priv",
+     "dev_30_req_o.debug",
+     "dev_31_req_o.priv",
+     "dev_31_req_o.debug"
+    ],
+    "entry lines": [
+     608
+    ],
+    "held lines": [],
+    "exit lines": [
+     617,
+     618,
+     619,
+     620,
+     621,
+     622,
+     623,
+     624,
+     625,
+     626,
+     627,
+     628,
+     629,
+     630,
+     631,
+     632,
+     633,
+     634,
+     635,
+     636,
+     637,
+     638,
+     639,
+     640,
+     641,
+     642,
+     643,
+     644,
+     645,
+     646,
+     647,
+     648
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "yes"
+    }
+   },
+   {
+    "id": "C16",
+    "unit": "neorv32_bus_amo_rmw",
+    "concept": "Atomic operation phase control",
+    "information": "The operation phase state identifies idle, read-wait, execute, write, and write-wait phases of an atomic read-modify-write operation. Correct phase control is required to issue exactly one read followed by the corresponding atomic write.",
+    "rubric reason": "Integrity is at risk because arbiter.state controls the generated write, read/write direction, and response selection at lines 813 and 815-828; availability is at risk because the phase state controls whether the operation advances or waits for acknowledgements at lines 780, 787, 792, 796, and 800-801.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could force the phase state to skip the read, issue an unintended write, or remain indefinitely in a wait phase.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     758,
+     763,
+     780,
+     787,
+     792,
+     796,
+     801,
+     806
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C17",
+    "unit": "neorv32_bus_amo_rmw",
+    "concept": "Atomic operation operands and update result",
+    "information": "The asset is the selected atomic function together with its write operand, memory-read operand, and computed update value. The RMW operation depends on preserving these values and producing the corresponding system write and core response.",
+    "rubric reason": "Confidentiality is at risk because operand and result values are held in arbiter.rdata, arbiter.wdata, and alu_res and leave through core_rsp_o.data or sys_req_o.data at lines 785, 813, and 826; integrity is at risk because the command and operands select and compute the write-back value at lines 778-779 and 838-845, so corruption changes the atomic update.",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "attack": "An attacker could observe the stored RMW operands or alter the command or ALU result so the memory update contains an incorrect value.",
+    "enters through": [
+     "core_req_i.amoop",
+     "core_req_i.data",
+     "sys_rsp_i.data"
+    ],
+    "leaves through": [
+     "sys_req_o.amoop",
+     "sys_req_o.data",
+     "core_rsp_o.data"
+    ],
+    "entry lines": [
+     778,
+     779,
+     785
+    ],
+    "held lines": [
+     759,
+     760,
+     761,
+     763,
+     778,
+     779,
+     785,
+     839,
+     840,
+     841,
+     842,
+     843,
+     844,
+     845
+    ],
+    "exit lines": [
+     813,
+     821,
+     826
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C18",
+    "unit": "neorv32_bus_amo_rmw",
+    "concept": "Atomic operation completion and fault status",
+    "information": "System acknowledgement and error status determine whether the atomic read or write phase completed and what status is returned to the core. The operation depends on these fields to advance and report correctly.",
+    "rubric reason": "Integrity is at risk because sys_rsp_i.ack and sys_rsp_i.err are used to advance the phase and drive core_rsp_o at lines 786-801 and 827-828; availability is at risk because a missing or false acknowledgement can hold the operation in a wait state or complete it prematurely.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could fabricate or suppress a system acknowledgement or error so the atomic operation writes incorrectly or never completes.",
+    "enters through": [
+     "sys_rsp_i.ack",
+     "sys_rsp_i.err"
+    ],
+    "leaves through": [
+     "core_rsp_o.ack",
+     "core_rsp_o.err"
+    ],
+    "entry lines": [
+     786,
+     800,
+     827,
+     828
+    ],
+    "held lines": [],
+    "exit lines": [
+     827,
+     828
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C19",
+    "unit": "neorv32_bus_amo_rmw",
+    "concept": "Atomic-operation privilege and debug attributes",
+    "information": "Privilege and debug attributes qualify the atomic access forwarded to the system bus. System-side protection and debug behavior can depend on these attributes.",
+    "rubric reason": "Integrity is at risk because privilege and debug fields are forwarded from core_req_i to sys_req_o at lines 818-819; undermined expected behavior is at risk because those fields directly propagate privileged or debug behavior to the atomic system access.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could inject a privileged or debug-qualified atomic request and bypass normal system-side access restrictions.",
+    "enters through": [
+     "core_req_i.priv",
+     "core_req_i.debug"
+    ],
+    "leaves through": [
+     "sys_req_o.priv",
+     "sys_req_o.debug"
+    ],
+    "entry lines": [
+     818,
+     819
+    ],
+    "held lines": [],
+    "exit lines": [
+     818,
+     819
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "yes"
+    }
+   },
+   {
+    "id": "C20",
+    "unit": "neorv32_bus_amo_rvs",
+    "concept": "Reservation and conditional-store control state",
+    "information": "The control state records the idle, reserved, and conditional-store-wait phases of the load-reserved/store-conditional sequence. Correct state is required to permit the conditional store only in the intended sequence.",
+    "rubric reason": "Integrity is at risk because state is changed by request type, reservation detection, and system acknowledgement at lines 910-927, thereby controlling the conditional-store decision; availability is at risk because state gates sys_req_o.stb at lines 943-946 and can suppress or hold the conditional store.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could force the reservation state to accept an unreserved store or to suppress every conditional store.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     904,
+     905,
+     912,
+     914,
+     921,
+     927
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C21",
+    "unit": "neorv32_bus_amo_rvs",
+    "concept": "Conditional-store success or failure",
+    "information": "The conditional-store result reports whether the store-conditional request failed and is encoded into the core response acknowledgement and data. Software depends on this result to know whether its reservation was honored.",
+    "rubric reason": "Integrity is at risk because sc_fail is computed from the operation, request, and reservation state at line 957 and changes core_rsp_o.ack and core_rsp_o.data at lines 963-964, so corruption can report success for a failed store or failure for a successful one.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could alter the failure result so software accepts an unperformed conditional store or unnecessarily retries a valid one.",
+    "enters through": [
+     "core_req_i.rw",
+     "core_req_i.stb"
+    ],
+    "leaves through": [
+     "core_rsp_o.ack",
+     "core_rsp_o.data"
+    ],
+    "entry lines": [
+     957
+    ],
+    "held lines": [
+     955,
+     957
+    ],
+    "exit lines": [
+     963,
+     964
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C22",
+    "unit": "neorv32_bus_amo_rvs",
+    "concept": "Reservation-operation completion and fault status",
+    "information": "System acknowledgement and error status report completion or failure of the reservation-related bus transfer. The controller depends on acknowledgement to leave its pending state and on error status to report the transfer result.",
+    "rubric reason": "Integrity is at risk because sys_rsp_i.ack advances the controller at lines 920-921 and sys_rsp_i.err is returned at line 962; availability is at risk because withholding acknowledgement leaves the controller in its pending state and blocks the operation.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could suppress or fabricate the system acknowledgement or error so the reservation operation hangs or reports the wrong completion status.",
+    "enters through": [
+     "sys_rsp_i.ack",
+     "sys_rsp_i.err"
+    ],
+    "leaves through": [
+     "core_rsp_o.ack",
+     "core_rsp_o.err"
+    ],
+    "entry lines": [
+     920,
+     962,
+     963
+    ],
+    "held lines": [],
+    "exit lines": [
+     962,
+     963
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C23",
+    "unit": "neorv32_bus_amo_rvs",
+    "concept": "Reservation-operation privilege and debug attributes",
+    "information": "Privilege and debug attributes qualify the reservation or conditional-store access forwarded to the system bus. System-side protection and debug behavior can depend on these attributes.",
+    "rubric reason": "Integrity is at risk because privilege and debug fields are copied from core_req_i to sys_req_o at line 942; undermined expected behavior is at risk because those fields directly propagate privileged or debug behavior to the reservation system access.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could inject a privileged or debug-qualified reservation request and bypass normal system-side restrictions.",
+    "enters through": [
+     "core_req_i.priv",
+     "core_req_i.debug"
+    ],
+    "leaves through": [
+     "sys_req_o.priv",
+     "sys_req_o.debug"
+    ],
+    "entry lines": [
+     942
+    ],
+    "held lines": [],
+    "exit lines": [
+     942
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "yes"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_bus_switch",
+    "concept": "Forwarded request and response payload data",
+    "reason": "The switch only forwards bus data between ports and does not store or compute from it, so the forwarded payload is barred by the forwarded-transaction and relayed-data rules.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_bus_switch",
+    "concept": "Pending request flags and round-robin history",
+    "reason": "a_req, b_req, and sel_q only retain or bias a bus access while it is being served and therefore are handshake copies or arbitration bookkeeping rather than independent information.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_bus_gateway",
+    "concept": "Gateway address-map generics and port enables",
+    "reason": "A_BASE, A_SIZE, B_BASE, B_SIZE, C_BASE, C_SIZE, A_EN, B_EN, C_EN, and X_EN are build-time values that no RTL element can change at run time.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_bus_gateway",
+    "concept": "Gateway forwarded payload data",
+    "reason": "The gateway copies request and response data between ports without storing or computing from it, so relayed data is not a separate asset.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_bus_io_switch",
+    "concept": "I/O device address-map generics and enables",
+    "reason": "DEV_SIZE, DEV_nn_BASE, DEV_nn_EN, and the derived device-map constants are build-time values that cannot be changed or withheld at run time.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_bus_io_switch",
+    "concept": "I/O request and response staging copies",
+    "reason": "The neorv32_bus_reg instance and main_req/main_rsp only buffer or forward whole bus records between ports, which is excluded by the forwarded-transaction and port-buffer rules.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_bus_io_switch",
+    "concept": "I/O forwarded payload data",
+    "reason": "The switch only copies request data to device ports and merges response data without storing or computing from it, so the data is relayed data.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_bus_amo_rmw",
+    "concept": "AMO comparison working values",
+    "reason": "merged into C17",
+    "merged into": "C17"
+   },
+   {
+    "unit": "neorv32_bus_amo_rmw",
+    "concept": "AMO operation selector",
+    "reason": "merged into C17",
+    "merged into": "C17"
+   },
+   {
+    "unit": "neorv32_bus_amo_rmw",
+    "concept": "AMO forwarded non-data request fields",
+    "reason": "Address, handshake, lock, fence, and other fields that are only forwarded without being stored or interpreted as an independent decision are part of the forwarded transaction rather than separate assets.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_bus_amo_rvs",
+    "concept": "RVS operation decode",
+    "reason": "merged into C21",
+    "merged into": "C21"
+   },
+   {
+    "unit": "neorv32_bus_amo_rvs",
+    "concept": "RVS forwarded payload data",
+    "reason": "The RVS unit forwards system response data and request data without storing or computing an independent data result, apart from the conditional-store status bit.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_bus",
+    "concept": "Clock and reset signals",
+    "reason": "Clock and reset paths only time or reset the listed state and are excluded as conceptual assets by the clock-and-reset rule.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

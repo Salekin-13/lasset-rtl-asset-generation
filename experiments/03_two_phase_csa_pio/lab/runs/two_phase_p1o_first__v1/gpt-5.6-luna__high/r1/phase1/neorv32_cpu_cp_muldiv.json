@@ -1,0 +1,263 @@
+{
+ "module": "neorv32_cpu_cp_muldiv",
+ "prompt version": "two_phase_p1o_first",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "b4c962e16261",
+ "user sha": "92fd1ffd9b6b",
+ "usage": {
+  "in": 31008,
+  "out": 13957,
+  "reasoning": 11755,
+  "cached": 31005,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_002522c33a01a45c006ad63aa0c09c87d19b95c031b41ca239",
+  "request key": "38cd825b81ad"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_cpu_cp_muldiv\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"Source operand values\",\n      \"Unit\": \"neorv32_cpu_cp_muldiv\",\n      \"Information\": \"The rs1 and rs2 source operand words used by the multiplication and division datapaths; producing the requested arithmetic result depends on their values.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The operands may be secret data and are captured or carried through datapath elements that influence the returned result at lines 171-172, 212, 264-272, 276-278, and 325-329. The operands are sensitive computation inputs that can be altered in the datapath or at their input uses, changing the arithmetic result at lines 171-172, 212, 225-227, 264-272, and 325-329.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could observe result-dependent operand information or tamper with either source operand path so that the coprocessor returns an incorrect result.\",\n      \"Enters Through\": [\n        \"rs1_i\",\n        \"rs2_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        171,\n        172,\n        212,\n        225,\n        227,\n        263,\n        264,\n        266,\n        269,\n        270,\n        272,\n        276,\n        278\n      ],\n      \"Held Lines\": [\n        171,\n        172,\n        212,\n        264,\n        266,\n        270,\n        272,\n        276,\n        278\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"Operation acceptance and start control\",\n      \"Unit\": \"neorv32_cpu_cp_muldiv\",\n      \"Information\": \"The decoded decision that a control-record command is a valid multiply or divide operation and should start the corresponding datapath; the coprocessor depends on it to accept and launch work.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Changing the valid-command and operation-start decisions can launch an unintended operation or cause the datapath to start at the wrong time, as shown by the decodes at lines 97-99 and 154-155. Suppressing or corrupting valid_cmd, mul.start, or div.start can prevent the operation from being accepted or started through lines 120 and 154-155.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could alter the command-valid or start decode so a valid operation is rejected, an unintended operation is launched, or a datapath starts without the intended command.\",\n      \"Enters Through\": [\n        \"ctrl_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        97,\n        98,\n        99\n      ],\n      \"Held Lines\": [\n        97,\n        98,\n        99,\n        154,\n        155\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"Arithmetic operation result\",\n      \"Unit\": \"neorv32_cpu_cp_muldiv\",\n      \"Information\": \"The multiplication or division result computed from the source operands and selected operation; the processor depends on it as the coprocessor's returned arithmetic value.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The computed result leaves directly through the observable res_o output at lines 321-329, so an integrator may need to protect it from disclosure. The result is stored and computed in mul.prod, div.quotient, div.remainder, div.sub, div.res_u, and div.res at lines 178-300, and alteration of those elements can change res_o at lines 325-329. The result can be withheld or replaced by the output-enable and state-controlled assignments at lines 321-329, while valid_o is controlled by completion state at line 145.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could read the result at res_o, corrupt an intermediate or final arithmetic value, or force the output-enable and completion control to withhold an otherwise valid result.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"res_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        178,\n        184,\n        208,\n        211,\n        212,\n        214,\n        215,\n        225,\n        227,\n        230,\n        256,\n        259,\n        264,\n        266,\n        283,\n        285,\n        287,\n        289,\n        296,\n        299,\n        300,\n        321,\n        325,\n        327,\n        329\n      ],\n      \"Exit Lines\": [\n        321,\n        325,\n        327,\n        329\n      ]\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"Coprocessor operation progress state\",\n      \"Unit\": \"neorv32_cpu_cp_muldiv\",\n      \"Information\": \"The state of an in-progress operation, including idle/busy/done state, iteration count, output release control, and signedness settings that determine how the operation treats its operands. The datapath depends on this state to sequence iterations and release the result; the state has no value-carrying input port because control-record fields only decide it, and completion is reported through valid_o.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Unauthorized modification of ctrl.state, ctrl.cnt, ctrl.out_en, or the signedness settings can change iteration control, operand interpretation, or result release, producing an incorrect result through lines 107-151 and 319-329. A corrupted state, counter, or output-enable can keep the operation busy, terminate it prematurely, or withhold completion and output through lines 120-145 and 130-138.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could corrupt the progress state, iteration count, output enable, or signedness decision to terminate, stall, misinterpret, or conceal a coprocessor operation.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"valid_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        106,\n        107,\n        108,\n        109,\n        112,\n        113,\n        122,\n        124,\n        130,\n        132,\n        137,\n        138,\n        148,\n        149,\n        150,\n        151\n      ],\n      \"Exit Lines\": [\n        145\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Instruction operation selector\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_muldiv\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The instruction funct and opcode fields only select the arithmetic operation or result form, so Operation selectors treats them as part of the operation rather than a separate conceptual asset; their uses are shown at lines 121, 148-155, 275-299, and 323-329.\"\n    },\n    {\n      \"Candidate Name\": \"Sequencing state as a separate timing asset\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_muldiv\",\n      \"Merged Into\": \"C4\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Operand signedness settings as a separate asset\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_muldiv\",\n      \"Merged Into\": \"C4\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Intermediate arithmetic values as separate assets\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_muldiv\",\n      \"Merged Into\": \"C3\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Completion and valid status\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_muldiv\",\n      \"Merged Into\": \"C4\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"CPU trap context decision\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_muldiv\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"ctrl_i.cpu_trap is a processor context field that only refines the state transition decision at line 131, so Processor context fields bars it as an independent conceptual asset.\"\n    },\n    {\n      \"Candidate Name\": \"Clock and reset signals\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_muldiv\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The clock and reset only time or reset the operation state and datapath registers, so the Clocks and resets rule excludes them as conceptual assets.\"\n    },\n    {\n      \"Candidate Name\": \"Build-time implementation choices\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_muldiv\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"FAST_MUL_EN and DIVISION_EN only select generated hardware at build time at lines 24-26 and 160-161, 191-192, 249, and 305-306, so Build-time values excludes them.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_cpu_cp_muldiv",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_cpu_cp_muldiv",
+    "concept": "Source operand values",
+    "information": "The rs1 and rs2 source operand words used by the multiplication and division datapaths; producing the requested arithmetic result depends on their values.",
+    "rubric reason": "The operands may be secret data and are captured or carried through datapath elements that influence the returned result at lines 171-172, 212, 264-272, 276-278, and 325-329. The operands are sensitive computation inputs that can be altered in the datapath or at their input uses, changing the arithmetic result at lines 171-172, 212, 225-227, 264-272, and 325-329.",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "attack": "An attacker could observe result-dependent operand information or tamper with either source operand path so that the coprocessor returns an incorrect result.",
+    "enters through": [
+     "rs1_i",
+     "rs2_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     171,
+     172,
+     212,
+     225,
+     227,
+     263,
+     264,
+     266,
+     269,
+     270,
+     272,
+     276,
+     278
+    ],
+    "held lines": [
+     171,
+     172,
+     212,
+     264,
+     266,
+     270,
+     272,
+     276,
+     278
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_cpu_cp_muldiv",
+    "concept": "Operation acceptance and start control",
+    "information": "The decoded decision that a control-record command is a valid multiply or divide operation and should start the corresponding datapath; the coprocessor depends on it to accept and launch work.",
+    "rubric reason": "Changing the valid-command and operation-start decisions can launch an unintended operation or cause the datapath to start at the wrong time, as shown by the decodes at lines 97-99 and 154-155. Suppressing or corrupting valid_cmd, mul.start, or div.start can prevent the operation from being accepted or started through lines 120 and 154-155.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could alter the command-valid or start decode so a valid operation is rejected, an unintended operation is launched, or a datapath starts without the intended command.",
+    "enters through": [
+     "ctrl_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     97,
+     98,
+     99
+    ],
+    "held lines": [
+     97,
+     98,
+     99,
+     154,
+     155
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_cpu_cp_muldiv",
+    "concept": "Arithmetic operation result",
+    "information": "The multiplication or division result computed from the source operands and selected operation; the processor depends on it as the coprocessor's returned arithmetic value.",
+    "rubric reason": "The computed result leaves directly through the observable res_o output at lines 321-329, so an integrator may need to protect it from disclosure. The result is stored and computed in mul.prod, div.quotient, div.remainder, div.sub, div.res_u, and div.res at lines 178-300, and alteration of those elements can change res_o at lines 325-329. The result can be withheld or replaced by the output-enable and state-controlled assignments at lines 321-329, while valid_o is controlled by completion state at line 145.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could read the result at res_o, corrupt an intermediate or final arithmetic value, or force the output-enable and completion control to withhold an otherwise valid result.",
+    "enters through": [],
+    "leaves through": [
+     "res_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     178,
+     184,
+     208,
+     211,
+     212,
+     214,
+     215,
+     225,
+     227,
+     230,
+     256,
+     259,
+     264,
+     266,
+     283,
+     285,
+     287,
+     289,
+     296,
+     299,
+     300,
+     321,
+     325,
+     327,
+     329
+    ],
+    "exit lines": [
+     321,
+     325,
+     327,
+     329
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_cpu_cp_muldiv",
+    "concept": "Coprocessor operation progress state",
+    "information": "The state of an in-progress operation, including idle/busy/done state, iteration count, output release control, and signedness settings that determine how the operation treats its operands. The datapath depends on this state to sequence iterations and release the result; the state has no value-carrying input port because control-record fields only decide it, and completion is reported through valid_o.",
+    "rubric reason": "Unauthorized modification of ctrl.state, ctrl.cnt, ctrl.out_en, or the signedness settings can change iteration control, operand interpretation, or result release, producing an incorrect result through lines 107-151 and 319-329. A corrupted state, counter, or output-enable can keep the operation busy, terminate it prematurely, or withhold completion and output through lines 120-145 and 130-138.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could corrupt the progress state, iteration count, output enable, or signedness decision to terminate, stall, misinterpret, or conceal a coprocessor operation.",
+    "enters through": [],
+    "leaves through": [
+     "valid_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     106,
+     107,
+     108,
+     109,
+     112,
+     113,
+     122,
+     124,
+     130,
+     132,
+     137,
+     138,
+     148,
+     149,
+     150,
+     151
+    ],
+    "exit lines": [
+     145
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_cpu_cp_muldiv",
+    "concept": "Instruction operation selector",
+    "reason": "The instruction funct and opcode fields only select the arithmetic operation or result form, so Operation selectors treats them as part of the operation rather than a separate conceptual asset; their uses are shown at lines 121, 148-155, 275-299, and 323-329.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_cp_muldiv",
+    "concept": "Sequencing state as a separate timing asset",
+    "reason": "merged into C4",
+    "merged into": "C4"
+   },
+   {
+    "unit": "neorv32_cpu_cp_muldiv",
+    "concept": "Operand signedness settings as a separate asset",
+    "reason": "merged into C4",
+    "merged into": "C4"
+   },
+   {
+    "unit": "neorv32_cpu_cp_muldiv",
+    "concept": "Intermediate arithmetic values as separate assets",
+    "reason": "merged into C3",
+    "merged into": "C3"
+   },
+   {
+    "unit": "neorv32_cpu_cp_muldiv",
+    "concept": "Completion and valid status",
+    "reason": "merged into C4",
+    "merged into": "C4"
+   },
+   {
+    "unit": "neorv32_cpu_cp_muldiv",
+    "concept": "CPU trap context decision",
+    "reason": "ctrl_i.cpu_trap is a processor context field that only refines the state transition decision at line 131, so Processor context fields bars it as an independent conceptual asset.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_cp_muldiv",
+    "concept": "Clock and reset signals",
+    "reason": "The clock and reset only time or reset the operation state and datapath registers, so the Clocks and resets rule excludes them as conceptual assets.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_cp_muldiv",
+    "concept": "Build-time implementation choices",
+    "reason": "FAST_MUL_EN and DIVISION_EN only select generated hardware at build time at lines 24-26 and 160-161, 191-192, 249, and 305-306, so Build-time values excludes them.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

@@ -1,0 +1,410 @@
+{
+ "module": "neorv32_slink",
+ "prompt version": "two_phase_p1o_first",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "b4c962e16261",
+ "user sha": "8ff95f5e21a5",
+ "usage": {
+  "in": 32395,
+  "out": 15494,
+  "reasoning": 12267,
+  "cached": 20474,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_08823d07d3ac19da006ad59d905bb087d199db982a39a6b03a",
+  "request key": "7849d91382e0"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_slink\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"Received source identity\",\n      \"Unit\": \"neorv32_slink\",\n      \"Information\": \"The source identifier attached to a received word is retained for software readback, and correct attribution of received traffic depends on it.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The source identifier is integrity-sensitive receive metadata because the input is captured into route_src at line 248 and returned through bus_rsp_o.data at line 189; injecting or altering the source at line 231 changes the reported identity.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"Inject a received word with a false source identifier so software attributes the word to the wrong sender.\",\n      \"Enters Through\": [\n        \"slink_rx_src_i\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        231\n      ],\n      \"Held Lines\": [\n        240,\n        248\n      ],\n      \"Exit Lines\": [\n        189\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"Received packet-end marker\",\n      \"Unit\": \"neorv32_slink\",\n      \"Information\": \"The end-of-packet marker for the most recently received word is retained for software readback, and correct interpretation of received packet boundaries depends on it.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The packet-end marker is integrity-sensitive framing metadata because it is captured into rx_last at line 245 and returned at line 169; changing the incoming marker at line 232 changes the reported packet boundary.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"Inject an incorrect end marker so software joins packets or terminates them at the wrong word.\",\n      \"Enters Through\": [\n        \"slink_rx_last_i\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        232\n      ],\n      \"Held Lines\": [\n        239,\n        243,\n        245\n      ],\n      \"Exit Lines\": [\n        169\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"Transmit destination setting\",\n      \"Unit\": \"neorv32_slink\",\n      \"Information\": \"The stored destination identifier selects the destination field of transmitted words, and correct delivery of software-provided traffic depends on it.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The destination setting can be written at line 161, is inserted into the transmit FIFO word at line 296, and leaves on slink_tx_dst_o at line 300, so an unauthorized change can misroute transmitted traffic.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"Write a different destination identifier so transmitted words are delivered to an unintended endpoint.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\",\n        \"slink_tx_dst_o\"\n      ],\n      \"Entry Lines\": [\n        161\n      ],\n      \"Held Lines\": [\n        132,\n        161\n      ],\n      \"Exit Lines\": [\n        188,\n        300\n      ]\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"Link enable state\",\n      \"Unit\": \"neorv32_slink\",\n      \"Information\": \"The enable state controls whether the link FIFOs remain active and whether their contents are retained, so normal receive and transmit operation depends on it.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The enable state is writable into ctrl.enable at line 148 and controls FIFO clearing at lines 226 and 294, so unauthorized modification can change link operation and discard queued information.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"Write the enable control low to clear the FIFOs and disable normal link operation.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        148\n      ],\n      \"Held Lines\": [\n        123,\n        148\n      ],\n      \"Exit Lines\": [\n        167\n      ]\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"Receive FIFO clear control\",\n      \"Unit\": \"neorv32_slink\",\n      \"Information\": \"This transient control state requests clearing of the receive FIFO, and receive data delivery depends on it not being asserted unexpectedly.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The receive clear control is reset, pulsed and bus-written at lines 124, 140 and 149, then drives the FIFO clear input at line 226; an unauthorized assertion can alter or discard queued receive data.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"Issue a bus write that asserts the receive clear control while received data is awaiting delivery.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        149\n      ],\n      \"Held Lines\": [\n        124,\n        140,\n        149\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Concept Name\": \"Transmit FIFO clear control\",\n      \"Unit\": \"neorv32_slink\",\n      \"Information\": \"This transient control state requests clearing of the transmit FIFO, and transmission of queued words depends on it not being asserted unexpectedly.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The transmit clear control is reset, pulsed and bus-written at lines 125, 141 and 150, then drives the FIFO clear input at line 294; an unauthorized assertion can alter or discard queued transmit data.\",\n      \"Attack\": \"Issue a bus write that asserts the transmit clear control before queued words are sent.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        150\n      ],\n      \"Held Lines\": [\n        125,\n        141,\n        150\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C7\",\n      \"Concept Name\": \"Receive link handshake\",\n      \"Unit\": \"neorv32_slink\",\n      \"Information\": \"The receive-side valid and ready protocol determines whether incoming words cross the link boundary, and receive transfer progress depends on this handshake.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The receive valid input controls FIFO writes at line 229 and the receive ready output is driven at line 233, so changing either side can corrupt the transfer protocol or prevent words from moving.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"Hold receive valid low or force receive ready low so incoming words are dropped or the transfer stalls.\",\n      \"Enters Through\": [\n        \"slink_rx_valid_i\"\n      ],\n      \"Leaves Through\": [\n        \"slink_rx_ready_o\"\n      ],\n      \"Entry Lines\": [\n        229\n      ],\n      \"Held Lines\": [\n        229,\n        233\n      ],\n      \"Exit Lines\": [\n        233\n      ]\n    },\n    {\n      \"Concept ID\": \"C8\",\n      \"Concept Name\": \"Transmit link handshake\",\n      \"Unit\": \"neorv32_slink\",\n      \"Information\": \"The transmit-side valid and ready protocol determines whether queued words cross the link boundary, and transmit progress depends on this handshake.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The transmit ready input controls FIFO reads at line 298 and transmit valid is driven at line 302, so changing the handshake can cause incorrect acceptance or prevent queued words from being transferred.\",\n      \"Attack\": \"Hold transmit ready low or suppress transmit valid so queued words remain stuck or are not accepted correctly.\",\n      \"Enters Through\": [\n        \"slink_tx_ready_i\"\n      ],\n      \"Leaves Through\": [\n        \"slink_tx_valid_o\"\n      ],\n      \"Entry Lines\": [\n        298\n      ],\n      \"Held Lines\": [\n        298,\n        302\n      ],\n      \"Exit Lines\": [\n        302\n      ]\n    },\n    {\n      \"Concept ID\": \"C9\",\n      \"Concept Name\": \"Receive interrupt request\",\n      \"Unit\": \"neorv32_slink\",\n      \"Information\": \"The receive interrupt request reports receive-FIFO conditions to the integrating system, which may depend on it to service incoming data.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The IP produces and registers rx_irq_o at lines 257 and 259-262 from receive-FIFO conditions, so incorrect or suppressed generation can cause a false notification or prevent the system from servicing received data.\",\n      \"Attack\": \"Suppress or forge rx_irq_o so the system fails to service received data or services it at the wrong time.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"rx_irq_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        257,\n        259,\n        260,\n        261,\n        262\n      ],\n      \"Exit Lines\": [\n        257,\n        259,\n        260,\n        261,\n        262\n      ]\n    },\n    {\n      \"Concept ID\": \"C10\",\n      \"Concept Name\": \"Transmit interrupt request\",\n      \"Unit\": \"neorv32_slink\",\n      \"Information\": \"The transmit interrupt request reports transmit-FIFO conditions to the integrating system, which may depend on it to refill or manage outgoing data.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The IP produces and registers tx_irq_o at lines 308 and 310-313 from transmit-FIFO conditions, so incorrect or suppressed generation can cause a false notification or prevent the system from maintaining transmission.\",\n      \"Attack\": \"Suppress or forge tx_irq_o so the system fails to refill the transmit FIFO or reacts to a false transmit condition.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"tx_irq_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        308,\n        310,\n        311,\n        312,\n        313\n      ],\n      \"Exit Lines\": [\n        308,\n        310,\n        311,\n        312,\n        313\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Relayed payload words and transfer framing\",\n      \"Candidate Unit\": \"neorv32_slink\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"Forwarded-transactions and port-buffer rules treat the payload and copied transfer fields as data moving between unit ports and FIFO instances without this unit storing or computing the word as its own information.\"\n    },\n    {\n      \"Candidate Name\": \"Receive FIFO occupancy and status\",\n      \"Candidate Unit\": \"neorv32_slink\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"Port-buffer and buffer-status rules treat avail, free and half as reporting or timing the buffered data and the link handshake rather than as independent information.\"\n    },\n    {\n      \"Candidate Name\": \"Transmit FIFO occupancy and status\",\n      \"Candidate Unit\": \"neorv32_slink\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"Port-buffer and buffer-status rules treat avail, free and half as reporting or timing the buffered data and the link handshake rather than as independent information.\"\n    },\n    {\n      \"Candidate Name\": \"Receive interrupt threshold options\",\n      \"Candidate Unit\": \"neorv32_slink\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The receive interrupt configuration bits only tune an interrupt-request output, so the Port options rule bars them as pieces of their own.\"\n    },\n    {\n      \"Candidate Name\": \"Transmit interrupt threshold options\",\n      \"Candidate Unit\": \"neorv32_slink\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The transmit interrupt configuration bits only tune an interrupt-request output, so the Port options rule bars them as pieces of their own.\"\n    },\n    {\n      \"Candidate Name\": \"Bus access commands and acknowledge\",\n      \"Candidate Unit\": \"neorv32_slink\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"Access command fields, transfer-record and bus-handshake-copy rules bar the address, direction, strobe and acknowledge as independent information, while kept settings and metadata are identified separately.\"\n    },\n    {\n      \"Candidate Name\": \"FIFO depth configuration\",\n      \"Candidate Unit\": \"neorv32_slink\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The FIFO depth generics only fix build-time structure and cannot be changed or withheld at run time.\"\n    },\n    {\n      \"Candidate Name\": \"Clock and reset\",\n      \"Candidate Unit\": \"neorv32_slink\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The Clocks and resets rule excludes the clock and reset inputs and their reset distribution from conceptual assets.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_slink",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_slink",
+    "concept": "Received source identity",
+    "information": "The source identifier attached to a received word is retained for software readback, and correct attribution of received traffic depends on it.",
+    "rubric reason": "The source identifier is integrity-sensitive receive metadata because the input is captured into route_src at line 248 and returned through bus_rsp_o.data at line 189; injecting or altering the source at line 231 changes the reported identity.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "Inject a received word with a false source identifier so software attributes the word to the wrong sender.",
+    "enters through": [
+     "slink_rx_src_i"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     231
+    ],
+    "held lines": [
+     240,
+     248
+    ],
+    "exit lines": [
+     189
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_slink",
+    "concept": "Received packet-end marker",
+    "information": "The end-of-packet marker for the most recently received word is retained for software readback, and correct interpretation of received packet boundaries depends on it.",
+    "rubric reason": "The packet-end marker is integrity-sensitive framing metadata because it is captured into rx_last at line 245 and returned at line 169; changing the incoming marker at line 232 changes the reported packet boundary.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "Inject an incorrect end marker so software joins packets or terminates them at the wrong word.",
+    "enters through": [
+     "slink_rx_last_i"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     232
+    ],
+    "held lines": [
+     239,
+     243,
+     245
+    ],
+    "exit lines": [
+     169
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_slink",
+    "concept": "Transmit destination setting",
+    "information": "The stored destination identifier selects the destination field of transmitted words, and correct delivery of software-provided traffic depends on it.",
+    "rubric reason": "The destination setting can be written at line 161, is inserted into the transmit FIFO word at line 296, and leaves on slink_tx_dst_o at line 300, so an unauthorized change can misroute transmitted traffic.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "Write a different destination identifier so transmitted words are delivered to an unintended endpoint.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data",
+     "slink_tx_dst_o"
+    ],
+    "entry lines": [
+     161
+    ],
+    "held lines": [
+     132,
+     161
+    ],
+    "exit lines": [
+     188,
+     300
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_slink",
+    "concept": "Link enable state",
+    "information": "The enable state controls whether the link FIFOs remain active and whether their contents are retained, so normal receive and transmit operation depends on it.",
+    "rubric reason": "The enable state is writable into ctrl.enable at line 148 and controls FIFO clearing at lines 226 and 294, so unauthorized modification can change link operation and discard queued information.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "Write the enable control low to clear the FIFOs and disable normal link operation.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     148
+    ],
+    "held lines": [
+     123,
+     148
+    ],
+    "exit lines": [
+     167
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_slink",
+    "concept": "Receive FIFO clear control",
+    "information": "This transient control state requests clearing of the receive FIFO, and receive data delivery depends on it not being asserted unexpectedly.",
+    "rubric reason": "The receive clear control is reset, pulsed and bus-written at lines 124, 140 and 149, then drives the FIFO clear input at line 226; an unauthorized assertion can alter or discard queued receive data.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "Issue a bus write that asserts the receive clear control while received data is awaiting delivery.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     149
+    ],
+    "held lines": [
+     124,
+     140,
+     149
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C6",
+    "unit": "neorv32_slink",
+    "concept": "Transmit FIFO clear control",
+    "information": "This transient control state requests clearing of the transmit FIFO, and transmission of queued words depends on it not being asserted unexpectedly.",
+    "rubric reason": "The transmit clear control is reset, pulsed and bus-written at lines 125, 141 and 150, then drives the FIFO clear input at line 294; an unauthorized assertion can alter or discard queued transmit data.",
+    "attack": "Issue a bus write that asserts the transmit clear control before queued words are sent.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     150
+    ],
+    "held lines": [
+     125,
+     141,
+     150
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C7",
+    "unit": "neorv32_slink",
+    "concept": "Receive link handshake",
+    "information": "The receive-side valid and ready protocol determines whether incoming words cross the link boundary, and receive transfer progress depends on this handshake.",
+    "rubric reason": "The receive valid input controls FIFO writes at line 229 and the receive ready output is driven at line 233, so changing either side can corrupt the transfer protocol or prevent words from moving.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "Hold receive valid low or force receive ready low so incoming words are dropped or the transfer stalls.",
+    "enters through": [
+     "slink_rx_valid_i"
+    ],
+    "leaves through": [
+     "slink_rx_ready_o"
+    ],
+    "entry lines": [
+     229
+    ],
+    "held lines": [
+     229,
+     233
+    ],
+    "exit lines": [
+     233
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C8",
+    "unit": "neorv32_slink",
+    "concept": "Transmit link handshake",
+    "information": "The transmit-side valid and ready protocol determines whether queued words cross the link boundary, and transmit progress depends on this handshake.",
+    "rubric reason": "The transmit ready input controls FIFO reads at line 298 and transmit valid is driven at line 302, so changing the handshake can cause incorrect acceptance or prevent queued words from being transferred.",
+    "attack": "Hold transmit ready low or suppress transmit valid so queued words remain stuck or are not accepted correctly.",
+    "enters through": [
+     "slink_tx_ready_i"
+    ],
+    "leaves through": [
+     "slink_tx_valid_o"
+    ],
+    "entry lines": [
+     298
+    ],
+    "held lines": [
+     298,
+     302
+    ],
+    "exit lines": [
+     302
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C9",
+    "unit": "neorv32_slink",
+    "concept": "Receive interrupt request",
+    "information": "The receive interrupt request reports receive-FIFO conditions to the integrating system, which may depend on it to service incoming data.",
+    "rubric reason": "The IP produces and registers rx_irq_o at lines 257 and 259-262 from receive-FIFO conditions, so incorrect or suppressed generation can cause a false notification or prevent the system from servicing received data.",
+    "attack": "Suppress or forge rx_irq_o so the system fails to service received data or services it at the wrong time.",
+    "enters through": [],
+    "leaves through": [
+     "rx_irq_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     257,
+     259,
+     260,
+     261,
+     262
+    ],
+    "exit lines": [
+     257,
+     259,
+     260,
+     261,
+     262
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C10",
+    "unit": "neorv32_slink",
+    "concept": "Transmit interrupt request",
+    "information": "The transmit interrupt request reports transmit-FIFO conditions to the integrating system, which may depend on it to refill or manage outgoing data.",
+    "rubric reason": "The IP produces and registers tx_irq_o at lines 308 and 310-313 from transmit-FIFO conditions, so incorrect or suppressed generation can cause a false notification or prevent the system from maintaining transmission.",
+    "attack": "Suppress or forge tx_irq_o so the system fails to refill the transmit FIFO or reacts to a false transmit condition.",
+    "enters through": [],
+    "leaves through": [
+     "tx_irq_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     308,
+     310,
+     311,
+     312,
+     313
+    ],
+    "exit lines": [
+     308,
+     310,
+     311,
+     312,
+     313
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_slink",
+    "concept": "Relayed payload words and transfer framing",
+    "reason": "Forwarded-transactions and port-buffer rules treat the payload and copied transfer fields as data moving between unit ports and FIFO instances without this unit storing or computing the word as its own information.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_slink",
+    "concept": "Receive FIFO occupancy and status",
+    "reason": "Port-buffer and buffer-status rules treat avail, free and half as reporting or timing the buffered data and the link handshake rather than as independent information.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_slink",
+    "concept": "Transmit FIFO occupancy and status",
+    "reason": "Port-buffer and buffer-status rules treat avail, free and half as reporting or timing the buffered data and the link handshake rather than as independent information.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_slink",
+    "concept": "Receive interrupt threshold options",
+    "reason": "The receive interrupt configuration bits only tune an interrupt-request output, so the Port options rule bars them as pieces of their own.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_slink",
+    "concept": "Transmit interrupt threshold options",
+    "reason": "The transmit interrupt configuration bits only tune an interrupt-request output, so the Port options rule bars them as pieces of their own.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_slink",
+    "concept": "Bus access commands and acknowledge",
+    "reason": "Access command fields, transfer-record and bus-handshake-copy rules bar the address, direction, strobe and acknowledge as independent information, while kept settings and metadata are identified separately.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_slink",
+    "concept": "FIFO depth configuration",
+    "reason": "The FIFO depth generics only fix build-time structure and cannot be changed or withheld at run time.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_slink",
+    "concept": "Clock and reset",
+    "reason": "The Clocks and resets rule excludes the clock and reset inputs and their reset distribution from conceptual assets.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [
+  "format: conceptual asset C6 lacks ['Objectives At Risk']",
+  "format: conceptual asset C8 lacks ['Objectives At Risk']",
+  "format: conceptual asset C9 lacks ['Objectives At Risk']",
+  "format: conceptual asset C10 lacks ['Objectives At Risk']",
+  "C6: objectives None",
+  "C8: objectives None",
+  "C9: objectives None",
+  "C10: objectives None"
+ ],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

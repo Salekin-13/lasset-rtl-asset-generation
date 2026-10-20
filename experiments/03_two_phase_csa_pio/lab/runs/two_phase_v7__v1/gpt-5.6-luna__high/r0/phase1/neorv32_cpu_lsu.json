@@ -1,0 +1,416 @@
+{
+ "module": "neorv32_cpu_lsu",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "be3b3faab49b",
+ "user sha": "4364ba45b058",
+ "usage": {
+  "in": 21676,
+  "out": 15979,
+  "reasoning": 12787,
+  "cached": 21673,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_0b5496ebe176257b006ace83b8545487d1a603c3a73e1d197d",
+  "request key": "16c3a2d7d664"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_cpu_lsu\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"Memory access address\",\n      \"Unit\": \"neorv32_cpu_lsu\",\n      \"Information\": \"The address of the current load, store, or atomic memory access, held while the operation is issued and also reported externally. The LSU depends on it to target the correct memory location.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The address can expose access patterns through mar_o and dbus_req_o.addr at lines 67-68; changing addr_i or the captured address can redirect the access at lines 55-56; suppressing address capture can withhold the current access address at lines 55-56.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could alter or suppress addr_i capture to redirect a load or store, expose the accessed location, or prevent the intended memory transfer.\",\n      \"Enters Through\": [\n        \"addr_i\"\n      ],\n      \"Leaves Through\": [\n        \"mar_o\",\n        \"dbus_req_o.addr\"\n      ],\n      \"Entry Lines\": [\n        56\n      ],\n      \"Held Lines\": [\n        52,\n        56\n      ],\n      \"Exit Lines\": [\n        67,\n        68\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"Store data\",\n      \"Unit\": \"neorv32_cpu_lsu\",\n      \"Information\": \"The data supplied for a store or atomic memory operation, including the byte and half-word expansion used on the bus. The LSU depends on it to write the intended value to memory.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Store data can be observed on dbus_req_o.data at lines 94, 100, and 103; wdata_i directly determines the issued store value at lines 94, 100, and 103; the request strobe can withhold transfer of the store data at line 209.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could observe, replace, or prevent the store payload before the LSU issues the memory request.\",\n      \"Enters Through\": [\n        \"wdata_i\"\n      ],\n      \"Leaves Through\": [\n        \"dbus_req_o.data\"\n      ],\n      \"Entry Lines\": [\n        94,\n        100,\n        103\n      ],\n      \"Held Lines\": [\n        81,\n        94,\n        100,\n        103\n      ],\n      \"Exit Lines\": [\n        94,\n        100,\n        103\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"Load result data\",\n      \"Unit\": \"neorv32_cpu_lsu\",\n      \"Information\": \"The memory data returned for a load, formatted according to the access size, address, and signedness. The CPU depends on it as the result of a load operation.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The returned data is exposed through rdata_o at lines 163-166, 170-172, and 175; modifying dbus_rsp_i.data or the formatting logic changes the load result at lines 163-166, 170-172, and 175; pending controls whether rdata_o receives the response or is cleared at lines 158-159.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could observe or alter returned memory data, or force the LSU to withhold the load result by preventing a pending transaction from being recognized.\",\n      \"Enters Through\": [\n        \"dbus_rsp_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"rdata_o\"\n      ],\n      \"Entry Lines\": [\n        163,\n        164,\n        165,\n        166,\n        170,\n        172,\n        175\n      ],\n      \"Held Lines\": [\n        156,\n        158,\n        163,\n        164,\n        165,\n        166,\n        170,\n        172,\n        175\n      ],\n      \"Exit Lines\": [\n        156,\n        158,\n        163,\n        164,\n        165,\n        166,\n        170,\n        172,\n        175\n      ]\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"Memory access command and attributes\",\n      \"Unit\": \"neorv32_cpu_lsu\",\n      \"Information\": \"The command and attributes for the issued memory operation: whether it is requested, read or write, privileged or debug, atomic, fenced, and which byte lanes and atomic operation encoding apply. Correct LSU behavior depends on these attributes being preserved when forming the bus request.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Changing the control attributes can change the external request's direction, privilege, debug, atomic, fence, or byte-enable fields at lines 86-90, 95-104, and 114; lsu_req directly controls whether a request is issued at line 209, so altering it can block the transfer.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could change a load into a store, alter privilege or debug attributes, corrupt atomic or byte-enable semantics, or suppress the request strobe.\",\n      \"Enters Through\": [\n        \"ctrl_i.lsu_req\",\n        \"ctrl_i.lsu_rw\",\n        \"ctrl_i.lsu_priv\",\n        \"ctrl_i.cpu_debug\",\n        \"ctrl_i.lsu_amo\",\n        \"ctrl_i.lsu_fence\"\n      ],\n      \"Leaves Through\": [\n        \"dbus_req_o.rw\",\n        \"dbus_req_o.priv\",\n        \"dbus_req_o.debug\",\n        \"dbus_req_o.amo\",\n        \"dbus_req_o.amoop\",\n        \"dbus_req_o.ben\",\n        \"dbus_req_o.fence\",\n        \"dbus_req_o.stb\"\n      ],\n      \"Entry Lines\": [\n        86,\n        87,\n        88,\n        89,\n        114,\n        209\n      ],\n      \"Held Lines\": [\n        76,\n        77,\n        78,\n        79,\n        80,\n        82,\n        86,\n        87,\n        88,\n        89,\n        90,\n        95,\n        96,\n        97,\n        98,\n        101,\n        104,\n        114,\n        209\n      ],\n      \"Exit Lines\": [\n        86,\n        87,\n        88,\n        89,\n        90,\n        95,\n        96,\n        97,\n        98,\n        101,\n        104,\n        114,\n        209\n      ]\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"Outstanding access state\",\n      \"Unit\": \"neorv32_cpu_lsu\",\n      \"Information\": \"The state indicating that an LSU request is outstanding until an acknowledgement or trap ends it. The LSU uses it to prevent overlapping requests and to qualify returned data and error results.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The pending state is changed by request, acknowledgement, and trap events at lines 191-195, so corrupting it can mis-track an access; a stuck or prematurely cleared pending state can block new requests or lose the current response through lines 191-195.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could force pending to remain set and stall subsequent accesses, or clear it early and cause a response to be lost or mis-associated.\",\n      \"Enters Through\": [\n        \"ctrl_i.lsu_req\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        192\n      ],\n      \"Held Lines\": [\n        188,\n        192,\n        194\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Concept Name\": \"Alignment validation decision\",\n      \"Unit\": \"neorv32_cpu_lsu\",\n      \"Information\": \"The decision that the current address is aligned for the requested access size. It is computed internally and only controls whether the request is issued and which error is reported, so it has no independent entry or exit port.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Changing the alignment decision changes the reported access validity and the request gating at lines 58-60, 203-205, and 209; forcing it asserted can block valid transfers through line 209.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could make an invalid access appear aligned or make a valid access fail and be withheld.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        53,\n        58,\n        59,\n        60\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C7\",\n      \"Concept Name\": \"PMP access decision\",\n      \"Unit\": \"neorv32_cpu_lsu\",\n      \"Information\": \"The protection result indicating whether the requested memory access is rejected by the physical memory protection logic. The LSU uses it both to suppress the bus request and to report an access error.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Changing the captured PMP fault can make the LSU report or accept the wrong protection result at lines 190 and 204-206; an asserted fault suppresses the request at line 209 and can therefore block required memory operations.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could force the PMP result low to issue an unauthorized access, or force it high to deny valid accesses.\",\n      \"Enters Through\": [\n        \"pmp_fault_i\"\n      ],\n      \"Leaves Through\": [\n        \"err_o\"\n      ],\n      \"Entry Lines\": [\n        190\n      ],\n      \"Held Lines\": [\n        187,\n        190\n      ],\n      \"Exit Lines\": [\n        204,\n        206\n      ]\n    },\n    {\n      \"Concept ID\": \"C8\",\n      \"Concept Name\": \"Atomic bus-lock state\",\n      \"Unit\": \"neorv32_cpu_lsu\",\n      \"Information\": \"The lock state used to preserve indivisibility of an atomic memory sequence. It is generated internally from atomic-operation conditions and leaves through the bus lock field.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Changing the registered lock state can release an atomic sequence early or assert it for the wrong operation at lines 142-145; holding the lock incorrectly can block other bus traffic through the output at lines 143-145.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could clear the lock during an atomic operation to permit interleaving, or hold it asserted to stall bus progress.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"dbus_req_o.lock\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        140,\n        143,\n        145\n      ],\n      \"Exit Lines\": [\n        143,\n        145\n      ]\n    },\n    {\n      \"Concept ID\": \"C9\",\n      \"Concept Name\": \"Bus access error status\",\n      \"Unit\": \"neorv32_cpu_lsu\",\n      \"Information\": \"The error outcome returned by the external data bus and reported to the CPU as part of the LSU error status. The CPU depends on it to handle failed memory accesses correctly.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Changing dbus_rsp_i.err or the error-output logic can suppress or fabricate the bus failure indication at lines 204 and 206, causing the CPU to handle a failed access as successful or a successful access as failed.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could suppress a bus error so software consumes an invalid result, or fabricate one to induce incorrect exception handling.\",\n      \"Enters Through\": [\n        \"dbus_rsp_i.err\"\n      ],\n      \"Leaves Through\": [\n        \"err_o\"\n      ],\n      \"Entry Lines\": [\n        204,\n        206\n      ],\n      \"Held Lines\": [\n        204,\n        206\n      ],\n      \"Exit Lines\": [\n        204,\n        206\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Bus response acknowledge and wait handshake\",\n      \"Candidate Unit\": \"neorv32_cpu_lsu\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The acknowledge and wait behavior only repeats or delays transaction timing and is excluded by the bus handshake copy rule.\"\n    },\n    {\n      \"Candidate Name\": \"Operation and access-size selectors\",\n      \"Candidate Unit\": \"neorv32_cpu_lsu\",\n      \"Merged Into\": \"C4\",\n      \"Why Not Kept\": \"\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_cpu_lsu",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_cpu_lsu",
+    "concept": "Memory access address",
+    "information": "The address of the current load, store, or atomic memory access, held while the operation is issued and also reported externally. The LSU depends on it to target the correct memory location.",
+    "rubric reason": "The address can expose access patterns through mar_o and dbus_req_o.addr at lines 67-68; changing addr_i or the captured address can redirect the access at lines 55-56; suppressing address capture can withhold the current access address at lines 55-56.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could alter or suppress addr_i capture to redirect a load or store, expose the accessed location, or prevent the intended memory transfer.",
+    "enters through": [
+     "addr_i"
+    ],
+    "leaves through": [
+     "mar_o",
+     "dbus_req_o.addr"
+    ],
+    "entry lines": [
+     56
+    ],
+    "held lines": [
+     52,
+     56
+    ],
+    "exit lines": [
+     67,
+     68
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_cpu_lsu",
+    "concept": "Store data",
+    "information": "The data supplied for a store or atomic memory operation, including the byte and half-word expansion used on the bus. The LSU depends on it to write the intended value to memory.",
+    "rubric reason": "Store data can be observed on dbus_req_o.data at lines 94, 100, and 103; wdata_i directly determines the issued store value at lines 94, 100, and 103; the request strobe can withhold transfer of the store data at line 209.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could observe, replace, or prevent the store payload before the LSU issues the memory request.",
+    "enters through": [
+     "wdata_i"
+    ],
+    "leaves through": [
+     "dbus_req_o.data"
+    ],
+    "entry lines": [
+     94,
+     100,
+     103
+    ],
+    "held lines": [
+     81,
+     94,
+     100,
+     103
+    ],
+    "exit lines": [
+     94,
+     100,
+     103
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_cpu_lsu",
+    "concept": "Load result data",
+    "information": "The memory data returned for a load, formatted according to the access size, address, and signedness. The CPU depends on it as the result of a load operation.",
+    "rubric reason": "The returned data is exposed through rdata_o at lines 163-166, 170-172, and 175; modifying dbus_rsp_i.data or the formatting logic changes the load result at lines 163-166, 170-172, and 175; pending controls whether rdata_o receives the response or is cleared at lines 158-159.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could observe or alter returned memory data, or force the LSU to withhold the load result by preventing a pending transaction from being recognized.",
+    "enters through": [
+     "dbus_rsp_i.data"
+    ],
+    "leaves through": [
+     "rdata_o"
+    ],
+    "entry lines": [
+     163,
+     164,
+     165,
+     166,
+     170,
+     172,
+     175
+    ],
+    "held lines": [
+     156,
+     158,
+     163,
+     164,
+     165,
+     166,
+     170,
+     172,
+     175
+    ],
+    "exit lines": [
+     156,
+     158,
+     163,
+     164,
+     165,
+     166,
+     170,
+     172,
+     175
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_cpu_lsu",
+    "concept": "Memory access command and attributes",
+    "information": "The command and attributes for the issued memory operation: whether it is requested, read or write, privileged or debug, atomic, fenced, and which byte lanes and atomic operation encoding apply. Correct LSU behavior depends on these attributes being preserved when forming the bus request.",
+    "rubric reason": "Changing the control attributes can change the external request's direction, privilege, debug, atomic, fence, or byte-enable fields at lines 86-90, 95-104, and 114; lsu_req directly controls whether a request is issued at line 209, so altering it can block the transfer.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could change a load into a store, alter privilege or debug attributes, corrupt atomic or byte-enable semantics, or suppress the request strobe.",
+    "enters through": [
+     "ctrl_i.lsu_req",
+     "ctrl_i.lsu_rw",
+     "ctrl_i.lsu_priv",
+     "ctrl_i.cpu_debug",
+     "ctrl_i.lsu_amo",
+     "ctrl_i.lsu_fence"
+    ],
+    "leaves through": [
+     "dbus_req_o.rw",
+     "dbus_req_o.priv",
+     "dbus_req_o.debug",
+     "dbus_req_o.amo",
+     "dbus_req_o.amoop",
+     "dbus_req_o.ben",
+     "dbus_req_o.fence",
+     "dbus_req_o.stb"
+    ],
+    "entry lines": [
+     86,
+     87,
+     88,
+     89,
+     114,
+     209
+    ],
+    "held lines": [
+     76,
+     77,
+     78,
+     79,
+     80,
+     82,
+     86,
+     87,
+     88,
+     89,
+     90,
+     95,
+     96,
+     97,
+     98,
+     101,
+     104,
+     114,
+     209
+    ],
+    "exit lines": [
+     86,
+     87,
+     88,
+     89,
+     90,
+     95,
+     96,
+     97,
+     98,
+     101,
+     104,
+     114,
+     209
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_cpu_lsu",
+    "concept": "Outstanding access state",
+    "information": "The state indicating that an LSU request is outstanding until an acknowledgement or trap ends it. The LSU uses it to prevent overlapping requests and to qualify returned data and error results.",
+    "rubric reason": "The pending state is changed by request, acknowledgement, and trap events at lines 191-195, so corrupting it can mis-track an access; a stuck or prematurely cleared pending state can block new requests or lose the current response through lines 191-195.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could force pending to remain set and stall subsequent accesses, or clear it early and cause a response to be lost or mis-associated.",
+    "enters through": [
+     "ctrl_i.lsu_req"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     192
+    ],
+    "held lines": [
+     188,
+     192,
+     194
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C6",
+    "unit": "neorv32_cpu_lsu",
+    "concept": "Alignment validation decision",
+    "information": "The decision that the current address is aligned for the requested access size. It is computed internally and only controls whether the request is issued and which error is reported, so it has no independent entry or exit port.",
+    "rubric reason": "Changing the alignment decision changes the reported access validity and the request gating at lines 58-60, 203-205, and 209; forcing it asserted can block valid transfers through line 209.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could make an invalid access appear aligned or make a valid access fail and be withheld.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     53,
+     58,
+     59,
+     60
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C7",
+    "unit": "neorv32_cpu_lsu",
+    "concept": "PMP access decision",
+    "information": "The protection result indicating whether the requested memory access is rejected by the physical memory protection logic. The LSU uses it both to suppress the bus request and to report an access error.",
+    "rubric reason": "Changing the captured PMP fault can make the LSU report or accept the wrong protection result at lines 190 and 204-206; an asserted fault suppresses the request at line 209 and can therefore block required memory operations.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could force the PMP result low to issue an unauthorized access, or force it high to deny valid accesses.",
+    "enters through": [
+     "pmp_fault_i"
+    ],
+    "leaves through": [
+     "err_o"
+    ],
+    "entry lines": [
+     190
+    ],
+    "held lines": [
+     187,
+     190
+    ],
+    "exit lines": [
+     204,
+     206
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C8",
+    "unit": "neorv32_cpu_lsu",
+    "concept": "Atomic bus-lock state",
+    "information": "The lock state used to preserve indivisibility of an atomic memory sequence. It is generated internally from atomic-operation conditions and leaves through the bus lock field.",
+    "rubric reason": "Changing the registered lock state can release an atomic sequence early or assert it for the wrong operation at lines 142-145; holding the lock incorrectly can block other bus traffic through the output at lines 143-145.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could clear the lock during an atomic operation to permit interleaving, or hold it asserted to stall bus progress.",
+    "enters through": [],
+    "leaves through": [
+     "dbus_req_o.lock"
+    ],
+    "entry lines": [],
+    "held lines": [
+     140,
+     143,
+     145
+    ],
+    "exit lines": [
+     143,
+     145
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C9",
+    "unit": "neorv32_cpu_lsu",
+    "concept": "Bus access error status",
+    "information": "The error outcome returned by the external data bus and reported to the CPU as part of the LSU error status. The CPU depends on it to handle failed memory accesses correctly.",
+    "rubric reason": "Changing dbus_rsp_i.err or the error-output logic can suppress or fabricate the bus failure indication at lines 204 and 206, causing the CPU to handle a failed access as successful or a successful access as failed.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could suppress a bus error so software consumes an invalid result, or fabricate one to induce incorrect exception handling.",
+    "enters through": [
+     "dbus_rsp_i.err"
+    ],
+    "leaves through": [
+     "err_o"
+    ],
+    "entry lines": [
+     204,
+     206
+    ],
+    "held lines": [
+     204,
+     206
+    ],
+    "exit lines": [
+     204,
+     206
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_cpu_lsu",
+    "concept": "Bus response acknowledge and wait handshake",
+    "reason": "The acknowledge and wait behavior only repeats or delays transaction timing and is excluded by the bus handshake copy rule.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_lsu",
+    "concept": "Operation and access-size selectors",
+    "reason": "merged into C4",
+    "merged into": "C4"
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

@@ -1,0 +1,179 @@
+{
+ "module": "neorv32_cpu_cp_shifter",
+ "prompt version": "two_phase_p1o_first",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "b4c962e16261",
+ "user sha": "d434f0db141e",
+ "usage": {
+  "in": 26257,
+  "out": 14773,
+  "reasoning": 13371,
+  "cached": 20474,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_0093beac2fda24d9006ad598863d3487d1801afe1b9654f945",
+  "request key": "7b676e013350"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_cpu_cp_shifter\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"Shift operand and result data\",\n      \"Unit\": \"neorv32_cpu_cp_shifter\",\n      \"Information\": \"The operand word is shifted or rotated according to the requested operation and returned as the result; the shifter's operation depends on this data.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The operand is held and transformed internally and the resulting word is exposed on res_o, so an integrator may need confidentiality for the data and an observer could read it at lines 111 and 143; internal assignments to sreg and bs_result can alter the shifted result at lines 95, 99, 101 and 138.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could observe res_o to disclose operand-derived data or corrupt the internal operand/result path so that the returned shift result is incorrect.\",\n      \"Enters Through\": [\n        \"rs1_i\"\n      ],\n      \"Leaves Through\": [\n        \"res_o\"\n      ],\n      \"Entry Lines\": [\n        95,\n        122,\n        123\n      ],\n      \"Held Lines\": [\n        95,\n        99,\n        101,\n        122,\n        128,\n        129,\n        138\n      ],\n      \"Exit Lines\": [\n        111,\n        143\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"Shift amount\",\n      \"Unit\": \"neorv32_cpu_cp_shifter\",\n      \"Information\": \"The shift distance determines how far the operand is shifted and therefore which result the operation returns.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The shift amount is copied into the serial step counter and selects barrel-shifter stages at lines 94, 128 and 129, so changing it can make the operation return an incorrect result.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could change shamt_i so the unit performs the wrong number of shifts and returns an incorrect result.\",\n      \"Enters Through\": [\n        \"shamt_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        94,\n        128,\n        129\n      ],\n      \"Held Lines\": [\n        94\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"Shift execution progress and sign-extension control\",\n      \"Unit\": \"neorv32_cpu_cp_shifter\",\n      \"Information\": \"In the serial implementation, busy state, remaining steps and completion state determine whether and when the operation finishes; the sign-fill control determines how arithmetic right shifts treat the operand.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The unit internally assigns busy, count, completion and sign-fill control state at lines 80, 81, 82, 86, 88, 90, 94, 97 and 123, and corruption can cause an invalid completion or result; valid_o and res_o release behavior depends on this state at lines 110 and 111, so corrupting it can withhold or block completion.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could corrupt the progress state or sign-fill control so the shifter reports completion incorrectly, produces a wrong result, or remains busy without releasing valid_o.\",\n      \"Enters Through\": [\n        \"ctrl_i\",\n        \"shamt_i\"\n      ],\n      \"Leaves Through\": [\n        \"valid_o\"\n      ],\n      \"Entry Lines\": [\n        94,\n        123\n      ],\n      \"Held Lines\": [\n        80,\n        81,\n        82,\n        86,\n        88,\n        90,\n        94,\n        97,\n        123\n      ],\n      \"Exit Lines\": [\n        110,\n        144\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Shift instruction and function selection\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_shifter\",\n      \"Merged Into\": \"C3\",\n      \"Why Not Kept\": \"The instruction function fields only select the supported operation or its result form, so Operation selectors treats them as part of the operation rather than as a separate conceptual asset.\"\n    },\n    {\n      \"Candidate Name\": \"Completion and busy status\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_shifter\",\n      \"Merged Into\": \"C3\",\n      \"Why Not Kept\": \"busy, done and valid_o describe or release the coprocessor's progress, which the Coprocessor progress state rule keeps as one operation-level concept.\"\n    },\n    {\n      \"Candidate Name\": \"Barrel-shifter intermediate values\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_shifter\",\n      \"Merged Into\": \"C1\",\n      \"Why Not Kept\": \"bs_level and the registered result path are working values or copies within the shifted data computation, not separate information.\"\n    },\n    {\n      \"Candidate Name\": \"Clock and reset\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_shifter\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The clock and reset only time or initialize the unit's state at lines 79, 84, 135 and 137, so the Clocks and resets rule bars them as conceptual assets.\"\n    },\n    {\n      \"Candidate Name\": \"Fast-versus-serial implementation choice\",\n      \"Candidate Unit\": \"neorv32_cpu_cp_shifter\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"FAST_SHIFT_EN is a build-time generic at line 23 that selects generated logic at lines 74-75 and 118-119 and cannot be changed or withheld at run time.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_cpu_cp_shifter",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_cpu_cp_shifter",
+    "concept": "Shift operand and result data",
+    "information": "The operand word is shifted or rotated according to the requested operation and returned as the result; the shifter's operation depends on this data.",
+    "rubric reason": "The operand is held and transformed internally and the resulting word is exposed on res_o, so an integrator may need confidentiality for the data and an observer could read it at lines 111 and 143; internal assignments to sreg and bs_result can alter the shifted result at lines 95, 99, 101 and 138.",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "attack": "An attacker could observe res_o to disclose operand-derived data or corrupt the internal operand/result path so that the returned shift result is incorrect.",
+    "enters through": [
+     "rs1_i"
+    ],
+    "leaves through": [
+     "res_o"
+    ],
+    "entry lines": [
+     95,
+     122,
+     123
+    ],
+    "held lines": [
+     95,
+     99,
+     101,
+     122,
+     128,
+     129,
+     138
+    ],
+    "exit lines": [
+     111,
+     143
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_cpu_cp_shifter",
+    "concept": "Shift amount",
+    "information": "The shift distance determines how far the operand is shifted and therefore which result the operation returns.",
+    "rubric reason": "The shift amount is copied into the serial step counter and selects barrel-shifter stages at lines 94, 128 and 129, so changing it can make the operation return an incorrect result.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could change shamt_i so the unit performs the wrong number of shifts and returns an incorrect result.",
+    "enters through": [
+     "shamt_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     94,
+     128,
+     129
+    ],
+    "held lines": [
+     94
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_cpu_cp_shifter",
+    "concept": "Shift execution progress and sign-extension control",
+    "information": "In the serial implementation, busy state, remaining steps and completion state determine whether and when the operation finishes; the sign-fill control determines how arithmetic right shifts treat the operand.",
+    "rubric reason": "The unit internally assigns busy, count, completion and sign-fill control state at lines 80, 81, 82, 86, 88, 90, 94, 97 and 123, and corruption can cause an invalid completion or result; valid_o and res_o release behavior depends on this state at lines 110 and 111, so corrupting it can withhold or block completion.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could corrupt the progress state or sign-fill control so the shifter reports completion incorrectly, produces a wrong result, or remains busy without releasing valid_o.",
+    "enters through": [
+     "ctrl_i",
+     "shamt_i"
+    ],
+    "leaves through": [
+     "valid_o"
+    ],
+    "entry lines": [
+     94,
+     123
+    ],
+    "held lines": [
+     80,
+     81,
+     82,
+     86,
+     88,
+     90,
+     94,
+     97,
+     123
+    ],
+    "exit lines": [
+     110,
+     144
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_cpu_cp_shifter",
+    "concept": "Shift instruction and function selection",
+    "reason": "merged into C3",
+    "merged into": "C3"
+   },
+   {
+    "unit": "neorv32_cpu_cp_shifter",
+    "concept": "Completion and busy status",
+    "reason": "merged into C3",
+    "merged into": "C3"
+   },
+   {
+    "unit": "neorv32_cpu_cp_shifter",
+    "concept": "Barrel-shifter intermediate values",
+    "reason": "merged into C1",
+    "merged into": "C1"
+   },
+   {
+    "unit": "neorv32_cpu_cp_shifter",
+    "concept": "Clock and reset",
+    "reason": "The clock and reset only time or initialize the unit's state at lines 79, 84, 135 and 137, so the Clocks and resets rule bars them as conceptual assets.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_cp_shifter",
+    "concept": "Fast-versus-serial implementation choice",
+    "reason": "FAST_SHIFT_EN is a build-time generic at line 23 that selects generated logic at lines 74-75 and 118-119 and cannot be changed or withheld at run time.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [
+  "consistency: not-kept entry 'Shift instruction and function selection': both Merged Into and Why Not Kept are filled",
+  "consistency: not-kept entry 'Completion and busy status': both Merged Into and Why Not Kept are filled",
+  "consistency: not-kept entry 'Barrel-shifter intermediate values': both Merged Into and Why Not Kept are filled"
+ ],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

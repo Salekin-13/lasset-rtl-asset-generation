@@ -1,0 +1,286 @@
+{
+ "module": "neorv32_neoled",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "be3b3faab49b",
+ "user sha": "803279a6df1e",
+ "usage": {
+  "in": 24103,
+  "out": 15656,
+  "reasoning": 13131,
+  "cached": 24100,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_0ea7c7721735efaf006ace83b8607487d18ae3395371138d1b",
+  "request key": "6dadb7f9446b"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_neoled\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"LED transfer payload data\",\n      \"Unit\": \"neorv32_neoled\",\n      \"Information\": \"The 32-bit words written to the transmit FIFO carry application or pixel data that the serial engine shifts onto neoled_o. The LED output function depends on preserving and transmitting these words.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality: bus-written payload data is encoded onto the externally observable neoled_o waveform, so an integrator may need to keep it secret (lines 192, 270, 282). Integrity: bus writes provide the FIFO payload and the serial engine shifts it for output, allowing corruption of the transmitted word (lines 181-192, 239, 257). Availability: disabling the engine drives tx_fifo.clear and can discard queued payload before transmission (line 193).\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could observe neoled_o or issue bus writes and disable commands that expose, corrupt, or discard queued LED payload data.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"neoled_o\"\n      ],\n      \"Entry Lines\": [\n        181,\n        192\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": [\n        270,\n        282\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"LED engine enable state\",\n      \"Unit\": \"neorv32_neoled\",\n      \"Information\": \"The enable setting controls whether the LED engine and transmit FIFO operate, drives the external clock-generator enable, and qualifies interrupt generation. The controller's normal operation depends on this state.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity: a bus write changes the stored enable state without an RTL authorization check (line 130). Availability: the state directly controls clkgen_en_o, clears the FIFO when disabled, and controls serial-engine activation (lines 160, 193, 231).\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could write the control register to change the enable state, clear pending transfers, or disable the external clock-generator request.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\",\n        \"clkgen_en_o\"\n      ],\n      \"Entry Lines\": [\n        130\n      ],\n      \"Held Lines\": [\n        112,\n        130\n      ],\n      \"Exit Lines\": [\n        140,\n        160\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"LED word format mode\",\n      \"Unit\": \"neorv32_neoled\",\n      \"Information\": \"The mode setting selects the serial word format, including whether a queued word is transmitted with 24 or 32 data bits. Its stored value and per-word snapshot determine the format of LED output.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity: a bus write changes the mode and the queued mode bit selects the transmitted word length, so an unauthorized write can produce an incorrectly formatted LED stream (lines 131, 192, 240-245).\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could rewrite the mode setting so queued words are transmitted with the wrong length or protocol format.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        131\n      ],\n      \"Held Lines\": [\n        113,\n        131\n      ],\n      \"Exit Lines\": [\n        141\n      ]\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"LED strobe selection\",\n      \"Unit\": \"neorv32_neoled\",\n      \"Information\": \"The strobe setting selects the strobe or latch transfer path for each queued LED word. The serial engine uses the queued strobe bit to choose the subsequent transfer state.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity: a bus write changes the strobe setting and the queued copy selects between the serial state paths, allowing an unauthorized write to alter the LED transfer behavior (lines 132, 192, 248-251).\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could change the strobe setting so a queued word uses the wrong latch or strobe sequence.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        132\n      ],\n      \"Held Lines\": [\n        114,\n        132\n      ],\n      \"Exit Lines\": [\n        142\n      ]\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"LED serial timing configuration\",\n      \"Unit\": \"neorv32_neoled\",\n      \"Information\": \"The timing configuration consists of the clock prescaler, total pulse period, and zero- and one-bit high times used to form the serial LED waveform. The serial output's timing and progress depend on these stored settings.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity: bus writes can change the prescaler and waveform timing values that control bit timing and state transitions, producing an invalid serial waveform (lines 133, 135-137, 225, 260-263, 285-299). Availability: the selected pulse source and total-period comparisons gate engine progress, so an unsuitable configuration can stall or withhold neoled_o activity (lines 225, 278-299).\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could rewrite the timing fields or clock selection to generate malformed LED timing or prevent the serial engine from progressing.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        133,\n        135,\n        136,\n        137\n      ],\n      \"Held Lines\": [\n        115,\n        117,\n        118,\n        119,\n        133,\n        135,\n        136,\n        137\n      ],\n      \"Exit Lines\": [\n        143,\n        146,\n        147,\n        148\n      ]\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Concept Name\": \"Transmit interrupt request status\",\n      \"Unit\": \"neorv32_neoled\",\n      \"Information\": \"The interrupt request indicates FIFO empty or half-full conditions according to the enable and interrupt configuration, allowing software or another module to service the transmit path. It has no entry port because the request is generated internally from FIFO status and control state.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity: the IP generates irq_o from mutable enable, interrupt configuration, and FIFO status, so those paths can cause a false or suppressed service request (lines 201-203).\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could alter the control or transmit state so irq_o is asserted spuriously or suppressed while service is required.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"irq_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        199,\n        201,\n        202,\n        203\n      ],\n      \"Exit Lines\": [\n        201,\n        202,\n        203\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Interrupt threshold configuration\",\n      \"Candidate Unit\": \"neorv32_neoled\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"ctrl.irq_conf only tunes the interrupt request output, so the port-option rule bars it as a conceptual piece of its own (lines 134, 202-203).\"\n    },\n    {\n      \"Candidate Name\": \"FIFO occupancy and serial-engine status\",\n      \"Candidate Unit\": \"neorv32_neoled\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"FIFO fill flags and busy or done status only report or time buffered and sequenced data, and the status-bit rules bar them as independent information (lines 150-153, 321).\"\n    },\n    {\n      \"Candidate Name\": \"Serial sequencing state and pacing counters\",\n      \"Candidate Unit\": \"neorv32_neoled\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"serial.state, bit_cnt, pulse_cnt, strobe_cnt, and related state flags only order and pace each transfer, so the sequencing-state rule bars a separate asset (lines 215-221, 232-313).\"\n    },\n    {\n      \"Candidate Name\": \"FIFO transfer bookkeeping\",\n      \"Candidate Unit\": \"neorv32_neoled\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"FIFO read, write, clear, availability, free, and half-full signals only buffer, gate, or report movement of the retained payload and are not pieces of their own (lines 177-193).\"\n    },\n    {\n      \"Candidate Name\": \"Bus access command and handshake\",\n      \"Candidate Unit\": \"neorv32_neoled\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The bus strobe, direction, address-selection fields, acknowledge, and constant error response are access-command or handshake information rather than independent assets (lines 123-129).\"\n    },\n    {\n      \"Candidate Name\": \"Clock, reset, and internal pacing signals\",\n      \"Candidate Unit\": \"neorv32_neoled\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"clk_i, rstn_i, clkgen_i, and serial.pulse_clk are clock, reset, or pacing signals excluded by the clock and pacing rules (lines 23-24, 225, 278-299).\"\n    },\n    {\n      \"Candidate Name\": \"FIFO depth build-time configuration\",\n      \"Candidate Unit\": \"neorv32_neoled\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"FIFO_DEPTH only fixes the generated FIFO size at build time and cannot be changed or withheld by an RTL element at run time (lines 20, 167-171).\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_neoled",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_neoled",
+    "concept": "LED transfer payload data",
+    "information": "The 32-bit words written to the transmit FIFO carry application or pixel data that the serial engine shifts onto neoled_o. The LED output function depends on preserving and transmitting these words.",
+    "rubric reason": "Confidentiality: bus-written payload data is encoded onto the externally observable neoled_o waveform, so an integrator may need to keep it secret (lines 192, 270, 282). Integrity: bus writes provide the FIFO payload and the serial engine shifts it for output, allowing corruption of the transmitted word (lines 181-192, 239, 257). Availability: disabling the engine drives tx_fifo.clear and can discard queued payload before transmission (line 193).",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could observe neoled_o or issue bus writes and disable commands that expose, corrupt, or discard queued LED payload data.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "neoled_o"
+    ],
+    "entry lines": [
+     181,
+     192
+    ],
+    "held lines": [],
+    "exit lines": [
+     270,
+     282
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_neoled",
+    "concept": "LED engine enable state",
+    "information": "The enable setting controls whether the LED engine and transmit FIFO operate, drives the external clock-generator enable, and qualifies interrupt generation. The controller's normal operation depends on this state.",
+    "rubric reason": "Integrity: a bus write changes the stored enable state without an RTL authorization check (line 130). Availability: the state directly controls clkgen_en_o, clears the FIFO when disabled, and controls serial-engine activation (lines 160, 193, 231).",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could write the control register to change the enable state, clear pending transfers, or disable the external clock-generator request.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data",
+     "clkgen_en_o"
+    ],
+    "entry lines": [
+     130
+    ],
+    "held lines": [
+     112,
+     130
+    ],
+    "exit lines": [
+     140,
+     160
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_neoled",
+    "concept": "LED word format mode",
+    "information": "The mode setting selects the serial word format, including whether a queued word is transmitted with 24 or 32 data bits. Its stored value and per-word snapshot determine the format of LED output.",
+    "rubric reason": "Integrity: a bus write changes the mode and the queued mode bit selects the transmitted word length, so an unauthorized write can produce an incorrectly formatted LED stream (lines 131, 192, 240-245).",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could rewrite the mode setting so queued words are transmitted with the wrong length or protocol format.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     131
+    ],
+    "held lines": [
+     113,
+     131
+    ],
+    "exit lines": [
+     141
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_neoled",
+    "concept": "LED strobe selection",
+    "information": "The strobe setting selects the strobe or latch transfer path for each queued LED word. The serial engine uses the queued strobe bit to choose the subsequent transfer state.",
+    "rubric reason": "Integrity: a bus write changes the strobe setting and the queued copy selects between the serial state paths, allowing an unauthorized write to alter the LED transfer behavior (lines 132, 192, 248-251).",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could change the strobe setting so a queued word uses the wrong latch or strobe sequence.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     132
+    ],
+    "held lines": [
+     114,
+     132
+    ],
+    "exit lines": [
+     142
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_neoled",
+    "concept": "LED serial timing configuration",
+    "information": "The timing configuration consists of the clock prescaler, total pulse period, and zero- and one-bit high times used to form the serial LED waveform. The serial output's timing and progress depend on these stored settings.",
+    "rubric reason": "Integrity: bus writes can change the prescaler and waveform timing values that control bit timing and state transitions, producing an invalid serial waveform (lines 133, 135-137, 225, 260-263, 285-299). Availability: the selected pulse source and total-period comparisons gate engine progress, so an unsuitable configuration can stall or withhold neoled_o activity (lines 225, 278-299).",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could rewrite the timing fields or clock selection to generate malformed LED timing or prevent the serial engine from progressing.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     133,
+     135,
+     136,
+     137
+    ],
+    "held lines": [
+     115,
+     117,
+     118,
+     119,
+     133,
+     135,
+     136,
+     137
+    ],
+    "exit lines": [
+     143,
+     146,
+     147,
+     148
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C6",
+    "unit": "neorv32_neoled",
+    "concept": "Transmit interrupt request status",
+    "information": "The interrupt request indicates FIFO empty or half-full conditions according to the enable and interrupt configuration, allowing software or another module to service the transmit path. It has no entry port because the request is generated internally from FIFO status and control state.",
+    "rubric reason": "Integrity: the IP generates irq_o from mutable enable, interrupt configuration, and FIFO status, so those paths can cause a false or suppressed service request (lines 201-203).",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could alter the control or transmit state so irq_o is asserted spuriously or suppressed while service is required.",
+    "enters through": [],
+    "leaves through": [
+     "irq_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     199,
+     201,
+     202,
+     203
+    ],
+    "exit lines": [
+     201,
+     202,
+     203
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_neoled",
+    "concept": "Interrupt threshold configuration",
+    "reason": "ctrl.irq_conf only tunes the interrupt request output, so the port-option rule bars it as a conceptual piece of its own (lines 134, 202-203).",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_neoled",
+    "concept": "FIFO occupancy and serial-engine status",
+    "reason": "FIFO fill flags and busy or done status only report or time buffered and sequenced data, and the status-bit rules bar them as independent information (lines 150-153, 321).",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_neoled",
+    "concept": "Serial sequencing state and pacing counters",
+    "reason": "serial.state, bit_cnt, pulse_cnt, strobe_cnt, and related state flags only order and pace each transfer, so the sequencing-state rule bars a separate asset (lines 215-221, 232-313).",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_neoled",
+    "concept": "FIFO transfer bookkeeping",
+    "reason": "FIFO read, write, clear, availability, free, and half-full signals only buffer, gate, or report movement of the retained payload and are not pieces of their own (lines 177-193).",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_neoled",
+    "concept": "Bus access command and handshake",
+    "reason": "The bus strobe, direction, address-selection fields, acknowledge, and constant error response are access-command or handshake information rather than independent assets (lines 123-129).",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_neoled",
+    "concept": "Clock, reset, and internal pacing signals",
+    "reason": "clk_i, rstn_i, clkgen_i, and serial.pulse_clk are clock, reset, or pacing signals excluded by the clock and pacing rules (lines 23-24, 225, 278-299).",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_neoled",
+    "concept": "FIFO depth build-time configuration",
+    "reason": "FIFO_DEPTH only fixes the generated FIFO size at build time and cannot be changed or withheld by an RTL element at run time (lines 20, 167-171).",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

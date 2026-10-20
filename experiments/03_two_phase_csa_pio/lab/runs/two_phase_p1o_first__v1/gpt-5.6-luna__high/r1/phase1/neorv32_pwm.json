@@ -1,0 +1,328 @@
+{
+ "module": "neorv32_pwm",
+ "prompt version": "two_phase_p1o_first",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "b4c962e16261",
+ "user sha": "3107f435e770",
+ "usage": {
+  "in": 27475,
+  "out": 12663,
+  "reasoning": 9840,
+  "cached": 27472,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_03d615fc1d592b32006ad5a3f154ec87d1a412c23819d76468",
+  "request key": "a9edabcd0958"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_pwm\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"PWM channel-selection decision\",\n      \"Unit\": \"neorv32_pwm\",\n      \"Information\": \"The channel-selection decision determines which repeated PWM channel receives a bus write or supplies a read. It has no direct entry or exit port because the bus address only decides this internal select.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The address-derived select can steer a write or read to a different channel, so its integrity can be violated through the selection logic at line 109. It can also make an access miss every channel and lose a required configuration transfer when no channel matches, because the select gates the channel strobes at lines 109-111.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker can issue a request with a changed or invalid address so that configuration is applied to the wrong channel or to no channel.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        109\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"PWM channel enable configuration\",\n      \"Unit\": \"neorv32_pwm\",\n      \"Information\": \"The per-channel enable setting determines whether a PWM channel runs and whether its clock request is asserted. PWM operation depends on this setting.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The enable is sensitive control configuration that a bus write can modify through the channel register at lines 183-184. Clearing it resets the PWM timing state and forces the channel inactive at lines 212-234, so it can block operation.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker can write a zero enable value to disable a channel and prevent its PWM output from operating.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        101\n      ],\n      \"Held Lines\": [\n        177,\n        184\n      ],\n      \"Exit Lines\": [\n        70\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"PWM prescaler selection\",\n      \"Unit\": \"neorv32_pwm\",\n      \"Information\": \"The prescaler setting selects which clock-generator timing bit advances the PWM divider. The selected rate determines the timing of the generated waveform.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The prescaler is configuration material that a bus write can change at line 185, and the changed value selects the timing input used at line 214, altering PWM timing.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker can overwrite the prescaler so that the PWM waveform runs at an unintended timing rate.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        101\n      ],\n      \"Held Lines\": [\n        178,\n        185\n      ],\n      \"Exit Lines\": [\n        70\n      ]\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"PWM polarity configuration\",\n      \"Unit\": \"neorv32_pwm\",\n      \"Information\": \"The polarity setting determines whether the active portion of each PWM waveform is represented by a high or low output level. The output behavior depends on this setting.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The polarity is sensitive output configuration that a bus write can modify at line 186, and it directly selects the output level at lines 232-234.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker can overwrite the polarity setting and invert the externally observed PWM control signal.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        101\n      ],\n      \"Held Lines\": [\n        179,\n        186\n      ],\n      \"Exit Lines\": [\n        70\n      ]\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"PWM period-divider configuration\",\n      \"Unit\": \"neorv32_pwm\",\n      \"Information\": \"The period-divider setting determines how many selected clock-generator events occur between PWM timing ticks. The generated PWM period depends on this setting.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The period-divider configuration can be modified by bus data at line 187, and it controls the divider rollover and tick generation at lines 215-220, changing the PWM period.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker can overwrite the period divider to produce a PWM frequency different from the intended one.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        101\n      ],\n      \"Held Lines\": [\n        180,\n        187\n      ],\n      \"Exit Lines\": [\n        70\n      ]\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Concept Name\": \"PWM duty-cycle configuration\",\n      \"Unit\": \"neorv32_pwm\",\n      \"Information\": \"The duty-cycle setting determines the threshold used to form the active portion of each PWM period. The waveform duty cycle depends on this setting.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The duty-cycle configuration can be modified by bus data at line 188, and it is compared with the duty counter to choose the PWM output at line 231.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker can overwrite the duty setting to change the proportion of each PWM period for which the output is active.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        101\n      ],\n      \"Held Lines\": [\n        181,\n        188\n      ],\n      \"Exit Lines\": [\n        70\n      ]\n    },\n    {\n      \"Concept ID\": \"C7\",\n      \"Concept Name\": \"Aggregate PWM clock-enable request\",\n      \"Unit\": \"neorv32_pwm\",\n      \"Information\": \"The aggregate clock-enable request tells the surrounding clock generator whether any PWM channel requires its timing source. PWM generation depends on the surrounding clock remaining enabled when a channel is active.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The aggregate control output is produced by reducing the channel enable outputs at line 121, so an incorrect channel-enable state can corrupt the clock request. Withholding or deasserting this request can stop the timing source needed by enabled PWM channels, creating an availability failure at line 121.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker can cause the aggregate clock-enable request to remain low, preventing the clock generator from supplying timing to the PWM channels.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"clkgen_en_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        121\n      ],\n      \"Exit Lines\": [\n        121\n      ]\n    },\n    {\n      \"Concept ID\": \"C8\",\n      \"Concept Name\": \"PWM output waveform\",\n      \"Unit\": \"neorv32_pwm\",\n      \"Information\": \"The PWM waveform is the per-channel control signal produced for external loads or devices. Correct operation depends on the channel enable, polarity, period and duty settings.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The waveform is a sensitive externally used control output whose value is selected by the configuration and duty comparison at lines 231-234, while bus writes can alter those settings at lines 183-188. Disabling a channel forces its output inactive and prevents normal PWM operation at lines 212-234.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker can modify the channel configuration to invert, distort or suppress the PWM waveform delivered at the output.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"pwm_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        207,\n        232,\n        234\n      ],\n      \"Exit Lines\": [\n        117\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Bus access command\",\n      \"Candidate Unit\": \"neorv32_pwm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The request address, read/write bit and strobe are access-command fields that only select, gate or perform the access at lines 69 and 109-111; the separate channel-selection decision is kept as C1.\"\n    },\n    {\n      \"Candidate Name\": \"Channel access strobes\",\n      \"Candidate Unit\": \"neorv32_pwm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The read and write strobes are decoded access-command signals that only let a channel register read or take written data at lines 110-111 and 183-194, so they are not information of their own.\"\n    },\n    {\n      \"Candidate Name\": \"Bus response handshake and error status\",\n      \"Candidate Unit\": \"neorv32_pwm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The acknowledge repeats the request strobe and the error field is tied to a constant at lines 69-76, so they are bus-handshake or constant status rather than independent information.\"\n    },\n    {\n      \"Candidate Name\": \"PWM configuration read-back word\",\n      \"Candidate Unit\": \"neorv32_pwm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The read-back is only a carrier of the kept configuration settings, formed by channel read data and returned at lines 70 and 81-88, not a separate piece of information.\"\n    },\n    {\n      \"Candidate Name\": \"PWM divider and phase counters\",\n      \"Candidate Unit\": \"neorv32_pwm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The divider, tick and duty counters only pace or form the waveform computation and are covered as pacing, sequencing or working state at lines 205-227 and 231.\"\n    },\n    {\n      \"Candidate Name\": \"Clock-generator timing input\",\n      \"Candidate Unit\": \"neorv32_pwm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The clock-generator input is used only as a condition that advances the divider and tick at line 214, so the pacing-pulse rule excludes it as a concept of its own.\"\n    },\n    {\n      \"Candidate Name\": \"Clock and reset timing\",\n      \"Candidate Unit\": \"neorv32_pwm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The clock and reset only time or initialize the registers and outputs at lines 64-78, 174-190 and 201-237, and the clock/reset rule bars them as conceptual assets.\"\n    },\n    {\n      \"Candidate Name\": \"NUM_CHANNELS build-time choice\",\n      \"Candidate Unit\": \"neorv32_pwm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"NUM_CHANNELS only fixes the generated hardware at build time and cannot be changed or withheld at run time, as shown by the generic declaration at line 24.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_pwm",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_pwm",
+    "concept": "PWM channel-selection decision",
+    "information": "The channel-selection decision determines which repeated PWM channel receives a bus write or supplies a read. It has no direct entry or exit port because the bus address only decides this internal select.",
+    "rubric reason": "The address-derived select can steer a write or read to a different channel, so its integrity can be violated through the selection logic at line 109. It can also make an access miss every channel and lose a required configuration transfer when no channel matches, because the select gates the channel strobes at lines 109-111.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker can issue a request with a changed or invalid address so that configuration is applied to the wrong channel or to no channel.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     109
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_pwm",
+    "concept": "PWM channel enable configuration",
+    "information": "The per-channel enable setting determines whether a PWM channel runs and whether its clock request is asserted. PWM operation depends on this setting.",
+    "rubric reason": "The enable is sensitive control configuration that a bus write can modify through the channel register at lines 183-184. Clearing it resets the PWM timing state and forces the channel inactive at lines 212-234, so it can block operation.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker can write a zero enable value to disable a channel and prevent its PWM output from operating.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     101
+    ],
+    "held lines": [
+     177,
+     184
+    ],
+    "exit lines": [
+     70
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_pwm",
+    "concept": "PWM prescaler selection",
+    "information": "The prescaler setting selects which clock-generator timing bit advances the PWM divider. The selected rate determines the timing of the generated waveform.",
+    "rubric reason": "The prescaler is configuration material that a bus write can change at line 185, and the changed value selects the timing input used at line 214, altering PWM timing.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker can overwrite the prescaler so that the PWM waveform runs at an unintended timing rate.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     101
+    ],
+    "held lines": [
+     178,
+     185
+    ],
+    "exit lines": [
+     70
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_pwm",
+    "concept": "PWM polarity configuration",
+    "information": "The polarity setting determines whether the active portion of each PWM waveform is represented by a high or low output level. The output behavior depends on this setting.",
+    "rubric reason": "The polarity is sensitive output configuration that a bus write can modify at line 186, and it directly selects the output level at lines 232-234.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker can overwrite the polarity setting and invert the externally observed PWM control signal.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     101
+    ],
+    "held lines": [
+     179,
+     186
+    ],
+    "exit lines": [
+     70
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_pwm",
+    "concept": "PWM period-divider configuration",
+    "information": "The period-divider setting determines how many selected clock-generator events occur between PWM timing ticks. The generated PWM period depends on this setting.",
+    "rubric reason": "The period-divider configuration can be modified by bus data at line 187, and it controls the divider rollover and tick generation at lines 215-220, changing the PWM period.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker can overwrite the period divider to produce a PWM frequency different from the intended one.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     101
+    ],
+    "held lines": [
+     180,
+     187
+    ],
+    "exit lines": [
+     70
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C6",
+    "unit": "neorv32_pwm",
+    "concept": "PWM duty-cycle configuration",
+    "information": "The duty-cycle setting determines the threshold used to form the active portion of each PWM period. The waveform duty cycle depends on this setting.",
+    "rubric reason": "The duty-cycle configuration can be modified by bus data at line 188, and it is compared with the duty counter to choose the PWM output at line 231.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker can overwrite the duty setting to change the proportion of each PWM period for which the output is active.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     101
+    ],
+    "held lines": [
+     181,
+     188
+    ],
+    "exit lines": [
+     70
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C7",
+    "unit": "neorv32_pwm",
+    "concept": "Aggregate PWM clock-enable request",
+    "information": "The aggregate clock-enable request tells the surrounding clock generator whether any PWM channel requires its timing source. PWM generation depends on the surrounding clock remaining enabled when a channel is active.",
+    "rubric reason": "The aggregate control output is produced by reducing the channel enable outputs at line 121, so an incorrect channel-enable state can corrupt the clock request. Withholding or deasserting this request can stop the timing source needed by enabled PWM channels, creating an availability failure at line 121.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker can cause the aggregate clock-enable request to remain low, preventing the clock generator from supplying timing to the PWM channels.",
+    "enters through": [],
+    "leaves through": [
+     "clkgen_en_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     121
+    ],
+    "exit lines": [
+     121
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C8",
+    "unit": "neorv32_pwm",
+    "concept": "PWM output waveform",
+    "information": "The PWM waveform is the per-channel control signal produced for external loads or devices. Correct operation depends on the channel enable, polarity, period and duty settings.",
+    "rubric reason": "The waveform is a sensitive externally used control output whose value is selected by the configuration and duty comparison at lines 231-234, while bus writes can alter those settings at lines 183-188. Disabling a channel forces its output inactive and prevents normal PWM operation at lines 212-234.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker can modify the channel configuration to invert, distort or suppress the PWM waveform delivered at the output.",
+    "enters through": [],
+    "leaves through": [
+     "pwm_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     207,
+     232,
+     234
+    ],
+    "exit lines": [
+     117
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_pwm",
+    "concept": "Bus access command",
+    "reason": "The request address, read/write bit and strobe are access-command fields that only select, gate or perform the access at lines 69 and 109-111; the separate channel-selection decision is kept as C1.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_pwm",
+    "concept": "Channel access strobes",
+    "reason": "The read and write strobes are decoded access-command signals that only let a channel register read or take written data at lines 110-111 and 183-194, so they are not information of their own.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_pwm",
+    "concept": "Bus response handshake and error status",
+    "reason": "The acknowledge repeats the request strobe and the error field is tied to a constant at lines 69-76, so they are bus-handshake or constant status rather than independent information.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_pwm",
+    "concept": "PWM configuration read-back word",
+    "reason": "The read-back is only a carrier of the kept configuration settings, formed by channel read data and returned at lines 70 and 81-88, not a separate piece of information.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_pwm",
+    "concept": "PWM divider and phase counters",
+    "reason": "The divider, tick and duty counters only pace or form the waveform computation and are covered as pacing, sequencing or working state at lines 205-227 and 231.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_pwm",
+    "concept": "Clock-generator timing input",
+    "reason": "The clock-generator input is used only as a condition that advances the divider and tick at line 214, so the pacing-pulse rule excludes it as a concept of its own.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_pwm",
+    "concept": "Clock and reset timing",
+    "reason": "The clock and reset only time or initialize the registers and outputs at lines 64-78, 174-190 and 201-237, and the clock/reset rule bars them as conceptual assets.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_pwm",
+    "concept": "NUM_CHANNELS build-time choice",
+    "reason": "NUM_CHANNELS only fixes the generated hardware at build time and cannot be changed or withheld at run time, as shown by the generic declaration at line 24.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

@@ -1,0 +1,161 @@
+{
+ "module": "neorv32_cpu_icc",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "be3b3faab49b",
+ "user sha": "4e93c9e57890",
+ "usage": {
+  "in": 15310,
+  "out": 16843,
+  "reasoning": 15478,
+  "cached": 15307,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_05caa8598cc14d07006ace83b87e2887d192f585e45aac2b99",
+  "request key": "5a0299129b82"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_cpu_icc\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"Transmit payload data\",\n      \"Unit\": \"neorv32_cpu_icc\",\n      \"Information\": \"Payload words written through the CSR interface are queued for transmission to the ICC peer, and delivery depends on the FIFO and its acknowledgment flow. The FIFO is a buffering path, so the payload crosses through csr_wdata_i and icc_tx_o.dat without an independently held RTL signal.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"An integrator may treat transmitted payloads as secret, and the FIFO carries them to the externally observable icc_tx_o.dat at line 86. The FIFO accepts csr_wdata_i at line 81, so changing a queued word changes the transmitted payload. Withholding icc_rx_i.ack at line 85 can prevent the FIFO from advancing and keep the payload from leaving through icc_tx_o.dat.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could inject or alter CSR-written payloads and withhold transmission acknowledgments to corrupt or stall the ICC transfer.\",\n      \"Enters Through\": [\n        \"csr_wdata_i\"\n      ],\n      \"Leaves Through\": [\n        \"icc_tx_o.dat\"\n      ],\n      \"Entry Lines\": [\n        81\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": [\n        86\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"Received payload data\",\n      \"Unit\": \"neorv32_cpu_icc\",\n      \"Information\": \"A payload word presented by the ICC peer on icc_rx_i.dat is returned to software through the CSR readback path when the receive-ready indication is asserted. The unit does not store the word independently; it directly transfers it to csr_rdata_o.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"no\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Received payload may contain secret information and is exposed at csr_rdata_o by the assignment at line 52. The rdy condition at line 51 can withhold the received word, so an attacker controlling the receive-valid condition can block its required readback.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could expose the received payload through the CSR readback or suppress the receive-ready condition so software cannot obtain it.\",\n      \"Enters Through\": [\n        \"icc_rx_i.dat\"\n      ],\n      \"Leaves Through\": [\n        \"csr_rdata_o\"\n      ],\n      \"Entry Lines\": [\n        52\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": [\n        52\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"CSR readback selection\",\n      \"Unit\": \"neorv32_cpu_icc\",\n      \"Information\": \"The CSR address and receive-valid decision select whether the readback path returns zero, receive status, transmit-space status, or received payload data. Correct selection is required for software to observe the intended ICC register value.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The address and receive-valid selection controls which value reaches csr_rdata_o at lines 46-53, so altering the decision can return an incorrect value. An unmatched address or a false receive-ready decision can withhold the required readback through the default and conditional logic at lines 45-53.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could steer the CSR readback selection to return status or zero instead of the requested received data, or prevent a valid read from completing.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        46,\n        47,\n        51\n      ],\n      \"Exit Lines\": []\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"CSR write request and FIFO push enable\",\n      \"Candidate Unit\": \"neorv32_cpu_icc\",\n      \"Merged Into\": \"C1\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Transmit FIFO free and ready status\",\n      \"Candidate Unit\": \"neorv32_cpu_icc\",\n      \"Merged Into\": \"C1\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Receive-ready and acknowledgment handshakes\",\n      \"Candidate Unit\": \"neorv32_cpu_icc\",\n      \"Merged Into\": \"C2\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Receive-ready status readback\",\n      \"Candidate Unit\": \"neorv32_cpu_icc\",\n      \"Merged Into\": \"C2\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Transmit-free status readback\",\n      \"Candidate Unit\": \"neorv32_cpu_icc\",\n      \"Merged Into\": \"C1\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Clock and reset\",\n      \"Candidate Unit\": \"neorv32_cpu_icc\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"Clock and reset are excluded conceptual assets; they only wire to the FIFO at lines 75-76 and are covered by the clock/reset rule.\"\n    },\n    {\n      \"Candidate Name\": \"FIFO build-time configuration\",\n      \"Candidate Unit\": \"neorv32_cpu_icc\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"FIFO depth, width, synchronization, safety, and reset behavior are fixed by build-time generics at lines 67-71 and cannot be changed or withheld at run time.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_cpu_icc",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_cpu_icc",
+    "concept": "Transmit payload data",
+    "information": "Payload words written through the CSR interface are queued for transmission to the ICC peer, and delivery depends on the FIFO and its acknowledgment flow. The FIFO is a buffering path, so the payload crosses through csr_wdata_i and icc_tx_o.dat without an independently held RTL signal.",
+    "rubric reason": "An integrator may treat transmitted payloads as secret, and the FIFO carries them to the externally observable icc_tx_o.dat at line 86. The FIFO accepts csr_wdata_i at line 81, so changing a queued word changes the transmitted payload. Withholding icc_rx_i.ack at line 85 can prevent the FIFO from advancing and keep the payload from leaving through icc_tx_o.dat.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could inject or alter CSR-written payloads and withhold transmission acknowledgments to corrupt or stall the ICC transfer.",
+    "enters through": [
+     "csr_wdata_i"
+    ],
+    "leaves through": [
+     "icc_tx_o.dat"
+    ],
+    "entry lines": [
+     81
+    ],
+    "held lines": [],
+    "exit lines": [
+     86
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_cpu_icc",
+    "concept": "Received payload data",
+    "information": "A payload word presented by the ICC peer on icc_rx_i.dat is returned to software through the CSR readback path when the receive-ready indication is asserted. The unit does not store the word independently; it directly transfers it to csr_rdata_o.",
+    "rubric reason": "Received payload may contain secret information and is exposed at csr_rdata_o by the assignment at line 52. The rdy condition at line 51 can withhold the received word, so an attacker controlling the receive-valid condition can block its required readback.",
+    "objectives": [
+     "C",
+     "A"
+    ],
+    "attack": "An attacker could expose the received payload through the CSR readback or suppress the receive-ready condition so software cannot obtain it.",
+    "enters through": [
+     "icc_rx_i.dat"
+    ],
+    "leaves through": [
+     "csr_rdata_o"
+    ],
+    "entry lines": [
+     52
+    ],
+    "held lines": [],
+    "exit lines": [
+     52
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "no",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_cpu_icc",
+    "concept": "CSR readback selection",
+    "information": "The CSR address and receive-valid decision select whether the readback path returns zero, receive status, transmit-space status, or received payload data. Correct selection is required for software to observe the intended ICC register value.",
+    "rubric reason": "The address and receive-valid selection controls which value reaches csr_rdata_o at lines 46-53, so altering the decision can return an incorrect value. An unmatched address or a false receive-ready decision can withhold the required readback through the default and conditional logic at lines 45-53.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could steer the CSR readback selection to return status or zero instead of the requested received data, or prevent a valid read from completing.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     46,
+     47,
+     51
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_cpu_icc",
+    "concept": "CSR write request and FIFO push enable",
+    "reason": "merged into C1",
+    "merged into": "C1"
+   },
+   {
+    "unit": "neorv32_cpu_icc",
+    "concept": "Transmit FIFO free and ready status",
+    "reason": "merged into C1",
+    "merged into": "C1"
+   },
+   {
+    "unit": "neorv32_cpu_icc",
+    "concept": "Receive-ready and acknowledgment handshakes",
+    "reason": "merged into C2",
+    "merged into": "C2"
+   },
+   {
+    "unit": "neorv32_cpu_icc",
+    "concept": "Receive-ready status readback",
+    "reason": "merged into C2",
+    "merged into": "C2"
+   },
+   {
+    "unit": "neorv32_cpu_icc",
+    "concept": "Transmit-free status readback",
+    "reason": "merged into C1",
+    "merged into": "C1"
+   },
+   {
+    "unit": "neorv32_cpu_icc",
+    "concept": "Clock and reset",
+    "reason": "Clock and reset are excluded conceptual assets; they only wire to the FIFO at lines 75-76 and are covered by the clock/reset rule.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_icc",
+    "concept": "FIFO build-time configuration",
+    "reason": "FIFO depth, width, synchronization, safety, and reset behavior are fixed by build-time generics at lines 67-71 and cannot be changed or withheld at run time.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

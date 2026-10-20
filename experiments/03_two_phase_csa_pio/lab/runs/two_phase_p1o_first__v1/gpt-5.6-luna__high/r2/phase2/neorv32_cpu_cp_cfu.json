@@ -1,0 +1,1440 @@
+{
+ "module": "neorv32_cpu_cp_cfu",
+ "prompt version": "two_phase_p1o_first",
+ "input version": "v1",
+ "phase": 2,
+ "system sha": "021cc963702d",
+ "user sha": "10438f490049",
+ "usage": {
+  "in": 29679,
+  "out": 22527,
+  "reasoning": 12284,
+  "cached": 21986,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_050f6786fc078e6e006ad63e03b87087d19848cd195f91abf2",
+  "request key": "b2f526615e7e"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_cpu_cp_cfu\",\n  \"Concept Walks\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Points\": [\n        {\n          \"Point\": \"csr_write_access\",\n          \"Reached By\": \"holding block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            176,\n            179\n          ],\n          \"Answer Reason\": \"The block stores or clears key_mem from the CSR write data or reset, so an unauthorized write can replace or clear the key; it does not expose the stored value there.\"\n        },\n        {\n          \"Point\": \"csr_rdata_o\",\n          \"Reached By\": \"the exit port and concurrent assignment at line 185\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            185\n          ],\n          \"Answer Reason\": \"The concurrent assignment directly returns a selected key_mem word on csr_rdata_o, exposing key material.\"\n        },\n        {\n          \"Point\": \"tmp_z\",\n          \"Reached By\": \"the arrow csr_write_access ==> tmp_z [key_mem]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"tmp_z is only an internal key-derived operand for the intended XTEA computation and is not itself an external observation or unauthorized key modification point.\"\n        },\n        {\n          \"Point\": \"tmp_r\",\n          \"Reached By\": \"the arrow tmp_z ==> tmp_r [tmp_z]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"tmp_r combines the key-derived operand with other XTEA operands for the intended computation and does not directly expose or modify key_mem.\"\n        },\n        {\n          \"Point\": \"xtea_core\",\n          \"Reached By\": \"the arrow tmp_r ==> xtea_core [tmp_r]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"The core uses key-derived data to compute the cryptographic result, but the RTL shows no direct key observation or key-state modification at this computation point.\"\n        },\n        {\n          \"Point\": \"result_select\",\n          \"Reached By\": \"the arrow xtea_core ==> result_select [xtea.{done,res}]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"result_select releases an XTEA result as designed; dependence of that result on the key does not by itself expose or modify the key.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"key_mem\",\n          \"Entity\": \"neorv32_cpu_cp_cfu\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"csr_write_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores the four writable XTEA key words and supplies them to readback and the XTEA datapath.\",\n          \"Justification\": \"It is the internal storage holding the conceptual key, and lines 176 and 179 can clear or overwrite that value.\",\n          \"Asset Lines\": [\n            153,\n            176,\n            179\n          ]\n        },\n        {\n          \"Asset RTL\": \"csr_wdata_i\",\n          \"Entity\": \"neorv32_cpu_cp_cfu\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"csr_write_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"Carries each key word into key_mem during a CSR write.\",\n          \"Justification\": \"It crosses the unit boundary carrying the value that sets the conceptual key words at line 179.\",\n          \"Asset Lines\": [\n            30,\n            179\n          ]\n        },\n        {\n          \"Asset RTL\": \"csr_rdata_o\",\n          \"Entity\": \"neorv32_cpu_cp_cfu\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"csr_rdata_o\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"Returns the selected key_mem word to the unit boundary.\",\n          \"Justification\": \"It is the output port that returns key material unchanged from the indexed key store at line 185.\",\n          \"Asset Lines\": [\n            31,\n            185\n          ]\n        },\n        {\n          \"Asset RTL\": \"csr_we_i\",\n          \"Entity\": \"neorv32_cpu_cp_cfu\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"key_mem\",\n              \"Primary Entity\": \"neorv32_cpu_cp_cfu\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Controls whether the CSR write updates key_mem.\",\n          \"Justification\": \"An unauthorized assertion or suppression at line 178 can alter whether key state is written.\",\n          \"Asset Lines\": [\n            28,\n            178\n          ]\n        },\n        {\n          \"Asset RTL\": \"csr_addr_i\",\n          \"Entity\": \"neorv32_cpu_cp_cfu\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"C\",\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"key_mem\",\n              \"Primary Entity\": \"neorv32_cpu_cp_cfu\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"csr_rdata_o\",\n              \"Primary Entity\": \"neorv32_cpu_cp_cfu\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Indexes which key word is written or returned.\",\n          \"Justification\": \"Its index flow at lines 179 and 185 can redirect a write or select a different key word for disclosure.\",\n          \"Asset Lines\": [\n            29,\n            179,\n            185\n          ]\n        },\n        {\n          \"Asset RTL\": \"rstn_i\",\n          \"Entity\": \"neorv32_cpu_cp_cfu\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"key_mem\",\n              \"Primary Entity\": \"neorv32_cpu_cp_cfu\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Resets and clears the key store.\",\n          \"Justification\": \"The reset path can clear the stored key through line 176, threatening key integrity.\",\n          \"Asset Lines\": [\n            23,\n            175,\n            176\n          ]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Points\": [\n        {\n          \"Point\": \"xtea_core\",\n          \"Reached By\": \"the arrow rs1_i ==> xtea_core [rs1_i]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            204,\n            205,\n            206\n          ],\n          \"Answer Reason\": \"The start and type condition captures rs1_i and rs2_i into the operation operands, so altered input values directly change the operand block.\"\n        },\n        {\n          \"Point\": \"tmp_a\",\n          \"Reached By\": \"the arrow xtea_core ==> tmp_a [xtea.{opa,opb}]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"tmp_a only selects an operand for the intended computation and does not provide an independent unauthorized modification point for the captured operand block.\"\n        },\n        {\n          \"Point\": \"tmp_b\",\n          \"Reached By\": \"the arrow xtea_core ==> tmp_b [xtea.{opa,opb}]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"tmp_b is an internal operand path into the result computation, not a point where the conceptual captured operands can be externally read or changed.\"\n        },\n        {\n          \"Point\": \"tmp_x\",\n          \"Reached By\": \"the arrow xtea_core ==> tmp_x [xtea.{opa,opb}]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"tmp_x is only a derived internal operand path and has no direct observation or unauthorized operand-write mechanism.\"\n        },\n        {\n          \"Point\": \"tmp_y\",\n          \"Reached By\": \"the arrow xtea_core ==> tmp_y [xtea.{opa,opb}]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"tmp_y is only a derived internal operand path and has no direct observation or unauthorized operand-write mechanism.\"\n        },\n        {\n          \"Point\": \"tmp_r\",\n          \"Reached By\": \"the arrow tmp_a ==> tmp_r [tmp_a]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"tmp_r computes an intermediate XTEA term from the operands but does not independently expose or alter the captured operand state.\"\n        },\n        {\n          \"Point\": \"result_select\",\n          \"Reached By\": \"the arrow xtea_core ==> result_select [xtea.{done,res}]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"The result output is a derived cryptographic result; its intended dependence on the operands is not an independent observation or modification of the operand block.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"rs1_i\",\n          \"Entity\": \"neorv32_cpu_cp_cfu\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"xtea_core\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"Supplies the first operand word captured for an XTEA operation.\",\n          \"Justification\": \"It crosses the unit boundary as a complete operand and is copied into the operation at line 205.\",\n          \"Asset Lines\": [\n            36,\n            205\n          ]\n        },\n        {\n          \"Asset RTL\": \"rs2_i\",\n          \"Entity\": \"neorv32_cpu_cp_cfu\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"xtea_core\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"Supplies the second operand word captured for an XTEA operation.\",\n          \"Justification\": \"It crosses the unit boundary as a complete operand and is copied into the operation at line 206.\",\n          \"Asset Lines\": [\n            37,\n            206\n          ]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Points\": [\n        {\n          \"Point\": \"xtea_core\",\n          \"Reached By\": \"holding block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            204,\n            207\n          ],\n          \"Answer Reason\": \"The start_i and rtype_i condition controls operand capture and initiation of the completion pipeline, so suppressing or altering it can skip or change the requested operation.\"\n        },\n        {\n          \"Point\": \"tmp_a\",\n          \"Reached By\": \"the arrow funct3_i --> tmp_a [funct3_i]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            232\n          ],\n          \"Answer Reason\": \"funct3_i selects which operand becomes tmp_a, changing the operation's cryptographic behavior.\"\n        },\n        {\n          \"Point\": \"tmp_b\",\n          \"Reached By\": \"the arrow funct3_i --> tmp_b [funct3_i]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            233\n          ],\n          \"Answer Reason\": \"funct3_i selects which operand becomes tmp_b, changing the operation's cryptographic behavior.\"\n        },\n        {\n          \"Point\": \"tmp_x\",\n          \"Reached By\": \"the arrow funct3_i --> tmp_x [funct3_i]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            234\n          ],\n          \"Answer Reason\": \"funct3_i selects the operand slice and shift used for tmp_x, changing the requested XTEA operation.\"\n        },\n        {\n          \"Point\": \"tmp_y\",\n          \"Reached By\": \"the arrow funct3_i --> tmp_y [funct3_i]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            235\n          ],\n          \"Answer Reason\": \"funct3_i selects the operand slice and shift used for tmp_y, changing the requested XTEA operation.\"\n        },\n        {\n          \"Point\": \"tmp_z\",\n          \"Reached By\": \"the arrow funct3_i --> tmp_z [funct3_i]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            236,\n            237\n          ],\n          \"Answer Reason\": \"funct3_i selects which key-word index is used by tmp_z, changing the requested cryptographic operation.\"\n        },\n        {\n          \"Point\": \"tmp_r\",\n          \"Reached By\": \"the arrow tmp_z ==> tmp_r [tmp_z]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            238\n          ],\n          \"Answer Reason\": \"The selected operation inputs are combined into tmp_r, so the selected XTEA form changes the computed intermediate result.\"\n        },\n        {\n          \"Point\": \"result_select\",\n          \"Reached By\": \"the arrow funct3_i --> result_select [funct3_i]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            245,\n            247,\n            249,\n            255,\n            256,\n            261,\n            262\n          ],\n          \"Answer Reason\": \"rtype_i and funct3_i select whether the operation result and valid indication are returned, and can instead select zero or invalid outputs.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"start_i\",\n          \"Entity\": \"neorv32_cpu_cp_cfu\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"xtea_core\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"Requests capture and initiation of an XTEA operation.\",\n          \"Justification\": \"It is the boundary input that directly gates operation launch at line 204, making it the primary request control.\",\n          \"Asset Lines\": [\n            25,\n            204\n          ]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Points\": [\n        {\n          \"Point\": \"csr_write_access\",\n          \"Reached By\": \"holding block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            178,\n            179\n          ],\n          \"Answer Reason\": \"csr_we_i directly enables the key_mem write, so an unauthorized assertion can alter key state and suppression can block a required key update.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"csr_we_i\",\n          \"Entity\": \"neorv32_cpu_cp_cfu\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"csr_write_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"Commands whether csr_wdata_i is committed into key_mem.\",\n          \"Justification\": \"It is an access-command input whose condition directly makes the key-write decision at line 178.\",\n          \"Asset Lines\": [\n            28,\n            178\n          ]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Points\": [\n        {\n          \"Point\": \"csr_write_access\",\n          \"Reached By\": \"the arrow csr_addr_i --> csr_write_access [csr_addr_i]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            179\n          ],\n          \"Answer Reason\": \"csr_addr_i indexes key_mem at the write, so changing it redirects the key word that receives csr_wdata_i.\"\n        },\n        {\n          \"Point\": \"csr_rdata_o\",\n          \"Reached By\": \"the arrow csr_addr_i --> csr_rdata_o [csr_addr_i]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"The address selects the returned word but the output assignment does not modify the address value itself.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"csr_addr_i\",\n          \"Entity\": \"neorv32_cpu_cp_cfu\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"csr_write_access\",\n            \"csr_rdata_o\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"Selects which key word is written or returned by the CSR interface.\",\n          \"Justification\": \"It is the non-record access address crossing the boundary and directly selecting the accessed key word at lines 179 and 185.\",\n          \"Asset Lines\": [\n            29,\n            179,\n            185\n          ]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Points\": [\n        {\n          \"Point\": \"result_select\",\n          \"Reached By\": \"the exit port result_o through the arrow result_select ==> result_o\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            245,\n            247,\n            249,\n            255,\n            256,\n            261,\n            262\n          ],\n          \"Answer Reason\": \"result_select returns xtea.res on result_o, while rtype_i and funct3_i can select zero or invalid output instead, exposing, corrupting, or withholding the result.\"\n        },\n        {\n          \"Point\": \"xtea_core\",\n          \"Reached By\": \"holding block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            211,\n            222,\n            224\n          ],\n          \"Answer Reason\": \"xtea.res is computed and stored from tmp_b and tmp_r, while xtea.done gates whether that computation occurs, allowing corruption or withholding of the result.\"\n        },\n        {\n          \"Point\": \"tmp_b\",\n          \"Reached By\": \"the arrow tmp_b ==> xtea_core [tmp_b]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            222,\n            224,\n            233\n          ],\n          \"Answer Reason\": \"tmp_b is an operand of the xtea.res addition or subtraction, so changing its selected value changes the result.\"\n        },\n        {\n          \"Point\": \"tmp_r\",\n          \"Reached By\": \"the arrow tmp_r ==> xtea_core [tmp_r]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            222,\n            224,\n            238\n          ],\n          \"Answer Reason\": \"tmp_r is directly used to compute xtea.res, so changing this intermediate changes the returned result.\"\n        },\n        {\n          \"Point\": \"tmp_a\",\n          \"Reached By\": \"the arrow tmp_a ==> tmp_r [tmp_a]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            232,\n            238\n          ],\n          \"Answer Reason\": \"tmp_a contributes to tmp_r and therefore can alter the result through the computation at line 238.\"\n        },\n        {\n          \"Point\": \"tmp_x\",\n          \"Reached By\": \"the arrow tmp_x ==> tmp_r [tmp_x]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            234,\n            238\n          ],\n          \"Answer Reason\": \"tmp_x contributes to tmp_r and therefore can alter the result through the computation at line 238.\"\n        },\n        {\n          \"Point\": \"tmp_y\",\n          \"Reached By\": \"the arrow tmp_y ==> tmp_r [tmp_y]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            235,\n            238\n          ],\n          \"Answer Reason\": \"tmp_y contributes to tmp_r and therefore can alter the result through the computation at line 238.\"\n        },\n        {\n          \"Point\": \"tmp_z\",\n          \"Reached By\": \"the arrow tmp_z ==> tmp_r [tmp_z]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            236,\n            238\n          ],\n          \"Answer Reason\": \"tmp_z supplies a key word to tmp_r, so changing the selected key value or index changes the result.\"\n        },\n        {\n          \"Point\": \"csr_write_access\",\n          \"Reached By\": \"the arrow csr_write_access ==> tmp_z [key_mem]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            176,\n            179,\n            236\n          ],\n          \"Answer Reason\": \"The block writes or clears key_mem, which is read by tmp_z and consequently changes the computed result.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"xtea.res\",\n          \"Entity\": \"neorv32_cpu_cp_cfu\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"xtea_core\",\n            \"result_select\"\n          ],\n          \"Security Objectives\": [\n            \"C\",\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores the computed XTEA encryption or decryption result.\",\n          \"Justification\": \"It is the register where the result is computed and held before selection for output at lines 222 and 224.\",\n          \"Asset Lines\": [\n            197,\n            222,\n            224\n          ]\n        },\n        {\n          \"Asset RTL\": \"result_o\",\n          \"Entity\": \"neorv32_cpu_cp_cfu\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"result_select\"\n          ],\n          \"Security Objectives\": [\n            \"C\",\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"Returns the selected XTEA result to the processor.\",\n          \"Justification\": \"It is the boundary output carrying xtea.res unchanged for the XTEA operation at line 249.\",\n          \"Asset Lines\": [\n            40,\n            249\n          ]\n        },\n        {\n          \"Asset RTL\": \"xtea.done\",\n          \"Entity\": \"neorv32_cpu_cp_cfu\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"xtea_core\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"xtea.res\",\n              \"Primary Entity\": \"neorv32_cpu_cp_cfu\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"result_o\",\n              \"Primary Entity\": \"neorv32_cpu_cp_cfu\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Gates result computation and participates in selecting whether a valid result is released.\",\n          \"Justification\": \"Its condition controls the xtea.res assignment at line 211 and its valid/result release path.\",\n          \"Asset Lines\": [\n            193,\n            200,\n            201,\n            211,\n            250\n          ]\n        },\n        {\n          \"Asset RTL\": \"xtea.opa\",\n          \"Entity\": \"neorv32_cpu_cp_cfu\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"xtea_core\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"xtea.res\",\n              \"Primary Entity\": \"neorv32_cpu_cp_cfu\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Supplies one stored operand to the XTEA result computation.\",\n          \"Justification\": \"It feeds the temporary operands and sum used to compute xtea.res.\",\n          \"Asset Lines\": [\n            194,\n            205,\n            214,\n            232,\n            233,\n            234,\n            235\n          ]\n        },\n        {\n          \"Asset RTL\": \"xtea.opb\",\n          \"Entity\": \"neorv32_cpu_cp_cfu\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"xtea_core\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"xtea.res\",\n              \"Primary Entity\": \"neorv32_cpu_cp_cfu\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Supplies the other stored operand to the XTEA result computation.\",\n          \"Justification\": \"It feeds the temporary operands used to compute xtea.res.\",\n          \"Asset Lines\": [\n            195,\n            206,\n            232,\n            233,\n            234,\n            235\n          ]\n        },\n        {\n          \"Asset RTL\": \"xtea.sum\",\n          \"Entity\": \"neorv32_cpu_cp_cfu\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"xtea_core\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"xtea.res\",\n              \"Primary Entity\": \"neorv32_cpu_cp_cfu\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Provides the XTEA sum and key-index selection used in the result computation.\",\n          \"Justification\": \"Its value contributes to tmp_r and selects the key word used by tmp_z before xtea.res is assigned.\",\n          \"Asset Lines\": [\n            196,\n            214,\n            216,\n            218,\n            236,\n            237,\n            238\n          ]\n        },\n        {\n          \"Asset RTL\": \"tmp_b\",\n          \"Entity\": \"neorv32_cpu_cp_cfu\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"tmp_b\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"xtea.res\",\n              \"Primary Entity\": \"neorv32_cpu_cp_cfu\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Selects the operand term added to or subtracted from tmp_r for xtea.res.\",\n          \"Justification\": \"It is a direct operand of the xtea.res computation at lines 222 and 224.\",\n          \"Asset Lines\": [\n            166,\n            222,\n            224,\n            233\n          ]\n        },\n        {\n          \"Asset RTL\": \"tmp_r\",\n          \"Entity\": \"neorv32_cpu_cp_cfu\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"tmp_r\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"xtea.res\",\n              \"Primary Entity\": \"neorv32_cpu_cp_cfu\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Computes the intermediate XTEA term used directly in xtea.res.\",\n          \"Justification\": \"It is a direct operand of both result assignments at lines 222 and 224.\",\n          \"Asset Lines\": [\n            166,\n            222,\n            224,\n            238\n          ]\n        },\n        {\n          \"Asset RTL\": \"tmp_a\",\n          \"Entity\": \"neorv32_cpu_cp_cfu\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"tmp_a\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"xtea.res\",\n              \"Primary Entity\": \"neorv32_cpu_cp_cfu\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Supplies an operand term to tmp_r.\",\n          \"Justification\": \"Its value contributes to the intermediate computation that feeds xtea.res.\",\n          \"Asset Lines\": [\n            166,\n            232,\n            238\n          ]\n        },\n        {\n          \"Asset RTL\": \"tmp_x\",\n          \"Entity\": \"neorv32_cpu_cp_cfu\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"tmp_x\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"xtea.res\",\n              \"Primary Entity\": \"neorv32_cpu_cp_cfu\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Supplies the shifted operand term to tmp_r.\",\n          \"Justification\": \"Its value contributes directly to tmp_r and therefore to xtea.res.\",\n          \"Asset Lines\": [\n            166,\n            234,\n            238\n          ]\n        },\n        {\n          \"Asset RTL\": \"tmp_y\",\n          \"Entity\": \"neorv32_cpu_cp_cfu\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"tmp_y\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"xtea.res\",\n              \"Primary Entity\": \"neorv32_cpu_cp_cfu\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Supplies the shifted operand term to tmp_r.\",\n          \"Justification\": \"Its value contributes directly to tmp_r and therefore to xtea.res.\",\n          \"Asset Lines\": [\n            166,\n            235,\n            238\n          ]\n        },\n        {\n          \"Asset RTL\": \"tmp_z\",\n          \"Entity\": \"neorv32_cpu_cp_cfu\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"tmp_z\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"xtea.res\",\n              \"Primary Entity\": \"neorv32_cpu_cp_cfu\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Supplies the selected key word to tmp_r.\",\n          \"Justification\": \"Its value is an operand of the intermediate result computation at line 238.\",\n          \"Asset Lines\": [\n            166,\n            236,\n            237,\n            238\n          ]\n        },\n        {\n          \"Asset RTL\": \"key_mem\",\n          \"Entity\": \"neorv32_cpu_cp_cfu\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"csr_write_access\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"xtea.res\",\n              \"Primary Entity\": \"neorv32_cpu_cp_cfu\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Provides key words that affect tmp_z and the computed result.\",\n          \"Justification\": \"The memory is read by the XTEA datapath at lines 236 and 237, so changing it changes xtea.res.\",\n          \"Asset Lines\": [\n            153,\n            176,\n            179,\n            236,\n            237\n          ]\n        },\n        {\n          \"Asset RTL\": \"funct3_i\",\n          \"Entity\": \"neorv32_cpu_cp_cfu\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"result_select\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"xtea.res\",\n              \"Primary Entity\": \"neorv32_cpu_cp_cfu\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"result_o\",\n              \"Primary Entity\": \"neorv32_cpu_cp_cfu\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Selects arithmetic variants and whether the computed result is returned.\",\n          \"Justification\": \"It controls result computation at line 221 and result release at lines 247 and 249.\",\n          \"Asset Lines\": [\n            34,\n            221,\n            247,\n            249\n          ]\n        },\n        {\n          \"Asset RTL\": \"rtype_i\",\n          \"Entity\": \"neorv32_cpu_cp_cfu\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"result_select\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"result_o\",\n              \"Primary Entity\": \"neorv32_cpu_cp_cfu\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Controls whether the result-selection process handles an R-type operation.\",\n          \"Justification\": \"Its condition can replace the result with zero through lines 245 and 261.\",\n          \"Asset Lines\": [\n            33,\n            245,\n            261\n          ]\n        },\n        {\n          \"Asset RTL\": \"clk_i\",\n          \"Entity\": \"neorv32_cpu_cp_cfu\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"xtea.res\",\n              \"Primary Entity\": \"neorv32_cpu_cp_cfu\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Times updates of the result register.\",\n          \"Justification\": \"Blocking the clock can prevent xtea.res from being updated or made available.\",\n          \"Asset Lines\": [\n            22,\n            198\n          ]\n        },\n        {\n          \"Asset RTL\": \"rstn_i\",\n          \"Entity\": \"neorv32_cpu_cp_cfu\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"xtea.res\",\n              \"Primary Entity\": \"neorv32_cpu_cp_cfu\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Clears the result register through reset.\",\n          \"Justification\": \"The reset arm assigns zero to xtea.res at line 197, clearing or preventing the intended result.\",\n          \"Asset Lines\": [\n            23,\n            192,\n            197\n          ]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C7\",\n      \"Points\": [\n        {\n          \"Point\": \"xtea_core\",\n          \"Reached By\": \"holding block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            193,\n            200,\n            201,\n            204,\n            207\n          ],\n          \"Answer Reason\": \"xtea.done is reset, cleared, shifted, and initiated by the start condition, so it can indicate completion incorrectly or fail to advance.\"\n        },\n        {\n          \"Point\": \"result_select\",\n          \"Reached By\": \"the arrow xtea_core ==> result_select [xtea.{done,res}]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            245,\n            250,\n            256,\n            262\n          ],\n          \"Answer Reason\": \"valid_o is driven from xtea.done for supported operations, while the selection conditions can suppress or misreport completion.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"xtea.done\",\n          \"Entity\": \"neorv32_cpu_cp_cfu\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"xtea_core\",\n            \"result_select\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores and advances the registered completion state for an XTEA operation.\",\n          \"Justification\": \"As coprocessor progress state, it is the internal register whose value controls result computation and valid indication.\",\n          \"Asset Lines\": [\n            193,\n            200,\n            201,\n            207,\n            250\n          ]\n        },\n        {\n          \"Asset RTL\": \"valid_o\",\n          \"Entity\": \"neorv32_cpu_cp_cfu\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"result_select\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"Reports the completion state at the unit boundary.\",\n          \"Justification\": \"It is the output port that returns xtea.done for supported operations at line 250.\",\n          \"Asset Lines\": [\n            41,\n            250\n          ]\n        },\n        {\n          \"Asset RTL\": \"start_i\",\n          \"Entity\": \"neorv32_cpu_cp_cfu\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"xtea.done\",\n              \"Primary Entity\": \"neorv32_cpu_cp_cfu\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Starts the completion pipeline by setting xtea.done(0).\",\n          \"Justification\": \"The launch condition at line 204 determines whether the completion state is initiated at line 207.\",\n          \"Asset Lines\": [\n            25,\n            204,\n            207\n          ]\n        },\n        {\n          \"Asset RTL\": \"rtype_i\",\n          \"Entity\": \"neorv32_cpu_cp_cfu\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At:\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"xtea.done\",\n              \"Primary Entity\": \"neorv32_cpu_cp_cfu\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Qualifies whether the operation launch can initiate completion state.\",\n          \"Justification\": \"The type condition at line 204 gates the assignment that starts xtea.done.\",\n          \"Asset Lines\": [\n            33,\n            204\n          ]\n        },\n        {\n          \"Asset RTL\": \"funct3_i\",\n          \"Entity\": \"neorv32_cpu_cp_cfu\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"result_select\"\n          ],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"valid_o\",\n              \"Primary Entity\": \"neorv32_cpu_cp_cfu\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Selects whether the completion state is reported for an XTEA operation.\",\n          \"Justification\": \"The case selection at lines 247 and 250 can prevent xtea.done from reaching valid_o.\",\n          \"Asset Lines\": [\n            34,\n            247,\n            250\n          ]\n        },\n        {\n          \"Asset RTL\": \"clk_i\",\n          \"Entity\": \"neorv32_cpu_cp_cfu\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"xtea.done\",\n              \"Primary Entity\": \"neorv32_cpu_cp_cfu\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Times completion-state updates.\",\n          \"Justification\": \"Blocking the clock prevents the completion pipeline from advancing.\",\n          \"Asset Lines\": [\n            22,\n            198\n          ]\n        },\n        {\n          \"Asset RTL\": \"rstn_i\",\n          \"Entity\": \"neorv32_cpu_cp_cfu\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"xtea.done\",\n              \"Primary Entity\": \"neorv32_cpu_cp_cfu\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"Clears the completion state through reset.\",\n          \"Justification\": \"The reset arm assigns zero to xtea.done, clearing completion information and preventing valid_o from indicating completion.\",\n          \"Asset Lines\": [\n            23,\n            192,\n            193\n          ]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    }\n  ],\n  \"Notes\": [\n    \"The RTL uses funct3_i and rtype_i for operation selection even though C3 lists only start_i under Enters Through.\",\n    \"active_i, funct7_i, and rs3_i are declared but are not read or used anywhere in the RTL.\"\n  ]\n}",
+ "reply": {
+  "module name": "neorv32_cpu_cp_cfu",
+  "notes": [
+   "The RTL uses funct3_i and rtype_i for operation selection even though C3 lists only start_i under Enters Through.",
+   "active_i, funct7_i, and rs3_i are declared but are not read or used anywhere in the RTL."
+  ],
+  "points": [
+   {
+    "concept id": "C1",
+    "point": "csr_write_access",
+    "reached by": "holding block",
+    "lines": [
+     176,
+     179
+    ],
+    "reason": "The block stores or clears key_mem from the CSR write data or reset, so an unauthorized write can replace or clear the key; it does not expose the stored value there.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "csr_rdata_o",
+    "reached by": "the exit port and concurrent assignment at line 185",
+    "lines": [
+     185
+    ],
+    "reason": "The concurrent assignment directly returns a selected key_mem word on csr_rdata_o, exposing key material.",
+    "confidentiality": "yes",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "tmp_z",
+    "reached by": "the arrow csr_write_access ==> tmp_z [key_mem]",
+    "lines": [],
+    "reason": "tmp_z is only an internal key-derived operand for the intended XTEA computation and is not itself an external observation or unauthorized key modification point.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "tmp_r",
+    "reached by": "the arrow tmp_z ==> tmp_r [tmp_z]",
+    "lines": [],
+    "reason": "tmp_r combines the key-derived operand with other XTEA operands for the intended computation and does not directly expose or modify key_mem.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "xtea_core",
+    "reached by": "the arrow tmp_r ==> xtea_core [tmp_r]",
+    "lines": [],
+    "reason": "The core uses key-derived data to compute the cryptographic result, but the RTL shows no direct key observation or key-state modification at this computation point.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "result_select",
+    "reached by": "the arrow xtea_core ==> result_select [xtea.{done,res}]",
+    "lines": [],
+    "reason": "result_select releases an XTEA result as designed; dependence of that result on the key does not by itself expose or modify the key.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "xtea_core",
+    "reached by": "the arrow rs1_i ==> xtea_core [rs1_i]",
+    "lines": [
+     204,
+     205,
+     206
+    ],
+    "reason": "The start and type condition captures rs1_i and rs2_i into the operation operands, so altered input values directly change the operand block.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "tmp_a",
+    "reached by": "the arrow xtea_core ==> tmp_a [xtea.{opa,opb}]",
+    "lines": [],
+    "reason": "tmp_a only selects an operand for the intended computation and does not provide an independent unauthorized modification point for the captured operand block.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "tmp_b",
+    "reached by": "the arrow xtea_core ==> tmp_b [xtea.{opa,opb}]",
+    "lines": [],
+    "reason": "tmp_b is an internal operand path into the result computation, not a point where the conceptual captured operands can be externally read or changed.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "tmp_x",
+    "reached by": "the arrow xtea_core ==> tmp_x [xtea.{opa,opb}]",
+    "lines": [],
+    "reason": "tmp_x is only a derived internal operand path and has no direct observation or unauthorized operand-write mechanism.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "tmp_y",
+    "reached by": "the arrow xtea_core ==> tmp_y [xtea.{opa,opb}]",
+    "lines": [],
+    "reason": "tmp_y is only a derived internal operand path and has no direct observation or unauthorized operand-write mechanism.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "tmp_r",
+    "reached by": "the arrow tmp_a ==> tmp_r [tmp_a]",
+    "lines": [],
+    "reason": "tmp_r computes an intermediate XTEA term from the operands but does not independently expose or alter the captured operand state.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "result_select",
+    "reached by": "the arrow xtea_core ==> result_select [xtea.{done,res}]",
+    "lines": [],
+    "reason": "The result output is a derived cryptographic result; its intended dependence on the operands is not an independent observation or modification of the operand block.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "xtea_core",
+    "reached by": "holding block",
+    "lines": [
+     204,
+     207
+    ],
+    "reason": "The start_i and rtype_i condition controls operand capture and initiation of the completion pipeline, so suppressing or altering it can skip or change the requested operation.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "tmp_a",
+    "reached by": "the arrow funct3_i --> tmp_a [funct3_i]",
+    "lines": [
+     232
+    ],
+    "reason": "funct3_i selects which operand becomes tmp_a, changing the operation's cryptographic behavior.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "tmp_b",
+    "reached by": "the arrow funct3_i --> tmp_b [funct3_i]",
+    "lines": [
+     233
+    ],
+    "reason": "funct3_i selects which operand becomes tmp_b, changing the operation's cryptographic behavior.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "tmp_x",
+    "reached by": "the arrow funct3_i --> tmp_x [funct3_i]",
+    "lines": [
+     234
+    ],
+    "reason": "funct3_i selects the operand slice and shift used for tmp_x, changing the requested XTEA operation.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "tmp_y",
+    "reached by": "the arrow funct3_i --> tmp_y [funct3_i]",
+    "lines": [
+     235
+    ],
+    "reason": "funct3_i selects the operand slice and shift used for tmp_y, changing the requested XTEA operation.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "tmp_z",
+    "reached by": "the arrow funct3_i --> tmp_z [funct3_i]",
+    "lines": [
+     236,
+     237
+    ],
+    "reason": "funct3_i selects which key-word index is used by tmp_z, changing the requested cryptographic operation.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "tmp_r",
+    "reached by": "the arrow tmp_z ==> tmp_r [tmp_z]",
+    "lines": [
+     238
+    ],
+    "reason": "The selected operation inputs are combined into tmp_r, so the selected XTEA form changes the computed intermediate result.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "result_select",
+    "reached by": "the arrow funct3_i --> result_select [funct3_i]",
+    "lines": [
+     245,
+     247,
+     249,
+     255,
+     256,
+     261,
+     262
+    ],
+    "reason": "rtype_i and funct3_i select whether the operation result and valid indication are returned, and can instead select zero or invalid outputs.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "csr_write_access",
+    "reached by": "holding block",
+    "lines": [
+     178,
+     179
+    ],
+    "reason": "csr_we_i directly enables the key_mem write, so an unauthorized assertion can alter key state and suppression can block a required key update.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C5",
+    "point": "csr_write_access",
+    "reached by": "the arrow csr_addr_i --> csr_write_access [csr_addr_i]",
+    "lines": [
+     179
+    ],
+    "reason": "csr_addr_i indexes key_mem at the write, so changing it redirects the key word that receives csr_wdata_i.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C5",
+    "point": "csr_rdata_o",
+    "reached by": "the arrow csr_addr_i --> csr_rdata_o [csr_addr_i]",
+    "lines": [],
+    "reason": "The address selects the returned word but the output assignment does not modify the address value itself.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "result_select",
+    "reached by": "the exit port result_o through the arrow result_select ==> result_o",
+    "lines": [
+     245,
+     247,
+     249,
+     255,
+     256,
+     261,
+     262
+    ],
+    "reason": "result_select returns xtea.res on result_o, while rtype_i and funct3_i can select zero or invalid output instead, exposing, corrupting, or withholding the result.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "xtea_core",
+    "reached by": "holding block",
+    "lines": [
+     211,
+     222,
+     224
+    ],
+    "reason": "xtea.res is computed and stored from tmp_b and tmp_r, while xtea.done gates whether that computation occurs, allowing corruption or withholding of the result.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "tmp_b",
+    "reached by": "the arrow tmp_b ==> xtea_core [tmp_b]",
+    "lines": [
+     222,
+     224,
+     233
+    ],
+    "reason": "tmp_b is an operand of the xtea.res addition or subtraction, so changing its selected value changes the result.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "tmp_r",
+    "reached by": "the arrow tmp_r ==> xtea_core [tmp_r]",
+    "lines": [
+     222,
+     224,
+     238
+    ],
+    "reason": "tmp_r is directly used to compute xtea.res, so changing this intermediate changes the returned result.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "tmp_a",
+    "reached by": "the arrow tmp_a ==> tmp_r [tmp_a]",
+    "lines": [
+     232,
+     238
+    ],
+    "reason": "tmp_a contributes to tmp_r and therefore can alter the result through the computation at line 238.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "tmp_x",
+    "reached by": "the arrow tmp_x ==> tmp_r [tmp_x]",
+    "lines": [
+     234,
+     238
+    ],
+    "reason": "tmp_x contributes to tmp_r and therefore can alter the result through the computation at line 238.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "tmp_y",
+    "reached by": "the arrow tmp_y ==> tmp_r [tmp_y]",
+    "lines": [
+     235,
+     238
+    ],
+    "reason": "tmp_y contributes to tmp_r and therefore can alter the result through the computation at line 238.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "tmp_z",
+    "reached by": "the arrow tmp_z ==> tmp_r [tmp_z]",
+    "lines": [
+     236,
+     238
+    ],
+    "reason": "tmp_z supplies a key word to tmp_r, so changing the selected key value or index changes the result.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "csr_write_access",
+    "reached by": "the arrow csr_write_access ==> tmp_z [key_mem]",
+    "lines": [
+     176,
+     179,
+     236
+    ],
+    "reason": "The block writes or clears key_mem, which is read by tmp_z and consequently changes the computed result.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C7",
+    "point": "xtea_core",
+    "reached by": "holding block",
+    "lines": [
+     193,
+     200,
+     201,
+     204,
+     207
+    ],
+    "reason": "xtea.done is reset, cleared, shifted, and initiated by the start condition, so it can indicate completion incorrectly or fail to advance.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C7",
+    "point": "result_select",
+    "reached by": "the arrow xtea_core ==> result_select [xtea.{done,res}]",
+    "lines": [
+     245,
+     250,
+     256,
+     262
+    ],
+    "reason": "valid_o is driven from xtea.done for supported operations, while the selection conditions can suppress or misreport completion.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   }
+  ],
+  "structural assets": [
+   {
+    "concept id": "C1",
+    "element": "key_mem",
+    "entity": "neorv32_cpu_cp_cfu",
+    "same role": [],
+    "points": [
+     "csr_write_access"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     153,
+     176,
+     179
+    ],
+    "links": [],
+    "reason": "Stores the four writable XTEA key words and supplies them to readback and the XTEA datapath. It is the internal storage holding the conceptual key, and lines 176 and 179 can clear or overwrite that value.",
+    "functionality": "Stores the four writable XTEA key words and supplies them to readback and the XTEA datapath.",
+    "justification": "It is the internal storage holding the conceptual key, and lines 176 and 179 can clear or overwrite that value."
+   },
+   {
+    "concept id": "C1",
+    "element": "csr_wdata_i",
+    "entity": "neorv32_cpu_cp_cfu",
+    "same role": [],
+    "points": [
+     "csr_write_access"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     30,
+     179
+    ],
+    "links": [],
+    "reason": "Carries each key word into key_mem during a CSR write. It crosses the unit boundary carrying the value that sets the conceptual key words at line 179.",
+    "functionality": "Carries each key word into key_mem during a CSR write.",
+    "justification": "It crosses the unit boundary carrying the value that sets the conceptual key words at line 179."
+   },
+   {
+    "concept id": "C1",
+    "element": "csr_rdata_o",
+    "entity": "neorv32_cpu_cp_cfu",
+    "same role": [],
+    "points": [
+     "csr_rdata_o"
+    ],
+    "label": "primary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     31,
+     185
+    ],
+    "links": [],
+    "reason": "Returns the selected key_mem word to the unit boundary. It is the output port that returns key material unchanged from the indexed key store at line 185.",
+    "functionality": "Returns the selected key_mem word to the unit boundary.",
+    "justification": "It is the output port that returns key material unchanged from the indexed key store at line 185."
+   },
+   {
+    "concept id": "C1",
+    "element": "csr_we_i",
+    "entity": "neorv32_cpu_cp_cfu",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     28,
+     178
+    ],
+    "links": [
+     {
+      "primary": "key_mem",
+      "entity": "neorv32_cpu_cp_cfu",
+      "direction": "b"
+     }
+    ],
+    "reason": "Controls whether the CSR write updates key_mem. An unauthorized assertion or suppression at line 178 can alter whether key state is written.",
+    "functionality": "Controls whether the CSR write updates key_mem.",
+    "justification": "An unauthorized assertion or suppression at line 178 can alter whether key state is written."
+   },
+   {
+    "concept id": "C1",
+    "element": "csr_addr_i",
+    "entity": "neorv32_cpu_cp_cfu",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "lines": [
+     29,
+     179,
+     185
+    ],
+    "links": [
+     {
+      "primary": "key_mem",
+      "entity": "neorv32_cpu_cp_cfu",
+      "direction": "b"
+     },
+     {
+      "primary": "csr_rdata_o",
+      "entity": "neorv32_cpu_cp_cfu",
+      "direction": "b"
+     }
+    ],
+    "reason": "Indexes which key word is written or returned. Its index flow at lines 179 and 185 can redirect a write or select a different key word for disclosure.",
+    "functionality": "Indexes which key word is written or returned.",
+    "justification": "Its index flow at lines 179 and 185 can redirect a write or select a different key word for disclosure."
+   },
+   {
+    "concept id": "C1",
+    "element": "rstn_i",
+    "entity": "neorv32_cpu_cp_cfu",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     23,
+     175,
+     176
+    ],
+    "links": [
+     {
+      "primary": "key_mem",
+      "entity": "neorv32_cpu_cp_cfu",
+      "direction": "b"
+     }
+    ],
+    "reason": "Resets and clears the key store. The reset path can clear the stored key through line 176, threatening key integrity.",
+    "functionality": "Resets and clears the key store.",
+    "justification": "The reset path can clear the stored key through line 176, threatening key integrity."
+   },
+   {
+    "concept id": "C2",
+    "element": "rs1_i",
+    "entity": "neorv32_cpu_cp_cfu",
+    "same role": [],
+    "points": [
+     "xtea_core"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     36,
+     205
+    ],
+    "links": [],
+    "reason": "Supplies the first operand word captured for an XTEA operation. It crosses the unit boundary as a complete operand and is copied into the operation at line 205.",
+    "functionality": "Supplies the first operand word captured for an XTEA operation.",
+    "justification": "It crosses the unit boundary as a complete operand and is copied into the operation at line 205."
+   },
+   {
+    "concept id": "C2",
+    "element": "rs2_i",
+    "entity": "neorv32_cpu_cp_cfu",
+    "same role": [],
+    "points": [
+     "xtea_core"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     37,
+     206
+    ],
+    "links": [],
+    "reason": "Supplies the second operand word captured for an XTEA operation. It crosses the unit boundary as a complete operand and is copied into the operation at line 206.",
+    "functionality": "Supplies the second operand word captured for an XTEA operation.",
+    "justification": "It crosses the unit boundary as a complete operand and is copied into the operation at line 206."
+   },
+   {
+    "concept id": "C3",
+    "element": "start_i",
+    "entity": "neorv32_cpu_cp_cfu",
+    "same role": [],
+    "points": [
+     "xtea_core"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     25,
+     204
+    ],
+    "links": [],
+    "reason": "Requests capture and initiation of an XTEA operation. It is the boundary input that directly gates operation launch at line 204, making it the primary request control.",
+    "functionality": "Requests capture and initiation of an XTEA operation.",
+    "justification": "It is the boundary input that directly gates operation launch at line 204, making it the primary request control."
+   },
+   {
+    "concept id": "C4",
+    "element": "csr_we_i",
+    "entity": "neorv32_cpu_cp_cfu",
+    "same role": [],
+    "points": [
+     "csr_write_access"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     28,
+     178
+    ],
+    "links": [],
+    "reason": "Commands whether csr_wdata_i is committed into key_mem. It is an access-command input whose condition directly makes the key-write decision at line 178.",
+    "functionality": "Commands whether csr_wdata_i is committed into key_mem.",
+    "justification": "It is an access-command input whose condition directly makes the key-write decision at line 178."
+   },
+   {
+    "concept id": "C5",
+    "element": "csr_addr_i",
+    "entity": "neorv32_cpu_cp_cfu",
+    "same role": [],
+    "points": [
+     "csr_write_access",
+     "csr_rdata_o"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     29,
+     179,
+     185
+    ],
+    "links": [],
+    "reason": "Selects which key word is written or returned by the CSR interface. It is the non-record access address crossing the boundary and directly selecting the accessed key word at lines 179 and 185.",
+    "functionality": "Selects which key word is written or returned by the CSR interface.",
+    "justification": "It is the non-record access address crossing the boundary and directly selecting the accessed key word at lines 179 and 185."
+   },
+   {
+    "concept id": "C6",
+    "element": "xtea.res",
+    "entity": "neorv32_cpu_cp_cfu",
+    "same role": [],
+    "points": [
+     "xtea_core",
+     "result_select"
+    ],
+    "label": "primary",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "lines": [
+     197,
+     222,
+     224
+    ],
+    "links": [],
+    "reason": "Stores the computed XTEA encryption or decryption result. It is the register where the result is computed and held before selection for output at lines 222 and 224.",
+    "functionality": "Stores the computed XTEA encryption or decryption result.",
+    "justification": "It is the register where the result is computed and held before selection for output at lines 222 and 224."
+   },
+   {
+    "concept id": "C6",
+    "element": "result_o",
+    "entity": "neorv32_cpu_cp_cfu",
+    "same role": [],
+    "points": [
+     "result_select"
+    ],
+    "label": "primary",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "lines": [
+     40,
+     249
+    ],
+    "links": [],
+    "reason": "Returns the selected XTEA result to the processor. It is the boundary output carrying xtea.res unchanged for the XTEA operation at line 249.",
+    "functionality": "Returns the selected XTEA result to the processor.",
+    "justification": "It is the boundary output carrying xtea.res unchanged for the XTEA operation at line 249."
+   },
+   {
+    "concept id": "C6",
+    "element": "xtea.done",
+    "entity": "neorv32_cpu_cp_cfu",
+    "same role": [],
+    "points": [
+     "xtea_core"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     193,
+     200,
+     201,
+     211,
+     250
+    ],
+    "links": [
+     {
+      "primary": "xtea.res",
+      "entity": "neorv32_cpu_cp_cfu",
+      "direction": "b"
+     },
+     {
+      "primary": "result_o",
+      "entity": "neorv32_cpu_cp_cfu",
+      "direction": "b"
+     }
+    ],
+    "reason": "Gates result computation and participates in selecting whether a valid result is released. Its condition controls the xtea.res assignment at line 211 and its valid/result release path.",
+    "functionality": "Gates result computation and participates in selecting whether a valid result is released.",
+    "justification": "Its condition controls the xtea.res assignment at line 211 and its valid/result release path."
+   },
+   {
+    "concept id": "C6",
+    "element": "xtea.opa",
+    "entity": "neorv32_cpu_cp_cfu",
+    "same role": [],
+    "points": [
+     "xtea_core"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     194,
+     205,
+     214,
+     232,
+     233,
+     234,
+     235
+    ],
+    "links": [
+     {
+      "primary": "xtea.res",
+      "entity": "neorv32_cpu_cp_cfu",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies one stored operand to the XTEA result computation. It feeds the temporary operands and sum used to compute xtea.res.",
+    "functionality": "Supplies one stored operand to the XTEA result computation.",
+    "justification": "It feeds the temporary operands and sum used to compute xtea.res."
+   },
+   {
+    "concept id": "C6",
+    "element": "xtea.opb",
+    "entity": "neorv32_cpu_cp_cfu",
+    "same role": [],
+    "points": [
+     "xtea_core"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     195,
+     206,
+     232,
+     233,
+     234,
+     235
+    ],
+    "links": [
+     {
+      "primary": "xtea.res",
+      "entity": "neorv32_cpu_cp_cfu",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies the other stored operand to the XTEA result computation. It feeds the temporary operands used to compute xtea.res.",
+    "functionality": "Supplies the other stored operand to the XTEA result computation.",
+    "justification": "It feeds the temporary operands used to compute xtea.res."
+   },
+   {
+    "concept id": "C6",
+    "element": "xtea.sum",
+    "entity": "neorv32_cpu_cp_cfu",
+    "same role": [],
+    "points": [
+     "xtea_core"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     196,
+     214,
+     216,
+     218,
+     236,
+     237,
+     238
+    ],
+    "links": [
+     {
+      "primary": "xtea.res",
+      "entity": "neorv32_cpu_cp_cfu",
+      "direction": "b"
+     }
+    ],
+    "reason": "Provides the XTEA sum and key-index selection used in the result computation. Its value contributes to tmp_r and selects the key word used by tmp_z before xtea.res is assigned.",
+    "functionality": "Provides the XTEA sum and key-index selection used in the result computation.",
+    "justification": "Its value contributes to tmp_r and selects the key word used by tmp_z before xtea.res is assigned."
+   },
+   {
+    "concept id": "C6",
+    "element": "tmp_b",
+    "entity": "neorv32_cpu_cp_cfu",
+    "same role": [],
+    "points": [
+     "tmp_b"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     166,
+     222,
+     224,
+     233
+    ],
+    "links": [
+     {
+      "primary": "xtea.res",
+      "entity": "neorv32_cpu_cp_cfu",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects the operand term added to or subtracted from tmp_r for xtea.res. It is a direct operand of the xtea.res computation at lines 222 and 224.",
+    "functionality": "Selects the operand term added to or subtracted from tmp_r for xtea.res.",
+    "justification": "It is a direct operand of the xtea.res computation at lines 222 and 224."
+   },
+   {
+    "concept id": "C6",
+    "element": "tmp_r",
+    "entity": "neorv32_cpu_cp_cfu",
+    "same role": [],
+    "points": [
+     "tmp_r"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     166,
+     222,
+     224,
+     238
+    ],
+    "links": [
+     {
+      "primary": "xtea.res",
+      "entity": "neorv32_cpu_cp_cfu",
+      "direction": "b"
+     }
+    ],
+    "reason": "Computes the intermediate XTEA term used directly in xtea.res. It is a direct operand of both result assignments at lines 222 and 224.",
+    "functionality": "Computes the intermediate XTEA term used directly in xtea.res.",
+    "justification": "It is a direct operand of both result assignments at lines 222 and 224."
+   },
+   {
+    "concept id": "C6",
+    "element": "tmp_a",
+    "entity": "neorv32_cpu_cp_cfu",
+    "same role": [],
+    "points": [
+     "tmp_a"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     166,
+     232,
+     238
+    ],
+    "links": [
+     {
+      "primary": "xtea.res",
+      "entity": "neorv32_cpu_cp_cfu",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies an operand term to tmp_r. Its value contributes to the intermediate computation that feeds xtea.res.",
+    "functionality": "Supplies an operand term to tmp_r.",
+    "justification": "Its value contributes to the intermediate computation that feeds xtea.res."
+   },
+   {
+    "concept id": "C6",
+    "element": "tmp_x",
+    "entity": "neorv32_cpu_cp_cfu",
+    "same role": [],
+    "points": [
+     "tmp_x"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     166,
+     234,
+     238
+    ],
+    "links": [
+     {
+      "primary": "xtea.res",
+      "entity": "neorv32_cpu_cp_cfu",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies the shifted operand term to tmp_r. Its value contributes directly to tmp_r and therefore to xtea.res.",
+    "functionality": "Supplies the shifted operand term to tmp_r.",
+    "justification": "Its value contributes directly to tmp_r and therefore to xtea.res."
+   },
+   {
+    "concept id": "C6",
+    "element": "tmp_y",
+    "entity": "neorv32_cpu_cp_cfu",
+    "same role": [],
+    "points": [
+     "tmp_y"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     166,
+     235,
+     238
+    ],
+    "links": [
+     {
+      "primary": "xtea.res",
+      "entity": "neorv32_cpu_cp_cfu",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies the shifted operand term to tmp_r. Its value contributes directly to tmp_r and therefore to xtea.res.",
+    "functionality": "Supplies the shifted operand term to tmp_r.",
+    "justification": "Its value contributes directly to tmp_r and therefore to xtea.res."
+   },
+   {
+    "concept id": "C6",
+    "element": "tmp_z",
+    "entity": "neorv32_cpu_cp_cfu",
+    "same role": [],
+    "points": [
+     "tmp_z"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     166,
+     236,
+     237,
+     238
+    ],
+    "links": [
+     {
+      "primary": "xtea.res",
+      "entity": "neorv32_cpu_cp_cfu",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies the selected key word to tmp_r. Its value is an operand of the intermediate result computation at line 238.",
+    "functionality": "Supplies the selected key word to tmp_r.",
+    "justification": "Its value is an operand of the intermediate result computation at line 238."
+   },
+   {
+    "concept id": "C6",
+    "element": "key_mem",
+    "entity": "neorv32_cpu_cp_cfu",
+    "same role": [],
+    "points": [
+     "csr_write_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     153,
+     176,
+     179,
+     236,
+     237
+    ],
+    "links": [
+     {
+      "primary": "xtea.res",
+      "entity": "neorv32_cpu_cp_cfu",
+      "direction": "b"
+     }
+    ],
+    "reason": "Provides key words that affect tmp_z and the computed result. The memory is read by the XTEA datapath at lines 236 and 237, so changing it changes xtea.res.",
+    "functionality": "Provides key words that affect tmp_z and the computed result.",
+    "justification": "The memory is read by the XTEA datapath at lines 236 and 237, so changing it changes xtea.res."
+   },
+   {
+    "concept id": "C6",
+    "element": "funct3_i",
+    "entity": "neorv32_cpu_cp_cfu",
+    "same role": [],
+    "points": [
+     "result_select"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     34,
+     221,
+     247,
+     249
+    ],
+    "links": [
+     {
+      "primary": "xtea.res",
+      "entity": "neorv32_cpu_cp_cfu",
+      "direction": "b"
+     },
+     {
+      "primary": "result_o",
+      "entity": "neorv32_cpu_cp_cfu",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects arithmetic variants and whether the computed result is returned. It controls result computation at line 221 and result release at lines 247 and 249.",
+    "functionality": "Selects arithmetic variants and whether the computed result is returned.",
+    "justification": "It controls result computation at line 221 and result release at lines 247 and 249."
+   },
+   {
+    "concept id": "C6",
+    "element": "rtype_i",
+    "entity": "neorv32_cpu_cp_cfu",
+    "same role": [],
+    "points": [
+     "result_select"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     33,
+     245,
+     261
+    ],
+    "links": [
+     {
+      "primary": "result_o",
+      "entity": "neorv32_cpu_cp_cfu",
+      "direction": "b"
+     }
+    ],
+    "reason": "Controls whether the result-selection process handles an R-type operation. Its condition can replace the result with zero through lines 245 and 261.",
+    "functionality": "Controls whether the result-selection process handles an R-type operation.",
+    "justification": "Its condition can replace the result with zero through lines 245 and 261."
+   },
+   {
+    "concept id": "C6",
+    "element": "clk_i",
+    "entity": "neorv32_cpu_cp_cfu",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     22,
+     198
+    ],
+    "links": [
+     {
+      "primary": "xtea.res",
+      "entity": "neorv32_cpu_cp_cfu",
+      "direction": "b"
+     }
+    ],
+    "reason": "Times updates of the result register. Blocking the clock can prevent xtea.res from being updated or made available.",
+    "functionality": "Times updates of the result register.",
+    "justification": "Blocking the clock can prevent xtea.res from being updated or made available."
+   },
+   {
+    "concept id": "C6",
+    "element": "rstn_i",
+    "entity": "neorv32_cpu_cp_cfu",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     23,
+     192,
+     197
+    ],
+    "links": [
+     {
+      "primary": "xtea.res",
+      "entity": "neorv32_cpu_cp_cfu",
+      "direction": "b"
+     }
+    ],
+    "reason": "Clears the result register through reset. The reset arm assigns zero to xtea.res at line 197, clearing or preventing the intended result.",
+    "functionality": "Clears the result register through reset.",
+    "justification": "The reset arm assigns zero to xtea.res at line 197, clearing or preventing the intended result."
+   },
+   {
+    "concept id": "C7",
+    "element": "xtea.done",
+    "entity": "neorv32_cpu_cp_cfu",
+    "same role": [],
+    "points": [
+     "xtea_core",
+     "result_select"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     193,
+     200,
+     201,
+     207,
+     250
+    ],
+    "links": [],
+    "reason": "Stores and advances the registered completion state for an XTEA operation. As coprocessor progress state, it is the internal register whose value controls result computation and valid indication.",
+    "functionality": "Stores and advances the registered completion state for an XTEA operation.",
+    "justification": "As coprocessor progress state, it is the internal register whose value controls result computation and valid indication."
+   },
+   {
+    "concept id": "C7",
+    "element": "valid_o",
+    "entity": "neorv32_cpu_cp_cfu",
+    "same role": [],
+    "points": [
+     "result_select"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     41,
+     250
+    ],
+    "links": [],
+    "reason": "Reports the completion state at the unit boundary. It is the output port that returns xtea.done for supported operations at line 250.",
+    "functionality": "Reports the completion state at the unit boundary.",
+    "justification": "It is the output port that returns xtea.done for supported operations at line 250."
+   },
+   {
+    "concept id": "C7",
+    "element": "start_i",
+    "entity": "neorv32_cpu_cp_cfu",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     25,
+     204,
+     207
+    ],
+    "links": [
+     {
+      "primary": "xtea.done",
+      "entity": "neorv32_cpu_cp_cfu",
+      "direction": "b"
+     }
+    ],
+    "reason": "Starts the completion pipeline by setting xtea.done(0). The launch condition at line 204 determines whether the completion state is initiated at line 207.",
+    "functionality": "Starts the completion pipeline by setting xtea.done(0).",
+    "justification": "The launch condition at line 204 determines whether the completion state is initiated at line 207."
+   },
+   {
+    "concept id": "C7",
+    "element": "rtype_i",
+    "entity": "neorv32_cpu_cp_cfu",
+    "same role": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     33,
+     204
+    ],
+    "links": [
+     {
+      "primary": "xtea.done",
+      "entity": "neorv32_cpu_cp_cfu",
+      "direction": "b"
+     }
+    ],
+    "reason": "Qualifies whether the operation launch can initiate completion state. The type condition at line 204 gates the assignment that starts xtea.done.",
+    "functionality": "Qualifies whether the operation launch can initiate completion state.",
+    "justification": "The type condition at line 204 gates the assignment that starts xtea.done."
+   },
+   {
+    "concept id": "C7",
+    "element": "funct3_i",
+    "entity": "neorv32_cpu_cp_cfu",
+    "same role": [],
+    "points": [
+     "result_select"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     34,
+     247,
+     250
+    ],
+    "links": [
+     {
+      "primary": "valid_o",
+      "entity": "neorv32_cpu_cp_cfu",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects whether the completion state is reported for an XTEA operation. The case selection at lines 247 and 250 can prevent xtea.done from reaching valid_o.",
+    "functionality": "Selects whether the completion state is reported for an XTEA operation.",
+    "justification": "The case selection at lines 247 and 250 can prevent xtea.done from reaching valid_o."
+   },
+   {
+    "concept id": "C7",
+    "element": "clk_i",
+    "entity": "neorv32_cpu_cp_cfu",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     22,
+     198
+    ],
+    "links": [
+     {
+      "primary": "xtea.done",
+      "entity": "neorv32_cpu_cp_cfu",
+      "direction": "b"
+     }
+    ],
+    "reason": "Times completion-state updates. Blocking the clock prevents the completion pipeline from advancing.",
+    "functionality": "Times completion-state updates.",
+    "justification": "Blocking the clock prevents the completion pipeline from advancing."
+   },
+   {
+    "concept id": "C7",
+    "element": "rstn_i",
+    "entity": "neorv32_cpu_cp_cfu",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     23,
+     192,
+     193
+    ],
+    "links": [
+     {
+      "primary": "xtea.done",
+      "entity": "neorv32_cpu_cp_cfu",
+      "direction": "b"
+     }
+    ],
+    "reason": "Clears the completion state through reset. The reset arm assigns zero to xtea.done, clearing completion information and preventing valid_o from indicating completion.",
+    "functionality": "Clears the completion state through reset.",
+    "justification": "The reset arm assigns zero to xtea.done, clearing completion information and preventing valid_o from indicating completion."
+   }
+  ],
+  "not reported": [],
+  "no primary reason": {}
+ },
+ "problems": [
+  "format: walk C7 asset 'rtype_i' lacks ['Found At']",
+  "format: walk C7 asset 'rtype_i' has keys the format does not show ['Found At:']"
+ ],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

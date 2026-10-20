@@ -1,0 +1,268 @@
+{
+ "module": "neorv32_debug_dm",
+ "prompt version": "two_phase_p1o_first",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "b4c962e16261",
+ "user sha": "19e940dbf62e",
+ "usage": {
+  "in": 44673,
+  "out": 13946,
+  "reasoning": 11380,
+  "cached": 44670,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_0d79b29dc89d0d2e006ad5a94ff75887d18b2cfa30778e9710",
+  "request key": "07dca3b30a83"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_debug_dm\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"Hart data exchange word\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"The word exchanged between the debug module and a selected hart during an abstract data access; debug operation completion depends on retaining and returning the correct word.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"yes\"\n      },\n      \"Rubric Reason\": \"The exchange word can contain sensitive hart data and is exposed through both debug and system-bus response data at lines 605 and 696. Debug and system-bus writes can modify the held word at lines 666 and 668. Blocking the data-register write or read paths at lines 495 and 689-696 can lose the required abstract transfer. Injecting an altered debug or bus data word at lines 666-668 can make the hart perform an incorrect debug-directed operation.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker reads the exchange word through a response, overwrites it through a debug or bus write, or blocks the transfer so an abstract hart access fails.\",\n      \"Enters Through\": [\n        \"dmi_req_i.data\",\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"dmi_rsp_o.data\",\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        666,\n        668\n      ],\n      \"Held Lines\": [\n        654,\n        666,\n        668\n      ],\n      \"Exit Lines\": [\n        605,\n        696\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"Selected hart\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"The hart index selected for debug control and status operations; halt, resume, reset, and status handling depend on directing the operation to the intended hart.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"yes\"\n      },\n      \"Rubric Reason\": \"A debug write can change the selected hart at line 429, and the resulting selection controls which hart receives or reports debug actions through lines 487 and 500. An incorrect selection can direct a control operation away from the intended hart and leave the required hart operation unavailable through lines 487 and 500. A debug access selecting the wrong hart can cause halt or control behavior to affect the wrong hart, as shown by lines 429, 487, and 500.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker writes a different hart index so a halt or other debug operation targets the wrong hart or fails to target the intended one.\",\n      \"Enters Through\": [\n        \"dmi_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"dmi_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        429\n      ],\n      \"Held Lines\": [\n        410,\n        429\n      ],\n      \"Exit Lines\": [\n        562\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"Debug authentication validity\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"The authentication-valid state that authorizes debug accesses and selected hart-control outputs; protected debug operation depends on this authorization result.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"yes\"\n      },\n      \"Rubric Reason\": \"The authenticator produces the validity state at line 745, and its authentication interface is driven by debug request data and access controls at lines 738-743, so an altered validity result can authorize or deny operations contrary to the authentication policy. The validity state gates debug reads and writes and hart-control outputs at lines 212, 213, 500, and 505, so a false invalid result can block required debug operation. An authentication or bypass attack that changes the validity result can permit unauthorized debug control or deny authorized control, using the paths at lines 212-213 and 500-505.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker exploits the authentication interface or its validity result to make the module accept unauthorized debug accesses or permanently refuse authorized ones.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"dmi_rsp_o.data\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        745,\n        754\n      ],\n      \"Exit Lines\": [\n        549\n      ]\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"Debug operation busy lock\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"The lock state indicating that a multi-step debug command is in progress; it prevents command, automatic-execution, and program-buffer writes from disturbing the active operation.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The controller state changes the busy lock at line 339, and those state transitions can modify whether protected debug-register writes are accepted. The lock gates writes to command, automatic-execution, and program-buffer information at lines 438, 443, 464, and 469, so changing or clearing it can corrupt an active operation. A stuck busy lock blocks subsequent debug writes through the same lines and prevents further operations from progressing.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker causes the busy lock to clear early or remain asserted so an active command is corrupted or later debug operations are blocked.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"dmi_rsp_o.data\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        339\n      ],\n      \"Exit Lines\": [\n        587\n      ]\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"Hart halt request\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"The debug request that stops the selected hart; normal hart execution can be interrupted when this request is asserted.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"yes\"\n      },\n      \"Rubric Reason\": \"A debug write changes the halt-control value at line 426, and the module produces the selected hart halt request at line 500, so an unauthorized write can alter this control. The request directly blocks or stops hart execution through the output at line 500, making it an availability control. A debug or test-style injected halt request can stop normal hart operation through lines 426 and 500.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker writes the halt control through the debug request interface and asserts halt_req_o for a selected hart during normal execution.\",\n      \"Enters Through\": [\n        \"dmi_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"halt_req_o\"\n      ],\n      \"Entry Lines\": [\n        426\n      ],\n      \"Held Lines\": [\n        407,\n        426,\n        500\n      ],\n      \"Exit Lines\": [\n        500\n      ]\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Concept Name\": \"Authentication operation busy status\",\n      \"Unit\": \"neorv32_debug_dm\",\n      \"Information\": \"The busy status of the authentication operation, reported to software so it can determine whether authentication processing is still in progress.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The authenticator drives its busy status at line 744 and the module reports it in the debug response at line 550; an altered status can make software accept an incorrect authentication-progress indication.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker causes a false authentication-busy indication so software makes an incorrect decision about authentication progress.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"dmi_rsp_o.data\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        744,\n        753\n      ],\n      \"Exit Lines\": [\n        550\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Debug access command fields\",\n      \"Candidate Unit\": \"neorv32_debug_dm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The DMI address, operation, and access handshake only select, gate, or acknowledge accesses into debug registers and are barred as access command fields rather than being information of their own; this behavior appears at lines 209-213 and 424-478.\"\n    },\n    {\n      \"Candidate Name\": \"Ordinary debug-module register contents\",\n      \"Candidate Unit\": \"neorv32_debug_dm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The command, program-buffer, automatic-execution, activation, reset, resume, error, and hart-status registers fall under the debug-module-register rule and only hold or decide what the debug ports deliver; representative assignments are at lines 426-470 and 518-615.\"\n    },\n    {\n      \"Candidate Name\": \"Debug controller sequencing state\",\n      \"Candidate Unit\": \"neorv32_debug_dm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The controller state and its step signals only sequence the multi-step debug operation, so the sequencing-state rule bars them as independent information; the state machine is at lines 245-315.\"\n    },\n    {\n      \"Candidate Name\": \"Authentication exchange word\",\n      \"Candidate Unit\": \"neorv32_debug_dm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The authentication exchange data is a debug authentication exchange word other than the validity flag and is barred by the debug-module-register rule; it is wired at lines 740-741 and returned at line 610.\"\n    },\n    {\n      \"Candidate Name\": \"Non-debug reset request\",\n      \"Candidate Unit\": \"neorv32_debug_dm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The reset request is only gated into the reset output chain, so the clocks-and-resets rule excludes it as an independent conceptual asset; the output is assigned at line 505.\"\n    },\n    {\n      \"Candidate Name\": \"Debug response handshake and ordinary status\",\n      \"Candidate Unit\": \"neorv32_debug_dm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The response acknowledge and ordinary register-status bits only report or time debug-port transfers and are covered by the forwarded-access and buffer/status rules rather than requiring a separate asset; they are assigned at lines 519-525 and 531-620.\"\n    },\n    {\n      \"Candidate Name\": \"Debug program instructions\",\n      \"Candidate Unit\": \"neorv32_debug_dm\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The generated and programmed instruction words are program-buffer contents or fixed ROM contents delivered through the debug path, which the debug-module-register and forwarded-data rules do not keep as independent information; relevant paths are at lines 508-511 and 692-694.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_debug_dm",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_debug_dm",
+    "concept": "Hart data exchange word",
+    "information": "The word exchanged between the debug module and a selected hart during an abstract data access; debug operation completion depends on retaining and returning the correct word.",
+    "rubric reason": "The exchange word can contain sensitive hart data and is exposed through both debug and system-bus response data at lines 605 and 696. Debug and system-bus writes can modify the held word at lines 666 and 668. Blocking the data-register write or read paths at lines 495 and 689-696 can lose the required abstract transfer. Injecting an altered debug or bus data word at lines 666-668 can make the hart perform an incorrect debug-directed operation.",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker reads the exchange word through a response, overwrites it through a debug or bus write, or blocks the transfer so an abstract hart access fails.",
+    "enters through": [
+     "dmi_req_i.data",
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "dmi_rsp_o.data",
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     666,
+     668
+    ],
+    "held lines": [
+     654,
+     666,
+     668
+    ],
+    "exit lines": [
+     605,
+     696
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "yes"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_debug_dm",
+    "concept": "Selected hart",
+    "information": "The hart index selected for debug control and status operations; halt, resume, reset, and status handling depend on directing the operation to the intended hart.",
+    "rubric reason": "A debug write can change the selected hart at line 429, and the resulting selection controls which hart receives or reports debug actions through lines 487 and 500. An incorrect selection can direct a control operation away from the intended hart and leave the required hart operation unavailable through lines 487 and 500. A debug access selecting the wrong hart can cause halt or control behavior to affect the wrong hart, as shown by lines 429, 487, and 500.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker writes a different hart index so a halt or other debug operation targets the wrong hart or fails to target the intended one.",
+    "enters through": [
+     "dmi_req_i.data"
+    ],
+    "leaves through": [
+     "dmi_rsp_o.data"
+    ],
+    "entry lines": [
+     429
+    ],
+    "held lines": [
+     410,
+     429
+    ],
+    "exit lines": [
+     562
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "yes"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_debug_dm",
+    "concept": "Debug authentication validity",
+    "information": "The authentication-valid state that authorizes debug accesses and selected hart-control outputs; protected debug operation depends on this authorization result.",
+    "rubric reason": "The authenticator produces the validity state at line 745, and its authentication interface is driven by debug request data and access controls at lines 738-743, so an altered validity result can authorize or deny operations contrary to the authentication policy. The validity state gates debug reads and writes and hart-control outputs at lines 212, 213, 500, and 505, so a false invalid result can block required debug operation. An authentication or bypass attack that changes the validity result can permit unauthorized debug control or deny authorized control, using the paths at lines 212-213 and 500-505.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker exploits the authentication interface or its validity result to make the module accept unauthorized debug accesses or permanently refuse authorized ones.",
+    "enters through": [],
+    "leaves through": [
+     "dmi_rsp_o.data"
+    ],
+    "entry lines": [],
+    "held lines": [
+     745,
+     754
+    ],
+    "exit lines": [
+     549
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "yes"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_debug_dm",
+    "concept": "Debug operation busy lock",
+    "information": "The lock state indicating that a multi-step debug command is in progress; it prevents command, automatic-execution, and program-buffer writes from disturbing the active operation.",
+    "rubric reason": "The controller state changes the busy lock at line 339, and those state transitions can modify whether protected debug-register writes are accepted. The lock gates writes to command, automatic-execution, and program-buffer information at lines 438, 443, 464, and 469, so changing or clearing it can corrupt an active operation. A stuck busy lock blocks subsequent debug writes through the same lines and prevents further operations from progressing.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker causes the busy lock to clear early or remain asserted so an active command is corrupted or later debug operations are blocked.",
+    "enters through": [],
+    "leaves through": [
+     "dmi_rsp_o.data"
+    ],
+    "entry lines": [],
+    "held lines": [
+     339
+    ],
+    "exit lines": [
+     587
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_debug_dm",
+    "concept": "Hart halt request",
+    "information": "The debug request that stops the selected hart; normal hart execution can be interrupted when this request is asserted.",
+    "rubric reason": "A debug write changes the halt-control value at line 426, and the module produces the selected hart halt request at line 500, so an unauthorized write can alter this control. The request directly blocks or stops hart execution through the output at line 500, making it an availability control. A debug or test-style injected halt request can stop normal hart operation through lines 426 and 500.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker writes the halt control through the debug request interface and asserts halt_req_o for a selected hart during normal execution.",
+    "enters through": [
+     "dmi_req_i.data"
+    ],
+    "leaves through": [
+     "halt_req_o"
+    ],
+    "entry lines": [
+     426
+    ],
+    "held lines": [
+     407,
+     426,
+     500
+    ],
+    "exit lines": [
+     500
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "yes"
+    }
+   },
+   {
+    "id": "C6",
+    "unit": "neorv32_debug_dm",
+    "concept": "Authentication operation busy status",
+    "information": "The busy status of the authentication operation, reported to software so it can determine whether authentication processing is still in progress.",
+    "rubric reason": "The authenticator drives its busy status at line 744 and the module reports it in the debug response at line 550; an altered status can make software accept an incorrect authentication-progress indication.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker causes a false authentication-busy indication so software makes an incorrect decision about authentication progress.",
+    "enters through": [],
+    "leaves through": [
+     "dmi_rsp_o.data"
+    ],
+    "entry lines": [],
+    "held lines": [
+     744,
+     753
+    ],
+    "exit lines": [
+     550
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_debug_dm",
+    "concept": "Debug access command fields",
+    "reason": "The DMI address, operation, and access handshake only select, gate, or acknowledge accesses into debug registers and are barred as access command fields rather than being information of their own; this behavior appears at lines 209-213 and 424-478.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_debug_dm",
+    "concept": "Ordinary debug-module register contents",
+    "reason": "The command, program-buffer, automatic-execution, activation, reset, resume, error, and hart-status registers fall under the debug-module-register rule and only hold or decide what the debug ports deliver; representative assignments are at lines 426-470 and 518-615.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_debug_dm",
+    "concept": "Debug controller sequencing state",
+    "reason": "The controller state and its step signals only sequence the multi-step debug operation, so the sequencing-state rule bars them as independent information; the state machine is at lines 245-315.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_debug_dm",
+    "concept": "Authentication exchange word",
+    "reason": "The authentication exchange data is a debug authentication exchange word other than the validity flag and is barred by the debug-module-register rule; it is wired at lines 740-741 and returned at line 610.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_debug_dm",
+    "concept": "Non-debug reset request",
+    "reason": "The reset request is only gated into the reset output chain, so the clocks-and-resets rule excludes it as an independent conceptual asset; the output is assigned at line 505.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_debug_dm",
+    "concept": "Debug response handshake and ordinary status",
+    "reason": "The response acknowledge and ordinary register-status bits only report or time debug-port transfers and are covered by the forwarded-access and buffer/status rules rather than requiring a separate asset; they are assigned at lines 519-525 and 531-620.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_debug_dm",
+    "concept": "Debug program instructions",
+    "reason": "The generated and programmed instruction words are program-buffer contents or fixed ROM contents delivered through the debug path, which the debug-module-register and forwarded-data rules do not keep as independent information; relevant paths are at lines 508-511 and 692-694.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

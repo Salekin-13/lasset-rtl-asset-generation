@@ -1,0 +1,413 @@
+{
+ "module": "neorv32_bus",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "be3b3faab49b",
+ "user sha": "6aed8f07ae7b",
+ "usage": {
+  "in": 90285,
+  "out": 16130,
+  "reasoning": 12010,
+  "cached": 90282,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_021c74fd5682c7fa006ace2f3e45b887d1b9596e6eb28ba75a",
+  "request key": "5f1b52c59011"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_bus\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"Bus arbitration grant\",\n      \"Unit\": \"neorv32_bus_switch\",\n      \"Information\": \"The grant identifies which requester owns the shared bus transaction and controls the selected request and response path. It has no entry or exit port because request strobes only decide the grant and bus records carry the selected transaction.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The registered arbitration state and combinational select determine the selected requester and response routing, so corrupting them can route a transaction to the wrong requester (lines 49, 55, 79, 87, 99, 114, 118, 124, 128, 164-169). The same state and select control whether either requester is served, so corrupting them can starve or block a requester (lines 91, 94, 103, 106, 116, 120, 126, 130, 140, 158).\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could alter the arbitration state or select so that one requester is indefinitely denied service or another requester receives its transaction response.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        49,\n        55,\n        79,\n        87,\n        91,\n        94,\n        99,\n        103,\n        106,\n        114,\n        116,\n        118,\n        120,\n        124,\n        126,\n        128,\n        130\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"Bus target-routing decision\",\n      \"Unit\": \"neorv32_bus_gateway\",\n      \"Information\": \"The routing decision identifies which enabled target port receives an incoming bus request based on its address and configured address regions. It has no entry or exit port because the request address decides the decision and the selected request ports carry the transaction rather than the decision itself.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The decoded port selection controls which target request strobe is asserted, so corrupting it can send an access to the wrong target (lines 356-361, 375-379). The same selection can leave all target strobes inactive or select an unintended fallback, so corrupting it can withhold a required transfer (lines 361, 378, 375-379).\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could corrupt the address-decode selection so a request reaches an unintended peripheral or no target responds.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        356,\n        357,\n        358,\n        361\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"Transaction timeout and fault state\",\n      \"Unit\": \"neorv32_bus_gateway\",\n      \"Information\": \"The timeout monitor records elapsed progress and produces a timeout error for a transaction that does not complete. The timeout counter and error are internally generated, while the error is returned through the bus response.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The counter comparison generates the timeout error that changes the response and terminates the monitored transaction, so modifying this state can falsely accept or fault an access (lines 422-427, 400-401). The counter and timeout path determine whether a stalled transfer is terminated or remains in progress, so corrupting them can stall or prematurely block bus operation (lines 417-428).\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could force the timeout counter or error state to abort valid accesses or prevent fault completion for a stalled access.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"rsp_o.ack\",\n        \"rsp_o.err\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        411,\n        412,\n        415,\n        418,\n        422,\n        423,\n        424\n      ],\n      \"Exit Lines\": [\n        400,\n        401\n      ]\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"Timeout suppression decision\",\n      \"Unit\": \"neorv32_bus_gateway\",\n      \"Information\": \"The suppression decision records whether the selected route is exempt from timeout reporting and therefore controls whether a stalled transaction raises a timeout fault. It has no entry or exit port because it is internally derived from the selected route and only gates timeout behavior.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The halt decision is sampled from the selected route and directly suppresses the timeout error condition, so changing it can disable the intended timeout protection (lines 416, 423-425). Suppressing or spuriously asserting this decision can leave a stalled request without an error or terminate a valid request, affecting continued operation (lines 423-428).\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could force the suppression decision active so a nonresponsive target prevents the gateway from completing the transaction with an error.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        413,\n        416\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"Device-selection routing decision\",\n      \"Unit\": \"neorv32_bus_io_switch\",\n      \"Information\": \"The device-selection decision identifies which enabled device request port matches the incoming address and enables that device's request strobe. It has no entry or exit port because the address decides the selection and the device request records carry the routed transaction.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The per-device address comparison controls each device request strobe, so corrupting the selection can route an access to the wrong device (lines 660-665). The same selection can clear every device strobe, so corrupting it can suppress a required device transfer (lines 661-671).\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could alter the device-selection comparison or strobe gating so an access reaches the wrong device or no device.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        661,\n        662,\n        664\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Concept Name\": \"Atomic-operation execution state\",\n      \"Unit\": \"neorv32_bus_amo_rmw\",\n      \"Information\": \"The execution state records the phases of an atomic read-modify-write operation, including read wait, execute, write and completion. It has no direct entry or exit port because request and response fields only trigger or advance the internally held state, which controls the operation sequence.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The state controls whether the unit captures an atomic request, issues the read or write, and returns a response, so altering it can skip or reorder required atomic phases (lines 773-806, 813-828). A corrupted or stuck state can prevent the write or completion response from occurring, blocking the atomic operation (lines 787-801, 813-828).\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could force the execution state to skip the read or write phase, or hold the unit in a wait state indefinitely.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        758,\n        763,\n        780,\n        787,\n        792,\n        796,\n        801,\n        806\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C7\",\n      \"Concept Name\": \"Atomic update value\",\n      \"Unit\": \"neorv32_bus_amo_rmw\",\n      \"Information\": \"The atomic update value is the data captured from the request and prior system read, then computed by the read-modify-write ALU for the memory update. The atomic operation depends on this value being correct, and it enters from the request and system response and leaves on the system request data field.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The captured operands and computed update value are held internally and driven onto the system request data output, so an integrator may need to prevent unauthorized observation of the data (lines 779, 785, 839-845, 813). The unit stores and computes the update value before issuing it, so changing those registers or ALU result can modify the memory update (lines 763, 779, 785, 839-845, 813). The execution state gates issuance of the computed write, so blocking that state can withhold the required atomic update (lines 794-816).\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could observe or alter the captured operands or ALU result so that a different value is written, or prevent the computed update from being issued.\",\n      \"Enters Through\": [\n        \"core_req_i.data\",\n        \"sys_rsp_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"sys_req_o.data\"\n      ],\n      \"Entry Lines\": [\n        779,\n        785\n      ],\n      \"Held Lines\": [\n        760,\n        761,\n        763,\n        779,\n        785,\n        836,\n        839,\n        840,\n        841,\n        842,\n        843,\n        844,\n        845\n      ],\n      \"Exit Lines\": [\n        813\n      ]\n    },\n    {\n      \"Concept ID\": \"C8\",\n      \"Concept Name\": \"Atomic prior-value result\",\n      \"Unit\": \"neorv32_bus_amo_rmw\",\n      \"Information\": \"The atomic prior-value result is the system value read before the update and returned to the requesting core as the result of the atomic operation. It enters from the system response, is held while the operation executes, and leaves through the core response data field.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The prior value is stored in the arbiter and returned through the core response data output, so it can expose data at the unit boundary (lines 785, 826). The arbiter register supplies the returned result, so altering it can change the value observed by the core (lines 763, 785, 826). The execution state controls when the prior value is returned and when response acknowledgement is asserted, so blocking the state can withhold completion (lines 826-828).\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could read or alter the captured prior value, or hold the operation state so the core receives no valid atomic result.\",\n      \"Enters Through\": [\n        \"sys_rsp_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"core_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        785\n      ],\n      \"Held Lines\": [\n        760,\n        763,\n        785\n      ],\n      \"Exit Lines\": [\n        826\n      ]\n    },\n    {\n      \"Concept ID\": \"C9\",\n      \"Concept Name\": \"Reservation and conditional-store result\",\n      \"Unit\": \"neorv32_bus_amo_rvs\",\n      \"Information\": \"The reservation state and conditional-store result determine whether a reserved store is allowed and report failure when the reservation is not valid. The reservation is internally created and checked from requests, while its failure result leaves through the core response acknowledgement and data.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"The state controls whether a conditional store request is forwarded and sc_fail changes the returned result, so altering either can authorize an invalid store or report a false failure (lines 910-927, 944, 957, 963-964). A stuck or corrupted reservation state can suppress a valid conditional store or prevent the core from receiving completion, blocking the atomic sequence (lines 920-927, 943-946, 963-964).\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could forge or clear the reservation state so a conditional store succeeds without a valid reservation or valid stores are continuously rejected.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"core_rsp_o.ack\",\n        \"core_rsp_o.data\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        904,\n        912,\n        914,\n        921,\n        927,\n        955,\n        957\n      ],\n      \"Exit Lines\": [\n        963,\n        964\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Forwarded bus requests and responses\",\n      \"Candidate Unit\": \"neorv32_bus_switch\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The switch only forwards request and response records between ports without storing or computing their transaction data, so the forwarding rule excludes them as concepts of this unit (lines 140-169).\"\n    },\n    {\n      \"Candidate Name\": \"Pending request, lock continuation and round-robin bookkeeping\",\n      \"Candidate Unit\": \"neorv32_bus_switch\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The pending strobes and lock bits only re-time, route or end the access in progress, and sel_q only remembers arbitration history, so the bus-handshake and arbitration-bookkeeping rules exclude them (lines 52-67, 111-130).\"\n    },\n    {\n      \"Candidate Name\": \"Forwarded gateway transaction data and response status\",\n      \"Candidate Unit\": \"neorv32_bus_gateway\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The request and response records are routed or merged without this unit storing or computing their transaction data, so forwarding and response-merging rules exclude them (lines 375-395, 399-401).\"\n    },\n    {\n      \"Candidate Name\": \"Gateway pending-access and lock bookkeeping\",\n      \"Candidate Unit\": \"neorv32_bus_gateway\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"busy and lock only track, time and terminate the access in progress, so the bus-handshake copy rule excludes them as independent information (lines 417-428).\"\n    },\n    {\n      \"Candidate Name\": \"Gateway build-time address map and port enables\",\n      \"Candidate Unit\": \"neorv32_bus_gateway\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The address bases, sizes and enable generics only fix the build-time map and cannot be changed or withheld at run time (lines 285-300, 324-331).\"\n    },\n    {\n      \"Candidate Name\": \"Forwarded device transactions and aggregated responses\",\n      \"Candidate Unit\": \"neorv32_bus_io_switch\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The I/O switch forwards request and response records through the register stage and device ports without storing or computing their transaction contents, so forwarding and response-merging rules exclude them (lines 608-611, 660-690).\"\n    },\n    {\n      \"Candidate Name\": \"Device address map, enable configuration and register-stage options\",\n      \"Candidate Unit\": \"neorv32_bus_io_switch\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The device base, enable, register-stage and size generics are build-time values, not run-time information that an element can modify or withhold (lines 458-494, 598-602).\"\n    },\n    {\n      \"Candidate Name\": \"Forwarded non-atomic bus transaction\",\n      \"Candidate Unit\": \"neorv32_bus_amo_rmw\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"Normal request and response fields are copied between the core and system ports, while only the atomic data result is computed or stored by this unit (lines 812-823, 826-828).\"\n    },\n    {\n      \"Candidate Name\": \"Atomic operation selector\",\n      \"Candidate Unit\": \"neorv32_bus_amo_rmw\",\n      \"Merged Into\": \"C7\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Atomic comparison intermediate values\",\n      \"Candidate Unit\": \"neorv32_bus_amo_rmw\",\n      \"Merged Into\": \"C7\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Forwarded reservation data and handshake\",\n      \"Candidate Unit\": \"neorv32_bus_amo_rvs\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The request data and system response fields are forwarded between ports and do not become stored or computed information of this unit, while the reservation result is covered by C9 (lines 940-964).\"\n    },\n    {\n      \"Candidate Name\": \"Reservation operation selector\",\n      \"Candidate Unit\": \"neorv32_bus_amo_rvs\",\n      \"Merged Into\": \"C9\",\n      \"Why Not Kept\": \"\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_bus",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_bus_switch",
+    "concept": "Bus arbitration grant",
+    "information": "The grant identifies which requester owns the shared bus transaction and controls the selected request and response path. It has no entry or exit port because request strobes only decide the grant and bus records carry the selected transaction.",
+    "rubric reason": "The registered arbitration state and combinational select determine the selected requester and response routing, so corrupting them can route a transaction to the wrong requester (lines 49, 55, 79, 87, 99, 114, 118, 124, 128, 164-169). The same state and select control whether either requester is served, so corrupting them can starve or block a requester (lines 91, 94, 103, 106, 116, 120, 126, 130, 140, 158).",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could alter the arbitration state or select so that one requester is indefinitely denied service or another requester receives its transaction response.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     49,
+     55,
+     79,
+     87,
+     91,
+     94,
+     99,
+     103,
+     106,
+     114,
+     116,
+     118,
+     120,
+     124,
+     126,
+     128,
+     130
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_bus_gateway",
+    "concept": "Bus target-routing decision",
+    "information": "The routing decision identifies which enabled target port receives an incoming bus request based on its address and configured address regions. It has no entry or exit port because the request address decides the decision and the selected request ports carry the transaction rather than the decision itself.",
+    "rubric reason": "The decoded port selection controls which target request strobe is asserted, so corrupting it can send an access to the wrong target (lines 356-361, 375-379). The same selection can leave all target strobes inactive or select an unintended fallback, so corrupting it can withhold a required transfer (lines 361, 378, 375-379).",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could corrupt the address-decode selection so a request reaches an unintended peripheral or no target responds.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     356,
+     357,
+     358,
+     361
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_bus_gateway",
+    "concept": "Transaction timeout and fault state",
+    "information": "The timeout monitor records elapsed progress and produces a timeout error for a transaction that does not complete. The timeout counter and error are internally generated, while the error is returned through the bus response.",
+    "rubric reason": "The counter comparison generates the timeout error that changes the response and terminates the monitored transaction, so modifying this state can falsely accept or fault an access (lines 422-427, 400-401). The counter and timeout path determine whether a stalled transfer is terminated or remains in progress, so corrupting them can stall or prematurely block bus operation (lines 417-428).",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could force the timeout counter or error state to abort valid accesses or prevent fault completion for a stalled access.",
+    "enters through": [],
+    "leaves through": [
+     "rsp_o.ack",
+     "rsp_o.err"
+    ],
+    "entry lines": [],
+    "held lines": [
+     411,
+     412,
+     415,
+     418,
+     422,
+     423,
+     424
+    ],
+    "exit lines": [
+     400,
+     401
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_bus_gateway",
+    "concept": "Timeout suppression decision",
+    "information": "The suppression decision records whether the selected route is exempt from timeout reporting and therefore controls whether a stalled transaction raises a timeout fault. It has no entry or exit port because it is internally derived from the selected route and only gates timeout behavior.",
+    "rubric reason": "The halt decision is sampled from the selected route and directly suppresses the timeout error condition, so changing it can disable the intended timeout protection (lines 416, 423-425). Suppressing or spuriously asserting this decision can leave a stalled request without an error or terminate a valid request, affecting continued operation (lines 423-428).",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could force the suppression decision active so a nonresponsive target prevents the gateway from completing the transaction with an error.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     413,
+     416
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_bus_io_switch",
+    "concept": "Device-selection routing decision",
+    "information": "The device-selection decision identifies which enabled device request port matches the incoming address and enables that device's request strobe. It has no entry or exit port because the address decides the selection and the device request records carry the routed transaction.",
+    "rubric reason": "The per-device address comparison controls each device request strobe, so corrupting the selection can route an access to the wrong device (lines 660-665). The same selection can clear every device strobe, so corrupting it can suppress a required device transfer (lines 661-671).",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could alter the device-selection comparison or strobe gating so an access reaches the wrong device or no device.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     661,
+     662,
+     664
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C6",
+    "unit": "neorv32_bus_amo_rmw",
+    "concept": "Atomic-operation execution state",
+    "information": "The execution state records the phases of an atomic read-modify-write operation, including read wait, execute, write and completion. It has no direct entry or exit port because request and response fields only trigger or advance the internally held state, which controls the operation sequence.",
+    "rubric reason": "The state controls whether the unit captures an atomic request, issues the read or write, and returns a response, so altering it can skip or reorder required atomic phases (lines 773-806, 813-828). A corrupted or stuck state can prevent the write or completion response from occurring, blocking the atomic operation (lines 787-801, 813-828).",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could force the execution state to skip the read or write phase, or hold the unit in a wait state indefinitely.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     758,
+     763,
+     780,
+     787,
+     792,
+     796,
+     801,
+     806
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C7",
+    "unit": "neorv32_bus_amo_rmw",
+    "concept": "Atomic update value",
+    "information": "The atomic update value is the data captured from the request and prior system read, then computed by the read-modify-write ALU for the memory update. The atomic operation depends on this value being correct, and it enters from the request and system response and leaves on the system request data field.",
+    "rubric reason": "The captured operands and computed update value are held internally and driven onto the system request data output, so an integrator may need to prevent unauthorized observation of the data (lines 779, 785, 839-845, 813). The unit stores and computes the update value before issuing it, so changing those registers or ALU result can modify the memory update (lines 763, 779, 785, 839-845, 813). The execution state gates issuance of the computed write, so blocking that state can withhold the required atomic update (lines 794-816).",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could observe or alter the captured operands or ALU result so that a different value is written, or prevent the computed update from being issued.",
+    "enters through": [
+     "core_req_i.data",
+     "sys_rsp_i.data"
+    ],
+    "leaves through": [
+     "sys_req_o.data"
+    ],
+    "entry lines": [
+     779,
+     785
+    ],
+    "held lines": [
+     760,
+     761,
+     763,
+     779,
+     785,
+     836,
+     839,
+     840,
+     841,
+     842,
+     843,
+     844,
+     845
+    ],
+    "exit lines": [
+     813
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C8",
+    "unit": "neorv32_bus_amo_rmw",
+    "concept": "Atomic prior-value result",
+    "information": "The atomic prior-value result is the system value read before the update and returned to the requesting core as the result of the atomic operation. It enters from the system response, is held while the operation executes, and leaves through the core response data field.",
+    "rubric reason": "The prior value is stored in the arbiter and returned through the core response data output, so it can expose data at the unit boundary (lines 785, 826). The arbiter register supplies the returned result, so altering it can change the value observed by the core (lines 763, 785, 826). The execution state controls when the prior value is returned and when response acknowledgement is asserted, so blocking the state can withhold completion (lines 826-828).",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could read or alter the captured prior value, or hold the operation state so the core receives no valid atomic result.",
+    "enters through": [
+     "sys_rsp_i.data"
+    ],
+    "leaves through": [
+     "core_rsp_o.data"
+    ],
+    "entry lines": [
+     785
+    ],
+    "held lines": [
+     760,
+     763,
+     785
+    ],
+    "exit lines": [
+     826
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C9",
+    "unit": "neorv32_bus_amo_rvs",
+    "concept": "Reservation and conditional-store result",
+    "information": "The reservation state and conditional-store result determine whether a reserved store is allowed and report failure when the reservation is not valid. The reservation is internally created and checked from requests, while its failure result leaves through the core response acknowledgement and data.",
+    "rubric reason": "The state controls whether a conditional store request is forwarded and sc_fail changes the returned result, so altering either can authorize an invalid store or report a false failure (lines 910-927, 944, 957, 963-964). A stuck or corrupted reservation state can suppress a valid conditional store or prevent the core from receiving completion, blocking the atomic sequence (lines 920-927, 943-946, 963-964).",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could forge or clear the reservation state so a conditional store succeeds without a valid reservation or valid stores are continuously rejected.",
+    "enters through": [],
+    "leaves through": [
+     "core_rsp_o.ack",
+     "core_rsp_o.data"
+    ],
+    "entry lines": [],
+    "held lines": [
+     904,
+     912,
+     914,
+     921,
+     927,
+     955,
+     957
+    ],
+    "exit lines": [
+     963,
+     964
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_bus_switch",
+    "concept": "Forwarded bus requests and responses",
+    "reason": "The switch only forwards request and response records between ports without storing or computing their transaction data, so the forwarding rule excludes them as concepts of this unit (lines 140-169).",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_bus_switch",
+    "concept": "Pending request, lock continuation and round-robin bookkeeping",
+    "reason": "The pending strobes and lock bits only re-time, route or end the access in progress, and sel_q only remembers arbitration history, so the bus-handshake and arbitration-bookkeeping rules exclude them (lines 52-67, 111-130).",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_bus_gateway",
+    "concept": "Forwarded gateway transaction data and response status",
+    "reason": "The request and response records are routed or merged without this unit storing or computing their transaction data, so forwarding and response-merging rules exclude them (lines 375-395, 399-401).",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_bus_gateway",
+    "concept": "Gateway pending-access and lock bookkeeping",
+    "reason": "busy and lock only track, time and terminate the access in progress, so the bus-handshake copy rule excludes them as independent information (lines 417-428).",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_bus_gateway",
+    "concept": "Gateway build-time address map and port enables",
+    "reason": "The address bases, sizes and enable generics only fix the build-time map and cannot be changed or withheld at run time (lines 285-300, 324-331).",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_bus_io_switch",
+    "concept": "Forwarded device transactions and aggregated responses",
+    "reason": "The I/O switch forwards request and response records through the register stage and device ports without storing or computing their transaction contents, so forwarding and response-merging rules exclude them (lines 608-611, 660-690).",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_bus_io_switch",
+    "concept": "Device address map, enable configuration and register-stage options",
+    "reason": "The device base, enable, register-stage and size generics are build-time values, not run-time information that an element can modify or withhold (lines 458-494, 598-602).",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_bus_amo_rmw",
+    "concept": "Forwarded non-atomic bus transaction",
+    "reason": "Normal request and response fields are copied between the core and system ports, while only the atomic data result is computed or stored by this unit (lines 812-823, 826-828).",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_bus_amo_rmw",
+    "concept": "Atomic operation selector",
+    "reason": "merged into C7",
+    "merged into": "C7"
+   },
+   {
+    "unit": "neorv32_bus_amo_rmw",
+    "concept": "Atomic comparison intermediate values",
+    "reason": "merged into C7",
+    "merged into": "C7"
+   },
+   {
+    "unit": "neorv32_bus_amo_rvs",
+    "concept": "Forwarded reservation data and handshake",
+    "reason": "The request data and system response fields are forwarded between ports and do not become stored or computed information of this unit, while the reservation result is covered by C9 (lines 940-964).",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_bus_amo_rvs",
+    "concept": "Reservation operation selector",
+    "reason": "merged into C9",
+    "merged into": "C9"
+   }
+  ]
+ },
+ "problems": [],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

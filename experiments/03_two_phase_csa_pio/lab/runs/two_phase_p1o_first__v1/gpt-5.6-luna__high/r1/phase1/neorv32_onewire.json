@@ -1,0 +1,369 @@
+{
+ "module": "neorv32_onewire",
+ "prompt version": "two_phase_p1o_first",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "b4c962e16261",
+ "user sha": "e3c473328195",
+ "usage": {
+  "in": 33266,
+  "out": 15018,
+  "reasoning": 11769,
+  "cached": 20474,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_03a866c0a6b5a14b006ad5a3ba8ef887d1989b10de036c5fa2",
+  "request key": "d0304cba2b70"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_onewire\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"One-wire controller enable state\",\n      \"Unit\": \"neorv32_onewire\",\n      \"Information\": \"The operational enable state determines whether the one-wire controller, its FIFOs, and the generated clock request are active. The IP uses it to enable operation and to clear the FIFOs when disabled.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because a bus write changes the enable state at line 142 and the state controls operation and the clock-enable output at lines 258-273; availability is at risk because disabling it clears both FIFOs and stops clock ticks at lines 199, 231, and 258-263.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An unauthorized control-register write could disable the controller, clear queued data, and withhold the clock-enable output.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\",\n        \"clkgen_en_o\"\n      ],\n      \"Entry Lines\": [\n        142\n      ],\n      \"Held Lines\": [\n        130,\n        142\n      ],\n      \"Exit Lines\": [\n        150,\n        273\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"One-wire timing configuration\",\n      \"Unit\": \"neorv32_onewire\",\n      \"Information\": \"The prescaler and divider settings determine the rate at which one-wire transfer steps are paced. One-wire operation depends on these settings to generate the internal transfer ticks.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because bus writes set the prescaler and divider at lines 144-145 and they control tick generation at lines 260-265; availability is at risk because an altered rate can prevent or stall serial progress through the tick-dependent logic at lines 360-367.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An unauthorized timing-setting write could make one-wire transfers run at an invalid rate or stop progressing.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        144,\n        145\n      ],\n      \"Held Lines\": [\n        131,\n        132,\n        144,\n        145\n      ],\n      \"Exit Lines\": [\n        151,\n        152\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"FIFO clear control\",\n      \"Unit\": \"neorv32_onewire\",\n      \"Information\": \"The clear control requests removal of queued transmit and receive information. The controller uses it to clear both FIFO instances.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because a bus write sets the clear control at line 143 and it clears both FIFOs at lines 199 and 231; availability is at risk because asserting it discards pending commands and received results at those same lines.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An unauthorized clear command could erase queued commands or received data and disrupt an in-progress transfer.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        143\n      ],\n      \"Held Lines\": [\n        133,\n        140,\n        143\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"One-wire operation command\",\n      \"Unit\": \"neorv32_onewire\",\n      \"Information\": \"The command selects the one-wire operation, such as bit transfer, byte transfer, reset, or no operation. The serial engine decodes it to select the transaction sequence.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because the bus writes the command into the transmit FIFO at line 201 and the serial engine decodes it at lines 323-335; availability is at risk because the decoded command determines whether and which transaction sequence runs at lines 331-335.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An unauthorized transmit-FIFO write could replace a requested operation with a reset, no-op, or different transfer type.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        201\n      ],\n      \"Held Lines\": [\n        201\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"One-wire transmit payload\",\n      \"Unit\": \"neorv32_onewire\",\n      \"Information\": \"The payload byte written by software is transmitted over the one-wire interface. The serial engine uses it while generating the one-wire output waveform.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality is at risk because bus data enters the transmit path at line 201 and influences the externally observable one-wire output at lines 300-302; integrity is at risk because an unauthorized write can replace the payload before it is loaded for serial transmission at line 328 and used by the output-control logic at line 342.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could read or alter a payload supplied for transmission, exposing it on the one-wire line or causing a wrong device command or data value.\",\n      \"Enters Through\": [\n        \"bus_req_i.data\"\n      ],\n      \"Leaves Through\": [\n        \"onewire_o\"\n      ],\n      \"Entry Lines\": [\n        201\n      ],\n      \"Held Lines\": [\n        201\n      ],\n      \"Exit Lines\": [\n        300,\n        302\n      ]\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Concept Name\": \"Received one-wire data byte\",\n      \"Unit\": \"neorv32_onewire\",\n      \"Information\": \"The sampled one-wire bits form a received data byte that is queued for software to read. The IP depends on it to return data received from the one-wire device.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality is at risk because sampled one-wire data enters at line 296 and is returned through the bus readback at line 161; integrity is at risk because the sampled value is assembled into the receive word at line 232 and an altered input or stored result changes the returned byte.\",\n      \"Objectives At Risk\": [\n        \"C\",\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could observe the receive readback or spoof the sampled one-wire bits so software receives an incorrect byte.\",\n      \"Enters Through\": [\n        \"onewire_i\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        296\n      ],\n      \"Held Lines\": [\n        232\n      ],\n      \"Exit Lines\": [\n        161\n      ]\n    },\n    {\n      \"Concept ID\": \"C7\",\n      \"Concept Name\": \"One-wire presence result\",\n      \"Unit\": \"neorv32_onewire\",\n      \"Information\": \"The presence result records whether a one-wire device responded during reset detection. Software reads it together with the received result word to determine device presence.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because the result is computed from the sampled line at line 375, placed in the receive word at line 232, and returned in the response at line 162.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could spoof the one-wire presence sample or corrupt the stored result so software falsely detects or misses a device.\",\n      \"Enters Through\": [\n        \"onewire_i\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        296\n      ],\n      \"Held Lines\": [\n        232,\n        375\n      ],\n      \"Exit Lines\": [\n        162\n      ]\n    },\n    {\n      \"Concept ID\": \"C8\",\n      \"Concept Name\": \"One-wire line sense status\",\n      \"Unit\": \"neorv32_onewire\",\n      \"Information\": \"The sensed one-wire level is exposed as a software-readable status value. It supports observing the current sampled state of the one-wire interface.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because the one-wire level is sampled into the sense path at line 296 and returned through the status readback at line 158, so alteration can falsify the reported line state.\",\n      \"Objectives At Risk\": [\n        \"I\"\n      ],\n      \"Attack\": \"An attacker could falsify the sensed line status and cause software to make an incorrect decision about the one-wire bus.\",\n      \"Enters Through\": [\n        \"onewire_i\"\n      ],\n      \"Leaves Through\": [\n        \"bus_rsp_o.data\"\n      ],\n      \"Entry Lines\": [\n        296\n      ],\n      \"Held Lines\": [],\n      \"Exit Lines\": [\n        158\n      ]\n    },\n    {\n      \"Concept ID\": \"C9\",\n      \"Concept Name\": \"One-wire service interrupt\",\n      \"Unit\": \"neorv32_onewire\",\n      \"Information\": \"The interrupt request signals that the controller is enabled, transmit work is not queued, and the serial engine is idle. The integrating system can depend on it to service the controller.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity is at risk because irq_o is produced from the enable, transmit availability, and busy state at line 243 and can therefore report a false service condition; availability is at risk because withholding irq_o can prevent the integrating system from servicing the controller.\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could cause the interrupt request to be suppressed or asserted at the wrong time, delaying service or causing incorrect host handling.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"irq_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        241,\n        243\n      ],\n      \"Exit Lines\": [\n        241,\n        243\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Clock and reset inputs\",\n      \"Candidate Unit\": \"neorv32_onewire\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"clk_i and rstn_i only time or reset state, and clkgen_i is used as a clock-source input for tick generation at lines 260 and 276, so the Clocks and resets rule bars them as conceptual assets.\"\n    },\n    {\n      \"Candidate Name\": \"Clock ticks and divider counters\",\n      \"Candidate Unit\": \"neorv32_onewire\",\n      \"Merged Into\": \"C2\",\n      \"Why Not Kept\": \"clk_cnt, clk_tick, and clk_tick2 only pace serial steps at lines 253-268 and 346-367, so the Pacing pulses rule makes them part of the timing configuration or paced operation rather than separate information.\"\n    },\n    {\n      \"Candidate Name\": \"Serial sequencing state\",\n      \"Candidate Unit\": \"neorv32_onewire\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"serial.state, bit_cnt, tick_cnt, done, and busy only order or report the progress of transfer steps at lines 312-394, so Sequencing state bars a separate conceptual asset.\"\n    },\n    {\n      \"Candidate Name\": \"FIFO availability and engine busy status\",\n      \"Candidate Unit\": \"neorv32_onewire\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"tx_free, tx_avail, rx_avail, and the bus-read busy status only report whether buffered data or sequencing can move at lines 156-159, so Buffer and engine status bits bars them as separate information.\"\n    },\n    {\n      \"Candidate Name\": \"Bus access command fields and response handshake\",\n      \"Candidate Unit\": \"neorv32_onewire\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"bus_req_i.stb, rw, and address fields only select local accesses at lines 141, 148, 200, and 234, while bus_rsp_o.ack and err are handshake or constant status at lines 136-137, so Access command fields and Bus handshake copies bar separate concepts.\"\n    },\n    {\n      \"Candidate Name\": \"FIFO buffer copies\",\n      \"Candidate Unit\": \"neorv32_onewire\",\n      \"Merged Into\": \"C5\",\n      \"Why Not Kept\": \"The transmit FIFO copy only holds payload and command while they move between the bus and serial engine through lines 190-201 and 323-328, so Port buffers makes it a path to the transmit concepts rather than information of its own.\"\n    },\n    {\n      \"Candidate Name\": \"Build-time FIFO size\",\n      \"Candidate Unit\": \"neorv32_onewire\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"ONEWIRE_FIFO and log2_fifo_size_c only fix FIFO construction and readback at lines 20, 176-180, 208-212, and 154, so Build-time values bars them as runtime conceptual assets.\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_onewire",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_onewire",
+    "concept": "One-wire controller enable state",
+    "information": "The operational enable state determines whether the one-wire controller, its FIFOs, and the generated clock request are active. The IP uses it to enable operation and to clear the FIFOs when disabled.",
+    "rubric reason": "Integrity is at risk because a bus write changes the enable state at line 142 and the state controls operation and the clock-enable output at lines 258-273; availability is at risk because disabling it clears both FIFOs and stops clock ticks at lines 199, 231, and 258-263.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An unauthorized control-register write could disable the controller, clear queued data, and withhold the clock-enable output.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data",
+     "clkgen_en_o"
+    ],
+    "entry lines": [
+     142
+    ],
+    "held lines": [
+     130,
+     142
+    ],
+    "exit lines": [
+     150,
+     273
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_onewire",
+    "concept": "One-wire timing configuration",
+    "information": "The prescaler and divider settings determine the rate at which one-wire transfer steps are paced. One-wire operation depends on these settings to generate the internal transfer ticks.",
+    "rubric reason": "Integrity is at risk because bus writes set the prescaler and divider at lines 144-145 and they control tick generation at lines 260-265; availability is at risk because an altered rate can prevent or stall serial progress through the tick-dependent logic at lines 360-367.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An unauthorized timing-setting write could make one-wire transfers run at an invalid rate or stop progressing.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     144,
+     145
+    ],
+    "held lines": [
+     131,
+     132,
+     144,
+     145
+    ],
+    "exit lines": [
+     151,
+     152
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_onewire",
+    "concept": "FIFO clear control",
+    "information": "The clear control requests removal of queued transmit and receive information. The controller uses it to clear both FIFO instances.",
+    "rubric reason": "Integrity is at risk because a bus write sets the clear control at line 143 and it clears both FIFOs at lines 199 and 231; availability is at risk because asserting it discards pending commands and received results at those same lines.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An unauthorized clear command could erase queued commands or received data and disrupt an in-progress transfer.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     143
+    ],
+    "held lines": [
+     133,
+     140,
+     143
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_onewire",
+    "concept": "One-wire operation command",
+    "information": "The command selects the one-wire operation, such as bit transfer, byte transfer, reset, or no operation. The serial engine decodes it to select the transaction sequence.",
+    "rubric reason": "Integrity is at risk because the bus writes the command into the transmit FIFO at line 201 and the serial engine decodes it at lines 323-335; availability is at risk because the decoded command determines whether and which transaction sequence runs at lines 331-335.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An unauthorized transmit-FIFO write could replace a requested operation with a reset, no-op, or different transfer type.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     201
+    ],
+    "held lines": [
+     201
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_onewire",
+    "concept": "One-wire transmit payload",
+    "information": "The payload byte written by software is transmitted over the one-wire interface. The serial engine uses it while generating the one-wire output waveform.",
+    "rubric reason": "Confidentiality is at risk because bus data enters the transmit path at line 201 and influences the externally observable one-wire output at lines 300-302; integrity is at risk because an unauthorized write can replace the payload before it is loaded for serial transmission at line 328 and used by the output-control logic at line 342.",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "attack": "An attacker could read or alter a payload supplied for transmission, exposing it on the one-wire line or causing a wrong device command or data value.",
+    "enters through": [
+     "bus_req_i.data"
+    ],
+    "leaves through": [
+     "onewire_o"
+    ],
+    "entry lines": [
+     201
+    ],
+    "held lines": [
+     201
+    ],
+    "exit lines": [
+     300,
+     302
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C6",
+    "unit": "neorv32_onewire",
+    "concept": "Received one-wire data byte",
+    "information": "The sampled one-wire bits form a received data byte that is queued for software to read. The IP depends on it to return data received from the one-wire device.",
+    "rubric reason": "Confidentiality is at risk because sampled one-wire data enters at line 296 and is returned through the bus readback at line 161; integrity is at risk because the sampled value is assembled into the receive word at line 232 and an altered input or stored result changes the returned byte.",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "attack": "An attacker could observe the receive readback or spoof the sampled one-wire bits so software receives an incorrect byte.",
+    "enters through": [
+     "onewire_i"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     296
+    ],
+    "held lines": [
+     232
+    ],
+    "exit lines": [
+     161
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C7",
+    "unit": "neorv32_onewire",
+    "concept": "One-wire presence result",
+    "information": "The presence result records whether a one-wire device responded during reset detection. Software reads it together with the received result word to determine device presence.",
+    "rubric reason": "Integrity is at risk because the result is computed from the sampled line at line 375, placed in the receive word at line 232, and returned in the response at line 162.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could spoof the one-wire presence sample or corrupt the stored result so software falsely detects or misses a device.",
+    "enters through": [
+     "onewire_i"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     296
+    ],
+    "held lines": [
+     232,
+     375
+    ],
+    "exit lines": [
+     162
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C8",
+    "unit": "neorv32_onewire",
+    "concept": "One-wire line sense status",
+    "information": "The sensed one-wire level is exposed as a software-readable status value. It supports observing the current sampled state of the one-wire interface.",
+    "rubric reason": "Integrity is at risk because the one-wire level is sampled into the sense path at line 296 and returned through the status readback at line 158, so alteration can falsify the reported line state.",
+    "objectives": [
+     "I"
+    ],
+    "attack": "An attacker could falsify the sensed line status and cause software to make an incorrect decision about the one-wire bus.",
+    "enters through": [
+     "onewire_i"
+    ],
+    "leaves through": [
+     "bus_rsp_o.data"
+    ],
+    "entry lines": [
+     296
+    ],
+    "held lines": [],
+    "exit lines": [
+     158
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C9",
+    "unit": "neorv32_onewire",
+    "concept": "One-wire service interrupt",
+    "information": "The interrupt request signals that the controller is enabled, transmit work is not queued, and the serial engine is idle. The integrating system can depend on it to service the controller.",
+    "rubric reason": "Integrity is at risk because irq_o is produced from the enable, transmit availability, and busy state at line 243 and can therefore report a false service condition; availability is at risk because withholding irq_o can prevent the integrating system from servicing the controller.",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could cause the interrupt request to be suppressed or asserted at the wrong time, delaying service or causing incorrect host handling.",
+    "enters through": [],
+    "leaves through": [
+     "irq_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     241,
+     243
+    ],
+    "exit lines": [
+     241,
+     243
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_onewire",
+    "concept": "Clock and reset inputs",
+    "reason": "clk_i and rstn_i only time or reset state, and clkgen_i is used as a clock-source input for tick generation at lines 260 and 276, so the Clocks and resets rule bars them as conceptual assets.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_onewire",
+    "concept": "Clock ticks and divider counters",
+    "reason": "merged into C2",
+    "merged into": "C2"
+   },
+   {
+    "unit": "neorv32_onewire",
+    "concept": "Serial sequencing state",
+    "reason": "serial.state, bit_cnt, tick_cnt, done, and busy only order or report the progress of transfer steps at lines 312-394, so Sequencing state bars a separate conceptual asset.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_onewire",
+    "concept": "FIFO availability and engine busy status",
+    "reason": "tx_free, tx_avail, rx_avail, and the bus-read busy status only report whether buffered data or sequencing can move at lines 156-159, so Buffer and engine status bits bars them as separate information.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_onewire",
+    "concept": "Bus access command fields and response handshake",
+    "reason": "bus_req_i.stb, rw, and address fields only select local accesses at lines 141, 148, 200, and 234, while bus_rsp_o.ack and err are handshake or constant status at lines 136-137, so Access command fields and Bus handshake copies bar separate concepts.",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_onewire",
+    "concept": "FIFO buffer copies",
+    "reason": "merged into C5",
+    "merged into": "C5"
+   },
+   {
+    "unit": "neorv32_onewire",
+    "concept": "Build-time FIFO size",
+    "reason": "ONEWIRE_FIFO and log2_fifo_size_c only fix FIFO construction and readback at lines 20, 176-180, 208-212, and 154, so Build-time values bars them as runtime conceptual assets.",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [
+  "consistency: not-kept entry 'Clock ticks and divider counters': both Merged Into and Why Not Kept are filled",
+  "consistency: not-kept entry 'FIFO buffer copies': both Merged Into and Why Not Kept are filled"
+ ],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

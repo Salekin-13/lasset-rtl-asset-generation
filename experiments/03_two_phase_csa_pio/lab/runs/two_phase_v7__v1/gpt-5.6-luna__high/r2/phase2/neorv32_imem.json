@@ -1,0 +1,939 @@
+{
+ "module": "neorv32_imem",
+ "prompt version": "two_phase_v7",
+ "input version": "v1",
+ "phase": 2,
+ "system sha": "6e414c09e397",
+ "user sha": "754619c6aac3",
+ "usage": {
+  "in": 20972,
+  "out": 20101,
+  "reasoning": 13725,
+  "cached": 15151,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_078f945e1c49017a006ace2fa9598887d1a8bba58b7b95025e",
+  "request key": "e687cf348721"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_imem\",\n  \"Concept Walks\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Points\": [\n        {\n          \"Point\": \"mem_access (line 111)\",\n          \"Reached By\": \"bus_req_i ==> mem_access (line 111) [bus_req_i.{ben,data,rw,stb}] carries write data into the RAM write process.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            114,\n            116,\n            119,\n            122,\n            125,\n            128,\n            129,\n            130,\n            131\n          ],\n          \"Answer Reason\": \"The process writes attacker-supplied bytes into memory and reads selected stored bytes into rdata, with no access restriction.\"\n        },\n        {\n          \"Point\": \"mem_access (line 139)\",\n          \"Reached By\": \"bus_req_i ==> mem_access (line 139) [bus_req_i.{ben,data,rw,stb}] carries write data into the alternative RAM process.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            143,\n            145,\n            148,\n            151,\n            154,\n            159,\n            160,\n            161,\n            162\n          ],\n          \"Answer Reason\": \"The process overwrites selected RAM bytes from the request, and those stored bytes are subsequently read into the response path without a restricting check.\"\n        },\n        {\n          \"Point\": \"imem_ram_alternative\",\n          \"Reached By\": \"mem_access (line 139) ==> imem_ram_alternative [addr_ff, mem_ram_b0, mem_ram_b1, mem_ram_b2, mem_ram_b3] carries RAM contents into the alternative read logic.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            159,\n            160,\n            161,\n            162\n          ],\n          \"Answer Reason\": \"The generate block assembles stored RAM bytes into rdata, which exposes the selected memory contents through the response.\"\n        },\n        {\n          \"Point\": \"mem_access (line 78)\",\n          \"Reached By\": \"mem_access (line 78) ==> bus_rsp_o [rdata] is the backward path from the response to the ROM read process.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            80,\n            81\n          ],\n          \"Answer Reason\": \"The clocked ROM lookup produces an application-image word in rdata, which the response path returns without an authorization check.\"\n        },\n        {\n          \"Point\": \"imem_rom_alternative\",\n          \"Reached By\": \"imem_rom_alternative ==> bus_rsp_o [rdata] carries the alternative ROM lookup result toward the response.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            95\n          ],\n          \"Answer Reason\": \"The alternative ROM logic places an initialized image word directly into rdata for return to the requester.\"\n        },\n        {\n          \"Point\": \"mem_access (line 89)\",\n          \"Reached By\": \"mem_access (line 89) --> imem_rom_alternative [addr_ff] makes the registered ROM address an influence point.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [],\n          \"Answer Reason\": \"This process only registers the lookup address; the block itself does not store, expose, modify, or block the memory contents.\"\n        },\n        {\n          \"Point\": \"addr\",\n          \"Reached By\": \"addr --> mem_access (line 111) [addr] makes the address-selection logic an influence point for indexed memory writes and reads.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            116,\n            119,\n            122,\n            125,\n            145,\n            148,\n            151,\n            154\n          ],\n          \"Answer Reason\": \"The unchecked request address selects which RAM word receives each enabled write, allowing an attacker to steer corruption to another memory location.\"\n        },\n        {\n          \"Point\": \"bus_feedback\",\n          \"Reached By\": \"bus_feedback ==> bus_rsp_o [rden] makes the response-enable process an influence point for the memory-content release.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            173,\n            176,\n            185\n          ],\n          \"Answer Reason\": \"Reset or a non-read request can leave rden low, and the following data assignment then replaces the selected word with zeros.\"\n        },\n        {\n          \"Point\": \"bus_rsp_o.data\",\n          \"Reached By\": \"mem_access (line 111) ==> bus_rsp_o [rdata] and the corresponding ROM and RAM arrows reach the bus_rsp_o.data assignment.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            185\n          ],\n          \"Answer Reason\": \"The output returns rdata unchanged when rden is asserted, while the same assignment suppresses the memory word with zeros when rden is low.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"mem_ram_b0\",\n          \"Entity\": \"neorv32_imem\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"mem_access (line 111)\",\n            \"mem_access (line 139)\"\n          ],\n          \"Security Objectives\": [\n            \"C\",\n            \"I\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"It stores and returns byte lane zero of RAM-mode instruction-memory contents.\",\n          \"Justification\": \"It is the internal storage directly holding part of the conceptual memory contents and is directly overwritten by bus writes.\",\n          \"Asset Lines\": [\n            55,\n            116,\n            128,\n            145,\n            159\n          ]\n        },\n        {\n          \"Asset RTL\": \"mem_ram_b1\",\n          \"Entity\": \"neorv32_imem\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"mem_access (line 111)\",\n            \"mem_access (line 139)\"\n          ],\n          \"Security Objectives\": [\n            \"C\",\n            \"I\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"It stores and returns byte lane one of RAM-mode instruction-memory contents.\",\n          \"Justification\": \"It is the internal storage directly holding part of the conceptual memory contents and is directly overwritten by bus writes.\",\n          \"Asset Lines\": [\n            55,\n            119,\n            129,\n            148,\n            160\n          ]\n        },\n        {\n          \"Asset RTL\": \"mem_ram_b2\",\n          \"Entity\": \"neorv32_imem\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"mem_access (line 111)\",\n            \"mem_access (line 139)\"\n          ],\n          \"Security Objectives\": [\n            \"C\",\n            \"I\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"It stores and returns byte lane two of RAM-mode instruction-memory contents.\",\n          \"Justification\": \"It is the internal storage directly holding part of the conceptual memory contents and is directly overwritten by bus writes.\",\n          \"Asset Lines\": [\n            55,\n            122,\n            130,\n            151,\n            161\n          ]\n        },\n        {\n          \"Asset RTL\": \"mem_ram_b3\",\n          \"Entity\": \"neorv32_imem\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"mem_access (line 111)\",\n            \"mem_access (line 139)\"\n          ],\n          \"Security Objectives\": [\n            \"C\",\n            \"I\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"It stores and returns byte lane three of RAM-mode instruction-memory contents.\",\n          \"Justification\": \"It is the internal storage directly holding part of the conceptual memory contents and is directly overwritten by bus writes.\",\n          \"Asset Lines\": [\n            55,\n            125,\n            131,\n            154,\n            162\n          ]\n        },\n        {\n          \"Asset RTL\": \"rdata\",\n          \"Entity\": \"neorv32_imem\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"mem_access (line 111)\",\n            \"mem_access (line 78)\",\n            \"imem_ram_alternative\",\n            \"imem_rom_alternative\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"It produces the selected ROM word or assembles the selected RAM bytes for the response.\",\n          \"Justification\": \"The ROM lookup writes the initialized contents directly into rdata, making it the computed primary for ROM builds even though RAM builds feed it from the byte arrays.\",\n          \"Asset Lines\": [\n            81,\n            95,\n            128,\n            129,\n            130,\n            131,\n            159,\n            160,\n            161,\n            162,\n            185\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_imem\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"mem_access (line 111)\",\n            \"mem_access (line 139)\"\n          ],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"mem_ram_b0\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"mem_ram_b1\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"mem_ram_b2\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"mem_ram_b3\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It supplies the byte values written into RAM-mode memory.\",\n          \"Justification\": \"This bus-request field is barred from being primary by the record-port rule but can directly modify each RAM byte lane.\",\n          \"Asset Lines\": [\n            116,\n            119,\n            122,\n            125,\n            145,\n            148,\n            151,\n            154\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_rsp_o.data\",\n          \"Entity\": \"neorv32_imem\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_rsp_o.data\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rdata\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"a\"\n            },\n            {\n              \"Primary RTL\": \"mem_ram_b0\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"a\"\n            },\n            {\n              \"Primary RTL\": \"mem_ram_b1\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"a\"\n            },\n            {\n              \"Primary RTL\": \"mem_ram_b2\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"a\"\n            },\n            {\n              \"Primary RTL\": \"mem_ram_b3\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"a\"\n            }\n          ],\n          \"Functionality\": \"It carries the selected memory word out of the unit.\",\n          \"Justification\": \"The response field is a bus-response record field and therefore cannot be primary, but it returns the memory contents unchanged when enabled.\",\n          \"Asset Lines\": [\n            185\n          ]\n        },\n        {\n          \"Asset RTL\": \"rden\",\n          \"Entity\": \"neorv32_imem\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_feedback\"\n          ],\n          \"Security Objectives\": [\n            \"C\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rdata\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"mem_ram_b0\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"mem_ram_b1\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"mem_ram_b2\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"mem_ram_b3\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It gates whether the selected memory word is released on bus_rsp_o.data.\",\n          \"Justification\": \"Its reset and request-controlled value decides the assignment that releases or suppresses the primary memory value.\",\n          \"Asset Lines\": [\n            173,\n            176,\n            185\n          ]\n        },\n        {\n          \"Asset RTL\": \"addr\",\n          \"Entity\": \"neorv32_imem\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"addr\"\n          ],\n          \"Security Objectives\": [\n            \"C\",\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rdata\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"mem_ram_b0\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"mem_ram_b1\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"mem_ram_b2\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"mem_ram_b3\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It selects the memory word read or overwritten by the request.\",\n          \"Justification\": \"It is an address-derived index rather than stored content, but it controls both the RAM write target and the word selected for release.\",\n          \"Asset Lines\": [\n            101,\n            116,\n            119,\n            122,\n            125,\n            128,\n            129,\n            130,\n            131,\n            145,\n            148,\n            151,\n            154\n          ]\n        },\n        {\n          \"Asset RTL\": \"addr_ff\",\n          \"Entity\": \"neorv32_imem\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"mem_access (line 139)\"\n          ],\n          \"Security Objectives\": [\n            \"C\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rdata\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"mem_ram_b0\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"mem_ram_b1\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"mem_ram_b2\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"mem_ram_b3\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It holds the registered address used to select the alternative read word.\",\n          \"Justification\": \"It is an address-only forwarding register, not memory content, but it controls which stored word reaches the read-data path.\",\n          \"Asset Lines\": [\n            92,\n            134,\n            142,\n            159,\n            160,\n            161,\n            162\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.ben\",\n          \"Entity\": \"neorv32_imem\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"I\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"mem_ram_b0\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"mem_ram_b1\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"mem_ram_b2\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"mem_ram_b3\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It selects which RAM byte lanes a write may overwrite.\",\n          \"Justification\": \"This access-control field is not primary but directly decides each byte-lane write condition.\",\n          \"Asset Lines\": [\n            115,\n            118,\n            121,\n            124,\n            144,\n            147,\n            150,\n            153\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.rw\",\n          \"Entity\": \"neorv32_imem\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"C\",\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rdata\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"mem_ram_b0\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"mem_ram_b1\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"mem_ram_b2\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"mem_ram_b3\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It distinguishes RAM writes from read-response requests and helps form rden.\",\n          \"Justification\": \"This record access field decides RAM updates and whether a memory value is released, so an unchecked request can alter or suppress memory service.\",\n          \"Asset Lines\": [\n            114,\n            143,\n            176,\n            178\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.stb\",\n          \"Entity\": \"neorv32_imem\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"C\",\n            \"I\",\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rdata\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"mem_ram_b0\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"mem_ram_b1\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"mem_ram_b2\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"mem_ram_b3\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It enables RAM writes and participates in generating the read-response enable.\",\n          \"Justification\": \"This unchecked request strobe decides whether memory is overwritten and whether a selected word is released.\",\n          \"Asset Lines\": [\n            114,\n            143,\n            176,\n            178,\n            180\n          ]\n        },\n        {\n          \"Asset RTL\": \"clk_i\",\n          \"Entity\": \"neorv32_imem\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rdata\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"mem_ram_b0\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"mem_ram_b1\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"mem_ram_b2\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            },\n            {\n              \"Primary RTL\": \"mem_ram_b3\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It times memory writes, ROM reads, response-enable updates, and response availability.\",\n          \"Justification\": \"The clock is a timing dependency of the primary storage and read production, so stopping its edges can stall memory operation.\",\n          \"Asset Lines\": [\n            80,\n            91,\n            113,\n            141,\n            175\n          ]\n        },\n        {\n          \"Asset RTL\": \"rstn_i\",\n          \"Entity\": \"neorv32_imem\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rdata\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It clears rden and thereby controls whether memory contents can be returned.\",\n          \"Justification\": \"The reset path can force the release gate low, blocking the primary memory value from reaching the response.\",\n          \"Asset Lines\": [\n            172,\n            173,\n            174\n          ]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Points\": [\n        {\n          \"Point\": \"bus_feedback\",\n          \"Reached By\": \"holding block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            172,\n            173,\n            176\n          ],\n          \"Answer Reason\": \"The block stores rden and can clear it on reset or keep it low for a non-read request, preventing the read response from being enabled.\"\n        },\n        {\n          \"Point\": \"bus_rsp_o.data\",\n          \"Reached By\": \"bus_feedback ==> bus_rsp_o [rden] reaches the concurrent bus_rsp_o.data assignment.\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [\n            185\n          ],\n          \"Answer Reason\": \"The assignment gates the response data with rden and drives zeros whenever the registered enable is low.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"rden\",\n          \"Entity\": \"neorv32_imem\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\n            \"bus_feedback\"\n          ],\n          \"Security Objectives\": [\n            \"A\"\n          ],\n          \"Secondary To\": [],\n          \"Functionality\": \"It stores the registered decision that enables or suppresses a memory read response.\",\n          \"Justification\": \"It is the internal state directly implementing the conceptual read-response enable and directly controls the data gate.\",\n          \"Asset Lines\": [\n            48,\n            173,\n            176,\n            185\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.rw\",\n          \"Entity\": \"neorv32_imem\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rden\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It determines whether the registered request is a read and therefore whether rden is asserted.\",\n          \"Justification\": \"The request field directly participates in the assignment to rden, so an attacker can keep the enable inactive.\",\n          \"Asset Lines\": [\n            176\n          ]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.stb\",\n          \"Entity\": \"neorv32_imem\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rden\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It determines whether a request is active and therefore whether rden is asserted.\",\n          \"Justification\": \"The request strobe directly participates in the assignment to rden, allowing the enable state to remain inactive.\",\n          \"Asset Lines\": [\n            176\n          ]\n        },\n        {\n          \"Asset RTL\": \"clk_i\",\n          \"Entity\": \"neorv32_imem\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rden\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It times updates of the registered read-response enable.\",\n          \"Justification\": \"Without clock edges the primary rden state cannot update, so response enabling can be stalled.\",\n          \"Asset Lines\": [\n            175\n          ]\n        },\n        {\n          \"Asset RTL\": \"rstn_i\",\n          \"Entity\": \"neorv32_imem\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\n            \"A\"\n          ],\n          \"Secondary To\": [\n            {\n              \"Primary RTL\": \"rden\",\n              \"Primary Entity\": \"neorv32_imem\",\n              \"Direction\": \"b\"\n            }\n          ],\n          \"Functionality\": \"It resets the registered read-response enable to zero.\",\n          \"Justification\": \"The asynchronous reset directly clears the primary rden state and blocks the response gate until a later read request updates it.\",\n          \"Asset Lines\": [\n            172,\n            173\n          ]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    }\n  ],\n  \"Notes\": [\n    \"The ROM constant mem_rom_c is not a closed-set element, so its contents are represented through the rdata element written by the ROM lookup.\"\n  ]\n}",
+ "reply": {
+  "module name": "neorv32_imem",
+  "notes": [
+   "The ROM constant mem_rom_c is not a closed-set element, so its contents are represented through the rdata element written by the ROM lookup."
+  ],
+  "points": [
+   {
+    "concept id": "C1",
+    "point": "mem_access (line 111)",
+    "reached by": "bus_req_i ==> mem_access (line 111) [bus_req_i.{ben,data,rw,stb}] carries write data into the RAM write process.",
+    "lines": [
+     114,
+     116,
+     119,
+     122,
+     125,
+     128,
+     129,
+     130,
+     131
+    ],
+    "reason": "The process writes attacker-supplied bytes into memory and reads selected stored bytes into rdata, with no access restriction.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "mem_access (line 139)",
+    "reached by": "bus_req_i ==> mem_access (line 139) [bus_req_i.{ben,data,rw,stb}] carries write data into the alternative RAM process.",
+    "lines": [
+     143,
+     145,
+     148,
+     151,
+     154,
+     159,
+     160,
+     161,
+     162
+    ],
+    "reason": "The process overwrites selected RAM bytes from the request, and those stored bytes are subsequently read into the response path without a restricting check.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "imem_ram_alternative",
+    "reached by": "mem_access (line 139) ==> imem_ram_alternative [addr_ff, mem_ram_b0, mem_ram_b1, mem_ram_b2, mem_ram_b3] carries RAM contents into the alternative read logic.",
+    "lines": [
+     159,
+     160,
+     161,
+     162
+    ],
+    "reason": "The generate block assembles stored RAM bytes into rdata, which exposes the selected memory contents through the response.",
+    "confidentiality": "yes",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "mem_access (line 78)",
+    "reached by": "mem_access (line 78) ==> bus_rsp_o [rdata] is the backward path from the response to the ROM read process.",
+    "lines": [
+     80,
+     81
+    ],
+    "reason": "The clocked ROM lookup produces an application-image word in rdata, which the response path returns without an authorization check.",
+    "confidentiality": "yes",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "imem_rom_alternative",
+    "reached by": "imem_rom_alternative ==> bus_rsp_o [rdata] carries the alternative ROM lookup result toward the response.",
+    "lines": [
+     95
+    ],
+    "reason": "The alternative ROM logic places an initialized image word directly into rdata for return to the requester.",
+    "confidentiality": "yes",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "mem_access (line 89)",
+    "reached by": "mem_access (line 89) --> imem_rom_alternative [addr_ff] makes the registered ROM address an influence point.",
+    "lines": [],
+    "reason": "This process only registers the lookup address; the block itself does not store, expose, modify, or block the memory contents.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "addr",
+    "reached by": "addr --> mem_access (line 111) [addr] makes the address-selection logic an influence point for indexed memory writes and reads.",
+    "lines": [
+     116,
+     119,
+     122,
+     125,
+     145,
+     148,
+     151,
+     154
+    ],
+    "reason": "The unchecked request address selects which RAM word receives each enabled write, allowing an attacker to steer corruption to another memory location.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "bus_feedback",
+    "reached by": "bus_feedback ==> bus_rsp_o [rden] makes the response-enable process an influence point for the memory-content release.",
+    "lines": [
+     173,
+     176,
+     185
+    ],
+    "reason": "Reset or a non-read request can leave rden low, and the following data assignment then replaces the selected word with zeros.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "bus_rsp_o.data",
+    "reached by": "mem_access (line 111) ==> bus_rsp_o [rdata] and the corresponding ROM and RAM arrows reach the bus_rsp_o.data assignment.",
+    "lines": [
+     185
+    ],
+    "reason": "The output returns rdata unchanged when rden is asserted, while the same assignment suppresses the memory word with zeros when rden is low.",
+    "confidentiality": "yes",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "bus_feedback",
+    "reached by": "holding block",
+    "lines": [
+     172,
+     173,
+     176
+    ],
+    "reason": "The block stores rden and can clear it on reset or keep it low for a non-read request, preventing the read response from being enabled.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "bus_rsp_o.data",
+    "reached by": "bus_feedback ==> bus_rsp_o [rden] reaches the concurrent bus_rsp_o.data assignment.",
+    "lines": [
+     185
+    ],
+    "reason": "The assignment gates the response data with rden and drives zeros whenever the registered enable is low.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   }
+  ],
+  "structural assets": [
+   {
+    "concept id": "C1",
+    "element": "mem_ram_b0",
+    "entity": "neorv32_imem",
+    "same role": [],
+    "points": [
+     "mem_access (line 111)",
+     "mem_access (line 139)"
+    ],
+    "label": "primary",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "lines": [
+     55,
+     116,
+     128,
+     145,
+     159
+    ],
+    "links": [],
+    "reason": "It stores and returns byte lane zero of RAM-mode instruction-memory contents. It is the internal storage directly holding part of the conceptual memory contents and is directly overwritten by bus writes.",
+    "functionality": "It stores and returns byte lane zero of RAM-mode instruction-memory contents.",
+    "justification": "It is the internal storage directly holding part of the conceptual memory contents and is directly overwritten by bus writes."
+   },
+   {
+    "concept id": "C1",
+    "element": "mem_ram_b1",
+    "entity": "neorv32_imem",
+    "same role": [],
+    "points": [
+     "mem_access (line 111)",
+     "mem_access (line 139)"
+    ],
+    "label": "primary",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "lines": [
+     55,
+     119,
+     129,
+     148,
+     160
+    ],
+    "links": [],
+    "reason": "It stores and returns byte lane one of RAM-mode instruction-memory contents. It is the internal storage directly holding part of the conceptual memory contents and is directly overwritten by bus writes.",
+    "functionality": "It stores and returns byte lane one of RAM-mode instruction-memory contents.",
+    "justification": "It is the internal storage directly holding part of the conceptual memory contents and is directly overwritten by bus writes."
+   },
+   {
+    "concept id": "C1",
+    "element": "mem_ram_b2",
+    "entity": "neorv32_imem",
+    "same role": [],
+    "points": [
+     "mem_access (line 111)",
+     "mem_access (line 139)"
+    ],
+    "label": "primary",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "lines": [
+     55,
+     122,
+     130,
+     151,
+     161
+    ],
+    "links": [],
+    "reason": "It stores and returns byte lane two of RAM-mode instruction-memory contents. It is the internal storage directly holding part of the conceptual memory contents and is directly overwritten by bus writes.",
+    "functionality": "It stores and returns byte lane two of RAM-mode instruction-memory contents.",
+    "justification": "It is the internal storage directly holding part of the conceptual memory contents and is directly overwritten by bus writes."
+   },
+   {
+    "concept id": "C1",
+    "element": "mem_ram_b3",
+    "entity": "neorv32_imem",
+    "same role": [],
+    "points": [
+     "mem_access (line 111)",
+     "mem_access (line 139)"
+    ],
+    "label": "primary",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "lines": [
+     55,
+     125,
+     131,
+     154,
+     162
+    ],
+    "links": [],
+    "reason": "It stores and returns byte lane three of RAM-mode instruction-memory contents. It is the internal storage directly holding part of the conceptual memory contents and is directly overwritten by bus writes.",
+    "functionality": "It stores and returns byte lane three of RAM-mode instruction-memory contents.",
+    "justification": "It is the internal storage directly holding part of the conceptual memory contents and is directly overwritten by bus writes."
+   },
+   {
+    "concept id": "C1",
+    "element": "rdata",
+    "entity": "neorv32_imem",
+    "same role": [],
+    "points": [
+     "mem_access (line 111)",
+     "mem_access (line 78)",
+     "imem_ram_alternative",
+     "imem_rom_alternative"
+    ],
+    "label": "primary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     81,
+     95,
+     128,
+     129,
+     130,
+     131,
+     159,
+     160,
+     161,
+     162,
+     185
+    ],
+    "links": [],
+    "reason": "It produces the selected ROM word or assembles the selected RAM bytes for the response. The ROM lookup writes the initialized contents directly into rdata, making it the computed primary for ROM builds even though RAM builds feed it from the byte arrays.",
+    "functionality": "It produces the selected ROM word or assembles the selected RAM bytes for the response.",
+    "justification": "The ROM lookup writes the initialized contents directly into rdata, making it the computed primary for ROM builds even though RAM builds feed it from the byte arrays."
+   },
+   {
+    "concept id": "C1",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_imem",
+    "same role": [],
+    "points": [
+     "mem_access (line 111)",
+     "mem_access (line 139)"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     116,
+     119,
+     122,
+     125,
+     145,
+     148,
+     151,
+     154
+    ],
+    "links": [
+     {
+      "primary": "mem_ram_b0",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     },
+     {
+      "primary": "mem_ram_b1",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     },
+     {
+      "primary": "mem_ram_b2",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     },
+     {
+      "primary": "mem_ram_b3",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     }
+    ],
+    "reason": "It supplies the byte values written into RAM-mode memory. This bus-request field is barred from being primary by the record-port rule but can directly modify each RAM byte lane.",
+    "functionality": "It supplies the byte values written into RAM-mode memory.",
+    "justification": "This bus-request field is barred from being primary by the record-port rule but can directly modify each RAM byte lane."
+   },
+   {
+    "concept id": "C1",
+    "element": "bus_rsp_o.data",
+    "entity": "neorv32_imem",
+    "same role": [],
+    "points": [
+     "bus_rsp_o.data"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     185
+    ],
+    "links": [
+     {
+      "primary": "rdata",
+      "entity": "neorv32_imem",
+      "direction": "a"
+     },
+     {
+      "primary": "mem_ram_b0",
+      "entity": "neorv32_imem",
+      "direction": "a"
+     },
+     {
+      "primary": "mem_ram_b1",
+      "entity": "neorv32_imem",
+      "direction": "a"
+     },
+     {
+      "primary": "mem_ram_b2",
+      "entity": "neorv32_imem",
+      "direction": "a"
+     },
+     {
+      "primary": "mem_ram_b3",
+      "entity": "neorv32_imem",
+      "direction": "a"
+     }
+    ],
+    "reason": "It carries the selected memory word out of the unit. The response field is a bus-response record field and therefore cannot be primary, but it returns the memory contents unchanged when enabled.",
+    "functionality": "It carries the selected memory word out of the unit.",
+    "justification": "The response field is a bus-response record field and therefore cannot be primary, but it returns the memory contents unchanged when enabled."
+   },
+   {
+    "concept id": "C1",
+    "element": "rden",
+    "entity": "neorv32_imem",
+    "same role": [],
+    "points": [
+     "bus_feedback"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C",
+     "A"
+    ],
+    "lines": [
+     173,
+     176,
+     185
+    ],
+    "links": [
+     {
+      "primary": "rdata",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     },
+     {
+      "primary": "mem_ram_b0",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     },
+     {
+      "primary": "mem_ram_b1",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     },
+     {
+      "primary": "mem_ram_b2",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     },
+     {
+      "primary": "mem_ram_b3",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     }
+    ],
+    "reason": "It gates whether the selected memory word is released on bus_rsp_o.data. Its reset and request-controlled value decides the assignment that releases or suppresses the primary memory value.",
+    "functionality": "It gates whether the selected memory word is released on bus_rsp_o.data.",
+    "justification": "Its reset and request-controlled value decides the assignment that releases or suppresses the primary memory value."
+   },
+   {
+    "concept id": "C1",
+    "element": "addr",
+    "entity": "neorv32_imem",
+    "same role": [],
+    "points": [
+     "addr"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "lines": [
+     101,
+     116,
+     119,
+     122,
+     125,
+     128,
+     129,
+     130,
+     131,
+     145,
+     148,
+     151,
+     154
+    ],
+    "links": [
+     {
+      "primary": "rdata",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     },
+     {
+      "primary": "mem_ram_b0",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     },
+     {
+      "primary": "mem_ram_b1",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     },
+     {
+      "primary": "mem_ram_b2",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     },
+     {
+      "primary": "mem_ram_b3",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     }
+    ],
+    "reason": "It selects the memory word read or overwritten by the request. It is an address-derived index rather than stored content, but it controls both the RAM write target and the word selected for release.",
+    "functionality": "It selects the memory word read or overwritten by the request.",
+    "justification": "It is an address-derived index rather than stored content, but it controls both the RAM write target and the word selected for release."
+   },
+   {
+    "concept id": "C1",
+    "element": "addr_ff",
+    "entity": "neorv32_imem",
+    "same role": [],
+    "points": [
+     "mem_access (line 139)"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C"
+    ],
+    "lines": [
+     92,
+     134,
+     142,
+     159,
+     160,
+     161,
+     162
+    ],
+    "links": [
+     {
+      "primary": "rdata",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     },
+     {
+      "primary": "mem_ram_b0",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     },
+     {
+      "primary": "mem_ram_b1",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     },
+     {
+      "primary": "mem_ram_b2",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     },
+     {
+      "primary": "mem_ram_b3",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     }
+    ],
+    "reason": "It holds the registered address used to select the alternative read word. It is an address-only forwarding register, not memory content, but it controls which stored word reaches the read-data path.",
+    "functionality": "It holds the registered address used to select the alternative read word.",
+    "justification": "It is an address-only forwarding register, not memory content, but it controls which stored word reaches the read-data path."
+   },
+   {
+    "concept id": "C1",
+    "element": "bus_req_i.ben",
+    "entity": "neorv32_imem",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     115,
+     118,
+     121,
+     124,
+     144,
+     147,
+     150,
+     153
+    ],
+    "links": [
+     {
+      "primary": "mem_ram_b0",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     },
+     {
+      "primary": "mem_ram_b1",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     },
+     {
+      "primary": "mem_ram_b2",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     },
+     {
+      "primary": "mem_ram_b3",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     }
+    ],
+    "reason": "It selects which RAM byte lanes a write may overwrite. This access-control field is not primary but directly decides each byte-lane write condition.",
+    "functionality": "It selects which RAM byte lanes a write may overwrite.",
+    "justification": "This access-control field is not primary but directly decides each byte-lane write condition."
+   },
+   {
+    "concept id": "C1",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_imem",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "lines": [
+     114,
+     143,
+     176,
+     178
+    ],
+    "links": [
+     {
+      "primary": "rdata",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     },
+     {
+      "primary": "mem_ram_b0",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     },
+     {
+      "primary": "mem_ram_b1",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     },
+     {
+      "primary": "mem_ram_b2",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     },
+     {
+      "primary": "mem_ram_b3",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     }
+    ],
+    "reason": "It distinguishes RAM writes from read-response requests and helps form rden. This record access field decides RAM updates and whether a memory value is released, so an unchecked request can alter or suppress memory service.",
+    "functionality": "It distinguishes RAM writes from read-response requests and helps form rden.",
+    "justification": "This record access field decides RAM updates and whether a memory value is released, so an unchecked request can alter or suppress memory service."
+   },
+   {
+    "concept id": "C1",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_imem",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "lines": [
+     114,
+     143,
+     176,
+     178,
+     180
+    ],
+    "links": [
+     {
+      "primary": "rdata",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     },
+     {
+      "primary": "mem_ram_b0",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     },
+     {
+      "primary": "mem_ram_b1",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     },
+     {
+      "primary": "mem_ram_b2",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     },
+     {
+      "primary": "mem_ram_b3",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     }
+    ],
+    "reason": "It enables RAM writes and participates in generating the read-response enable. This unchecked request strobe decides whether memory is overwritten and whether a selected word is released.",
+    "functionality": "It enables RAM writes and participates in generating the read-response enable.",
+    "justification": "This unchecked request strobe decides whether memory is overwritten and whether a selected word is released."
+   },
+   {
+    "concept id": "C1",
+    "element": "clk_i",
+    "entity": "neorv32_imem",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     80,
+     91,
+     113,
+     141,
+     175
+    ],
+    "links": [
+     {
+      "primary": "rdata",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     },
+     {
+      "primary": "mem_ram_b0",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     },
+     {
+      "primary": "mem_ram_b1",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     },
+     {
+      "primary": "mem_ram_b2",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     },
+     {
+      "primary": "mem_ram_b3",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     }
+    ],
+    "reason": "It times memory writes, ROM reads, response-enable updates, and response availability. The clock is a timing dependency of the primary storage and read production, so stopping its edges can stall memory operation.",
+    "functionality": "It times memory writes, ROM reads, response-enable updates, and response availability.",
+    "justification": "The clock is a timing dependency of the primary storage and read production, so stopping its edges can stall memory operation."
+   },
+   {
+    "concept id": "C1",
+    "element": "rstn_i",
+    "entity": "neorv32_imem",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     172,
+     173,
+     174
+    ],
+    "links": [
+     {
+      "primary": "rdata",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     }
+    ],
+    "reason": "It clears rden and thereby controls whether memory contents can be returned. The reset path can force the release gate low, blocking the primary memory value from reaching the response.",
+    "functionality": "It clears rden and thereby controls whether memory contents can be returned.",
+    "justification": "The reset path can force the release gate low, blocking the primary memory value from reaching the response."
+   },
+   {
+    "concept id": "C2",
+    "element": "rden",
+    "entity": "neorv32_imem",
+    "same role": [],
+    "points": [
+     "bus_feedback"
+    ],
+    "label": "primary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     48,
+     173,
+     176,
+     185
+    ],
+    "links": [],
+    "reason": "It stores the registered decision that enables or suppresses a memory read response. It is the internal state directly implementing the conceptual read-response enable and directly controls the data gate.",
+    "functionality": "It stores the registered decision that enables or suppresses a memory read response.",
+    "justification": "It is the internal state directly implementing the conceptual read-response enable and directly controls the data gate."
+   },
+   {
+    "concept id": "C2",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_imem",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     176
+    ],
+    "links": [
+     {
+      "primary": "rden",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     }
+    ],
+    "reason": "It determines whether the registered request is a read and therefore whether rden is asserted. The request field directly participates in the assignment to rden, so an attacker can keep the enable inactive.",
+    "functionality": "It determines whether the registered request is a read and therefore whether rden is asserted.",
+    "justification": "The request field directly participates in the assignment to rden, so an attacker can keep the enable inactive."
+   },
+   {
+    "concept id": "C2",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_imem",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     176
+    ],
+    "links": [
+     {
+      "primary": "rden",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     }
+    ],
+    "reason": "It determines whether a request is active and therefore whether rden is asserted. The request strobe directly participates in the assignment to rden, allowing the enable state to remain inactive.",
+    "functionality": "It determines whether a request is active and therefore whether rden is asserted.",
+    "justification": "The request strobe directly participates in the assignment to rden, allowing the enable state to remain inactive."
+   },
+   {
+    "concept id": "C2",
+    "element": "clk_i",
+    "entity": "neorv32_imem",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     175
+    ],
+    "links": [
+     {
+      "primary": "rden",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     }
+    ],
+    "reason": "It times updates of the registered read-response enable. Without clock edges the primary rden state cannot update, so response enabling can be stalled.",
+    "functionality": "It times updates of the registered read-response enable.",
+    "justification": "Without clock edges the primary rden state cannot update, so response enabling can be stalled."
+   },
+   {
+    "concept id": "C2",
+    "element": "rstn_i",
+    "entity": "neorv32_imem",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     172,
+     173
+    ],
+    "links": [
+     {
+      "primary": "rden",
+      "entity": "neorv32_imem",
+      "direction": "b"
+     }
+    ],
+    "reason": "It resets the registered read-response enable to zero. The asynchronous reset directly clears the primary rden state and blocks the response gate until a later read request updates it.",
+    "functionality": "It resets the registered read-response enable to zero.",
+    "justification": "The asynchronous reset directly clears the primary rden state and blocks the response gate until a later read request updates it."
+   }
+  ],
+  "not reported": [],
+  "no primary reason": {}
+ },
+ "problems": [
+  "C1: point 'bus_rsp_o.data' is not a block or output-port assignment of unit 'neorv32_imem'",
+  "C2: point 'bus_rsp_o.data' is not a block or output-port assignment of unit 'neorv32_imem'"
+ ],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

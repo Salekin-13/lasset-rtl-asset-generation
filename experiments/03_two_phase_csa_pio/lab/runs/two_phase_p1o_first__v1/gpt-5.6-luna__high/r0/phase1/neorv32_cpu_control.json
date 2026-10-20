@@ -1,0 +1,509 @@
+{
+ "module": "neorv32_cpu_control",
+ "prompt version": "two_phase_p1o_first",
+ "input version": "v1",
+ "phase": 1,
+ "system sha": "b4c962e16261",
+ "user sha": "c84b86274bca",
+ "usage": {
+  "in": 80920,
+  "out": 15564,
+  "reasoning": 10876,
+  "cached": 0,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_0b139a18440fd4c4006ad596f290ac87d1a5e30a919f61c4cb",
+  "request key": "fe0e2f4ae495"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_cpu_control\",\n  \"Conceptual Assets\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Concept Name\": \"Instruction execution control\",\n      \"Unit\": \"neorv32_cpu_control\",\n      \"Information\": \"The ALU, register-file, and load/store control decisions that determine how each instruction executes. Downstream execution units depend on these decisions through the control record.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"yes\"\n      },\n      \"Rubric Reason\": \"Integrity: the unit computes and registers execution controls before driving ctrl_o, so altered control logic can select an unauthorized operation or write (317, 325, 333, 421, 442, 585, 591, 601). Availability: the same controls can suppress register writeback, memory requests, or other required execution transfers (442, 530, 585, 601). Undermined Expected Behavior: debug and trap conditions gate execution controls and can cause incorrect or withheld execution during normal operation (585, 622, 1634-1650).\",\n      \"Objectives At Risk\": [\n        \"I\",\n        \"A\"\n      ],\n      \"Attack\": \"An attacker could fault-inject an execution-control decision or force a debug/trap gating condition so that an instruction writes the wrong destination, performs the wrong memory operation, or never completes.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"ctrl_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        317,\n        325,\n        333,\n        340,\n        341,\n        421,\n        433,\n        442,\n        451,\n        457,\n        483,\n        488,\n        530,\n        540\n      ],\n      \"Exit Lines\": [\n        585,\n        591,\n        592,\n        593,\n        594,\n        595,\n        597,\n        598,\n        599,\n        601,\n        602,\n        603\n      ]\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Concept Name\": \"Control-flow and fetch steering\",\n      \"Unit\": \"neorv32_cpu_control\",\n      \"Information\": \"The control-flow steering decisions delivered to the instruction frontend, including next, current, and return addresses and fetch acknowledge, reset, and fence controls. Correct instruction sequencing depends on these outputs.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"yes\"\n      },\n      \"Rubric Reason\": \"Integrity: the unit produces control-flow addresses and fetch controls that can be altered before reaching the frontend (577, 578, 579, 581, 582, 583). Availability: an altered reset, acknowledge, fence, or next-address control can block instruction fetch or strand execution (577-583). Undermined Expected Behavior: trap and debug paths deliberately redirect or reset control flow, so unauthorized activation can produce an incorrect execution path or stop normal execution (361, 376-397, 405, 515-518).\",\n      \"Attack\": \"An attacker could corrupt a next or return address, assert a fetch reset, or suppress acknowledge so that execution skips code, loops, or stalls.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"ctrl_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        361,\n        369,\n        410,\n        512,\n        517\n      ],\n      \"Exit Lines\": [\n        577,\n        578,\n        579,\n        581,\n        582,\n        583\n      ]\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Concept Name\": \"CSR access commands\",\n      \"Unit\": \"neorv32_cpu_control\",\n      \"Information\": \"The CSR address, read/write enables, and write data sent to the CSR storage and extension logic. Software configuration and status handling depend on these commands reaching the intended CSR.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"yes\"\n      },\n      \"Rubric Reason\": \"Integrity: the unit generates the CSR address, write data, and read/write controls that determine which control state is modified or read (608-611). Availability: suppressing csr_we or csr_re, or steering csr_addr incorrectly, can prevent required configuration or status access (608-610, 1110, 1361-1364). Undermined Expected Behavior: privilege and debug checks influence CSR legality and write behavior, so corrupting these commands can make normal CSR operations modify or expose the wrong state (806-813, 1105-1110).\",\n      \"Attack\": \"An attacker could alter csr_addr, csr_we, or csr_wdata to overwrite a security-relevant CSR or prevent software from configuring or reading it.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"ctrl_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        608,\n        609,\n        610,\n        611\n      ],\n      \"Exit Lines\": [\n        608,\n        609,\n        610,\n        611\n      ]\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Concept Name\": \"Debug-run mode\",\n      \"Unit\": \"neorv32_cpu_control\",\n      \"Information\": \"The state indicating that the processor is executing in debug mode. It changes trap, privilege, interrupt, trigger, and execution behavior and is reported on the control interface.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"yes\"\n      },\n      \"Rubric Reason\": \"Integrity: debug_ctrl.run is statefully set and cleared only by trap-entry and trap-exit conditions and directly drives the debug status output (1631-1639, 622). Availability: entering or remaining in debug mode changes wakeup and execution behavior and can prevent ordinary instruction progress (1036, 1634-1639). Undermined Expected Behavior: the debug halt request and debug trap causes can enter debug mode, redirect execution, and alter normal trap and privilege handling (1650, 1234, 1260, 1272).\",\n      \"Attack\": \"An attacker could force debug entry or prevent debug exit, causing normal execution to halt or run under altered privilege and trap rules.\",\n      \"Enters Through\": [\n        \"irq_dbg_i\"\n      ],\n      \"Leaves Through\": [\n        \"ctrl_o\"\n      ],\n      \"Entry Lines\": [\n        1650\n      ],\n      \"Held Lines\": [\n        1631,\n        1635,\n        1639\n      ],\n      \"Exit Lines\": [\n        622\n      ]\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Concept Name\": \"Hardware-trigger debug entry request\",\n      \"Unit\": \"neorv32_cpu_control\",\n      \"Information\": \"The internally generated request to enter debug handling when a configured instruction-address trigger matches. It has no unit-boundary port because it is consumed by the local debug-control logic.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"yes\"\n      },\n      \"Rubric Reason\": \"Integrity: hwtrig_start is generated from the trigger match and causes the execution engine to enter debug handling (360-363, 1646). Availability: a false trigger can redirect execution into debug handling and a missed trigger can prevent required debug intervention (360-363, 1693-1705). Undermined Expected Behavior: corrupting the trigger decision can change the program counter and cause incorrect normal execution or an unintended stop (360-363).\",\n      \"Attack\": \"An attacker could induce or suppress hwtrig_start so that execution unexpectedly parks in debug mode or bypasses a configured trigger.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        362,\n        1646\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Concept Name\": \"Machine and fast interrupt requests\",\n      \"Unit\": \"neorv32_cpu_control\",\n      \"Information\": \"Pending machine-level and fast interrupt requests and their accepted delivery into trap handling. Interrupt response depends on retaining and prioritizing these requests.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity: irq_machine_i and irq_fast_i are captured into pending state and then used to form interrupt-buffer and interrupt-fire decisions (849-854, 867-873, 1000-1015). Availability: suppressing or fabricating a pending interrupt can lose a required service event or repeatedly divert execution into interrupt handling (849-854, 936-960).\",\n      \"Attack\": \"An attacker could suppress a pending interrupt or inject a false one, causing a required service request to be lost or execution to be diverted repeatedly.\",\n      \"Enters Through\": [\n        \"irq_machine_i\",\n        \"irq_fast_i\"\n      ],\n      \"Leaves Through\": [\n        \"ctrl_o\"\n      ],\n      \"Entry Lines\": [\n        849,\n        850,\n        851,\n        854\n      ],\n      \"Held Lines\": [\n        849,\n        850,\n        851,\n        854,\n        867,\n        868,\n        869,\n        873,\n        1000,\n        1007,\n        1012\n      ],\n      \"Exit Lines\": [\n        621\n      ]\n    },\n    {\n      \"Concept ID\": \"C7\",\n      \"Concept Name\": \"Debug halt request\",\n      \"Unit\": \"neorv32_cpu_control\",\n      \"Information\": \"The external request asking the processor to halt for debug. It is consumed by the debug trigger path and has no direct data exit port.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"yes\"\n      },\n      \"Rubric Reason\": \"Integrity: irq_dbg_i directly forms the debug halt trigger that is stored as a debug interrupt request (1650, 877). Availability: asserting or suppressing the request can halt normal execution or prevent required debug intervention (1650, 877, 936). Undermined Expected Behavior: an unauthorized debug halt request can enter debug handling during ordinary operation and stop or redirect the processor (1634-1639, 1650).\",\n      \"Attack\": \"An attacker could assert irq_dbg_i during normal execution to force a debug halt or suppress it to defeat a required halt.\",\n      \"Enters Through\": [\n        \"irq_dbg_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        1650\n      ],\n      \"Held Lines\": [\n        1650\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C8\",\n      \"Concept Name\": \"Coprocessor completion status\",\n      \"Unit\": \"neorv32_cpu_control\",\n      \"Information\": \"The completion status returned by the ALU coprocessor while the execution engine waits in its multi-cycle state. The processor depends on it to release the result and resume dispatch.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity: alu_cp_done_i selects whether the waiting operation is treated as complete and whether writeback is enabled (505-507). Availability: withholding the completion status keeps the execution engine in its wait state, while a false completion can release an invalid result (502-507).\",\n      \"Attack\": \"An attacker could hold alu_cp_done_i low to stall the processor or assert it early to make an incomplete coprocessor result appear valid.\",\n      \"Enters Through\": [\n        \"alu_cp_done_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        505\n      ],\n      \"Held Lines\": [\n        505\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C9\",\n      \"Concept Name\": \"Load/store completion status\",\n      \"Unit\": \"neorv32_cpu_control\",\n      \"Information\": \"The LSU wait and completion status used to finish a memory operation. The execution engine depends on it to leave the memory-response state and decide whether writeback occurs.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity: lsu_wait_i participates in the decision that completes the memory operation and enables register writeback (536-541). Availability: holding lsu_wait_i active stalls the memory-response state, while clearing it early can complete an unfinished access (536-541).\",\n      \"Attack\": \"An attacker could hold lsu_wait_i active to deadlock the processor or clear it prematurely to accept an incomplete or failed memory access.\",\n      \"Enters Through\": [\n        \"lsu_wait_i\"\n      ],\n      \"Leaves Through\": [],\n      \"Entry Lines\": [\n        536\n      ],\n      \"Held Lines\": [\n        536\n      ],\n      \"Exit Lines\": []\n    },\n    {\n      \"Concept ID\": \"C10\",\n      \"Concept Name\": \"Sleep control state\",\n      \"Unit\": \"neorv32_cpu_control\",\n      \"Information\": \"The decision and status indicating that the processor has entered sleep while the frontend is halted and no wakeup condition is present. Downstream logic depends on the reported sleep control.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Integrity: sleep_mode is registered from the execution state, frontend halt status, and wakeup condition and is reported on ctrl_o (1025-1031, 620). Availability: a false sleep decision can stop processor activity, while a missed sleep decision can prevent the intended low-power halt (1025-1031).\",\n      \"Attack\": \"An attacker could force sleep_mode active to stop execution or suppress it so that the processor cannot enter its required sleep state.\",\n      \"Enters Through\": [\n        \"frontend_i\"\n      ],\n      \"Leaves Through\": [\n        \"ctrl_o\"\n      ],\n      \"Entry Lines\": [\n        1026\n      ],\n      \"Held Lines\": [\n        1025,\n        1028,\n        1030\n      ],\n      \"Exit Lines\": [\n        620\n      ]\n    },\n    {\n      \"Concept ID\": \"C11\",\n      \"Concept Name\": \"Exception and trap handling outcome\",\n      \"Unit\": \"neorv32_cpu_control\",\n      \"Information\": \"The accumulated exception condition, selected trap cause, and trap-entry decision produced from instruction, memory, protection, and execution faults. Correct recovery and exception reporting depend on this information.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"no\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"yes\",\n        \"Undermined Expected Behavior\": \"yes\"\n      },\n      \"Rubric Reason\": \"Integrity: frontend, PMP, LSU, illegal-instruction, and debug fault inputs are accumulated and prioritized into trap state and the trap output (366, 411, 888-912, 922-960, 621). Availability: suppressing a required trap or fabricating one can leave a faulting operation active or repeatedly divert execution (529-541, 971-991). Undermined Expected Behavior: debug mode and trigger causes gate exception acceptance and can alter whether normal faults enter ordinary or debug trap handling (904-912, 1234-1263).\",\n      \"Attack\": \"An attacker could suppress a protection or alignment exception, inject a false trap cause, or redirect a normal fault into debug handling.\",\n      \"Enters Through\": [\n        \"frontend_i\",\n        \"pmp_fault_i\",\n        \"lsu_err_i\"\n      ],\n      \"Leaves Through\": [\n        \"ctrl_o\"\n      ],\n      \"Entry Lines\": [\n        366,\n        411,\n        888,\n        889,\n        893,\n        894\n      ],\n      \"Held Lines\": [\n        366,\n        411,\n        888,\n        889,\n        893,\n        894,\n        899,\n        922,\n        926,\n        927,\n        929,\n        936,\n        958,\n        979,\n        980\n      ],\n      \"Exit Lines\": [\n        621\n      ]\n    },\n    {\n      \"Concept ID\": \"C12\",\n      \"Concept Name\": \"CSR read-back contents\",\n      \"Unit\": \"neorv32_cpu_control\",\n      \"Information\": \"The CSR status, configuration, trap, debug, counter, and scratch values returned to software through the CSR read-data output. Software depends on this information to observe and manage processor state.\",\n      \"Rubric\": {\n        \"Confidentiality\": \"yes\",\n        \"Integrity\": \"yes\",\n        \"Availability\": \"no\",\n        \"Undermined Expected Behavior\": \"no\"\n      },\n      \"Rubric Reason\": \"Confidentiality: csr_rdata_o directly exposes stored debug, trap, privilege, counter, and scratch information selected by CSR reads (1391-1455, 1531-1540, 1595). Integrity: the read-back word is assembled from many state elements, so altered read-data logic can make software act on false security or status information (1362-1364, 1392-1455).\",\n      \"Attack\": \"An attacker could observe CSR read-back values containing debug or trap state, or corrupt the returned word so software makes an unsafe configuration or recovery decision.\",\n      \"Enters Through\": [],\n      \"Leaves Through\": [\n        \"csr_rdata_o\"\n      ],\n      \"Entry Lines\": [],\n      \"Held Lines\": [\n        1362,\n        1363,\n        1371,\n        1392,\n        1412,\n        1418,\n        1436,\n        1439,\n        1446,\n        1455,\n        1531,\n        1532,\n        1533,\n        1539,\n        1540\n      ],\n      \"Exit Lines\": [\n        1595\n      ]\n    }\n  ],\n  \"Not Kept\": [\n    {\n      \"Candidate Name\": \"Executed instruction and program-counter state\",\n      \"Candidate Unit\": \"neorv32_cpu_control\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The processor control-unit state rule bars the instruction-word and current, next, and return-address registers as independent concepts even though they determine the control record (269-276, 581-588).\"\n    },\n    {\n      \"Candidate Name\": \"Internal CSR privilege, trap, and debug configuration state\",\n      \"Candidate Unit\": \"neorv32_cpu_control\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The processor control-unit state rule bars control and status registers that instruction writes, trap entry, trap return, or CSR reads set or return; the debug-run state and trigger-start request are kept separately as explicit exceptions (1074-1100, 1117-1224, 1631-1639).\"\n    },\n    {\n      \"Candidate Name\": \"Execution sequencing state\",\n      \"Candidate Unit\": \"neorv32_cpu_control\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The FSM state and its next-state sequencing only order instruction steps and are barred by the sequencing-state rule (351, 359-569).\"\n    },\n    {\n      \"Candidate Name\": \"Instruction operation selectors\",\n      \"Candidate Unit\": \"neorv32_cpu_control\",\n      \"Merged Into\": \"C1\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"CSR access command fields in the instruction\",\n      \"Candidate Unit\": \"neorv32_cpu_control\",\n      \"Merged Into\": \"C3\",\n      \"Why Not Kept\": \"\"\n    },\n    {\n      \"Candidate Name\": \"Frontend instruction transfer\",\n      \"Candidate Unit\": \"neorv32_cpu_control\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The transfer-record and processor-control rules treat the instruction and its handshake fields as a relayed/control transfer rather than an independent conceptual asset of this control unit (364-370).\"\n    },\n    {\n      \"Candidate Name\": \"Pacing pulses and monitor count\",\n      \"Candidate Unit\": \"neorv32_cpu_control\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"cnt_event and the multi-cycle monitor count only pace or detect execution steps, so the pacing-pulse and sequencing-state rules bar them as separate information (631-645, 1603-1616).\"\n    },\n    {\n      \"Candidate Name\": \"Hardware-trigger configuration and fired bookkeeping\",\n      \"Candidate Unit\": \"neorv32_cpu_control\",\n      \"Merged Into\": \"\",\n      \"Why Not Kept\": \"The trigger configuration registers and fired flag are processor control-unit state; only the trigger-start request is spared and retained as C5 (1215-1224, 1699-1707).\"\n    }\n  ],\n  \"Notes\": []\n}",
+ "reply": {
+  "module name": "neorv32_cpu_control",
+  "notes": [],
+  "conceptual assets": [
+   {
+    "id": "C1",
+    "unit": "neorv32_cpu_control",
+    "concept": "Instruction execution control",
+    "information": "The ALU, register-file, and load/store control decisions that determine how each instruction executes. Downstream execution units depend on these decisions through the control record.",
+    "rubric reason": "Integrity: the unit computes and registers execution controls before driving ctrl_o, so altered control logic can select an unauthorized operation or write (317, 325, 333, 421, 442, 585, 591, 601). Availability: the same controls can suppress register writeback, memory requests, or other required execution transfers (442, 530, 585, 601). Undermined Expected Behavior: debug and trap conditions gate execution controls and can cause incorrect or withheld execution during normal operation (585, 622, 1634-1650).",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "attack": "An attacker could fault-inject an execution-control decision or force a debug/trap gating condition so that an instruction writes the wrong destination, performs the wrong memory operation, or never completes.",
+    "enters through": [],
+    "leaves through": [
+     "ctrl_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     317,
+     325,
+     333,
+     340,
+     341,
+     421,
+     433,
+     442,
+     451,
+     457,
+     483,
+     488,
+     530,
+     540
+    ],
+    "exit lines": [
+     585,
+     591,
+     592,
+     593,
+     594,
+     595,
+     597,
+     598,
+     599,
+     601,
+     602,
+     603
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "yes"
+    }
+   },
+   {
+    "id": "C2",
+    "unit": "neorv32_cpu_control",
+    "concept": "Control-flow and fetch steering",
+    "information": "The control-flow steering decisions delivered to the instruction frontend, including next, current, and return addresses and fetch acknowledge, reset, and fence controls. Correct instruction sequencing depends on these outputs.",
+    "rubric reason": "Integrity: the unit produces control-flow addresses and fetch controls that can be altered before reaching the frontend (577, 578, 579, 581, 582, 583). Availability: an altered reset, acknowledge, fence, or next-address control can block instruction fetch or strand execution (577-583). Undermined Expected Behavior: trap and debug paths deliberately redirect or reset control flow, so unauthorized activation can produce an incorrect execution path or stop normal execution (361, 376-397, 405, 515-518).",
+    "attack": "An attacker could corrupt a next or return address, assert a fetch reset, or suppress acknowledge so that execution skips code, loops, or stalls.",
+    "enters through": [],
+    "leaves through": [
+     "ctrl_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     361,
+     369,
+     410,
+     512,
+     517
+    ],
+    "exit lines": [
+     577,
+     578,
+     579,
+     581,
+     582,
+     583
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "yes"
+    }
+   },
+   {
+    "id": "C3",
+    "unit": "neorv32_cpu_control",
+    "concept": "CSR access commands",
+    "information": "The CSR address, read/write enables, and write data sent to the CSR storage and extension logic. Software configuration and status handling depend on these commands reaching the intended CSR.",
+    "rubric reason": "Integrity: the unit generates the CSR address, write data, and read/write controls that determine which control state is modified or read (608-611). Availability: suppressing csr_we or csr_re, or steering csr_addr incorrectly, can prevent required configuration or status access (608-610, 1110, 1361-1364). Undermined Expected Behavior: privilege and debug checks influence CSR legality and write behavior, so corrupting these commands can make normal CSR operations modify or expose the wrong state (806-813, 1105-1110).",
+    "attack": "An attacker could alter csr_addr, csr_we, or csr_wdata to overwrite a security-relevant CSR or prevent software from configuring or reading it.",
+    "enters through": [],
+    "leaves through": [
+     "ctrl_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     608,
+     609,
+     610,
+     611
+    ],
+    "exit lines": [
+     608,
+     609,
+     610,
+     611
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "yes"
+    }
+   },
+   {
+    "id": "C4",
+    "unit": "neorv32_cpu_control",
+    "concept": "Debug-run mode",
+    "information": "The state indicating that the processor is executing in debug mode. It changes trap, privilege, interrupt, trigger, and execution behavior and is reported on the control interface.",
+    "rubric reason": "Integrity: debug_ctrl.run is statefully set and cleared only by trap-entry and trap-exit conditions and directly drives the debug status output (1631-1639, 622). Availability: entering or remaining in debug mode changes wakeup and execution behavior and can prevent ordinary instruction progress (1036, 1634-1639). Undermined Expected Behavior: the debug halt request and debug trap causes can enter debug mode, redirect execution, and alter normal trap and privilege handling (1650, 1234, 1260, 1272).",
+    "attack": "An attacker could force debug entry or prevent debug exit, causing normal execution to halt or run under altered privilege and trap rules.",
+    "enters through": [
+     "irq_dbg_i"
+    ],
+    "leaves through": [
+     "ctrl_o"
+    ],
+    "entry lines": [
+     1650
+    ],
+    "held lines": [
+     1631,
+     1635,
+     1639
+    ],
+    "exit lines": [
+     622
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "yes"
+    }
+   },
+   {
+    "id": "C5",
+    "unit": "neorv32_cpu_control",
+    "concept": "Hardware-trigger debug entry request",
+    "information": "The internally generated request to enter debug handling when a configured instruction-address trigger matches. It has no unit-boundary port because it is consumed by the local debug-control logic.",
+    "rubric reason": "Integrity: hwtrig_start is generated from the trigger match and causes the execution engine to enter debug handling (360-363, 1646). Availability: a false trigger can redirect execution into debug handling and a missed trigger can prevent required debug intervention (360-363, 1693-1705). Undermined Expected Behavior: corrupting the trigger decision can change the program counter and cause incorrect normal execution or an unintended stop (360-363).",
+    "attack": "An attacker could induce or suppress hwtrig_start so that execution unexpectedly parks in debug mode or bypasses a configured trigger.",
+    "enters through": [],
+    "leaves through": [],
+    "entry lines": [],
+    "held lines": [
+     362,
+     1646
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "yes"
+    }
+   },
+   {
+    "id": "C6",
+    "unit": "neorv32_cpu_control",
+    "concept": "Machine and fast interrupt requests",
+    "information": "Pending machine-level and fast interrupt requests and their accepted delivery into trap handling. Interrupt response depends on retaining and prioritizing these requests.",
+    "rubric reason": "Integrity: irq_machine_i and irq_fast_i are captured into pending state and then used to form interrupt-buffer and interrupt-fire decisions (849-854, 867-873, 1000-1015). Availability: suppressing or fabricating a pending interrupt can lose a required service event or repeatedly divert execution into interrupt handling (849-854, 936-960).",
+    "attack": "An attacker could suppress a pending interrupt or inject a false one, causing a required service request to be lost or execution to be diverted repeatedly.",
+    "enters through": [
+     "irq_machine_i",
+     "irq_fast_i"
+    ],
+    "leaves through": [
+     "ctrl_o"
+    ],
+    "entry lines": [
+     849,
+     850,
+     851,
+     854
+    ],
+    "held lines": [
+     849,
+     850,
+     851,
+     854,
+     867,
+     868,
+     869,
+     873,
+     1000,
+     1007,
+     1012
+    ],
+    "exit lines": [
+     621
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C7",
+    "unit": "neorv32_cpu_control",
+    "concept": "Debug halt request",
+    "information": "The external request asking the processor to halt for debug. It is consumed by the debug trigger path and has no direct data exit port.",
+    "rubric reason": "Integrity: irq_dbg_i directly forms the debug halt trigger that is stored as a debug interrupt request (1650, 877). Availability: asserting or suppressing the request can halt normal execution or prevent required debug intervention (1650, 877, 936). Undermined Expected Behavior: an unauthorized debug halt request can enter debug handling during ordinary operation and stop or redirect the processor (1634-1639, 1650).",
+    "attack": "An attacker could assert irq_dbg_i during normal execution to force a debug halt or suppress it to defeat a required halt.",
+    "enters through": [
+     "irq_dbg_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     1650
+    ],
+    "held lines": [
+     1650
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "yes"
+    }
+   },
+   {
+    "id": "C8",
+    "unit": "neorv32_cpu_control",
+    "concept": "Coprocessor completion status",
+    "information": "The completion status returned by the ALU coprocessor while the execution engine waits in its multi-cycle state. The processor depends on it to release the result and resume dispatch.",
+    "rubric reason": "Integrity: alu_cp_done_i selects whether the waiting operation is treated as complete and whether writeback is enabled (505-507). Availability: withholding the completion status keeps the execution engine in its wait state, while a false completion can release an invalid result (502-507).",
+    "attack": "An attacker could hold alu_cp_done_i low to stall the processor or assert it early to make an incomplete coprocessor result appear valid.",
+    "enters through": [
+     "alu_cp_done_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     505
+    ],
+    "held lines": [
+     505
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C9",
+    "unit": "neorv32_cpu_control",
+    "concept": "Load/store completion status",
+    "information": "The LSU wait and completion status used to finish a memory operation. The execution engine depends on it to leave the memory-response state and decide whether writeback occurs.",
+    "rubric reason": "Integrity: lsu_wait_i participates in the decision that completes the memory operation and enables register writeback (536-541). Availability: holding lsu_wait_i active stalls the memory-response state, while clearing it early can complete an unfinished access (536-541).",
+    "attack": "An attacker could hold lsu_wait_i active to deadlock the processor or clear it prematurely to accept an incomplete or failed memory access.",
+    "enters through": [
+     "lsu_wait_i"
+    ],
+    "leaves through": [],
+    "entry lines": [
+     536
+    ],
+    "held lines": [
+     536
+    ],
+    "exit lines": [],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C10",
+    "unit": "neorv32_cpu_control",
+    "concept": "Sleep control state",
+    "information": "The decision and status indicating that the processor has entered sleep while the frontend is halted and no wakeup condition is present. Downstream logic depends on the reported sleep control.",
+    "rubric reason": "Integrity: sleep_mode is registered from the execution state, frontend halt status, and wakeup condition and is reported on ctrl_o (1025-1031, 620). Availability: a false sleep decision can stop processor activity, while a missed sleep decision can prevent the intended low-power halt (1025-1031).",
+    "attack": "An attacker could force sleep_mode active to stop execution or suppress it so that the processor cannot enter its required sleep state.",
+    "enters through": [
+     "frontend_i"
+    ],
+    "leaves through": [
+     "ctrl_o"
+    ],
+    "entry lines": [
+     1026
+    ],
+    "held lines": [
+     1025,
+     1028,
+     1030
+    ],
+    "exit lines": [
+     620
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "no"
+    }
+   },
+   {
+    "id": "C11",
+    "unit": "neorv32_cpu_control",
+    "concept": "Exception and trap handling outcome",
+    "information": "The accumulated exception condition, selected trap cause, and trap-entry decision produced from instruction, memory, protection, and execution faults. Correct recovery and exception reporting depend on this information.",
+    "rubric reason": "Integrity: frontend, PMP, LSU, illegal-instruction, and debug fault inputs are accumulated and prioritized into trap state and the trap output (366, 411, 888-912, 922-960, 621). Availability: suppressing a required trap or fabricating one can leave a faulting operation active or repeatedly divert execution (529-541, 971-991). Undermined Expected Behavior: debug mode and trigger causes gate exception acceptance and can alter whether normal faults enter ordinary or debug trap handling (904-912, 1234-1263).",
+    "attack": "An attacker could suppress a protection or alignment exception, inject a false trap cause, or redirect a normal fault into debug handling.",
+    "enters through": [
+     "frontend_i",
+     "pmp_fault_i",
+     "lsu_err_i"
+    ],
+    "leaves through": [
+     "ctrl_o"
+    ],
+    "entry lines": [
+     366,
+     411,
+     888,
+     889,
+     893,
+     894
+    ],
+    "held lines": [
+     366,
+     411,
+     888,
+     889,
+     893,
+     894,
+     899,
+     922,
+     926,
+     927,
+     929,
+     936,
+     958,
+     979,
+     980
+    ],
+    "exit lines": [
+     621
+    ],
+    "rubric": {
+     "confidentiality": "no",
+     "integrity": "yes",
+     "availability": "yes",
+     "undermined expected behavior": "yes"
+    }
+   },
+   {
+    "id": "C12",
+    "unit": "neorv32_cpu_control",
+    "concept": "CSR read-back contents",
+    "information": "The CSR status, configuration, trap, debug, counter, and scratch values returned to software through the CSR read-data output. Software depends on this information to observe and manage processor state.",
+    "rubric reason": "Confidentiality: csr_rdata_o directly exposes stored debug, trap, privilege, counter, and scratch information selected by CSR reads (1391-1455, 1531-1540, 1595). Integrity: the read-back word is assembled from many state elements, so altered read-data logic can make software act on false security or status information (1362-1364, 1392-1455).",
+    "attack": "An attacker could observe CSR read-back values containing debug or trap state, or corrupt the returned word so software makes an unsafe configuration or recovery decision.",
+    "enters through": [],
+    "leaves through": [
+     "csr_rdata_o"
+    ],
+    "entry lines": [],
+    "held lines": [
+     1362,
+     1363,
+     1371,
+     1392,
+     1412,
+     1418,
+     1436,
+     1439,
+     1446,
+     1455,
+     1531,
+     1532,
+     1533,
+     1539,
+     1540
+    ],
+    "exit lines": [
+     1595
+    ],
+    "rubric": {
+     "confidentiality": "yes",
+     "integrity": "yes",
+     "availability": "no",
+     "undermined expected behavior": "no"
+    }
+   }
+  ],
+  "considered, not kept": [
+   {
+    "unit": "neorv32_cpu_control",
+    "concept": "Executed instruction and program-counter state",
+    "reason": "The processor control-unit state rule bars the instruction-word and current, next, and return-address registers as independent concepts even though they determine the control record (269-276, 581-588).",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_control",
+    "concept": "Internal CSR privilege, trap, and debug configuration state",
+    "reason": "The processor control-unit state rule bars control and status registers that instruction writes, trap entry, trap return, or CSR reads set or return; the debug-run state and trigger-start request are kept separately as explicit exceptions (1074-1100, 1117-1224, 1631-1639).",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_control",
+    "concept": "Execution sequencing state",
+    "reason": "The FSM state and its next-state sequencing only order instruction steps and are barred by the sequencing-state rule (351, 359-569).",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_control",
+    "concept": "Instruction operation selectors",
+    "reason": "merged into C1",
+    "merged into": "C1"
+   },
+   {
+    "unit": "neorv32_cpu_control",
+    "concept": "CSR access command fields in the instruction",
+    "reason": "merged into C3",
+    "merged into": "C3"
+   },
+   {
+    "unit": "neorv32_cpu_control",
+    "concept": "Frontend instruction transfer",
+    "reason": "The transfer-record and processor-control rules treat the instruction and its handshake fields as a relayed/control transfer rather than an independent conceptual asset of this control unit (364-370).",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_control",
+    "concept": "Pacing pulses and monitor count",
+    "reason": "cnt_event and the multi-cycle monitor count only pace or detect execution steps, so the pacing-pulse and sequencing-state rules bar them as separate information (631-645, 1603-1616).",
+    "merged into": ""
+   },
+   {
+    "unit": "neorv32_cpu_control",
+    "concept": "Hardware-trigger configuration and fired bookkeeping",
+    "reason": "The trigger configuration registers and fired flag are processor control-unit state; only the trigger-start request is spared and retained as C5 (1215-1224, 1699-1707).",
+    "merged into": ""
+   }
+  ]
+ },
+ "problems": [
+  "format: conceptual asset C2 lacks ['Objectives At Risk']",
+  "format: conceptual asset C3 lacks ['Objectives At Risk']",
+  "format: conceptual asset C4 lacks ['Objectives At Risk']",
+  "format: conceptual asset C5 lacks ['Objectives At Risk']",
+  "format: conceptual asset C6 lacks ['Objectives At Risk']",
+  "format: conceptual asset C7 lacks ['Objectives At Risk']",
+  "format: conceptual asset C8 lacks ['Objectives At Risk']",
+  "format: conceptual asset C9 lacks ['Objectives At Risk']",
+  "format: conceptual asset C10 lacks ['Objectives At Risk']",
+  "format: conceptual asset C11 lacks ['Objectives At Risk']",
+  "format: conceptual asset C12 lacks ['Objectives At Risk']",
+  "C2: objectives None",
+  "C3: objectives None",
+  "C4: objectives None",
+  "C5: objectives None",
+  "C6: objectives None",
+  "C7: objectives None",
+  "C8: objectives None",
+  "C9: objectives None",
+  "C10: objectives None",
+  "C11: objectives None",
+  "C12: objectives None"
+ ],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}

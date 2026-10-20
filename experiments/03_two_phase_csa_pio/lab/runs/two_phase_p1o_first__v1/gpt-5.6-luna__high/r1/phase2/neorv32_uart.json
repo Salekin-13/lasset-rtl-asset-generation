@@ -1,0 +1,2170 @@
+{
+ "module": "neorv32_uart",
+ "prompt version": "two_phase_p1o_first",
+ "input version": "v1",
+ "phase": 2,
+ "system sha": "021cc963702d",
+ "user sha": "be47768d2040",
+ "usage": {
+  "in": 42444,
+  "out": 19429,
+  "reasoning": 6395,
+  "cached": 0,
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "response id": "resp_00d89d44ea4dc8cb006ad637eb2c1487d1ad847e5a51634382",
+  "request key": "362a6a94f1f1"
+ },
+ "raw": "{\n  \"IP\": \"neorv32_uart\",\n  \"Concept Walks\": [\n    {\n      \"Concept ID\": \"C1\",\n      \"Points\": [\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"bus_req_i ==> bus_access [bus_req_i.data]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [179, 180, 190, 191],\n          \"Answer Reason\": \"Bus writes at this process can change transmit control and clear behavior, but the process does not itself expose the payload.\"\n        },\n        {\n          \"Point\": \"tx_fifo.wdata\",\n          \"Reached By\": \"bus_req_i ==> tx_fifo.wdata [bus_req_i.data]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [260],\n          \"Answer Reason\": \"The bus payload is carried unchanged into the transmit FIFO write-data path.\"\n        },\n        {\n          \"Point\": \"tx_engine_fifo_inst\",\n          \"Reached By\": \"tx_fifo.wdata ==> tx_engine_fifo_inst [tx_fifo.wdata]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [246, 250, 251, 254, 255],\n          \"Answer Reason\": \"Under the black-box FIFO rule, the instance stores and returns the payload; its write, read and clear ports can respectively alter, withhold or remove it.\"\n        },\n        {\n          \"Point\": \"tx_fifo.we\",\n          \"Reached By\": \"bus_req_i --> tx_fifo.we [bus_req_i.addr,rw,stb]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [261],\n          \"Answer Reason\": \"The decoded write strobe decides whether the bus payload is accepted into the transmit FIFO and can therefore reject or admit a transmitted byte.\"\n        },\n        {\n          \"Point\": \"tx_fifo.clear\",\n          \"Reached By\": \"bus_access --> tx_fifo.clear [ctrl.clr_tx,enable,sim_mode]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"yes\"\n          },\n          \"Answer Lines\": [259],\n          \"Answer Reason\": \"The clear expression can erase buffered transmit data and simulation mode can divert normal transmit behavior.\"\n        },\n        {\n          \"Point\": \"tx_fifo.re\",\n          \"Reached By\": \"transmitter --> tx_fifo.re [tx_engine.state]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [262],\n          \"Answer Reason\": \"The transmitter state controls FIFO popping, so suppressing this read strobe can prevent queued payloads from reaching transmission.\"\n        },\n        {\n          \"Point\": \"transmitter\",\n          \"Reached By\": \"tx_engine_fifo_inst ==> transmitter [tx_fifo.rdata]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [351, 358, 359, 365, 370],\n          \"Answer Reason\": \"The FIFO word is loaded into and shifted by the transmit register, while CTS and the engine state can hold or alter its transmission.\"\n        },\n        {\n          \"Point\": \"uart_txd_o\",\n          \"Reached By\": \"transmitter ==> uart_txd_o [tx_engine.txd]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [392],\n          \"Answer Reason\": \"The output assignment exposes the transmitted bitstream and is the boundary at which an altered or withheld value changes delivered UART data.\"\n        },\n        {\n          \"Point\": \"sim_tx\",\n          \"Reached By\": \"RTL direct use of bus_req_i.data in the simulation-transmit process\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"yes\"\n          },\n          \"Answer Lines\": [499, 501, 507, 508, 510, 511],\n          \"Answer Reason\": \"When enabled, the process consumes bus payload bytes and writes them to the screen and simulation file instead of the normal hardware path.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"tx_engine.sreg\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"transmitter\"],\n          \"Security Objectives\": [\"C\", \"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores and shifts the transmit payload before serial output.\",\n          \"Justification\": \"It is the unit's register holding the transmitted byte and its bits are directly used to form txd.\",\n          \"Asset Lines\": [333, 351, 365, 370]\n        },\n        {\n          \"Asset RTL\": \"uart_txd_o\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"uart_txd_o\"],\n          \"Security Objectives\": [\"C\", \"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Carries the transmitted UART payload across the unit boundary.\",\n          \"Justification\": \"It is the non-record output returning the unmixed transmit value.\",\n          \"Asset Lines\": [38, 392]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\", \"tx_fifo.wdata\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"tx_engine.sreg\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Supplies the byte written into the transmit path.\",\n          \"Justification\": \"The bus request data field is a barred bus-record carrier, but its value directly sets the payload that reaches the transmit register.\",\n          \"Asset Lines\": [179, 260]\n        },\n        {\n          \"Asset RTL\": \"tx_fifo.wdata\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"tx_fifo.wdata\"],\n          \"Security Objectives\": [\"C\", \"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"tx_engine.sreg\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"a\"}],\n          \"Functionality\": \"Carries the bus byte into the transmit FIFO instance.\",\n          \"Justification\": \"It is a FIFO write-data forwarding signal and is therefore a path to the later transmit register, not a primary.\",\n          \"Asset Lines\": [140, 250, 260]\n        },\n        {\n          \"Asset RTL\": \"tx_fifo.rdata\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"tx_engine_fifo_inst\", \"transmitter\"],\n          \"Security Objectives\": [\"C\", \"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"tx_engine.sreg\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"a\"}],\n          \"Functionality\": \"Carries a queued transmit byte from the FIFO to the transmitter.\",\n          \"Justification\": \"It is the FIFO instance's outward data path and only forwards the word loaded into tx_engine.sreg.\",\n          \"Asset Lines\": [255, 351]\n        },\n        {\n          \"Asset RTL\": \"tx_engine.txd\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"transmitter\"],\n          \"Security Objectives\": [\"C\", \"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"uart_txd_o\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"a\"}],\n          \"Functionality\": \"Holds the current serialized transmit bit before it drives the output.\",\n          \"Justification\": \"It is an internal re-timed copy on the path to the primary UART output.\",\n          \"Asset Lines\": [334, 365, 392]\n        },\n        {\n          \"Asset RTL\": \"tx_engine.cts\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"transmitter\"],\n          \"Security Objectives\": [\"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"uart_txd_o\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Samples CTS and gates progression of transmit transmission.\",\n          \"Justification\": \"The sampled CTS condition can hold the transmitter before it releases data.\",\n          \"Asset Lines\": [337, 358, 359]\n        },\n        {\n          \"Asset RTL\": \"tx_fifo.we\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"tx_fifo.we\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"tx_engine.sreg\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Controls acceptance of a bus byte into the transmit FIFO.\",\n          \"Justification\": \"Its decoded value can prevent or permit the payload from entering the storage path.\",\n          \"Asset Lines\": [251, 261]\n        },\n        {\n          \"Asset RTL\": \"tx_fifo.clear\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"tx_fifo.clear\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"tx_engine.sreg\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Clears the transmit FIFO and diverts operation in simulation mode.\",\n          \"Justification\": \"It can erase queued payloads or prevent normal hardware transmission.\",\n          \"Asset Lines\": [246, 259]\n        }\n      ],\n      \"Not Reported\": [\n        {\n          \"Element RTL\": \"bus_rsp_o.data\",\n          \"Element Entity\": \"neorv32_uart\",\n          \"Why Not Reported\": \"It is a mixed bus response carrier and does not return the transmitted payload.\"\n        }\n      ],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C2\",\n      \"Points\": [\n        {\n          \"Point\": \"receiver\",\n          \"Reached By\": \"uart_rxd_i ==> receiver [uart_rxd_i]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [408, 424, 434, 439, 441],\n          \"Answer Reason\": \"The receiver samples the input into its synchronizer and shift register, and enable, state and timing conditions determine whether bytes are completed.\"\n        },\n        {\n          \"Point\": \"rx_fifo.wdata\",\n          \"Reached By\": \"receiver ==> rx_fifo.wdata [rx_engine.sreg]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [305],\n          \"Answer Reason\": \"The completed received byte is carried from the receive shift register into FIFO write data.\"\n        },\n        {\n          \"Point\": \"rx_fifo.we\",\n          \"Reached By\": \"receiver ==> rx_fifo.we [rx_engine.done]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [306],\n          \"Answer Reason\": \"The done-derived write strobe decides whether a completed receive byte is stored and can therefore lose or admit data.\"\n        },\n        {\n          \"Point\": \"rx_engine_fifo_inst\",\n          \"Reached By\": \"rx_fifo.wdata ==> rx_engine_fifo_inst [rx_fifo.wdata]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [291, 295, 296, 299, 300],\n          \"Answer Reason\": \"Under the black-box FIFO rule, received data is stored and returned by the instance, while clear, write and read controls can erase, reject or withhold it.\"\n        },\n        {\n          \"Point\": \"rx_fifo.re\",\n          \"Reached By\": \"bus_access --> rx_fifo.re [bus_req_i.addr,rw,stb]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [307],\n          \"Answer Reason\": \"The bus-read decode controls FIFO popping, so suppressing it can prevent received bytes from becoming available.\"\n        },\n        {\n          \"Point\": \"rx_fifo.clear\",\n          \"Reached By\": \"bus_access --> rx_fifo.clear [ctrl.clr_rx,enable,sim_mode]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [304],\n          \"Answer Reason\": \"The clear expression can erase received bytes and disabling the path prevents normal receive operation.\"\n        },\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"rx_engine_fifo_inst ==> bus_access [rx_fifo.rdata]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"yes\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [214, 217],\n          \"Answer Reason\": \"The process places FIFO data into the bus response, exposing received bytes and making their returned value and timing dependent on the bus access.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"uart_rxd_i\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"receiver\"],\n          \"Security Objectives\": [\"C\", \"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Carries serial received bits into the UART.\",\n          \"Justification\": \"It is the serial input boundary through which each received word enters the unit.\",\n          \"Asset Lines\": [39, 408]\n        },\n        {\n          \"Asset RTL\": \"rx_engine.sreg\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"receiver\"],\n          \"Security Objectives\": [\"C\", \"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores and assembles sampled receive bits into a byte.\",\n          \"Justification\": \"It is the unit register holding the received data before FIFO insertion.\",\n          \"Asset Lines\": [405, 434]\n        },\n        {\n          \"Asset RTL\": \"bus_rsp_o.data\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"rx_engine.sreg\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"a\"}],\n          \"Functionality\": \"Carries the received FIFO word in the bus response data field.\",\n          \"Justification\": \"It is a bus response carrier whose value exposes the received word but is barred from being primary.\",\n          \"Asset Lines\": [35, 217]\n        },\n        {\n          \"Asset RTL\": \"rx_fifo.wdata\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"rx_fifo.wdata\"],\n          \"Security Objectives\": [\"C\", \"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"rx_engine.sreg\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"a\"}],\n          \"Functionality\": \"Carries the assembled receive byte into the FIFO.\",\n          \"Justification\": \"It is a FIFO input forwarding signal rather than the stored primary.\",\n          \"Asset Lines\": [140, 295, 305]\n        },\n        {\n          \"Asset RTL\": \"rx_fifo.rdata\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"rx_engine_fifo_inst\", \"bus_access\"],\n          \"Security Objectives\": [\"C\", \"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"rx_engine.sreg\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"a\"}],\n          \"Functionality\": \"Carries a received FIFO word toward the bus response.\",\n          \"Justification\": \"It is the FIFO output data path and is barred from being a primary storage element.\",\n          \"Asset Lines\": [300, 217]\n        },\n        {\n          \"Asset RTL\": \"rx_fifo.we\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"rx_fifo.we\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"rx_engine.sreg\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Controls insertion of completed receive bytes into the FIFO.\",\n          \"Justification\": \"It can block or permit storage of the received payload.\",\n          \"Asset Lines\": [296, 306]\n        },\n        {\n          \"Asset RTL\": \"rx_fifo.clear\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"rx_fifo.clear\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"rx_engine.sreg\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Clears the receive FIFO.\",\n          \"Justification\": \"Its assertion can remove received data before software reads it.\",\n          \"Asset Lines\": [291, 304]\n        }\n      ],\n      \"Not Reported\": [\n        {\n          \"Element RTL\": \"bus_req_i.data\",\n          \"Element Entity\": \"neorv32_uart\",\n          \"Why Not Reported\": \"The receive data does not come from this bus request field.\"\n        }\n      ],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C3\",\n      \"Points\": [\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"bus_req_i ==> bus_access [bus_req_i.data]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [156, 179],\n          \"Answer Reason\": \"A bus write stores ctrl.enable, including a value that disables the UART.\"\n        },\n        {\n          \"Point\": \"clkgen_en_o\",\n          \"Reached By\": \"bus_access ==> clkgen_en_o [ctrl.enable]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [228],\n          \"Answer Reason\": \"The enable setting directly controls the clock-generation enable output.\"\n        },\n        {\n          \"Point\": \"tx_fifo.clear\",\n          \"Reached By\": \"bus_access --> tx_fifo.clear [ctrl.enable]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [259],\n          \"Answer Reason\": \"A disabled enable condition clears the transmit FIFO.\"\n        },\n        {\n          \"Point\": \"rx_fifo.clear\",\n          \"Reached By\": \"bus_access --> rx_fifo.clear [ctrl.enable]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [304],\n          \"Answer Reason\": \"A disabled enable condition clears the receive FIFO.\"\n        },\n        {\n          \"Point\": \"transmitter\",\n          \"Reached By\": \"bus_access ==> transmitter [ctrl.enable]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [344],\n          \"Answer Reason\": \"The transmitter state is assigned from ctrl.enable and therefore can be stopped by disabling the setting.\"\n        },\n        {\n          \"Point\": \"receiver\",\n          \"Reached By\": \"bus_access ==> receiver [ctrl.enable]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [417],\n          \"Answer Reason\": \"The receiver state is assigned from ctrl.enable and can be held inactive.\"\n        },\n        {\n          \"Point\": \"rtr_control\",\n          \"Reached By\": \"bus_access --> rtr_control [ctrl.enable]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [473, 480],\n          \"Answer Reason\": \"Enable selects the RTS behavior and a disabled UART drives the blocking value.\"\n        },\n        {\n          \"Point\": \"rx_irq_generator\",\n          \"Reached By\": \"bus_access ==> rx_irq_generator [ctrl.enable]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [315],\n          \"Answer Reason\": \"The receive interrupt is gated by ctrl.enable.\"\n        },\n        {\n          \"Point\": \"tx_irq_generator\",\n          \"Reached By\": \"bus_access ==> tx_irq_generator [ctrl.enable]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [270],\n          \"Answer Reason\": \"The transmit interrupt is gated by ctrl.enable.\"\n        },\n        {\n          \"Point\": \"fifo_overrun\",\n          \"Reached By\": \"bus_access --> fifo_overrun [ctrl.enable]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [458, 459],\n          \"Answer Reason\": \"Disabling the UART clears the overrun status, although that status is not the enable value itself.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"ctrl.enable\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores the UART operational enable decision.\",\n          \"Justification\": \"It is the register that holds the setting and controls the engines, clock-enable output and FIFO clears.\",\n          \"Asset Lines\": [156, 179, 228, 259, 304, 344, 417]\n        },\n        {\n          \"Asset RTL\": \"clkgen_en_o\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"clkgen_en_o\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Exports the enable decision to the clock generator.\",\n          \"Justification\": \"It is the non-record output through which the enable setting crosses the boundary.\",\n          \"Asset Lines\": [36, 228]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"ctrl.enable\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Supplies the bus-written enable bit.\",\n          \"Justification\": \"The bus request data field is a barred access-record carrier but line 179 lets it modify ctrl.enable.\",\n          \"Asset Lines\": [179]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.addr\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"ctrl.enable\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Selects the control-register write containing enable.\",\n          \"Justification\": \"Its address test decides whether the enable assignment is reached.\",\n          \"Asset Lines\": [178]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.rw\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"ctrl.enable\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Selects a write rather than a read of the control register.\",\n          \"Justification\": \"Its test gates the assignment that changes ctrl.enable.\",\n          \"Asset Lines\": [177]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.stb\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"ctrl.enable\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Qualifies a bus transaction that can write enable.\",\n          \"Justification\": \"Its test gates the control-register write.\",\n          \"Asset Lines\": [176]\n        },\n        {\n          \"Asset RTL\": \"bus_rsp_o.data\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [],\n          \"Secondary To\": [],\n          \"Functionality\": \"Returns the enable setting in the bus read-data word.\",\n          \"Justification\": \"It is a mixed bus response carrier, and confidentiality is not an objective for this concept.\",\n          \"Asset Lines\": [195]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C4\",\n      \"Points\": [\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"bus_req_i ==> bus_access [bus_req_i.data]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [159, 160, 182, 183],\n          \"Answer Reason\": \"Bus writes directly change the stored prescaler and baud divisor.\"\n        },\n        {\n          \"Point\": \"uart_clk\",\n          \"Reached By\": \"bus_access --> uart_clk [ctrl.prsc]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [229],\n          \"Answer Reason\": \"ctrl.prsc selects a different clock-generator bit, changing the timing used by both engines.\"\n        },\n        {\n          \"Point\": \"transmitter\",\n          \"Reached By\": \"bus_access ==> transmitter [ctrl.baud]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [349, 368],\n          \"Answer Reason\": \"The transmitter loads and reloads its baud counter from ctrl.baud, so an altered divisor changes serial timing.\"\n        },\n        {\n          \"Point\": \"receiver\",\n          \"Reached By\": \"bus_access ==> receiver [ctrl.baud]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [422, 432],\n          \"Answer Reason\": \"The receiver loads and reloads its sampling counter from ctrl.baud.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"ctrl.prsc\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores the programmable clock prescaler selection.\",\n          \"Justification\": \"It is the setting used to select uart_clk.\",\n          \"Asset Lines\": [159, 182, 229]\n        },\n        {\n          \"Asset RTL\": \"ctrl.baud\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores the programmable baud divisor.\",\n          \"Justification\": \"It is the setting loaded into both engine baud counters.\",\n          \"Asset Lines\": [160, 183, 349, 368, 422, 432]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"ctrl.prsc\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}, {\"Primary RTL\": \"ctrl.baud\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Supplies the prescaler and baud fields written by software.\",\n          \"Justification\": \"The bus record field is a barred carrier but its bits directly set both timing registers.\",\n          \"Asset Lines\": [182, 183]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.addr\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"ctrl.prsc\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}, {\"Primary RTL\": \"ctrl.baud\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Selects the control-register write that updates timing settings.\",\n          \"Justification\": \"Its address test decides whether the timing assignments execute.\",\n          \"Asset Lines\": [178]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.rw\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"ctrl.prsc\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}, {\"Primary RTL\": \"ctrl.baud\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Selects a write transaction for timing configuration.\",\n          \"Justification\": \"Its test gates the assignments to ctrl.prsc and ctrl.baud.\",\n          \"Asset Lines\": [177]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.stb\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"ctrl.prsc\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}, {\"Primary RTL\": \"ctrl.baud\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Qualifies a transaction that can change timing settings.\",\n          \"Justification\": \"Its test gates the control-register write.\",\n          \"Asset Lines\": [176]\n        },\n        {\n          \"Asset RTL\": \"bus_rsp_o.data\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [],\n          \"Secondary To\": [],\n          \"Functionality\": \"Returns the timing settings in the bus response.\",\n          \"Justification\": \"It is a mixed bus response carrier and confidentiality is not an objective for this concept.\",\n          \"Asset Lines\": [198, 199]\n        }\n      ],\n      \"Not Reported\": [\n        {\n          \"Element RTL\": \"uart_clk\",\n          \"Element Entity\": \"neorv32_uart\",\n          \"Why Not Reported\": \"It is a selected pacing clock and does not itself hold the programmable timing setting.\"\n        }\n      ],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C5\",\n      \"Points\": [\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"bus_access ==> rx_irq_generator [ctrl.enable,irq_rx_full,irq_rx_half,irq_rx_nempty]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [161, 162, 163, 179, 185, 186, 187],\n          \"Answer Reason\": \"Bus writes can change the stored interrupt enables and the UART enable that gate the receive interrupt.\"\n        },\n        {\n          \"Point\": \"rx_engine_fifo_inst\",\n          \"Reached By\": \"rx_engine_fifo_inst ==> rx_irq_generator [rx_fifo.avail,free,half]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [292, 297, 301, 316, 317, 318],\n          \"Answer Reason\": \"The FIFO status outputs determine whether the receive interrupt is asserted.\"\n        },\n        {\n          \"Point\": \"rx_irq_generator\",\n          \"Reached By\": \"holding block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [313, 315, 316, 317, 318],\n          \"Answer Reason\": \"This process stores irq_rx_o and computes it from enable, configured thresholds and FIFO occupancy.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"irq_rx_o\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"rx_irq_generator\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Exports the receive interrupt indication.\",\n          \"Justification\": \"It is the output port where the computed interrupt crosses the boundary.\",\n          \"Asset Lines\": [42, 313, 315]\n        },\n        {\n          \"Asset RTL\": \"ctrl.enable\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_rx_o\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Gates receive interrupt generation.\",\n          \"Justification\": \"Its value is an input to the expression assigning irq_rx_o.\",\n          \"Asset Lines\": [270, 315]\n        },\n        {\n          \"Asset RTL\": \"ctrl.irq_rx_nempty\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_rx_o\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Enables the non-empty receive interrupt condition.\",\n          \"Justification\": \"It directly decides one term of the output interrupt expression.\",\n          \"Asset Lines\": [161, 185, 208, 316]\n        },\n        {\n          \"Asset RTL\": \"ctrl.irq_rx_half\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_rx_o\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Enables the half-full receive interrupt condition.\",\n          \"Justification\": \"It directly decides one term of the output interrupt expression.\",\n          \"Asset Lines\": [162, 186, 209, 317]\n        },\n        {\n          \"Asset RTL\": \"ctrl.irq_rx_full\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_rx_o\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Enables the full receive interrupt condition.\",\n          \"Justification\": \"It directly decides one term of the output interrupt expression.\",\n          \"Asset Lines\": [163, 187, 210, 318]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_rx_o\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Supplies interrupt-enable bits through the control write.\",\n          \"Justification\": \"Its fields modify the stored gates that decide irq_rx_o.\",\n          \"Asset Lines\": [185, 186, 187]\n        }\n      ],\n      \"Not Reported\": [\n        {\n          \"Element RTL\": \"rx_fifo.avail\",\n          \"Element Entity\": \"neorv32_uart\",\n          \"Why Not Reported\": \"It is a FIFO occupancy flag barred as an independent asset by the FIFO-buffer rule.\"\n        },\n        {\n          \"Element RTL\": \"rx_fifo.free\",\n          \"Element Entity\": \"neorv32_uart\",\n          \"Why Not Reported\": \"It is a FIFO occupancy flag barred as an independent asset by the FIFO-buffer rule.\"\n        },\n        {\n          \"Element RTL\": \"rx_fifo.half\",\n          \"Element Entity\": \"neorv32_uart\",\n          \"Why Not Reported\": \"It is a FIFO occupancy flag barred as an independent asset by the FIFO-buffer rule.\"\n        }\n      ],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C6\",\n      \"Points\": [\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"bus_access ==> tx_irq_generator [ctrl.enable,irq_tx_empty,irq_tx_nhalf]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [164, 165, 188, 189, 270, 271, 272],\n          \"Answer Reason\": \"Bus writes can change the stored transmit interrupt enables and the enable gate.\"\n        },\n        {\n          \"Point\": \"tx_engine_fifo_inst\",\n          \"Reached By\": \"tx_engine_fifo_inst ==> tx_irq_generator [tx_fifo.avail,half]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [247, 256, 271, 272],\n          \"Answer Reason\": \"Transmit FIFO occupancy status determines whether the transmit interrupt is asserted.\"\n        },\n        {\n          \"Point\": \"tx_irq_generator\",\n          \"Reached By\": \"holding block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [268, 270, 271, 272],\n          \"Answer Reason\": \"This process stores irq_tx_o and computes it from enable, configured thresholds and FIFO occupancy.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"irq_tx_o\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"tx_irq_generator\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Exports the transmit interrupt indication.\",\n          \"Justification\": \"It is the output port where the computed interrupt crosses the boundary.\",\n          \"Asset Lines\": [43, 268, 270]\n        },\n        {\n          \"Asset RTL\": \"ctrl.enable\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_tx_o\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Gates transmit interrupt generation.\",\n          \"Justification\": \"Its value is an input to the expression assigning irq_tx_o.\",\n          \"Asset Lines\": [270]\n        },\n        {\n          \"Asset RTL\": \"ctrl.irq_tx_empty\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_tx_o\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Enables the transmit-empty interrupt condition.\",\n          \"Justification\": \"It directly decides one term of the output interrupt expression.\",\n          \"Asset Lines\": [164, 188, 271]\n        },\n        {\n          \"Asset RTL\": \"ctrl.irq_tx_nhalf\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_tx_o\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Enables the transmit-low-occupancy interrupt condition.\",\n          \"Justification\": \"It directly decides one term of the output interrupt expression.\",\n          \"Asset Lines\": [165, 189, 272]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"irq_tx_o\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Supplies transmit interrupt-enable bits through the control write.\",\n          \"Justification\": \"Its fields modify the stored gates that decide irq_tx_o.\",\n          \"Asset Lines\": [188, 189]\n        }\n      ],\n      \"Not Reported\": [\n        {\n          \"Element RTL\": \"tx_fifo.avail\",\n          \"Element Entity\": \"neorv32_uart\",\n          \"Why Not Reported\": \"It is a FIFO occupancy flag barred as an independent asset by the FIFO-buffer rule.\"\n        },\n        {\n          \"Element RTL\": \"tx_fifo.half\",\n          \"Element Entity\": \"neorv32_uart\",\n          \"Why Not Reported\": \"It is a FIFO occupancy flag barred as an independent asset by the FIFO-buffer rule.\"\n        }\n      ],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C7\",\n      \"Points\": [\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"bus_access --> rtr_control [ctrl.enable,ctrl.hwfc_en]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [158, 181, 472, 473],\n          \"Answer Reason\": \"Bus-controlled enable and hardware-flow-control settings decide the RTS behavior.\"\n        },\n        {\n          \"Point\": \"rx_engine_fifo_inst\",\n          \"Reached By\": \"rx_engine_fifo_inst --> rtr_control [rx_fifo.half]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [292, 474],\n          \"Answer Reason\": \"The FIFO half-full status decides whether RTS is asserted when flow control is enabled.\"\n        },\n        {\n          \"Point\": \"rtr_control\",\n          \"Reached By\": \"holding block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [470, 472, 473, 474, 475, 477, 480],\n          \"Answer Reason\": \"The process assigns the RTS output and can select either the blocking or non-blocking value.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"uart_rtsn_o\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"rtr_control\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Exports the receive flow-control indication.\",\n          \"Justification\": \"It is the output boundary carrying the handshake decision.\",\n          \"Asset Lines\": [40, 470, 475, 477, 480]\n        },\n        {\n          \"Asset RTL\": \"ctrl.enable\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"uart_rtsn_o\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Disables or enables the RTS decision.\",\n          \"Justification\": \"It is tested in the assignment that selects the handshake output.\",\n          \"Asset Lines\": [473]\n        },\n        {\n          \"Asset RTL\": \"ctrl.hwfc_en\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\", \"A\"],\n          \"Secondary To\": [{\"Primary RTL\": \"uart_rtsn_o\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Selects whether hardware flow control is active.\",\n          \"Justification\": \"It gates the entire RTS-control decision.\",\n          \"Asset Lines\": [472]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.data\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"uart_rtsn_o\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Supplies the enable and hardware-flow-control settings.\",\n          \"Justification\": \"The bus record field changes the stored decisions that drive RTS.\",\n          \"Asset Lines\": [179, 181]\n        }\n      ],\n      \"Not Reported\": [\n        {\n          \"Element RTL\": \"rx_fifo.half\",\n          \"Element Entity\": \"neorv32_uart\",\n          \"Why Not Reported\": \"It is a FIFO occupancy flag barred as an independent asset by the FIFO-buffer rule.\"\n        }\n      ],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C8\",\n      \"Points\": [\n        {\n          \"Point\": \"transmitter\",\n          \"Reached By\": \"uart_ctsn_i ==> transmitter [uart_ctsn_i]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"no\",\n            \"Availability\": \"yes\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [337, 358, 359, 360],\n          \"Answer Reason\": \"The sampled CTS value is tested before the transmitter leaves its wait state, so a blocking value stalls transmission.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"uart_ctsn_i\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"transmitter\"],\n          \"Security Objectives\": [\"A\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Carries the peer's transmit-clearance handshake into the UART.\",\n          \"Justification\": \"It is the non-record input boundary carrying CTS into this unit.\",\n          \"Asset Lines\": [41, 337]\n        }\n      ],\n      \"Not Reported\": [\n        {\n          \"Element RTL\": \"tx_engine.cts\",\n          \"Element Entity\": \"neorv32_uart\",\n          \"Why Not Reported\": \"It is a sampled forwarding register; with no confidentiality objective it is not a qualifying secondary path.\"\n        }\n      ],\n      \"No Primary Reason\": \"\"\n    },\n    {\n      \"Concept ID\": \"C9\",\n      \"Points\": [\n        {\n          \"Point\": \"fifo_overrun\",\n          \"Reached By\": \"holding block\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [456, 459, 460, 461],\n          \"Answer Reason\": \"The process clears or sets the stored overrun indication based on enable and receive-FIFO write/full conditions.\"\n        },\n        {\n          \"Point\": \"rx_fifo.we\",\n          \"Reached By\": \"rx_fifo.we --> fifo_overrun [rx_fifo.we]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [460],\n          \"Answer Reason\": \"The receive write strobe participates in the condition that sets the overrun indication.\"\n        },\n        {\n          \"Point\": \"rx_engine_fifo_inst\",\n          \"Reached By\": \"rx_engine_fifo_inst --> fifo_overrun [rx_fifo.free]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [297, 460],\n          \"Answer Reason\": \"The FIFO free-status output participates in the condition that sets the overrun indication.\"\n        },\n        {\n          \"Point\": \"bus_access\",\n          \"Reached By\": \"fifo_overrun ==> bus_access [rx_engine.over]\",\n          \"Point Answers\": {\n            \"Confidentiality\": \"no\",\n            \"Integrity\": \"yes\",\n            \"Availability\": \"no\",\n            \"Undermined Expected Behavior\": \"no\"\n          },\n          \"Answer Lines\": [214],\n          \"Answer Reason\": \"The bus-access process places the stored overrun status in the response data word.\"\n        }\n      ],\n      \"Assets\": [\n        {\n          \"Asset RTL\": \"rx_engine.over\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"primary\",\n          \"Same Role\": [],\n          \"Found At\": [\"fifo_overrun\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [],\n          \"Functionality\": \"Stores whether a received byte overran a full FIFO.\",\n          \"Justification\": \"It is the register holding the overrun decision reported to software.\",\n          \"Asset Lines\": [456, 459, 461]\n        },\n        {\n          \"Asset RTL\": \"bus_rsp_o.data\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"bus_access\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"rx_engine.over\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"a\"}],\n          \"Functionality\": \"Carries the overrun status in the bus read response.\",\n          \"Justification\": \"It is a mixed bus response carrier that exposes the primary status but is not itself primary.\",\n          \"Asset Lines\": [214]\n        },\n        {\n          \"Asset RTL\": \"ctrl.enable\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"fifo_overrun\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"rx_engine.over\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Clears the overrun indication when the UART is disabled.\",\n          \"Justification\": \"Its condition directly controls the clearing assignment to the primary status.\",\n          \"Asset Lines\": [458, 459]\n        },\n        {\n          \"Asset RTL\": \"rx_fifo.we\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"rx_fifo.we\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"rx_engine.over\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Qualifies a receive write that can set overrun.\",\n          \"Justification\": \"It participates directly in the set condition for rx_engine.over.\",\n          \"Asset Lines\": [306, 460]\n        },\n        {\n          \"Asset RTL\": \"rx_fifo.free\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [\"rx_engine_fifo_inst\"],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"rx_engine.over\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Reports whether the receive FIFO has free space.\",\n          \"Justification\": \"Its full condition directly decides whether the overrun status is set.\",\n          \"Asset Lines\": [297, 460]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.addr\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"rx_engine.over\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Selects the response access that releases the overrun status.\",\n          \"Justification\": \"Its response-address test decides whether the bus response data containing overrun is returned.\",\n          \"Asset Lines\": [194]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.rw\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"rx_engine.over\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Selects a read response that can expose overrun.\",\n          \"Justification\": \"Its test decides whether the response data field is assigned the overrun value.\",\n          \"Asset Lines\": [193, 194]\n        },\n        {\n          \"Asset RTL\": \"bus_req_i.stb\",\n          \"Entity\": \"neorv32_uart\",\n          \"Label\": \"secondary\",\n          \"Same Role\": [],\n          \"Found At\": [],\n          \"Security Objectives\": [\"I\"],\n          \"Secondary To\": [{\"Primary RTL\": \"rx_engine.over\", \"Primary Entity\": \"neorv32_uart\", \"Direction\": \"b\"}],\n          \"Functionality\": \"Qualifies a bus response transaction.\",\n          \"Justification\": \"Its test decides whether the response containing overrun is produced.\",\n          \"Asset Lines\": [176, 223]\n        }\n      ],\n      \"Not Reported\": [],\n      \"No Primary Reason\": \"\"\n    }\n  ],\n  \"Notes\": [\n    \"The diagram omits the direct bus_req_i.data use by sim_tx at lines 499-511; the RTL is authoritative, so sim_tx is included for C1.\",\n    \"C1 and C2 list no held lines although the RTL holds payload data in tx_engine.sreg at line 351 and rx_engine.sreg at line 434; those RTL-held elements are included as primary assets.\",\n    \"The FIFO instances are black boxes from another IP; their data storage and status behavior are treated using the specified black-box and FIFO rules.\"\n  ]\n}",
+ "reply": {
+  "module name": "neorv32_uart",
+  "notes": [
+   "The diagram omits the direct bus_req_i.data use by sim_tx at lines 499-511; the RTL is authoritative, so sim_tx is included for C1.",
+   "C1 and C2 list no held lines although the RTL holds payload data in tx_engine.sreg at line 351 and rx_engine.sreg at line 434; those RTL-held elements are included as primary assets.",
+   "The FIFO instances are black boxes from another IP; their data storage and status behavior are treated using the specified black-box and FIFO rules."
+  ],
+  "points": [
+   {
+    "concept id": "C1",
+    "point": "bus_access",
+    "reached by": "bus_req_i ==> bus_access [bus_req_i.data]",
+    "lines": [
+     179,
+     180,
+     190,
+     191
+    ],
+    "reason": "Bus writes at this process can change transmit control and clear behavior, but the process does not itself expose the payload.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "tx_fifo.wdata",
+    "reached by": "bus_req_i ==> tx_fifo.wdata [bus_req_i.data]",
+    "lines": [
+     260
+    ],
+    "reason": "The bus payload is carried unchanged into the transmit FIFO write-data path.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "tx_engine_fifo_inst",
+    "reached by": "tx_fifo.wdata ==> tx_engine_fifo_inst [tx_fifo.wdata]",
+    "lines": [
+     246,
+     250,
+     251,
+     254,
+     255
+    ],
+    "reason": "Under the black-box FIFO rule, the instance stores and returns the payload; its write, read and clear ports can respectively alter, withhold or remove it.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "tx_fifo.we",
+    "reached by": "bus_req_i --> tx_fifo.we [bus_req_i.addr,rw,stb]",
+    "lines": [
+     261
+    ],
+    "reason": "The decoded write strobe decides whether the bus payload is accepted into the transmit FIFO and can therefore reject or admit a transmitted byte.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "tx_fifo.clear",
+    "reached by": "bus_access --> tx_fifo.clear [ctrl.clr_tx,enable,sim_mode]",
+    "lines": [
+     259
+    ],
+    "reason": "The clear expression can erase buffered transmit data and simulation mode can divert normal transmit behavior.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "yes"
+   },
+   {
+    "concept id": "C1",
+    "point": "tx_fifo.re",
+    "reached by": "transmitter --> tx_fifo.re [tx_engine.state]",
+    "lines": [
+     262
+    ],
+    "reason": "The transmitter state controls FIFO popping, so suppressing this read strobe can prevent queued payloads from reaching transmission.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "transmitter",
+    "reached by": "tx_engine_fifo_inst ==> transmitter [tx_fifo.rdata]",
+    "lines": [
+     351,
+     358,
+     359,
+     365,
+     370
+    ],
+    "reason": "The FIFO word is loaded into and shifted by the transmit register, while CTS and the engine state can hold or alter its transmission.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "uart_txd_o",
+    "reached by": "transmitter ==> uart_txd_o [tx_engine.txd]",
+    "lines": [
+     392
+    ],
+    "reason": "The output assignment exposes the transmitted bitstream and is the boundary at which an altered or withheld value changes delivered UART data.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C1",
+    "point": "sim_tx",
+    "reached by": "RTL direct use of bus_req_i.data in the simulation-transmit process",
+    "lines": [
+     499,
+     501,
+     507,
+     508,
+     510,
+     511
+    ],
+    "reason": "When enabled, the process consumes bus payload bytes and writes them to the screen and simulation file instead of the normal hardware path.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "yes"
+   },
+   {
+    "concept id": "C2",
+    "point": "receiver",
+    "reached by": "uart_rxd_i ==> receiver [uart_rxd_i]",
+    "lines": [
+     408,
+     424,
+     434,
+     439,
+     441
+    ],
+    "reason": "The receiver samples the input into its synchronizer and shift register, and enable, state and timing conditions determine whether bytes are completed.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "rx_fifo.wdata",
+    "reached by": "receiver ==> rx_fifo.wdata [rx_engine.sreg]",
+    "lines": [
+     305
+    ],
+    "reason": "The completed received byte is carried from the receive shift register into FIFO write data.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "rx_fifo.we",
+    "reached by": "receiver ==> rx_fifo.we [rx_engine.done]",
+    "lines": [
+     306
+    ],
+    "reason": "The done-derived write strobe decides whether a completed receive byte is stored and can therefore lose or admit data.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "rx_engine_fifo_inst",
+    "reached by": "rx_fifo.wdata ==> rx_engine_fifo_inst [rx_fifo.wdata]",
+    "lines": [
+     291,
+     295,
+     296,
+     299,
+     300
+    ],
+    "reason": "Under the black-box FIFO rule, received data is stored and returned by the instance, while clear, write and read controls can erase, reject or withhold it.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "rx_fifo.re",
+    "reached by": "bus_access --> rx_fifo.re [bus_req_i.addr,rw,stb]",
+    "lines": [
+     307
+    ],
+    "reason": "The bus-read decode controls FIFO popping, so suppressing it can prevent received bytes from becoming available.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "rx_fifo.clear",
+    "reached by": "bus_access --> rx_fifo.clear [ctrl.clr_rx,enable,sim_mode]",
+    "lines": [
+     304
+    ],
+    "reason": "The clear expression can erase received bytes and disabling the path prevents normal receive operation.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C2",
+    "point": "bus_access",
+    "reached by": "rx_engine_fifo_inst ==> bus_access [rx_fifo.rdata]",
+    "lines": [
+     214,
+     217
+    ],
+    "reason": "The process places FIFO data into the bus response, exposing received bytes and making their returned value and timing dependent on the bus access.",
+    "confidentiality": "yes",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "bus_access",
+    "reached by": "bus_req_i ==> bus_access [bus_req_i.data]",
+    "lines": [
+     156,
+     179
+    ],
+    "reason": "A bus write stores ctrl.enable, including a value that disables the UART.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "clkgen_en_o",
+    "reached by": "bus_access ==> clkgen_en_o [ctrl.enable]",
+    "lines": [
+     228
+    ],
+    "reason": "The enable setting directly controls the clock-generation enable output.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "tx_fifo.clear",
+    "reached by": "bus_access --> tx_fifo.clear [ctrl.enable]",
+    "lines": [
+     259
+    ],
+    "reason": "A disabled enable condition clears the transmit FIFO.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "rx_fifo.clear",
+    "reached by": "bus_access --> rx_fifo.clear [ctrl.enable]",
+    "lines": [
+     304
+    ],
+    "reason": "A disabled enable condition clears the receive FIFO.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "transmitter",
+    "reached by": "bus_access ==> transmitter [ctrl.enable]",
+    "lines": [
+     344
+    ],
+    "reason": "The transmitter state is assigned from ctrl.enable and therefore can be stopped by disabling the setting.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "receiver",
+    "reached by": "bus_access ==> receiver [ctrl.enable]",
+    "lines": [
+     417
+    ],
+    "reason": "The receiver state is assigned from ctrl.enable and can be held inactive.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "rtr_control",
+    "reached by": "bus_access --> rtr_control [ctrl.enable]",
+    "lines": [
+     473,
+     480
+    ],
+    "reason": "Enable selects the RTS behavior and a disabled UART drives the blocking value.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "rx_irq_generator",
+    "reached by": "bus_access ==> rx_irq_generator [ctrl.enable]",
+    "lines": [
+     315
+    ],
+    "reason": "The receive interrupt is gated by ctrl.enable.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "tx_irq_generator",
+    "reached by": "bus_access ==> tx_irq_generator [ctrl.enable]",
+    "lines": [
+     270
+    ],
+    "reason": "The transmit interrupt is gated by ctrl.enable.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C3",
+    "point": "fifo_overrun",
+    "reached by": "bus_access --> fifo_overrun [ctrl.enable]",
+    "lines": [
+     458,
+     459
+    ],
+    "reason": "Disabling the UART clears the overrun status, although that status is not the enable value itself.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "bus_access",
+    "reached by": "bus_req_i ==> bus_access [bus_req_i.data]",
+    "lines": [
+     159,
+     160,
+     182,
+     183
+    ],
+    "reason": "Bus writes directly change the stored prescaler and baud divisor.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "uart_clk",
+    "reached by": "bus_access --> uart_clk [ctrl.prsc]",
+    "lines": [
+     229
+    ],
+    "reason": "ctrl.prsc selects a different clock-generator bit, changing the timing used by both engines.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "transmitter",
+    "reached by": "bus_access ==> transmitter [ctrl.baud]",
+    "lines": [
+     349,
+     368
+    ],
+    "reason": "The transmitter loads and reloads its baud counter from ctrl.baud, so an altered divisor changes serial timing.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C4",
+    "point": "receiver",
+    "reached by": "bus_access ==> receiver [ctrl.baud]",
+    "lines": [
+     422,
+     432
+    ],
+    "reason": "The receiver loads and reloads its sampling counter from ctrl.baud.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C5",
+    "point": "bus_access",
+    "reached by": "bus_access ==> rx_irq_generator [ctrl.enable,irq_rx_full,irq_rx_half,irq_rx_nempty]",
+    "lines": [
+     161,
+     162,
+     163,
+     179,
+     185,
+     186,
+     187
+    ],
+    "reason": "Bus writes can change the stored interrupt enables and the UART enable that gate the receive interrupt.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C5",
+    "point": "rx_engine_fifo_inst",
+    "reached by": "rx_engine_fifo_inst ==> rx_irq_generator [rx_fifo.avail,free,half]",
+    "lines": [
+     292,
+     297,
+     301,
+     316,
+     317,
+     318
+    ],
+    "reason": "The FIFO status outputs determine whether the receive interrupt is asserted.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C5",
+    "point": "rx_irq_generator",
+    "reached by": "holding block",
+    "lines": [
+     313,
+     315,
+     316,
+     317,
+     318
+    ],
+    "reason": "This process stores irq_rx_o and computes it from enable, configured thresholds and FIFO occupancy.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "bus_access",
+    "reached by": "bus_access ==> tx_irq_generator [ctrl.enable,irq_tx_empty,irq_tx_nhalf]",
+    "lines": [
+     164,
+     165,
+     188,
+     189,
+     270,
+     271,
+     272
+    ],
+    "reason": "Bus writes can change the stored transmit interrupt enables and the enable gate.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "tx_engine_fifo_inst",
+    "reached by": "tx_engine_fifo_inst ==> tx_irq_generator [tx_fifo.avail,half]",
+    "lines": [
+     247,
+     256,
+     271,
+     272
+    ],
+    "reason": "Transmit FIFO occupancy status determines whether the transmit interrupt is asserted.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C6",
+    "point": "tx_irq_generator",
+    "reached by": "holding block",
+    "lines": [
+     268,
+     270,
+     271,
+     272
+    ],
+    "reason": "This process stores irq_tx_o and computes it from enable, configured thresholds and FIFO occupancy.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C7",
+    "point": "bus_access",
+    "reached by": "bus_access --> rtr_control [ctrl.enable,ctrl.hwfc_en]",
+    "lines": [
+     158,
+     181,
+     472,
+     473
+    ],
+    "reason": "Bus-controlled enable and hardware-flow-control settings decide the RTS behavior.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C7",
+    "point": "rx_engine_fifo_inst",
+    "reached by": "rx_engine_fifo_inst --> rtr_control [rx_fifo.half]",
+    "lines": [
+     292,
+     474
+    ],
+    "reason": "The FIFO half-full status decides whether RTS is asserted when flow control is enabled.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C7",
+    "point": "rtr_control",
+    "reached by": "holding block",
+    "lines": [
+     470,
+     472,
+     473,
+     474,
+     475,
+     477,
+     480
+    ],
+    "reason": "The process assigns the RTS output and can select either the blocking or non-blocking value.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C8",
+    "point": "transmitter",
+    "reached by": "uart_ctsn_i ==> transmitter [uart_ctsn_i]",
+    "lines": [
+     337,
+     358,
+     359,
+     360
+    ],
+    "reason": "The sampled CTS value is tested before the transmitter leaves its wait state, so a blocking value stalls transmission.",
+    "confidentiality": "no",
+    "integrity": "no",
+    "availability": "yes",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C9",
+    "point": "fifo_overrun",
+    "reached by": "holding block",
+    "lines": [
+     456,
+     459,
+     460,
+     461
+    ],
+    "reason": "The process clears or sets the stored overrun indication based on enable and receive-FIFO write/full conditions.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C9",
+    "point": "rx_fifo.we",
+    "reached by": "rx_fifo.we --> fifo_overrun [rx_fifo.we]",
+    "lines": [
+     460
+    ],
+    "reason": "The receive write strobe participates in the condition that sets the overrun indication.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C9",
+    "point": "rx_engine_fifo_inst",
+    "reached by": "rx_engine_fifo_inst --> fifo_overrun [rx_fifo.free]",
+    "lines": [
+     297,
+     460
+    ],
+    "reason": "The FIFO free-status output participates in the condition that sets the overrun indication.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   },
+   {
+    "concept id": "C9",
+    "point": "bus_access",
+    "reached by": "fifo_overrun ==> bus_access [rx_engine.over]",
+    "lines": [
+     214
+    ],
+    "reason": "The bus-access process places the stored overrun status in the response data word.",
+    "confidentiality": "no",
+    "integrity": "yes",
+    "availability": "no",
+    "undermined expected behavior": "no"
+   }
+  ],
+  "structural assets": [
+   {
+    "concept id": "C1",
+    "element": "tx_engine.sreg",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "transmitter"
+    ],
+    "label": "primary",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "lines": [
+     333,
+     351,
+     365,
+     370
+    ],
+    "links": [],
+    "reason": "Stores and shifts the transmit payload before serial output. It is the unit's register holding the transmitted byte and its bits are directly used to form txd.",
+    "functionality": "Stores and shifts the transmit payload before serial output.",
+    "justification": "It is the unit's register holding the transmitted byte and its bits are directly used to form txd."
+   },
+   {
+    "concept id": "C1",
+    "element": "uart_txd_o",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "uart_txd_o"
+    ],
+    "label": "primary",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "lines": [
+     38,
+     392
+    ],
+    "links": [],
+    "reason": "Carries the transmitted UART payload across the unit boundary. It is the non-record output returning the unmixed transmit value.",
+    "functionality": "Carries the transmitted UART payload across the unit boundary.",
+    "justification": "It is the non-record output returning the unmixed transmit value."
+   },
+   {
+    "concept id": "C1",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "bus_access",
+     "tx_fifo.wdata"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     179,
+     260
+    ],
+    "links": [
+     {
+      "primary": "tx_engine.sreg",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies the byte written into the transmit path. The bus request data field is a barred bus-record carrier, but its value directly sets the payload that reaches the transmit register.",
+    "functionality": "Supplies the byte written into the transmit path.",
+    "justification": "The bus request data field is a barred bus-record carrier, but its value directly sets the payload that reaches the transmit register."
+   },
+   {
+    "concept id": "C1",
+    "element": "tx_fifo.wdata",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "tx_fifo.wdata"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "lines": [
+     140,
+     250,
+     260
+    ],
+    "links": [
+     {
+      "primary": "tx_engine.sreg",
+      "entity": "neorv32_uart",
+      "direction": "a"
+     }
+    ],
+    "reason": "Carries the bus byte into the transmit FIFO instance. It is a FIFO write-data forwarding signal and is therefore a path to the later transmit register, not a primary.",
+    "functionality": "Carries the bus byte into the transmit FIFO instance.",
+    "justification": "It is a FIFO write-data forwarding signal and is therefore a path to the later transmit register, not a primary."
+   },
+   {
+    "concept id": "C1",
+    "element": "tx_fifo.rdata",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "tx_engine_fifo_inst",
+     "transmitter"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "lines": [
+     255,
+     351
+    ],
+    "links": [
+     {
+      "primary": "tx_engine.sreg",
+      "entity": "neorv32_uart",
+      "direction": "a"
+     }
+    ],
+    "reason": "Carries a queued transmit byte from the FIFO to the transmitter. It is the FIFO instance's outward data path and only forwards the word loaded into tx_engine.sreg.",
+    "functionality": "Carries a queued transmit byte from the FIFO to the transmitter.",
+    "justification": "It is the FIFO instance's outward data path and only forwards the word loaded into tx_engine.sreg."
+   },
+   {
+    "concept id": "C1",
+    "element": "tx_engine.txd",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "transmitter"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "lines": [
+     334,
+     365,
+     392
+    ],
+    "links": [
+     {
+      "primary": "uart_txd_o",
+      "entity": "neorv32_uart",
+      "direction": "a"
+     }
+    ],
+    "reason": "Holds the current serialized transmit bit before it drives the output. It is an internal re-timed copy on the path to the primary UART output.",
+    "functionality": "Holds the current serialized transmit bit before it drives the output.",
+    "justification": "It is an internal re-timed copy on the path to the primary UART output."
+   },
+   {
+    "concept id": "C1",
+    "element": "tx_engine.cts",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "transmitter"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     337,
+     358,
+     359
+    ],
+    "links": [
+     {
+      "primary": "uart_txd_o",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     }
+    ],
+    "reason": "Samples CTS and gates progression of transmit transmission. The sampled CTS condition can hold the transmitter before it releases data.",
+    "functionality": "Samples CTS and gates progression of transmit transmission.",
+    "justification": "The sampled CTS condition can hold the transmitter before it releases data."
+   },
+   {
+    "concept id": "C1",
+    "element": "tx_fifo.we",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "tx_fifo.we"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     251,
+     261
+    ],
+    "links": [
+     {
+      "primary": "tx_engine.sreg",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     }
+    ],
+    "reason": "Controls acceptance of a bus byte into the transmit FIFO. Its decoded value can prevent or permit the payload from entering the storage path.",
+    "functionality": "Controls acceptance of a bus byte into the transmit FIFO.",
+    "justification": "Its decoded value can prevent or permit the payload from entering the storage path."
+   },
+   {
+    "concept id": "C1",
+    "element": "tx_fifo.clear",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "tx_fifo.clear"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     246,
+     259
+    ],
+    "links": [
+     {
+      "primary": "tx_engine.sreg",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     }
+    ],
+    "reason": "Clears the transmit FIFO and diverts operation in simulation mode. It can erase queued payloads or prevent normal hardware transmission.",
+    "functionality": "Clears the transmit FIFO and diverts operation in simulation mode.",
+    "justification": "It can erase queued payloads or prevent normal hardware transmission."
+   },
+   {
+    "concept id": "C2",
+    "element": "uart_rxd_i",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "receiver"
+    ],
+    "label": "primary",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "lines": [
+     39,
+     408
+    ],
+    "links": [],
+    "reason": "Carries serial received bits into the UART. It is the serial input boundary through which each received word enters the unit.",
+    "functionality": "Carries serial received bits into the UART.",
+    "justification": "It is the serial input boundary through which each received word enters the unit."
+   },
+   {
+    "concept id": "C2",
+    "element": "rx_engine.sreg",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "receiver"
+    ],
+    "label": "primary",
+    "objectives": [
+     "C",
+     "I",
+     "A"
+    ],
+    "lines": [
+     405,
+     434
+    ],
+    "links": [],
+    "reason": "Stores and assembles sampled receive bits into a byte. It is the unit register holding the received data before FIFO insertion.",
+    "functionality": "Stores and assembles sampled receive bits into a byte.",
+    "justification": "It is the unit register holding the received data before FIFO insertion."
+   },
+   {
+    "concept id": "C2",
+    "element": "bus_rsp_o.data",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     35,
+     217
+    ],
+    "links": [
+     {
+      "primary": "rx_engine.sreg",
+      "entity": "neorv32_uart",
+      "direction": "a"
+     }
+    ],
+    "reason": "Carries the received FIFO word in the bus response data field. It is a bus response carrier whose value exposes the received word but is barred from being primary.",
+    "functionality": "Carries the received FIFO word in the bus response data field.",
+    "justification": "It is a bus response carrier whose value exposes the received word but is barred from being primary."
+   },
+   {
+    "concept id": "C2",
+    "element": "rx_fifo.wdata",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "rx_fifo.wdata"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "lines": [
+     140,
+     295,
+     305
+    ],
+    "links": [
+     {
+      "primary": "rx_engine.sreg",
+      "entity": "neorv32_uart",
+      "direction": "a"
+     }
+    ],
+    "reason": "Carries the assembled receive byte into the FIFO. It is a FIFO input forwarding signal rather than the stored primary.",
+    "functionality": "Carries the assembled receive byte into the FIFO.",
+    "justification": "It is a FIFO input forwarding signal rather than the stored primary."
+   },
+   {
+    "concept id": "C2",
+    "element": "rx_fifo.rdata",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "rx_engine_fifo_inst",
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "C",
+     "I"
+    ],
+    "lines": [
+     300,
+     217
+    ],
+    "links": [
+     {
+      "primary": "rx_engine.sreg",
+      "entity": "neorv32_uart",
+      "direction": "a"
+     }
+    ],
+    "reason": "Carries a received FIFO word toward the bus response. It is the FIFO output data path and is barred from being a primary storage element.",
+    "functionality": "Carries a received FIFO word toward the bus response.",
+    "justification": "It is the FIFO output data path and is barred from being a primary storage element."
+   },
+   {
+    "concept id": "C2",
+    "element": "rx_fifo.we",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "rx_fifo.we"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     296,
+     306
+    ],
+    "links": [
+     {
+      "primary": "rx_engine.sreg",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     }
+    ],
+    "reason": "Controls insertion of completed receive bytes into the FIFO. It can block or permit storage of the received payload.",
+    "functionality": "Controls insertion of completed receive bytes into the FIFO.",
+    "justification": "It can block or permit storage of the received payload."
+   },
+   {
+    "concept id": "C2",
+    "element": "rx_fifo.clear",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "rx_fifo.clear"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     291,
+     304
+    ],
+    "links": [
+     {
+      "primary": "rx_engine.sreg",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     }
+    ],
+    "reason": "Clears the receive FIFO. Its assertion can remove received data before software reads it.",
+    "functionality": "Clears the receive FIFO.",
+    "justification": "Its assertion can remove received data before software reads it."
+   },
+   {
+    "concept id": "C3",
+    "element": "ctrl.enable",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     156,
+     179,
+     228,
+     259,
+     304,
+     344,
+     417
+    ],
+    "links": [],
+    "reason": "Stores the UART operational enable decision. It is the register that holds the setting and controls the engines, clock-enable output and FIFO clears.",
+    "functionality": "Stores the UART operational enable decision.",
+    "justification": "It is the register that holds the setting and controls the engines, clock-enable output and FIFO clears."
+   },
+   {
+    "concept id": "C3",
+    "element": "clkgen_en_o",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "clkgen_en_o"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     36,
+     228
+    ],
+    "links": [],
+    "reason": "Exports the enable decision to the clock generator. It is the non-record output through which the enable setting crosses the boundary.",
+    "functionality": "Exports the enable decision to the clock generator.",
+    "justification": "It is the non-record output through which the enable setting crosses the boundary."
+   },
+   {
+    "concept id": "C3",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     179
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies the bus-written enable bit. The bus request data field is a barred access-record carrier but line 179 lets it modify ctrl.enable.",
+    "functionality": "Supplies the bus-written enable bit.",
+    "justification": "The bus request data field is a barred access-record carrier but line 179 lets it modify ctrl.enable."
+   },
+   {
+    "concept id": "C3",
+    "element": "bus_req_i.addr",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     178
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects the control-register write containing enable. Its address test decides whether the enable assignment is reached.",
+    "functionality": "Selects the control-register write containing enable.",
+    "justification": "Its address test decides whether the enable assignment is reached."
+   },
+   {
+    "concept id": "C3",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     177
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects a write rather than a read of the control register. Its test gates the assignment that changes ctrl.enable.",
+    "functionality": "Selects a write rather than a read of the control register.",
+    "justification": "Its test gates the assignment that changes ctrl.enable."
+   },
+   {
+    "concept id": "C3",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     176
+    ],
+    "links": [
+     {
+      "primary": "ctrl.enable",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     }
+    ],
+    "reason": "Qualifies a bus transaction that can write enable. Its test gates the control-register write.",
+    "functionality": "Qualifies a bus transaction that can write enable.",
+    "justification": "Its test gates the control-register write."
+   },
+   {
+    "concept id": "C3",
+    "element": "bus_rsp_o.data",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [],
+    "lines": [
+     195
+    ],
+    "links": [],
+    "reason": "Returns the enable setting in the bus read-data word. It is a mixed bus response carrier, and confidentiality is not an objective for this concept.",
+    "functionality": "Returns the enable setting in the bus read-data word.",
+    "justification": "It is a mixed bus response carrier, and confidentiality is not an objective for this concept."
+   },
+   {
+    "concept id": "C4",
+    "element": "ctrl.prsc",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     159,
+     182,
+     229
+    ],
+    "links": [],
+    "reason": "Stores the programmable clock prescaler selection. It is the setting used to select uart_clk.",
+    "functionality": "Stores the programmable clock prescaler selection.",
+    "justification": "It is the setting used to select uart_clk."
+   },
+   {
+    "concept id": "C4",
+    "element": "ctrl.baud",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     160,
+     183,
+     349,
+     368,
+     422,
+     432
+    ],
+    "links": [],
+    "reason": "Stores the programmable baud divisor. It is the setting loaded into both engine baud counters.",
+    "functionality": "Stores the programmable baud divisor.",
+    "justification": "It is the setting loaded into both engine baud counters."
+   },
+   {
+    "concept id": "C4",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     182,
+     183
+    ],
+    "links": [
+     {
+      "primary": "ctrl.prsc",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.baud",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies the prescaler and baud fields written by software. The bus record field is a barred carrier but its bits directly set both timing registers.",
+    "functionality": "Supplies the prescaler and baud fields written by software.",
+    "justification": "The bus record field is a barred carrier but its bits directly set both timing registers."
+   },
+   {
+    "concept id": "C4",
+    "element": "bus_req_i.addr",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     178
+    ],
+    "links": [
+     {
+      "primary": "ctrl.prsc",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.baud",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects the control-register write that updates timing settings. Its address test decides whether the timing assignments execute.",
+    "functionality": "Selects the control-register write that updates timing settings.",
+    "justification": "Its address test decides whether the timing assignments execute."
+   },
+   {
+    "concept id": "C4",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     177
+    ],
+    "links": [
+     {
+      "primary": "ctrl.prsc",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.baud",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects a write transaction for timing configuration. Its test gates the assignments to ctrl.prsc and ctrl.baud.",
+    "functionality": "Selects a write transaction for timing configuration.",
+    "justification": "Its test gates the assignments to ctrl.prsc and ctrl.baud."
+   },
+   {
+    "concept id": "C4",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     176
+    ],
+    "links": [
+     {
+      "primary": "ctrl.prsc",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     },
+     {
+      "primary": "ctrl.baud",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     }
+    ],
+    "reason": "Qualifies a transaction that can change timing settings. Its test gates the control-register write.",
+    "functionality": "Qualifies a transaction that can change timing settings.",
+    "justification": "Its test gates the control-register write."
+   },
+   {
+    "concept id": "C4",
+    "element": "bus_rsp_o.data",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [],
+    "lines": [
+     198,
+     199
+    ],
+    "links": [],
+    "reason": "Returns the timing settings in the bus response. It is a mixed bus response carrier and confidentiality is not an objective for this concept.",
+    "functionality": "Returns the timing settings in the bus response.",
+    "justification": "It is a mixed bus response carrier and confidentiality is not an objective for this concept."
+   },
+   {
+    "concept id": "C5",
+    "element": "irq_rx_o",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "rx_irq_generator"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     42,
+     313,
+     315
+    ],
+    "links": [],
+    "reason": "Exports the receive interrupt indication. It is the output port where the computed interrupt crosses the boundary.",
+    "functionality": "Exports the receive interrupt indication.",
+    "justification": "It is the output port where the computed interrupt crosses the boundary."
+   },
+   {
+    "concept id": "C5",
+    "element": "ctrl.enable",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     270,
+     315
+    ],
+    "links": [
+     {
+      "primary": "irq_rx_o",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     }
+    ],
+    "reason": "Gates receive interrupt generation. Its value is an input to the expression assigning irq_rx_o.",
+    "functionality": "Gates receive interrupt generation.",
+    "justification": "Its value is an input to the expression assigning irq_rx_o."
+   },
+   {
+    "concept id": "C5",
+    "element": "ctrl.irq_rx_nempty",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     161,
+     185,
+     208,
+     316
+    ],
+    "links": [
+     {
+      "primary": "irq_rx_o",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     }
+    ],
+    "reason": "Enables the non-empty receive interrupt condition. It directly decides one term of the output interrupt expression.",
+    "functionality": "Enables the non-empty receive interrupt condition.",
+    "justification": "It directly decides one term of the output interrupt expression."
+   },
+   {
+    "concept id": "C5",
+    "element": "ctrl.irq_rx_half",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     162,
+     186,
+     209,
+     317
+    ],
+    "links": [
+     {
+      "primary": "irq_rx_o",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     }
+    ],
+    "reason": "Enables the half-full receive interrupt condition. It directly decides one term of the output interrupt expression.",
+    "functionality": "Enables the half-full receive interrupt condition.",
+    "justification": "It directly decides one term of the output interrupt expression."
+   },
+   {
+    "concept id": "C5",
+    "element": "ctrl.irq_rx_full",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     163,
+     187,
+     210,
+     318
+    ],
+    "links": [
+     {
+      "primary": "irq_rx_o",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     }
+    ],
+    "reason": "Enables the full receive interrupt condition. It directly decides one term of the output interrupt expression.",
+    "functionality": "Enables the full receive interrupt condition.",
+    "justification": "It directly decides one term of the output interrupt expression."
+   },
+   {
+    "concept id": "C5",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     185,
+     186,
+     187
+    ],
+    "links": [
+     {
+      "primary": "irq_rx_o",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies interrupt-enable bits through the control write. Its fields modify the stored gates that decide irq_rx_o.",
+    "functionality": "Supplies interrupt-enable bits through the control write.",
+    "justification": "Its fields modify the stored gates that decide irq_rx_o."
+   },
+   {
+    "concept id": "C6",
+    "element": "irq_tx_o",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "tx_irq_generator"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     43,
+     268,
+     270
+    ],
+    "links": [],
+    "reason": "Exports the transmit interrupt indication. It is the output port where the computed interrupt crosses the boundary.",
+    "functionality": "Exports the transmit interrupt indication.",
+    "justification": "It is the output port where the computed interrupt crosses the boundary."
+   },
+   {
+    "concept id": "C6",
+    "element": "ctrl.enable",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     270
+    ],
+    "links": [
+     {
+      "primary": "irq_tx_o",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     }
+    ],
+    "reason": "Gates transmit interrupt generation. Its value is an input to the expression assigning irq_tx_o.",
+    "functionality": "Gates transmit interrupt generation.",
+    "justification": "Its value is an input to the expression assigning irq_tx_o."
+   },
+   {
+    "concept id": "C6",
+    "element": "ctrl.irq_tx_empty",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     164,
+     188,
+     271
+    ],
+    "links": [
+     {
+      "primary": "irq_tx_o",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     }
+    ],
+    "reason": "Enables the transmit-empty interrupt condition. It directly decides one term of the output interrupt expression.",
+    "functionality": "Enables the transmit-empty interrupt condition.",
+    "justification": "It directly decides one term of the output interrupt expression."
+   },
+   {
+    "concept id": "C6",
+    "element": "ctrl.irq_tx_nhalf",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     165,
+     189,
+     272
+    ],
+    "links": [
+     {
+      "primary": "irq_tx_o",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     }
+    ],
+    "reason": "Enables the transmit-low-occupancy interrupt condition. It directly decides one term of the output interrupt expression.",
+    "functionality": "Enables the transmit-low-occupancy interrupt condition.",
+    "justification": "It directly decides one term of the output interrupt expression."
+   },
+   {
+    "concept id": "C6",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     188,
+     189
+    ],
+    "links": [
+     {
+      "primary": "irq_tx_o",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies transmit interrupt-enable bits through the control write. Its fields modify the stored gates that decide irq_tx_o.",
+    "functionality": "Supplies transmit interrupt-enable bits through the control write.",
+    "justification": "Its fields modify the stored gates that decide irq_tx_o."
+   },
+   {
+    "concept id": "C7",
+    "element": "uart_rtsn_o",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "rtr_control"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     40,
+     470,
+     475,
+     477,
+     480
+    ],
+    "links": [],
+    "reason": "Exports the receive flow-control indication. It is the output boundary carrying the handshake decision.",
+    "functionality": "Exports the receive flow-control indication.",
+    "justification": "It is the output boundary carrying the handshake decision."
+   },
+   {
+    "concept id": "C7",
+    "element": "ctrl.enable",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     473
+    ],
+    "links": [
+     {
+      "primary": "uart_rtsn_o",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     }
+    ],
+    "reason": "Disables or enables the RTS decision. It is tested in the assignment that selects the handshake output.",
+    "functionality": "Disables or enables the RTS decision.",
+    "justification": "It is tested in the assignment that selects the handshake output."
+   },
+   {
+    "concept id": "C7",
+    "element": "ctrl.hwfc_en",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I",
+     "A"
+    ],
+    "lines": [
+     472
+    ],
+    "links": [
+     {
+      "primary": "uart_rtsn_o",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects whether hardware flow control is active. It gates the entire RTS-control decision.",
+    "functionality": "Selects whether hardware flow control is active.",
+    "justification": "It gates the entire RTS-control decision."
+   },
+   {
+    "concept id": "C7",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     179,
+     181
+    ],
+    "links": [
+     {
+      "primary": "uart_rtsn_o",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     }
+    ],
+    "reason": "Supplies the enable and hardware-flow-control settings. The bus record field changes the stored decisions that drive RTS.",
+    "functionality": "Supplies the enable and hardware-flow-control settings.",
+    "justification": "The bus record field changes the stored decisions that drive RTS."
+   },
+   {
+    "concept id": "C8",
+    "element": "uart_ctsn_i",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "transmitter"
+    ],
+    "label": "primary",
+    "objectives": [
+     "A"
+    ],
+    "lines": [
+     41,
+     337
+    ],
+    "links": [],
+    "reason": "Carries the peer's transmit-clearance handshake into the UART. It is the non-record input boundary carrying CTS into this unit.",
+    "functionality": "Carries the peer's transmit-clearance handshake into the UART.",
+    "justification": "It is the non-record input boundary carrying CTS into this unit."
+   },
+   {
+    "concept id": "C9",
+    "element": "rx_engine.over",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "fifo_overrun"
+    ],
+    "label": "primary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     456,
+     459,
+     461
+    ],
+    "links": [],
+    "reason": "Stores whether a received byte overran a full FIFO. It is the register holding the overrun decision reported to software.",
+    "functionality": "Stores whether a received byte overran a full FIFO.",
+    "justification": "It is the register holding the overrun decision reported to software."
+   },
+   {
+    "concept id": "C9",
+    "element": "bus_rsp_o.data",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "bus_access"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     214
+    ],
+    "links": [
+     {
+      "primary": "rx_engine.over",
+      "entity": "neorv32_uart",
+      "direction": "a"
+     }
+    ],
+    "reason": "Carries the overrun status in the bus read response. It is a mixed bus response carrier that exposes the primary status but is not itself primary.",
+    "functionality": "Carries the overrun status in the bus read response.",
+    "justification": "It is a mixed bus response carrier that exposes the primary status but is not itself primary."
+   },
+   {
+    "concept id": "C9",
+    "element": "ctrl.enable",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "fifo_overrun"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     458,
+     459
+    ],
+    "links": [
+     {
+      "primary": "rx_engine.over",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     }
+    ],
+    "reason": "Clears the overrun indication when the UART is disabled. Its condition directly controls the clearing assignment to the primary status.",
+    "functionality": "Clears the overrun indication when the UART is disabled.",
+    "justification": "Its condition directly controls the clearing assignment to the primary status."
+   },
+   {
+    "concept id": "C9",
+    "element": "rx_fifo.we",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "rx_fifo.we"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     306,
+     460
+    ],
+    "links": [
+     {
+      "primary": "rx_engine.over",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     }
+    ],
+    "reason": "Qualifies a receive write that can set overrun. It participates directly in the set condition for rx_engine.over.",
+    "functionality": "Qualifies a receive write that can set overrun.",
+    "justification": "It participates directly in the set condition for rx_engine.over."
+   },
+   {
+    "concept id": "C9",
+    "element": "rx_fifo.free",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [
+     "rx_engine_fifo_inst"
+    ],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     297,
+     460
+    ],
+    "links": [
+     {
+      "primary": "rx_engine.over",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     }
+    ],
+    "reason": "Reports whether the receive FIFO has free space. Its full condition directly decides whether the overrun status is set.",
+    "functionality": "Reports whether the receive FIFO has free space.",
+    "justification": "Its full condition directly decides whether the overrun status is set."
+   },
+   {
+    "concept id": "C9",
+    "element": "bus_req_i.addr",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     194
+    ],
+    "links": [
+     {
+      "primary": "rx_engine.over",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects the response access that releases the overrun status. Its response-address test decides whether the bus response data containing overrun is returned.",
+    "functionality": "Selects the response access that releases the overrun status.",
+    "justification": "Its response-address test decides whether the bus response data containing overrun is returned."
+   },
+   {
+    "concept id": "C9",
+    "element": "bus_req_i.rw",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     193,
+     194
+    ],
+    "links": [
+     {
+      "primary": "rx_engine.over",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     }
+    ],
+    "reason": "Selects a read response that can expose overrun. Its test decides whether the response data field is assigned the overrun value.",
+    "functionality": "Selects a read response that can expose overrun.",
+    "justification": "Its test decides whether the response data field is assigned the overrun value."
+   },
+   {
+    "concept id": "C9",
+    "element": "bus_req_i.stb",
+    "entity": "neorv32_uart",
+    "same role": [],
+    "points": [],
+    "label": "secondary",
+    "objectives": [
+     "I"
+    ],
+    "lines": [
+     176,
+     223
+    ],
+    "links": [
+     {
+      "primary": "rx_engine.over",
+      "entity": "neorv32_uart",
+      "direction": "b"
+     }
+    ],
+    "reason": "Qualifies a bus response transaction. Its test decides whether the response containing overrun is produced.",
+    "functionality": "Qualifies a bus response transaction.",
+    "justification": "Its test decides whether the response containing overrun is produced."
+   }
+  ],
+  "not reported": [
+   {
+    "concept id": "C1",
+    "element": "bus_rsp_o.data",
+    "entity": "neorv32_uart",
+    "reason": "It is a mixed bus response carrier and does not return the transmitted payload."
+   },
+   {
+    "concept id": "C2",
+    "element": "bus_req_i.data",
+    "entity": "neorv32_uart",
+    "reason": "The receive data does not come from this bus request field."
+   },
+   {
+    "concept id": "C4",
+    "element": "uart_clk",
+    "entity": "neorv32_uart",
+    "reason": "It is a selected pacing clock and does not itself hold the programmable timing setting."
+   },
+   {
+    "concept id": "C5",
+    "element": "rx_fifo.avail",
+    "entity": "neorv32_uart",
+    "reason": "It is a FIFO occupancy flag barred as an independent asset by the FIFO-buffer rule."
+   },
+   {
+    "concept id": "C5",
+    "element": "rx_fifo.free",
+    "entity": "neorv32_uart",
+    "reason": "It is a FIFO occupancy flag barred as an independent asset by the FIFO-buffer rule."
+   },
+   {
+    "concept id": "C5",
+    "element": "rx_fifo.half",
+    "entity": "neorv32_uart",
+    "reason": "It is a FIFO occupancy flag barred as an independent asset by the FIFO-buffer rule."
+   },
+   {
+    "concept id": "C6",
+    "element": "tx_fifo.avail",
+    "entity": "neorv32_uart",
+    "reason": "It is a FIFO occupancy flag barred as an independent asset by the FIFO-buffer rule."
+   },
+   {
+    "concept id": "C6",
+    "element": "tx_fifo.half",
+    "entity": "neorv32_uart",
+    "reason": "It is a FIFO occupancy flag barred as an independent asset by the FIFO-buffer rule."
+   },
+   {
+    "concept id": "C7",
+    "element": "rx_fifo.half",
+    "entity": "neorv32_uart",
+    "reason": "It is a FIFO occupancy flag barred as an independent asset by the FIFO-buffer rule."
+   },
+   {
+    "concept id": "C8",
+    "element": "tx_engine.cts",
+    "entity": "neorv32_uart",
+    "reason": "It is a sampled forwarding register; with no confidentiality objective it is not a qualifying secondary path."
+   }
+  ],
+  "no primary reason": {}
+ },
+ "problems": [
+  "C3: secondary 'bus_rsp_o.data' has no links",
+  "C4: secondary 'bus_rsp_o.data' has no links"
+ ],
+ "reply keys": "the 2026-10-13 format as written in 'raw'; 'reply' holds it in v5 keys"
+}
