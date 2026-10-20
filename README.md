@@ -162,6 +162,8 @@ The watchdog's diagram as the model sees it is `experiments/03_two_phase_csa_pio
 
 > From v9g on, the held-out 26 were also used to tune the phase 1 & 2 prompts to choose between versions. So the held-out numbers from there on are not a blind test anymore.
 
+*Risk of Overtuning:* The prompt was written for VHDL and for LAsset's annotation conventions. Its narrow bars and keep rules came from analysing the model's failures on these 41 modules; on another IP module they may or may not fire. The broad convention rules (clocks and resets, access command fields, sequencing state, port buffers, control record ports, boundary outputs) would keep firing, and whether they help depends on whether the new annotator shares LAsset's conventions. A second set of annotated VHDL modules, from a different annotator, is needed to measure this. Rule-by-rule table: `experiments/03_two_phase_csa_pio/lab/analysis/RULE_BASIS_AUDIT_2026-10-20.md`.
+
 
 ## Experimental Design
 ### Data
