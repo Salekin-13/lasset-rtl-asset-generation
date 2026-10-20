@@ -1,0 +1,73 @@
+UNIT neorv32_cpu_cp_crypto
+  INPUTS: clk_i, ctrl_i, rs1_i, rs2_i, rstn_i
+  OUTPUTS: res_o, valid_o
+  BLOCKS
+    [generate] aes_disabled: aes.dec, aes.mix1, aes.mix2, aes.so
+    [generate] aes_enabled: aes.dec, aes.mix2
+    [generate] block_cyphers_disabled: blk_res, rol_in, rol_res, rs2_sel
+    [generate] block_cyphers_enabled: blk_res, rol_in, rol_res, rs2_sel
+    [generate] sha_disabled: sha_res
+    [generate] sm3_disabled: sm3_res
+    [generate] sm3_enabled: sm3_res
+    [generate] sm4_disabled: sm4.rnd, sm4.so1, sm4.so2
+    [generate] sm4_enabled: sm4.so2
+    [generate] xperm4_gen: xperm4_res
+    [generate] xperm8_gen: xperm8_res
+    [generate] xperm_disabled: xperm4_res, xperm8_res, xperm_res
+    [generate] xperm_enabled: xperm_res
+    [logic] cmd: cmd
+    [logic] cmd_valid: cmd_valid
+    [logic] out_sel: out_sel
+    [process] aes_mix_columns: aes.mix1; clocked by clk_i; reset by rstn_i
+    [process] aes_sbox_lookup: aes.so; clocked by clk_i
+    [process] control: done, funct12, funct3, rs1, rs2, state; clocked by clk_i; reset by rstn_i
+    [process] result: -; clocked by clk_i; reset by rstn_i
+    [process] sha_core: sha_res
+    [process] sm4_round: sm4.rnd; clocked by clk_i; reset by rstn_i
+    [process] sm4_sbox_lookup: sm4.so1; clocked by clk_i
+  ARROWS (==> a value moves; --> only decides; [the elements the arrow carries])
+    aes_disabled ==> block_cyphers_enabled   [aes.mix2]
+    aes_enabled ==> block_cyphers_enabled   [aes.mix2]
+    aes_enabled --> aes_mix_columns   [aes.dec]
+    aes_enabled --> aes_sbox_lookup   [aes.dec]
+    block_cyphers_disabled ==> result   [blk_res]
+    block_cyphers_enabled --> aes_sbox_lookup   [rs2_sel]
+    block_cyphers_enabled ==> result   [blk_res]
+    block_cyphers_enabled --> sm4_sbox_lookup   [rs2_sel]
+    sha_disabled ==> result   [sha_res]
+    sm3_disabled ==> result   [sm3_res]
+    sm3_enabled ==> result   [sm3_res]
+    sm4_disabled ==> block_cyphers_enabled   [sm4.rnd]
+    sm4_enabled ==> sm4_round   [sm4.so2]
+    xperm4_gen ==> xperm_enabled   [xperm4_res]
+    xperm8_gen ==> xperm_enabled   [xperm8_res]
+    xperm_disabled ==> result   [xperm_res]
+    xperm_enabled ==> result   [xperm_res]
+    ctrl_i --> cmd   [ctrl_i.{ir_funct12,ir_funct3,ir_opcode}]
+    ctrl_i --> cmd_valid   [ctrl_i.alu_cp_alu]
+    ctrl_i ==> control   [ctrl_i.{ir_funct12,ir_funct3}]
+    ctrl_i --> result   [ctrl_i.ir_opcode]
+    rs1_i ==> control   [rs1_i]
+    rs2_i ==> control   [rs2_i]
+    cmd --> cmd_valid   [cmd]
+    cmd --> control   [cmd]
+    cmd_valid --> control   [cmd_valid]
+    out_sel --> result   [out_sel]
+    aes_mix_columns ==> aes_enabled   [aes.mix1]
+    aes_sbox_lookup ==> aes_enabled   [aes.so]
+    aes_sbox_lookup ==> aes_mix_columns   [aes.so]
+    control ==> aes_enabled   [funct12]
+    control ==> block_cyphers_enabled   [funct12, rs1, rs2]
+    control ==> sm3_enabled   [funct12, rs1]
+    control ==> xperm4_gen   [rs1, rs2]
+    control ==> xperm8_gen   [rs1, rs2]
+    control --> xperm_enabled   [funct3]
+    control ==> out_sel   [funct12]
+    control ==> valid_o   [done]
+    control --> result   [done, funct12]
+    control ==> sha_core   [funct12, rs1, rs2]
+    control --> sm4_round   [funct12]
+    result ==> res_o
+    sha_core ==> result   [sha_res]
+    sm4_round ==> block_cyphers_enabled   [sm4.rnd]
+    sm4_sbox_lookup ==> sm4_enabled   [sm4.so1]

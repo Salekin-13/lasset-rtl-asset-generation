@@ -1,0 +1,80 @@
+UNIT neorv32_cpu_cp_bitmanip
+  INPUTS: clk_i, cmp_i, ctrl_i, rs1_i, rs2_i, rstn_i, shamt_i
+  OUTPUTS: res_o, valid_o
+  BLOCKS
+    [generate] barrel_shifter: bs_level, bs_shift, shifter.bcnt, shifter.cnt, shifter.cnt_max, shifter.nxt, shifter.run, shifter.sreg
+    [generate] barrel_shifter_core: bs_level
+    [generate] brev_gen: res_int
+    [generate] clmul_disable: clmul.cnt, clmul.res, clmul.run
+    [generate] clmul_enable: clmul.run
+    [generate] interleave_gen: unzip_res, zip_res
+    [generate] or_combine_gen: res_int
+    [generate] serial_shifter: shifter.nxt
+    [logic] cmd: cmd
+    [logic] res_int: res_int
+    [logic] res_out: res_out
+    [logic] valid_cmd: valid_cmd
+    [process] clmul_core: clmul.cnt, clmul.res; clocked by clk_i; reset by rstn_i
+    [process] controller: clmul.start, ctrl_state, less_reg, rs1_reg, rs2_reg, sha_reg, shifter.start, valid; clocked by clk_i; reset by rstn_i
+    [process] output_gate: -; clocked by clk_i; reset by rstn_i
+    [process] serial_shifter_core: shifter.bcnt, shifter.cnt, shifter.cnt_max, shifter.sreg; clocked by clk_i; reset by rstn_i
+    [process] serial_shifter_ctrl: shifter.run
+    [process] shift_adder: adder_res
+    [process] shift_one_hot: one_hot_res
+  ARROWS (==> a value moves; --> only decides; [the elements the arrow carries])
+    barrel_shifter ==> barrel_shifter_core   [bs_level, bs_shift]
+    barrel_shifter ==> res_int   [shifter.{bcnt,cnt,sreg}]
+    barrel_shifter --> controller   [shifter.run]
+    barrel_shifter_core ==> barrel_shifter   [bs_level]
+    brev_gen ==> res_out   [res_int]
+    clmul_disable ==> res_int   [clmul.res]
+    clmul_disable --> controller   [clmul.run]
+    clmul_enable --> clmul_core   [clmul.run]
+    clmul_enable --> controller   [clmul.run]
+    interleave_gen ==> res_int   [unzip_res, zip_res]
+    or_combine_gen ==> res_out   [res_int]
+    serial_shifter ==> serial_shifter_core   [shifter.nxt]
+    cmp_i ==> controller   [cmp_i]
+    ctrl_i --> barrel_shifter   [ctrl_i.{ir_funct12,ir_funct3}]
+    ctrl_i --> serial_shifter   [ctrl_i.ir_funct3]
+    ctrl_i --> cmd   [ctrl_i.{ir_funct12,ir_funct3,ir_opcode}]
+    ctrl_i --> res_int   [ctrl_i.{ir_funct12,ir_funct3}]
+    ctrl_i --> valid_cmd   [ctrl_i.alu_cp_alu]
+    ctrl_i --> controller   [ctrl_i.{alu_cp_alu,cpu_trap}]
+    ctrl_i --> serial_shifter_core   [ctrl_i.{ir_funct12,ir_funct3}]
+    ctrl_i --> serial_shifter_ctrl   [ctrl_i.ir_funct12]
+    ctrl_i --> shift_adder   [ctrl_i.ir_funct3]
+    rs1_i ==> controller   [rs1_i]
+    rs2_i ==> controller   [rs2_i]
+    shamt_i ==> controller   [shamt_i]
+    shamt_i ==> serial_shifter_core   [shamt_i]
+    cmd --> serial_shifter   [cmd]
+    cmd --> res_out   [cmd]
+    cmd --> valid_cmd   [cmd]
+    cmd --> controller   [cmd]
+    cmd --> serial_shifter_core   [cmd]
+    cmd --> serial_shifter_ctrl   [cmd]
+    res_int ==> res_out   [res_int]
+    res_out ==> output_gate   [res_out]
+    valid_cmd --> controller   [valid_cmd]
+    clmul_core --> clmul_enable   [clmul.cnt]
+    clmul_core ==> res_int   [clmul.res]
+    controller ==> barrel_shifter   [rs1_reg, sha_reg]
+    controller ==> brev_gen   [rs1_reg]
+    controller ==> interleave_gen   [rs1_reg]
+    controller ==> or_combine_gen   [rs1_reg]
+    controller ==> res_int   [less_reg, rs1_reg, rs2_reg]
+    controller ==> valid_o   [valid]
+    controller ==> clmul_core   [clmul.start, rs1_reg, rs2_reg]
+    controller --> output_gate   [valid]
+    controller ==> serial_shifter_core   [rs1_reg, shifter.start]
+    controller ==> shift_adder   [rs1_reg, rs2_reg]
+    controller --> shift_one_hot   [sha_reg]
+    output_gate ==> res_o
+    serial_shifter_core ==> serial_shifter   [shifter.sreg]
+    serial_shifter_core ==> res_int   [shifter.{bcnt,cnt,sreg}]
+    serial_shifter_core ==> serial_shifter_ctrl   [shifter.{cnt,cnt_max,sreg}]
+    serial_shifter_ctrl --> controller   [shifter.run]
+    serial_shifter_ctrl --> serial_shifter_core   [shifter.run]
+    shift_adder ==> res_int   [adder_res]
+    shift_one_hot ==> res_int   [one_hot_res]

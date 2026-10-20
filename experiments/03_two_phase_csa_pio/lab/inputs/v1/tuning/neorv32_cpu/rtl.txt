@@ -1,0 +1,336 @@
+   22 | entity neorv32_cpu is
+   23 |   generic (
+   25 |     HART_ID             : natural range 0 to 1023;
+   26 |     BOOT_ADDR           : std_ulogic_vector(31 downto 0);
+   27 |     DEBUG_PARK_ADDR     : std_ulogic_vector(31 downto 0);
+   28 |     DEBUG_EXC_ADDR      : std_ulogic_vector(31 downto 0);
+   29 |     ICC_EN              : boolean;
+   31 |     RISCV_ISA_C         : boolean;
+   32 |     RISCV_ISA_E         : boolean;
+   33 |     RISCV_ISA_M         : boolean;
+   34 |     RISCV_ISA_U         : boolean;
+   35 |     RISCV_ISA_Zaamo     : boolean;
+   36 |     RISCV_ISA_Zalrsc    : boolean;
+   37 |     RISCV_ISA_Zba       : boolean;
+   38 |     RISCV_ISA_Zbb       : boolean;
+   39 |     RISCV_ISA_Zbkb      : boolean;
+   40 |     RISCV_ISA_Zbkc      : boolean;
+   41 |     RISCV_ISA_Zbkx      : boolean;
+   42 |     RISCV_ISA_Zbs       : boolean;
+   43 |     RISCV_ISA_Zfinx     : boolean;
+   44 |     RISCV_ISA_Zicntr    : boolean;
+   45 |     RISCV_ISA_Zicond    : boolean;
+   46 |     RISCV_ISA_Zihpm     : boolean;
+   47 |     RISCV_ISA_Zknd      : boolean;
+   48 |     RISCV_ISA_Zkne      : boolean;
+   49 |     RISCV_ISA_Zknh      : boolean;
+   50 |     RISCV_ISA_Zksed     : boolean;
+   51 |     RISCV_ISA_Zksh      : boolean;
+   52 |     RISCV_ISA_Zmmul     : boolean;
+   53 |     RISCV_ISA_Zxcfu     : boolean;
+   54 |     RISCV_ISA_Sdext     : boolean;
+   55 |     RISCV_ISA_Sdtrig    : boolean;
+   56 |     RISCV_ISA_Smpmp     : boolean;
+   58 |     CPU_FAST_MUL_EN     : boolean;
+   59 |     CPU_FAST_SHIFT_EN   : boolean;
+   60 |     CPU_RF_HW_RST_EN    : boolean;
+   62 |     PMP_NUM_REGIONS     : natural range 0 to 16;
+   63 |     PMP_MIN_GRANULARITY : natural;
+   64 |     PMP_TOR_MODE_EN     : boolean;
+   65 |     PMP_NAP_MODE_EN     : boolean;
+   67 |     HPM_NUM_CNTS        : natural range 0 to 13;
+   68 |     HPM_CNT_WIDTH       : natural range 0 to 64
+   69 |   );
+   70 |   port (
+   72 |     clk_i      : in  std_ulogic;
+   73 |     rstn_i     : in  std_ulogic;
+   75 |     msi_i      : in  std_ulogic;
+   76 |     mei_i      : in  std_ulogic;
+   77 |     mti_i      : in  std_ulogic;
+   78 |     firq_i     : in  std_ulogic_vector(15 downto 0);
+   79 |     dbi_i      : in  std_ulogic;
+   81 |     icc_tx_o   : out icc_t;
+   82 |     icc_rx_i   : in  icc_t;
+   84 |     ibus_req_o : out bus_req_t;
+   85 |     ibus_rsp_i : in  bus_rsp_t;
+   87 |     dbus_req_o : out bus_req_t;
+   88 |     dbus_rsp_i : in  bus_rsp_t
+   89 |   );
+   90 | end neorv32_cpu;
+
+   92 | architecture neorv32_cpu_rtl of neorv32_cpu is
+   95 |   constant rf_rs3_en_c : boolean := RISCV_ISA_Zxcfu or RISCV_ISA_Zfinx;
+   96 |   constant riscv_a_c   : boolean := RISCV_ISA_Zaamo and RISCV_ISA_Zalrsc;
+   97 |   constant riscv_b_c   : boolean := RISCV_ISA_Zba and RISCV_ISA_Zbb and RISCV_ISA_Zbs;
+   98 |   constant riscv_zkt_c : boolean := CPU_FAST_SHIFT_EN;
+   99 |   constant riscv_zkn_c : boolean := RISCV_ISA_Zbkb and RISCV_ISA_Zbkc and RISCV_ISA_Zbkx and
+  100 |                                     RISCV_ISA_Zkne and RISCV_ISA_Zknd and RISCV_ISA_Zknh;
+  101 |   constant riscv_zks_c : boolean := RISCV_ISA_Zbkb and RISCV_ISA_Zbkc and RISCV_ISA_Zbkx and
+  102 |                                     RISCV_ISA_Zksh and RISCV_ISA_Zksed;
+  105 |   signal xcsr_cnt, xcsr_pmp, xcsr_alu, xcsr_res, xcsr_icc : std_ulogic_vector(XLEN-1 downto 0);
+  108 |   signal ctrl        : ctrl_bus_t;
+  109 |   signal frontend    : if_bus_t;
+  110 |   signal rf_wdata    : std_ulogic_vector(XLEN-1 downto 0);
+  111 |   signal rs1         : std_ulogic_vector(XLEN-1 downto 0);
+  112 |   signal rs2         : std_ulogic_vector(XLEN-1 downto 0);
+  113 |   signal rs3         : std_ulogic_vector(XLEN-1 downto 0);
+  114 |   signal alu_res     : std_ulogic_vector(XLEN-1 downto 0);
+  115 |   signal alu_add     : std_ulogic_vector(XLEN-1 downto 0);
+  116 |   signal alu_cmp     : std_ulogic_vector(1 downto 0);
+  117 |   signal lsu_rdata   : std_ulogic_vector(XLEN-1 downto 0);
+  118 |   signal alu_cp_done : std_ulogic;
+  119 |   signal lsu_wait    : std_ulogic;
+  120 |   signal csr_rdata   : std_ulogic_vector(XLEN-1 downto 0);
+  121 |   signal lsu_mar     : std_ulogic_vector(XLEN-1 downto 0);
+  122 |   signal lsu_err     : std_ulogic_vector(3 downto 0);
+  123 |   signal pmp_fault   : std_ulogic;
+  124 |   signal irq_machine : std_ulogic_vector(2 downto 0);
+  126 | begin
+  130 |   hello_neorv32:
+  131 |   if HART_ID = 0 generate
+  134 |     assert false report "[NEORV32] CPU ISA: rv32" &
+  135 |       cond_sel_string_f(RISCV_ISA_E,      "e",         "i") &
+  136 |       cond_sel_string_f(riscv_a_c,        "a",         "" ) &
+  137 |       cond_sel_string_f(riscv_b_c,        "b",         "" ) &
+  138 |       cond_sel_string_f(RISCV_ISA_C,      "c",         "" ) &
+  139 |       cond_sel_string_f(RISCV_ISA_M,      "m",         "" ) &
+  140 |       cond_sel_string_f(RISCV_ISA_U,      "u",         "" ) &
+  141 |       cond_sel_string_f(true,             "x",         "" ) &
+  142 |       cond_sel_string_f(RISCV_ISA_Zaamo,  "_zaamo",    "" ) &
+  143 |       cond_sel_string_f(RISCV_ISA_Zalrsc, "_zalrsc",   "" ) &
+  144 |       cond_sel_string_f(RISCV_ISA_Zba,    "_zba",      "" ) &
+  145 |       cond_sel_string_f(RISCV_ISA_Zbb,    "_zbb",      "" ) &
+  146 |       cond_sel_string_f(RISCV_ISA_Zbkb,   "_zbkb",     "" ) &
+  147 |       cond_sel_string_f(RISCV_ISA_Zbkc,   "_zbkc",     "" ) &
+  148 |       cond_sel_string_f(RISCV_ISA_Zbkx,   "_zbkx",     "" ) &
+  149 |       cond_sel_string_f(RISCV_ISA_Zbs,    "_zbs",      "" ) &
+  150 |       cond_sel_string_f(RISCV_ISA_Zicntr, "_zicntr",   "" ) &
+  151 |       cond_sel_string_f(RISCV_ISA_Zicond, "_zicond",   "" ) &
+  152 |       cond_sel_string_f(true,             "_zicsr",    "" ) &
+  153 |       cond_sel_string_f(true,             "_zifencei", "" ) &
+  154 |       cond_sel_string_f(RISCV_ISA_Zihpm,  "_zihpm",    "" ) &
+  155 |       cond_sel_string_f(RISCV_ISA_Zfinx,  "_zfinx",    "" ) &
+  156 |       cond_sel_string_f(riscv_zkn_c,      "_zkn",      "" ) &
+  157 |       cond_sel_string_f(RISCV_ISA_Zknd,   "_zknd",     "" ) &
+  158 |       cond_sel_string_f(RISCV_ISA_Zkne,   "_zkne",     "" ) &
+  159 |       cond_sel_string_f(RISCV_ISA_Zknh,   "_zknh",     "" ) &
+  160 |       cond_sel_string_f(riscv_zks_c,      "_zks",      "" ) &
+  161 |       cond_sel_string_f(RISCV_ISA_Zksed,  "_zksed",    "" ) &
+  162 |       cond_sel_string_f(RISCV_ISA_Zksh,   "_zksh",     "" ) &
+  163 |       cond_sel_string_f(riscv_zkt_c,      "_zkt",      "" ) &
+  164 |       cond_sel_string_f(RISCV_ISA_Zmmul,  "_zmmul",    "" ) &
+  165 |       cond_sel_string_f(RISCV_ISA_Zxcfu,  "_zxcfu",    "" ) &
+  166 |       cond_sel_string_f(RISCV_ISA_Sdext,  "_sdext",    "" ) &
+  167 |       cond_sel_string_f(RISCV_ISA_Sdtrig, "_sdtrig",   "" ) &
+  168 |       cond_sel_string_f(RISCV_ISA_Smpmp,  "_smpmp",    "" )
+  169 |       severity note;
+  172 |     assert false report "[NEORV32] CPU tuning options: " &
+  173 |       cond_sel_string_f(CPU_FAST_MUL_EN,   "fast_mul ",   "") &
+  174 |       cond_sel_string_f(CPU_FAST_SHIFT_EN, "fast_shift ", "") &
+  175 |       cond_sel_string_f(CPU_RF_HW_RST_EN,  "rf_hw_rst ",  "")
+  176 |       severity note;
+  179 |     assert not is_simulation_c report "[NEORV32] Assuming this is a simulation." severity warning;
+  181 |   end generate;
+  186 |   neorv32_cpu_frontend_inst: entity neorv32.neorv32_cpu_frontend
+  187 |   generic map (
+  188 |     RVC_EN => RISCV_ISA_C
+  189 |   )
+  190 |   port map (
+  192 |     clk_i      => clk_i,
+  193 |     rstn_i     => rstn_i,
+  194 |     ctrl_i     => ctrl,
+  196 |     ibus_req_o => ibus_req_o,
+  197 |     ibus_rsp_i => ibus_rsp_i,
+  199 |     frontend_o => frontend
+  200 |   );
+  205 |   neorv32_cpu_control_inst: entity neorv32.neorv32_cpu_control
+  206 |   generic map (
+  208 |     HART_ID           => HART_ID,
+  209 |     BOOT_ADDR         => BOOT_ADDR,
+  210 |     DEBUG_PARK_ADDR   => DEBUG_PARK_ADDR,
+  211 |     DEBUG_EXC_ADDR    => DEBUG_EXC_ADDR,
+  213 |     RISCV_ISA_A       => riscv_a_c,
+  214 |     RISCV_ISA_B       => riscv_b_c,
+  215 |     RISCV_ISA_C       => RISCV_ISA_C,
+  216 |     RISCV_ISA_E       => RISCV_ISA_E,
+  217 |     RISCV_ISA_M       => RISCV_ISA_M,
+  218 |     RISCV_ISA_U       => RISCV_ISA_U,
+  219 |     RISCV_ISA_Zaamo   => RISCV_ISA_Zaamo,
+  220 |     RISCV_ISA_Zalrsc  => RISCV_ISA_Zalrsc,
+  221 |     RISCV_ISA_Zba     => RISCV_ISA_Zba,
+  222 |     RISCV_ISA_Zbb     => RISCV_ISA_Zbb,
+  223 |     RISCV_ISA_Zbkb    => RISCV_ISA_Zbkb,
+  224 |     RISCV_ISA_Zbkc    => RISCV_ISA_Zbkc,
+  225 |     RISCV_ISA_Zbkx    => RISCV_ISA_Zbkx,
+  226 |     RISCV_ISA_Zbs     => RISCV_ISA_Zbs,
+  227 |     RISCV_ISA_Zfinx   => RISCV_ISA_Zfinx,
+  228 |     RISCV_ISA_Zicntr  => RISCV_ISA_Zicntr,
+  229 |     RISCV_ISA_Zicond  => RISCV_ISA_Zicond,
+  230 |     RISCV_ISA_Zihpm   => RISCV_ISA_Zihpm,
+  231 |     RISCV_ISA_Zkn     => riscv_zkn_c,
+  232 |     RISCV_ISA_Zknd    => RISCV_ISA_Zknd,
+  233 |     RISCV_ISA_Zkne    => RISCV_ISA_Zkne,
+  234 |     RISCV_ISA_Zknh    => RISCV_ISA_Zknh,
+  235 |     RISCV_ISA_Zks     => riscv_zks_c,
+  236 |     RISCV_ISA_Zksed   => RISCV_ISA_Zksed,
+  237 |     RISCV_ISA_Zksh    => RISCV_ISA_Zksh,
+  238 |     RISCV_ISA_Zkt     => riscv_zkt_c,
+  239 |     RISCV_ISA_Zmmul   => RISCV_ISA_Zmmul,
+  240 |     RISCV_ISA_Zxcfu   => RISCV_ISA_Zxcfu,
+  241 |     RISCV_ISA_Sdext   => RISCV_ISA_Sdext,
+  242 |     RISCV_ISA_Sdtrig  => RISCV_ISA_Sdtrig,
+  243 |     RISCV_ISA_Smpmp   => RISCV_ISA_Smpmp,
+  245 |     CPU_FAST_MUL_EN   => CPU_FAST_MUL_EN,
+  246 |     CPU_FAST_SHIFT_EN => CPU_FAST_SHIFT_EN,
+  247 |     CPU_RF_HW_RST_EN  => CPU_RF_HW_RST_EN
+  248 |   )
+  249 |   port map (
+  251 |     clk_i         => clk_i,
+  252 |     rstn_i        => rstn_i,
+  253 |     ctrl_o        => ctrl,
+  255 |     frontend_i    => frontend,
+  257 |     pmp_fault_i   => pmp_fault,
+  259 |     alu_cp_done_i => alu_cp_done,
+  260 |     alu_cmp_i     => alu_cmp,
+  261 |     alu_add_i     => alu_add,
+  262 |     rf_rs1_i      => rs1,
+  263 |     csr_rdata_o   => csr_rdata,
+  264 |     xcsr_rdata_i  => xcsr_res,
+  266 |     irq_dbg_i     => dbi_i,
+  267 |     irq_machine_i => irq_machine,
+  268 |     irq_fast_i    => firq_i,
+  270 |     lsu_wait_i    => lsu_wait,
+  271 |     lsu_mar_i     => lsu_mar,
+  272 |     lsu_err_i     => lsu_err
+  273 |   );
+  276 |   irq_machine <= mti_i & mei_i & msi_i;
+  279 |   xcsr_res <= xcsr_cnt or xcsr_alu or xcsr_pmp or xcsr_icc;
+  284 |   cnts_enabled:
+  285 |   if RISCV_ISA_Zicntr or RISCV_ISA_Zihpm generate
+  286 |     neorv32_cpu_counters_inst: entity neorv32.neorv32_cpu_counters
+  287 |     generic map (
+  288 |     ZICNTR_EN => RISCV_ISA_Zicntr,
+  289 |     ZIHPM_EN  => RISCV_ISA_Zihpm,
+  290 |     HPM_NUM   => HPM_NUM_CNTS,
+  291 |     HPM_WIDTH => HPM_CNT_WIDTH
+  292 |     )
+  293 |     port map (
+  295 |       clk_i   => clk_i,
+  296 |       rstn_i  => rstn_i,
+  297 |       ctrl_i  => ctrl,
+  299 |       rdata_o => xcsr_cnt
+  300 |     );
+  301 |   end generate;
+  303 |   cnts_disabled:
+  304 |   if (not RISCV_ISA_Zicntr) and (not RISCV_ISA_Zihpm) generate
+  305 |     xcsr_cnt <= (others => '0');
+  306 |   end generate;
+  311 |   neorv32_cpu_regfile_inst: entity neorv32.neorv32_cpu_regfile
+  312 |   generic map (
+  313 |     RST_EN => CPU_RF_HW_RST_EN,
+  314 |     RVE_EN => RISCV_ISA_E,
+  315 |     RS3_EN => rf_rs3_en_c
+  316 |   )
+  317 |   port map (
+  319 |     clk_i  => clk_i,
+  320 |     rstn_i => rstn_i,
+  321 |     ctrl_i => ctrl,
+  323 |     rd_i   => rf_wdata,
+  324 |     rs1_o  => rs1,
+  325 |     rs2_o  => rs2,
+  326 |     rs3_o  => rs3
+  327 |   );
+  330 |   rf_wdata <= alu_res or lsu_rdata or csr_rdata or ctrl.pc_ret;
+  335 |   neorv32_cpu_alu_inst: entity neorv32.neorv32_cpu_alu
+  336 |   generic map (
+  338 |     RISCV_ISA_M      => RISCV_ISA_M,
+  339 |     RISCV_ISA_Zba    => RISCV_ISA_Zba,
+  340 |     RISCV_ISA_Zbb    => RISCV_ISA_Zbb,
+  341 |     RISCV_ISA_Zbkb   => RISCV_ISA_Zbkb,
+  342 |     RISCV_ISA_Zbkc   => RISCV_ISA_Zbkc,
+  343 |     RISCV_ISA_Zbkx   => RISCV_ISA_Zbkx,
+  344 |     RISCV_ISA_Zbs    => RISCV_ISA_Zbs,
+  345 |     RISCV_ISA_Zfinx  => RISCV_ISA_Zfinx,
+  346 |     RISCV_ISA_Zicond => RISCV_ISA_Zicond,
+  347 |     RISCV_ISA_Zknd   => RISCV_ISA_Zknd,
+  348 |     RISCV_ISA_Zkne   => RISCV_ISA_Zkne,
+  349 |     RISCV_ISA_Zknh   => RISCV_ISA_Zknh,
+  350 |     RISCV_ISA_Zksed  => RISCV_ISA_Zksed,
+  351 |     RISCV_ISA_Zksh   => RISCV_ISA_Zksh,
+  352 |     RISCV_ISA_Zmmul  => RISCV_ISA_Zmmul,
+  353 |     RISCV_ISA_Zxcfu  => RISCV_ISA_Zxcfu,
+  355 |     FAST_MUL_EN      => CPU_FAST_MUL_EN,
+  356 |     FAST_SHIFT_EN    => CPU_FAST_SHIFT_EN
+  357 |   )
+  358 |   port map (
+  360 |     clk_i  => clk_i,
+  361 |     rstn_i => rstn_i,
+  362 |     ctrl_i => ctrl,
+  364 |     rs1_i  => rs1,
+  365 |     rs2_i  => rs2,
+  366 |     rs3_i  => rs3,
+  368 |     cmp_o  => alu_cmp,
+  369 |     res_o  => alu_res,
+  370 |     add_o  => alu_add,
+  371 |     csr_o  => xcsr_alu,
+  373 |     done_o => alu_cp_done
+  374 |   );
+  379 |   neorv32_cpu_lsu_inst: entity neorv32.neorv32_cpu_lsu
+  380 |   port map (
+  382 |     clk_i       => clk_i,
+  383 |     rstn_i      => rstn_i,
+  384 |     ctrl_i      => ctrl,
+  386 |     addr_i      => alu_add,
+  387 |     wdata_i     => rs2,
+  388 |     rdata_o     => lsu_rdata,
+  389 |     mar_o       => lsu_mar,
+  390 |     wait_o      => lsu_wait,
+  391 |     err_o       => lsu_err,
+  392 |     pmp_fault_i => pmp_fault,
+  394 |     dbus_req_o  => dbus_req_o,
+  395 |     dbus_rsp_i  => dbus_rsp_i
+  396 |   );
+  401 |   pmp_enabled:
+  402 |   if RISCV_ISA_Smpmp generate
+  403 |     neorv32_cpu_pmp_inst: entity neorv32.neorv32_cpu_pmp
+  404 |     generic map (
+  405 |       NUM_REGIONS => PMP_NUM_REGIONS,
+  406 |       GRANULARITY => PMP_MIN_GRANULARITY,
+  407 |       TOR_EN      => PMP_TOR_MODE_EN,
+  408 |       NAP_EN      => PMP_NAP_MODE_EN
+  409 |     )
+  410 |     port map (
+  412 |       clk_i     => clk_i,
+  413 |       rstn_i    => rstn_i,
+  414 |       ctrl_i    => ctrl,
+  416 |       csr_o     => xcsr_pmp,
+  418 |       addr_ls_i => alu_add,
+  420 |       fault_o   => pmp_fault
+  421 |     );
+  422 |   end generate;
+  424 |   pmp_disabled:
+  425 |   if not RISCV_ISA_Smpmp generate
+  426 |     xcsr_pmp  <= (others => '0');
+  427 |     pmp_fault <= '0';
+  428 |   end generate;
+  433 |   icc_enabled:
+  434 |   if ICC_EN generate
+  435 |     neorv32_cpu_icc_inst: entity neorv32.neorv32_cpu_icc
+  436 |     port map (
+  438 |       clk_i       => clk_i,
+  439 |       rstn_i      => rstn_i,
+  441 |       csr_we_i    => ctrl.csr_we,
+  442 |       csr_re_i    => ctrl.csr_re,
+  443 |       csr_addr_i  => ctrl.csr_addr,
+  444 |       csr_wdata_i => ctrl.csr_wdata,
+  445 |       csr_rdata_o => xcsr_icc,
+  447 |       icc_tx_o    => icc_tx_o,
+  448 |       icc_rx_i    => icc_rx_i
+  449 |     );
+  450 |   end generate;
+  452 |   icc_disabled:
+  453 |   if not ICC_EN generate
+  454 |     xcsr_icc <= (others => '0');
+  455 |     icc_tx_o <= icc_terminate_c;
+  456 |   end generate;
+  459 | end neorv32_cpu_rtl;

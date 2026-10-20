@@ -1,0 +1,211 @@
+   19 | entity neorv32_debug_dtm is
+   20 |   generic (
+   21 |     IDCODE_VERSION : std_ulogic_vector(3 downto 0);
+   22 |     IDCODE_PARTID  : std_ulogic_vector(15 downto 0);
+   23 |     IDCODE_MANID   : std_ulogic_vector(10 downto 0)
+   24 |   );
+   25 |   port (
+   27 |     clk_i      : in  std_ulogic;
+   28 |     rstn_i     : in  std_ulogic;
+   30 |     jtag_tck_i : in  std_ulogic;
+   31 |     jtag_tdi_i : in  std_ulogic;
+   32 |     jtag_tdo_o : out std_ulogic;
+   33 |     jtag_tms_i : in  std_ulogic;
+   35 |     dmi_req_o  : out dmi_req_t;
+   36 |     dmi_rsp_i  : in  dmi_rsp_t
+   37 |   );
+   38 | end neorv32_debug_dtm;
+
+   40 | architecture neorv32_debug_dtm_rtl of neorv32_debug_dtm is
+   43 |   constant addr_idcode_c : std_ulogic_vector(4 downto 0) := "00001";
+   44 |   constant addr_dtmcs_c  : std_ulogic_vector(4 downto 0) := "10000";
+   45 |   constant addr_dmi_c    : std_ulogic_vector(4 downto 0) := "10001";
+   48 |   type tap_sync_t is record
+   49 |     tck_ff, tdi_ff, tms_ff : std_ulogic_vector(2 downto 0);
+   50 |     tck_rising, tck_falling, tdi, tms : std_ulogic;
+   51 |   end record;
+   52 |   signal tap_sync : tap_sync_t;
+   55 |   type tap_ctrl_state_t is (LOGIC_RESET, DR_SCAN, DR_CAPTURE, DR_SHIFT, DR_EXIT1, DR_PAUSE, DR_EXIT2, DR_UPDATE,
+   56 |                                RUN_IDLE, IR_SCAN, IR_CAPTURE, IR_SHIFT, IR_EXIT1, IR_PAUSE, IR_EXIT2, IR_UPDATE);
+   57 |   signal tap_ctrl_state : tap_ctrl_state_t;
+   60 |   type tap_reg_t is record
+   61 |     ireg             : std_ulogic_vector(4 downto 0);
+   62 |     bypass           : std_ulogic;
+   63 |     idcode           : std_ulogic_vector(31 downto 0);
+   64 |     dtmcs, dtmcs_nxt : std_ulogic_vector(31 downto 0);
+   65 |     dmi,   dmi_nxt   : std_ulogic_vector((7+32+2)-1 downto 0);
+   66 |   end record;
+   67 |   signal tap_reg : tap_reg_t;
+   70 |   type dr_trigger_t is record
+   71 |     sreg  : std_ulogic_vector(1 downto 0);
+   72 |     valid : std_ulogic;
+   73 |   end record;
+   74 |   signal dr_trigger : dr_trigger_t;
+   77 |   type dmi_ctrl_t is record
+   78 |     busy         : std_ulogic;
+   79 |     op           : std_ulogic_vector(1 downto 0);
+   80 |     dmihardreset : std_ulogic;
+   81 |     dmireset     : std_ulogic;
+   82 |     err          : std_ulogic;
+   83 |     rdata, wdata : std_ulogic_vector(31 downto 0);
+   84 |     addr         : std_ulogic_vector(6 downto 0);
+   85 |   end record;
+   86 |   signal dmi_ctrl : dmi_ctrl_t;
+   88 | begin
+   92 |   tap_synchronizer: process(rstn_i, clk_i)
+   93 |   begin
+   94 |     if (rstn_i = '0') then
+   95 |       tap_sync.tck_ff <= (others => '0');
+   96 |       tap_sync.tdi_ff <= (others => '0');
+   97 |       tap_sync.tms_ff <= (others => '0');
+   98 |     elsif rising_edge(clk_i) then
+   99 |       tap_sync.tck_ff <= tap_sync.tck_ff(1 downto 0) & jtag_tck_i;
+  100 |       tap_sync.tdi_ff <= tap_sync.tdi_ff(1 downto 0) & jtag_tdi_i;
+  101 |       tap_sync.tms_ff <= tap_sync.tms_ff(1 downto 0) & jtag_tms_i;
+  102 |     end if;
+  103 |   end process tap_synchronizer;
+  106 |   tap_sync.tck_rising  <= '1' when (tap_sync.tck_ff(2 downto 1) = "01") else '0';
+  107 |   tap_sync.tck_falling <= '1' when (tap_sync.tck_ff(2 downto 1) = "10") else '0';
+  110 |   tap_sync.tms <= tap_sync.tms_ff(2);
+  111 |   tap_sync.tdi <= tap_sync.tdi_ff(2);
+  116 |   tap_control: process(rstn_i, clk_i)
+  117 |   begin
+  118 |     if (rstn_i = '0') then
+  119 |       tap_ctrl_state <= LOGIC_RESET;
+  120 |     elsif rising_edge(clk_i) then
+  121 |       if (tap_sync.tck_rising = '1') then
+  122 |         case tap_ctrl_state is
+  123 |           when LOGIC_RESET => if (tap_sync.tms = '0') then tap_ctrl_state <= RUN_IDLE;   else tap_ctrl_state <= LOGIC_RESET; end if;
+  124 |           when RUN_IDLE    => if (tap_sync.tms = '0') then tap_ctrl_state <= RUN_IDLE;   else tap_ctrl_state <= DR_SCAN;     end if;
+  125 |           when DR_SCAN     => if (tap_sync.tms = '0') then tap_ctrl_state <= DR_CAPTURE; else tap_ctrl_state <= IR_SCAN;     end if;
+  126 |           when DR_CAPTURE  => if (tap_sync.tms = '0') then tap_ctrl_state <= DR_SHIFT;   else tap_ctrl_state <= DR_EXIT1;    end if;
+  127 |           when DR_SHIFT    => if (tap_sync.tms = '0') then tap_ctrl_state <= DR_SHIFT;   else tap_ctrl_state <= DR_EXIT1;    end if;
+  128 |           when DR_EXIT1    => if (tap_sync.tms = '0') then tap_ctrl_state <= DR_PAUSE;   else tap_ctrl_state <= DR_UPDATE;   end if;
+  129 |           when DR_PAUSE    => if (tap_sync.tms = '0') then tap_ctrl_state <= DR_PAUSE;   else tap_ctrl_state <= DR_EXIT2;    end if;
+  130 |           when DR_EXIT2    => if (tap_sync.tms = '0') then tap_ctrl_state <= DR_SHIFT;   else tap_ctrl_state <= DR_UPDATE;   end if;
+  131 |           when DR_UPDATE   => if (tap_sync.tms = '0') then tap_ctrl_state <= RUN_IDLE;   else tap_ctrl_state <= DR_SCAN;     end if;
+  132 |           when IR_SCAN     => if (tap_sync.tms = '0') then tap_ctrl_state <= IR_CAPTURE; else tap_ctrl_state <= LOGIC_RESET; end if;
+  133 |           when IR_CAPTURE  => if (tap_sync.tms = '0') then tap_ctrl_state <= IR_SHIFT;   else tap_ctrl_state <= IR_EXIT1;    end if;
+  134 |           when IR_SHIFT    => if (tap_sync.tms = '0') then tap_ctrl_state <= IR_SHIFT;   else tap_ctrl_state <= IR_EXIT1;    end if;
+  135 |           when IR_EXIT1    => if (tap_sync.tms = '0') then tap_ctrl_state <= IR_PAUSE;   else tap_ctrl_state <= IR_UPDATE;   end if;
+  136 |           when IR_PAUSE    => if (tap_sync.tms = '0') then tap_ctrl_state <= IR_PAUSE;   else tap_ctrl_state <= IR_EXIT2;    end if;
+  137 |           when IR_EXIT2    => if (tap_sync.tms = '0') then tap_ctrl_state <= IR_SHIFT;   else tap_ctrl_state <= IR_UPDATE;   end if;
+  138 |           when IR_UPDATE   => if (tap_sync.tms = '0') then tap_ctrl_state <= RUN_IDLE;   else tap_ctrl_state <= DR_SCAN;     end if;
+  139 |           when others      => tap_ctrl_state <= LOGIC_RESET;
+  140 |         end case;
+  141 |       end if;
+  142 |     end if;
+  143 |   end process tap_control;
+  146 |   update_trigger: process(rstn_i, clk_i)
+  147 |   begin
+  148 |     if (rstn_i = '0') then
+  149 |       dr_trigger.sreg <= "00";
+  150 |     elsif rising_edge(clk_i) then
+  151 |       if (tap_ctrl_state = DR_UPDATE) then
+  152 |         dr_trigger.sreg(0) <= '1';
+  153 |       else
+  154 |         dr_trigger.sreg(0) <= '0';
+  155 |       end if;
+  156 |       dr_trigger.sreg(1) <= dr_trigger.sreg(0);
+  157 |     end if;
+  158 |   end process update_trigger;
+  161 |   dr_trigger.valid <= '1' when (dr_trigger.sreg = "01") else '0';
+  166 |   reg_access: process(rstn_i, clk_i)
+  167 |   begin
+  168 |     if (rstn_i = '0') then
+  169 |       tap_reg.ireg   <= (others => '0');
+  170 |       tap_reg.idcode <= (others => '0');
+  171 |       tap_reg.dtmcs  <= (others => '0');
+  172 |       tap_reg.dmi    <= (others => '0');
+  173 |       tap_reg.bypass <= '0';
+  174 |       jtag_tdo_o     <= '0';
+  175 |     elsif rising_edge(clk_i) then
+  178 |       if (tap_ctrl_state = LOGIC_RESET) or (tap_ctrl_state = IR_CAPTURE) then
+  179 |         tap_reg.ireg <= addr_idcode_c;
+  180 |       elsif (tap_ctrl_state = IR_SHIFT) and (tap_sync.tck_rising = '1') then
+  181 |         tap_reg.ireg <= tap_sync.tdi & tap_reg.ireg(tap_reg.ireg'left downto 1);
+  182 |       end if;
+  185 |       if (tap_ctrl_state = DR_CAPTURE) then
+  186 |         case tap_reg.ireg is
+  187 |           when addr_idcode_c => tap_reg.idcode <= IDCODE_VERSION & IDCODE_PARTID & IDCODE_MANID & '1';
+  188 |           when addr_dtmcs_c  => tap_reg.dtmcs  <= tap_reg.dtmcs_nxt;
+  189 |           when addr_dmi_c    => tap_reg.dmi    <= tap_reg.dmi_nxt;
+  190 |           when others        => tap_reg.bypass <= '0';
+  191 |         end case;
+  192 |       elsif (tap_ctrl_state = DR_SHIFT) and (tap_sync.tck_rising = '1') then
+  193 |         case tap_reg.ireg is
+  194 |           when addr_idcode_c => tap_reg.idcode <= tap_sync.tdi & tap_reg.idcode(tap_reg.idcode'left downto 1);
+  195 |           when addr_dtmcs_c  => tap_reg.dtmcs  <= tap_sync.tdi & tap_reg.dtmcs(tap_reg.dtmcs'left downto 1);
+  196 |           when addr_dmi_c    => tap_reg.dmi    <= tap_sync.tdi & tap_reg.dmi(tap_reg.dmi'left downto 1);
+  197 |           when others        => tap_reg.bypass <= tap_sync.tdi;
+  198 |         end case;
+  199 |       end if;
+  202 |       if (tap_sync.tck_falling = '1') then
+  203 |         if (tap_ctrl_state = IR_SHIFT) then
+  204 |           jtag_tdo_o <= tap_reg.ireg(0);
+  205 |         else
+  206 |           case tap_reg.ireg is
+  207 |             when addr_idcode_c => jtag_tdo_o <= tap_reg.idcode(0);
+  208 |             when addr_dtmcs_c  => jtag_tdo_o <= tap_reg.dtmcs(0);
+  209 |             when addr_dmi_c    => jtag_tdo_o <= tap_reg.dmi(0);
+  210 |             when others        => jtag_tdo_o <= tap_reg.bypass;
+  211 |           end case;
+  212 |         end if;
+  213 |       end if;
+  215 |     end if;
+  216 |   end process reg_access;
+  219 |   tap_reg.dtmcs_nxt(31 downto 18) <= (others => '0');
+  220 |   tap_reg.dtmcs_nxt(17)           <= dmi_ctrl.dmihardreset;
+  221 |   tap_reg.dtmcs_nxt(16)           <= dmi_ctrl.dmireset;
+  222 |   tap_reg.dtmcs_nxt(15)           <= '0';
+  223 |   tap_reg.dtmcs_nxt(14 downto 12) <= "000";
+  224 |   tap_reg.dtmcs_nxt(11 downto 10) <= tap_reg.dmi_nxt(1 downto 0);
+  225 |   tap_reg.dtmcs_nxt(09 downto 04) <= "000111";
+  226 |   tap_reg.dtmcs_nxt(03 downto 00) <= "0001";
+  229 |   tap_reg.dmi_nxt <= dmi_ctrl.addr & dmi_ctrl.rdata & replicate_f(dmi_ctrl.err, 2);
+  234 |   dmi_controller: process(rstn_i, clk_i)
+  235 |   begin
+  236 |     if (rstn_i = '0') then
+  237 |       dmi_ctrl.busy         <= '0';
+  238 |       dmi_ctrl.op           <= "00";
+  239 |       dmi_ctrl.dmihardreset <= '1';
+  240 |       dmi_ctrl.dmireset     <= '0';
+  241 |       dmi_ctrl.err          <= '0';
+  242 |       dmi_ctrl.rdata        <= (others => '0');
+  243 |       dmi_ctrl.wdata        <= (others => '0');
+  244 |       dmi_ctrl.addr         <= (others => '0');
+  245 |     elsif rising_edge(clk_i) then
+  247 |       if (dr_trigger.valid = '1') and (tap_reg.ireg = addr_dtmcs_c) then
+  248 |         dmi_ctrl.dmireset     <= tap_reg.dtmcs(16);
+  249 |         dmi_ctrl.dmihardreset <= tap_reg.dtmcs(17);
+  250 |       elsif (dmi_ctrl.busy = '0') then
+  251 |         dmi_ctrl.dmihardreset <= '0';
+  252 |         dmi_ctrl.dmireset     <= '0';
+  253 |       end if;
+  256 |       if (dmi_ctrl.dmireset = '1') or (dmi_ctrl.dmihardreset = '1') then
+  257 |         dmi_ctrl.err <= '0';
+  258 |       elsif (dmi_ctrl.busy = '1') and (dr_trigger.valid = '1') and (tap_reg.ireg = addr_dmi_c) then
+  259 |         dmi_ctrl.err <= '1';
+  260 |       end if;
+  263 |       dmi_ctrl.op <= dmi_req_nop_c;
+  264 |       if (dmi_ctrl.busy = '0') then
+  265 |         if (dmi_ctrl.dmihardreset = '0') and (dr_trigger.valid = '1') and (tap_reg.ireg = addr_dmi_c) then
+  266 |           dmi_ctrl.addr  <= tap_reg.dmi(40 downto 34);
+  267 |           dmi_ctrl.wdata <= tap_reg.dmi(33 downto 02);
+  268 |           if (tap_reg.dmi(1 downto 0) = dmi_req_rd_c) or (tap_reg.dmi(1 downto 0) = dmi_req_wr_c) then
+  269 |             dmi_ctrl.op   <= tap_reg.dmi(1 downto 0);
+  270 |             dmi_ctrl.busy <= '1';
+  271 |           end if;
+  272 |         end if;
+  273 |       else
+  274 |         dmi_ctrl.rdata <= dmi_rsp_i.data;
+  275 |         if (dmi_rsp_i.ack = '1') then
+  276 |           dmi_ctrl.busy <= '0';
+  277 |         end if;
+  278 |       end if;
+  279 |     end if;
+  280 |   end process dmi_controller;
+  283 |   dmi_req_o.op   <= dmi_ctrl.op;
+  284 |   dmi_req_o.data <= dmi_ctrl.wdata;
+  285 |   dmi_req_o.addr <= dmi_ctrl.addr;
+  288 | end neorv32_debug_dtm_rtl;

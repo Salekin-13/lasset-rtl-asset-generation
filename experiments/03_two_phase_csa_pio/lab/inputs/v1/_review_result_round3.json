@@ -1,0 +1,286 @@
+[
+ {
+  "module": "neorv32_bus",
+  "lens": "lines-type-tags",
+  "findings": [
+   {
+    "element": "neorv32_bus_gateway b_rsp_i.data (field, in)",
+    "what": "missing occurrence line",
+    "claim": "Line 367 is missing from the occurrence lines; only the declaration (313) is listed. At 367 the whole record b_rsp_i is copied into port_rsp(1), an array of records with no fields to split into, so b_rsp_i.data gives its value there. README lines 68-69 name this exact line as the case where every field of b_rsp_i gives its value to port_rsp. The entry's own counterparts cite 367 ('gives value to' port_rsp, lines [367]), and the README says counterpart lines are the source element's lines in that statement. Its tags 'copied' and 'read' also depend on 367. With only 313 listed, the occurrence lines say the field appears only in its declaration, which would mean 'not used in this module' and contradicts those tags. The amo_rmw field entries in the same sample do list their whole-record copy lines (arbiter.wdata lists 772 'arbiter_nxt <= arbiter'; arbiter_nxt.state lists 763 'arbiter <= arbiter_nxt'). So the omission here is inconsistent, not a rule.",
+    "lines": [
+     313,
+     367
+    ],
+    "rtl_quote": "367 |   b_req_o <= port_req(1); port_rsp(1) <= b_rsp_i;",
+    "votes": [
+     {
+      "real": false,
+      "reason": "The claim does not hold. The README's own rule supports listing only 313.\n\n1. What the README says. Lines 35-37 cover record entries. A whole-record copy belongs to the record's own entry: \"only the lines that name the whole record (its declaration, whole-record copies, ...)\". A field gets just two extra kinds of line: its record's declaration line, and \"any line that assigns the whole record (the field is assigned there too)\".\n\n2. What line 367 does. RTL 367 is `port_rsp(1) <= b_rsp_i;`. It reads b_rsp_i as a whole record. It does not assign b_rsp_i. It cannot: b_rsp_i is declared as an input port at 313 (`b_rsp_i : in bus_rsp_t`). So 367 is a whole-record copy line. It belongs to the record entry b_rsp_i, not to the field b_rsp_i.data.\n\n3. The README passage the claim cites. Lines 68-69 say a field \"takes the flows\" of its whole record when the partner has no fields. That gives the field a counterpart. It says nothing about occurrence lines. Line 84 adds that such an inherited flow appears under the record's name. So a counterpart at 367 with no occurrence line at 367 fits these definitions.\n\n4. The amo_rmw comparison. In 772 (`arbiter_nxt <= arbiter`) and 763 (`arbiter <= arbiter_nxt`), both sides are records with the same fields. The copy can be split field by field, for example arbiter_nxt.wdata <= arbiter.wdata. So the profiler can find each field on that line. At 367 the target, port_rsp, is an array of records. The README says it is one element with no fields listed (line 32), so there is nothing to split into. This explains the different treatment.\n\n5. The \"not used\" worry. The entry is not tagged \"not used in this module\". Its tags 'copied' and 'read' come from the flow it inherits at 367, which README 68-69 allows. A one-line occurrence list does not change that.\n\nWhether the profiler should also list inherited whole-record lines for a field is a design question. The README, as written, does not require it. So the entry is not clearly wrong.",
+      "lines": [
+       313,
+       367,
+       763,
+       772
+      ]
+     },
+     {
+      "real": false,
+      "reason": "The entry matches the README's own definition, so the claim does not hold.\n\nWhat the RTL shows:\n- Line 313 declares the record port: `b_rsp_i : in bus_rsp_t`.\n- Line 367 is `port_rsp(1) <= b_rsp_i;`. This reads b_rsp_i as one whole record. It does not assign b_rsp_i, which is an input port and is never assigned.\n- No other line in the gateway names b_rsp_i or b_rsp_i.data. The gateway's processes (lines 372-431) only use port_rsp(i).data.\n\nWhat README lines 34-37 say:\n- A record entry's occurrence lines are the lines that name the whole record, and \"whole-record copies\" are listed among them by name.\n- A field's lines include only two kinds of whole-record line: the record's declaration, and \"any line that assigns the whole record\".\n- Line 367 is a whole-record copy that reads b_rsp_i. So it belongs to the record entry b_rsp_i, not to the field. Occurrence lines [313] for b_rsp_i.data are exactly what the definition gives.\n\nWhy the claim's other arguments do not decide it:\n1. Counterpart lines. README 68-69 and 72 make the field inherit the flow to port_rsp at 367, and the entry does show it (gives value to port_rsp, line 367). But no rule says counterpart lines must also be occurrence lines.\n2. The \"not used\" argument. The 'not used in this module' tag is a separate fact (README 61), and this entry does not carry it. Its 'copied' and 'read' tags come from the inherited flow, not from the occurrence list. Nothing in the README says an occurrence list of only the declaration must produce that tag.\n3. The amo_rmw comparison is not a like case:\n   - arbiter.wdata lists 763 (`arbiter <= arbiter_nxt`). That line assigns the whole record arbiter, which README 37 covers explicitly.\n   - Line 772 (`arbiter_nxt <= arbiter`) copies into another record, so the copy splits into field-to-field copies. Each field then appears there in its own right.\n   - port_rsp is an array of records with no fields (README 32), so the copy at 367 cannot split. README 68-69 handles this case only through counterparts, not occurrence lines.\n\nAt most, there is a small asymmetry between the two cases. That is not a clear error in this entry.",
+      "lines": [
+       313,
+       367
+      ]
+     },
+     {
+      "real": false,
+      "reason": "Under the README, the entry follows the stated rule, so the claim does not clearly show an error. RTL 367 (`port_rsp(1) <= b_rsp_i;`) reads b_rsp_i whole; it does not assign it. b_rsp_i is an input, and its only other line is the declaration at 313. README lines 34-37 say what a field's occurrence lines hold: the lines where the profiler finds the field itself, its record's declaration line, and \"any line that assigns the whole record (the field is assigned there too)\". A whole-record copy where the record is the source is listed among the record entry's own lines (\"whole-record copies\"), not the field's. No line of the RTL names b_rsp_i.data, and 367 does not assign b_rsp_i, so the rule gives [313], which is what the entry lists.\n\nREADME lines 68-69 are the passage the claim leans on. They extend only flows: when the partner has no fields, the field \"takes the flows of its whole record\". That is why the field's counterparts show 'gives value to' port_rsp at 367, and why it carries the tags 'copied' and 'read'. Those lines say nothing about adding 367 to the occurrence lines. README line 84 confirms these are flows taken from the record.\n\nThe arbiter comparison does not carry over. At 772 (`arbiter_nxt <= arbiter;`) and 763 (`arbiter <= arbiter_nxt;`), both sides are records with fields. The copy splits into field-to-field flows, and the sample shows them: arbiter.wdata gives value to arbiter_nxt.wdata at 772. So each field is found on those lines by the split. At 367 the partner, port_rsp, is an array of records with no fields (README line 32). Nothing splits there, which is exactly the case README lines 68-69 single out.\n\nThe 'not used' argument also fails. The entry's tags are stated explicitly as 'copied' and 'read', not 'not used in this module'.\n\nOne point is reasoning, not something the files settle: some tension remains, because counterpart lines (README line 72) are 'the source element's lines in the statement'. At most this is an arguable design choice. Read against the definitions, it is not a clear error.",
+      "lines": [
+       313,
+       367,
+       763,
+       772
+      ]
+     }
+    ],
+    "confirmed": false
+   }
+  ]
+ },
+ {
+  "module": "neorv32_bus",
+  "lens": "counterparts",
+  "findings": []
+ },
+ {
+  "module": "neorv32_cache",
+  "lens": "lines-type-tags",
+  "findings": []
+ },
+ {
+  "module": "neorv32_cache",
+  "lens": "counterparts",
+  "findings": []
+ },
+ {
+  "module": "neorv32_cpu",
+  "lens": "lines-type-tags",
+  "findings": [
+   {
+    "element": "frontend.compr (signal field, entity neorv32_cpu)",
+    "what": "occurrence lines: missing line",
+    "claim": "Line 199 is missing from the occurrence lines. The README says a field's lines include every line that assigns the whole record. At 199 the frontend instance's output port drives the whole record 'frontend', so frontend.compr is assigned there too. The listed lines are only [109], the declaration. The entry's own counterparts already cite 199 (gets value from neorv32_cpu_frontend_inst port frontend_o.compr), and that same port-map write is what supports its 'set by an instance' tag and its 'wire' type. Line 255 (frontend_i => frontend) correctly stays out: it reads the whole record and does not assign it. The other five neorv32_cpu entries had no errors: clk_i, ibus_rsp_i.ack, irq_machine, rf_wdata and ibus_rsp_i all have complete, correct occurrence lines, types and tags.",
+    "lines": [
+     109,
+     199,
+     255
+    ],
+    "rtl_quote": "199 |     frontend_o => frontend",
+    "votes": [
+     {
+      "real": true,
+      "reason": "The claim holds; I could not refute it. README.md line 36-37 says a field's occurrence lines include its record's declaration and any line that assigns the whole record, because the field is assigned there too. In rtl.txt, line 199 (`frontend_o => frontend`) maps an output port of neorv32_cpu_frontend_inst onto the whole signal `frontend`, which is declared at 109 as if_bus_t. So the instance drives the whole record, and frontend.compr gets its value at 199. The entry itself says the same thing: its 'gets value from' counterpart is neorv32_cpu_frontend_inst port frontend_o.compr at line 199. Its 'set by an instance' tag and its 'wire' type also rest only on that line (README: wire = 'driven by an instance's output port'). Yet the occurrence lines are only [109], which is what a field 'not used in this module' would look like. The other field entries in the sample include the line where an instance drives them (spi tx_fifo.half lists 199 for `half_o`), and fields whose whole record is assigned list that line (hwspinlock bus_rsp_o.ack lists 61). The strongest counter-reading: README uses 'assigned' and 'driven by an instance' as separate words in the type and output-port definitions. But the reason the README gives for the rule (the field gets its value there) fits a driving port-map line exactly, so I don't think that wording saves the entry. Line 255 (`frontend_i => frontend`) is an input association: it reads the record and does not assign it, so it rightly stays out. The word 'frontend' appears only at 109, 199 and 255 in this RTL, so 199 is the only missing line.",
+      "lines": [
+       109,
+       199,
+       255
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds. I tried to refute it and could not.\n\n1. What the README requires. A field's occurrence lines must include \"any line that assigns the whole record (the field is assigned there too)\". Under \"type\", the README also counts being \"driven by an instance's output port\" as a way a signal gets set.\n\n2. What line 199 does. The rtl.txt line is `199 |     frontend_o => frontend`. It sits in the port map of neorv32_cpu_frontend_inst (lines 186-200). That instance is at the top level of the architecture, not inside a generate, so it always exists. The output port frontend_o drives the whole signal `frontend`, which is declared at 109 as if_bus_t. So the whole record is assigned at 199, and by the README rule frontend.compr is assigned there too.\n\n3. The entry's other fields already depend on line 199. Its counterpart is \"gets value from neorv32_cpu_frontend_inst port frontend_o.compr, lines [199]\". Its \"set by an instance\" tag and its \"wire\" type both come from that same port-map write. Only the occurrence lines leave 199 out.\n\n4. Line 255 rightly stays out, as the claim says. `frontend_i => frontend` feeds the record into the control instance, so it reads the record and does not assign it. That is not a reason to add it to the field's lines.\n\nConclusion: the occurrence lines [109] are incomplete. They should be at least [109, 199].",
+      "lines": [
+       109,
+       199,
+       186,
+       255
+      ]
+     },
+     {
+      "real": false,
+      "reason": "Not shown to be an error. The claim only works if \"assigns\" also covers a port map, and the README keeps those two apart.\n\nWhat the RTL shows: 'frontend' appears on only three lines. 109 is the declaration. 199 is `frontend_o => frontend`, an output-port association in the frontend instance. 255 is `frontend_i => frontend`, an input read in the control instance. No statement of the form `frontend <= ...` exists anywhere in the file. So no line assigns the whole record in the statement sense.\n\nWhat the README says: line 35 lists a record entry's own lines as \"its declaration, whole-record copies, sensitivity lists, port maps\". Port maps are named there as separate from whole-record copies, and they belong to the record entry. Line 36-37 then adds to a field's lines only the record's declaration and \"any line that assigns the whole record\". Port maps are not mentioned in that rule.\n\nThe README also keeps \"assigned\" and \"driven by an instance's output port\" as two different things throughout:\n- line 39 (type wire): \"assigned only without a clock edge, or driven by an instance's output port\"\n- line 56 vs line 57: \"set without a clock\" (an assignment) vs \"set by an instance\" (driven by an output port)\n- line 60: \"is assigned or driven by an instance\"\n\nSo, in the README's own words, line 199 drives the record; it does not assign it. It belongs to the record entry's port-map lines, not to the field. Under that reading, [109] alone is what the definitions give.\n\nThe reviewer's supporting points do not decide this:\n- The 'wire' type and the 'set by an instance' tag are defined by \"driven by an instance\", not by the occurrence-line rule.\n- A counterpart line does not have to be an occurrence line. In the same module, ibus_rsp_i.ack lists only [85] but cites 197 in its counterparts, and the reviewer accepted that entry as correct.\n- The one sample case where an instance port's line is in a field's occurrence lines is spi tx_fifo.half at 199, where the port map names the field itself. That is a different construct.\n\nReasoning, not measured: reading \"assigns\" broadly enough to include port-map drivers is defensible. But the README does not clearly require it, and its wording points the other way. Under the task rule, an uncertain claim gives real=false.",
+      "lines": [
+       109,
+       199,
+       255
+      ]
+     }
+    ],
+    "confirmed": true
+   }
+  ]
+ },
+ {
+  "module": "neorv32_cpu",
+  "lens": "counterparts",
+  "findings": []
+ },
+ {
+  "module": "neorv32_cpu_cp_cfu",
+  "lens": "lines-type-tags",
+  "findings": []
+ },
+ {
+  "module": "neorv32_cpu_cp_cfu",
+  "lens": "counterparts",
+  "findings": []
+ },
+ {
+  "module": "neorv32_cpu_cp_muldiv",
+  "lens": "lines-type-tags",
+  "findings": []
+ },
+ {
+  "module": "neorv32_cpu_cp_muldiv",
+  "lens": "counterparts",
+  "findings": []
+ },
+ {
+  "module": "neorv32_cpu_pmp",
+  "lens": "lines-type-tags",
+  "findings": []
+ },
+ {
+  "module": "neorv32_cpu_pmp",
+  "lens": "counterparts",
+  "findings": []
+ },
+ {
+  "module": "neorv32_debug_dtm",
+  "lens": "lines-type-tags",
+  "findings": []
+ },
+ {
+  "module": "neorv32_debug_dtm",
+  "lens": "counterparts",
+  "findings": []
+ },
+ {
+  "module": "neorv32_hwspinlock",
+  "lens": "lines-type-tags",
+  "findings": [
+   {
+    "element": "bus_rsp_o.err",
+    "what": "role tag: 'driven' should be 'tied to a constant'",
+    "claim": "README defines the output-port tags as driven = assigned or driven by an instance, tied to a constant = assigned only by constants, undriven = never. bus_rsp_o.err gets only constants. Line 61 assigns it through the whole-record constant rsp_terminate_c. Line 64 assigns '0'. No element's value ever moves into it, and the entry itself already carries 'set to constants only'. By the definition it should carry 'tied to a constant', not 'driven'. The imem entry for bus_rsp_o.err, which also gets only '0', is tagged 'tied to a constant'. The only difference is that this assignment is clocked, and the README definition does not mention clocking. This is my reading of the README definition. If the builder means 'tied' to apply only to unclocked constant assignments, the README does not say so.",
+    "lines": [
+     61,
+     64
+    ],
+    "rtl_quote": "61: bus_rsp_o <= rsp_terminate_c;  64: bus_rsp_o.err  <= '0';",
+    "votes": [
+     {
+      "real": true,
+      "reason": "I could not refute the claim. The entry is wrong by the README definition.\n\nWhat the RTL shows: bus_rsp_o.err is set in only one place, the process bus_response (lines 58-74). The reset arm (60-61) sets it through the whole-record constant rsp_terminate_c. The clock-edge arm (62-64) sets it to '0' with no if around it. The if at line 66 only decides bus_rsp_o.data, not err. So every assignment gives a constant. No element's value moves into it, and no element decides it. The entry agrees with this: it carries 'set to constants only', has no 'gets value from' or 'decided by' counterparts, and lists only clock and reset. The README says clock and reset are notes on the block, not deciding arrows. By contrast, bus_rsp_o.ack gets bus_req_i.stb at line 63, so 'driven' is right for ack but not for err.\n\nWhat the README says: for output ports, the three tags are alternatives. 'driven' means assigned or driven by an instance. 'tied to a constant' means assigned only by constants (under generics). 'undriven' means never assigned. Every tied output is also assigned, so 'tied' only makes sense as the narrower case of 'driven' for constant-only outputs. err meets that narrower definition. Nothing in the README says a clock-edge assignment or a reset arm stops an output from counting as tied. In hardware, a flip-flop with input '0' and reset value '0' is a constant output.\n\nThe builder's own imem entry for bus_rsp_o.err (also constant-only) is tagged 'tied to a constant'. The only difference is that imem's is assigned without a clock. That points to an unwritten \"unclocked only\" rule in the builder, not to anything in the README.\n\nWays I tried to refute it, and why each fails:\n1. muldiv valid_o is constant-only but tagged 'driven'. That fits a narrower reading of 'tied', but valid_o is decided by ctrl.state. Here no element decides err.\n2. One could read 'under generics' as \"only generics may pick the constant\", so the reset test would make err driven. That adds words the README does not have. It also conflicts with the README treating reset as a note, not a condition.\n\nLeftover doubt: rsp_terminate_c is defined outside rtl.txt. Even if its err value were not '0', both assignments would still be constants. So the tag should be 'tied to a constant'.",
+      "lines": [
+       58,
+       60,
+       61,
+       62,
+       63,
+       64,
+       66
+      ]
+     },
+     {
+      "real": false,
+      "reason": "The claim does not hold. It misquotes the README. README line 60 does not define 'tied to a constant' as 'assigned only by constants'. It says 'only by constants under generics': the value must be fixed by generics alone. The README's own 'set to constants only' tag (line 58) lets conditions pick which constant is assigned. So that tag does not imply 'tied'. The closed set shows this: muldiv valid_o carries 'set without a clock', 'set to constants only' and 'driven', because ctrl.state (a signal) decides it. In hwspinlock, bus_rsp_o.err is a flip-flop in process bus_response. Line 60 tests rstn_i, a signal, not a generic. In that arm, line 61 loads the whole-record constant rsp_terminate_c. Line 62 waits for a clock edge, and line 64 loads '0'. Which constant the port holds, and when it changes, is decided by rstn_i and clk_i, not by generics. Before the first reset or clock edge the value is not set at all. The err value inside rsp_terminate_c is not in the given RTL, so we cannot even confirm the two constants are equal. The port is assigned, so the README's 'driven' (is assigned or driven by an instance) applies literally. The imem comparison does not carry over. That port gets one assignment with no clock (tags 'set without a clock' and 'tied'), not a register with a reset arm and a clocked arm. At most the README is unclear about reset registers that only load constants. That is not a clear error in the entry.",
+      "lines": [
+       60,
+       61,
+       62,
+       64
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds. bus_rsp_o.err has only two assignments, and both give a constant. The tag 'tied to a constant' fits it better than 'driven'.\n\nWhat the RTL shows: the process bus_response (lines 58-74) sets err in exactly two places.\n- Line 61 (reset arm): `bus_rsp_o <= rsp_terminate_c;` sets the whole record from a constant. The entry's own tags 'reset to a constant' and 'set to constants only' confirm the builder treats this as a constant.\n- Line 64 (clock arm): `bus_rsp_o.err <= '0';`.\n- Line 63 sets only ack. Lines 65-72 set only data.\n- Line 63 is the only place an element's value moves into the record, and it goes into ack, not err.\n\nSo every assignment to err is a literal or a constant. The entry already carries 'set to constants only', which is that same fact.\n\nWhat the README says: for output ports, the tags are 'driven' (assigned, or driven by an instance), 'tied to a constant' (assigned only by constants under generics) and 'undriven' (never). The word 'only' marks 'tied' as the case where every assignment is a constant. 'Under generics' changes nothing here, because this entity has no generics (lines 18-25).\n\nNothing in the README limits 'tied' to unclocked assignments. Clocking is recorded by separate tags ('held on a clock edge', 'set without a clock'). The builder itself gives 'tied to a constant' to an output that is assigned (imem bus_rsp_o.err, set to constants only, set without a clock). So being assigned does not rule out 'tied'. The only difference from this entry is clocking, and the README gives no rule that depends on it.\n\nPoints that could cut the other way, and why they do not refute the claim:\n- A literal reading of 'driven' ('is assigned') also matches err. But under that reading 'tied' could never apply to any assigned output, and the builder's own imem entry shows it can. So 'driven' must mean assigned by something that is not a constant.\n- The builder may intend 'clocked means driven'. If so, that rule is not in the README.\n- The README hand-read self-tests (its checks section) list wdt bus_rsp_o.err, which follows the same reset-plus-clock constant pattern. Its output tag is not shown, so it gives no evidence either way.\n\nDeciding lines: 61 and 64 are the only assignments to err. The surrounding process (58-74) shows no other one.",
+      "lines": [
+       61,
+       64,
+       63,
+       65,
+       58,
+       74
+      ]
+     }
+    ],
+    "confirmed": true
+   }
+  ]
+ },
+ {
+  "module": "neorv32_hwspinlock",
+  "lens": "counterparts",
+  "findings": []
+ },
+ {
+  "module": "neorv32_imem",
+  "lens": "lines-type-tags",
+  "findings": []
+ },
+ {
+  "module": "neorv32_imem",
+  "lens": "counterparts",
+  "findings": []
+ },
+ {
+  "module": "neorv32_spi",
+  "lens": "lines-type-tags",
+  "findings": []
+ },
+ {
+  "module": "neorv32_spi",
+  "lens": "counterparts",
+  "findings": []
+ },
+ {
+  "module": "neorv32_sys",
+  "lens": "lines-type-tags",
+  "findings": []
+ },
+ {
+  "module": "neorv32_sys",
+  "lens": "counterparts",
+  "findings": []
+ },
+ {
+  "module": "neorv32_trng",
+  "lens": "lines-type-tags",
+  "findings": []
+ },
+ {
+  "module": "neorv32_trng",
+  "lens": "counterparts",
+  "findings": []
+ },
+ {
+  "module": "neorv32_twi",
+  "lens": "lines-type-tags",
+  "findings": []
+ },
+ {
+  "module": "neorv32_twi",
+  "lens": "counterparts",
+  "findings": []
+ },
+ {
+  "module": "neorv32_uart",
+  "lens": "lines-type-tags",
+  "findings": []
+ },
+ {
+  "module": "neorv32_uart",
+  "lens": "counterparts",
+  "findings": []
+ },
+ {
+  "module": "neorv32_wdt",
+  "lens": "lines-type-tags",
+  "findings": []
+ },
+ {
+  "module": "neorv32_wdt",
+  "lens": "counterparts",
+  "findings": []
+ }
+]

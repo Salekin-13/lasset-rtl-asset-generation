@@ -1,0 +1,35 @@
+   17 | entity neorv32_cpu_cp_cond is
+   18 |   port (
+   20 |     clk_i   : in  std_ulogic;
+   21 |     rstn_i  : in  std_ulogic;
+   22 |     ctrl_i  : in  ctrl_bus_t;
+   24 |     rs1_i   : in  std_ulogic_vector(XLEN-1 downto 0);
+   25 |     rs2_i   : in  std_ulogic_vector(XLEN-1 downto 0);
+   27 |     res_o   : out std_ulogic_vector(XLEN-1 downto 0);
+   28 |     valid_o : out std_ulogic
+   29 |   );
+   30 | end neorv32_cpu_cp_cond;
+
+   32 | architecture neorv32_cpu_cp_cond_rtl of neorv32_cpu_cp_cond is
+   34 |   constant zero_c : std_ulogic_vector(XLEN-1 downto 0) := (others => '0');
+   35 |   signal valid_cmd, rs2_zero, condition : std_ulogic;
+   37 | begin
+   41 |   valid_cmd <= '1' when (ctrl_i.alu_cp_alu = '1') and (ctrl_i.ir_opcode(5) = '1') and
+   42 |                         (ctrl_i.ir_funct3(2) = '1') and (ctrl_i.ir_funct3(0) = '1') and
+   43 |                         (ctrl_i.ir_funct12(11 downto 5) = "0000111") else '0';
+   48 |   cond_out: process(rstn_i, clk_i)
+   49 |   begin
+   50 |     if (rstn_i = '0') then
+   51 |       res_o <= (others => '0');
+   52 |     elsif rising_edge(clk_i) then
+   53 |       if (valid_cmd = '1') and (condition = '1') then
+   54 |         res_o <= rs1_i;
+   55 |       else
+   56 |         res_o <= (others => '0');
+   57 |       end if;
+   58 |     end if;
+   59 |   end process cond_out;
+   62 |   rs2_zero  <= '1' when (rs2_i = zero_c) else '0';
+   63 |   condition <= rs2_zero xnor ctrl_i.ir_funct3(1);
+   66 |   valid_o <= valid_cmd;
+   69 | end neorv32_cpu_cp_cond_rtl;

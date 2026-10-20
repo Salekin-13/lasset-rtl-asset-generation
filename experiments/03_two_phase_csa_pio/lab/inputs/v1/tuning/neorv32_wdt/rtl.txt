@@ -1,0 +1,130 @@
+   18 | entity neorv32_wdt is
+   19 |   port (
+   20 |     clk_i       : in  std_ulogic;
+   21 |     rstn_ext_i  : in  std_ulogic;
+   22 |     rstn_dbg_i  : in  std_ulogic;
+   23 |     rstn_sys_i  : in  std_ulogic;
+   24 |     bus_req_i   : in  bus_req_t;
+   25 |     bus_rsp_o   : out bus_rsp_t;
+   26 |     clkgen_en_o : out std_ulogic;
+   27 |     clkgen_i    : in  std_ulogic_vector(7 downto 0);
+   28 |     rstn_o      : out std_ulogic
+   29 |   );
+   30 | end neorv32_wdt;
+
+   32 | architecture neorv32_wdt_rtl of neorv32_wdt is
+   35 |   constant reset_pwd_c : std_ulogic_vector(31 downto 0) := x"709d1ab3";
+   38 |   constant ctrl_enable_c      : natural :=  0;
+   39 |   constant ctrl_lock_c        : natural :=  1;
+   40 |   constant ctrl_strict_c      : natural :=  2;
+   41 |   constant ctrl_rcause_lo_c   : natural :=  3;
+   42 |   constant ctrl_rcause_hi_c   : natural :=  4;
+   44 |   constant ctrl_timeout_lsb_c : natural :=  8;
+   45 |   constant ctrl_timeout_msb_c : natural := 31;
+   48 |   type ctrl_t is record
+   49 |     enable  : std_ulogic;
+   50 |     lock    : std_ulogic;
+   51 |     strict  : std_ulogic;
+   52 |     timeout : std_ulogic_vector(23 downto 0);
+   53 |   end record;
+   54 |   signal ctrl : ctrl_t;
+   56 |   signal prsc_tick      : std_ulogic;
+   57 |   signal cnt            : std_ulogic_vector(23 downto 0);
+   58 |   signal cnt_started    : std_ulogic;
+   59 |   signal cnt_inc        : std_ulogic;
+   60 |   signal cnt_timeout    : std_ulogic;
+   61 |   signal reset_cause    : std_ulogic_vector(1 downto 0);
+   62 |   signal hw_rst_timeout : std_ulogic;
+   63 |   signal hw_rst_access  : std_ulogic;
+   64 |   signal reset_wdt      : std_ulogic;
+   65 |   signal reset_force    : std_ulogic;
+   67 | begin
+   71 |   bus_access: process(rstn_sys_i, clk_i)
+   72 |   begin
+   73 |     if (rstn_sys_i = '0') then
+   74 |       bus_rsp_o    <= rsp_terminate_c;
+   75 |       ctrl.enable  <= '0';
+   76 |       ctrl.lock    <= '0';
+   77 |       ctrl.strict  <= '0';
+   78 |       ctrl.timeout <= (others => '0');
+   79 |       reset_wdt    <= '0';
+   80 |       reset_force  <= '0';
+   81 |     elsif rising_edge(clk_i) then
+   83 |       bus_rsp_o.ack  <= bus_req_i.stb;
+   84 |       bus_rsp_o.err  <= '0';
+   85 |       bus_rsp_o.data <= (others => '0');
+   87 |       reset_wdt   <= '0';
+   88 |       reset_force <= '0';
+   90 |       if (bus_req_i.stb = '1') then
+   91 |         if (bus_req_i.rw = '1') then
+   92 |           if (bus_req_i.addr(2) = '0') then
+   93 |             if (ctrl.lock = '0') then
+   94 |               ctrl.enable  <= bus_req_i.data(ctrl_enable_c);
+   95 |               ctrl.lock    <= bus_req_i.data(ctrl_lock_c) and ctrl.enable;
+   96 |               ctrl.strict  <= bus_req_i.data(ctrl_strict_c);
+   97 |               ctrl.timeout <= bus_req_i.data(ctrl_timeout_msb_c downto ctrl_timeout_lsb_c);
+   98 |             else
+   99 |               reset_force <= '1';
+  100 |             end if;
+  101 |           else
+  102 |             if (bus_req_i.data(31 downto 0) = reset_pwd_c) then
+  103 |               reset_wdt <= '1';
+  104 |             else
+  105 |               reset_force <= '1';
+  106 |             end if;
+  107 |           end if;
+  108 |         else
+  109 |           bus_rsp_o.data(ctrl_enable_c)                                <= ctrl.enable;
+  110 |           bus_rsp_o.data(ctrl_lock_c)                                  <= ctrl.lock;
+  111 |           bus_rsp_o.data(ctrl_rcause_hi_c downto ctrl_rcause_lo_c)     <= reset_cause;
+  112 |           bus_rsp_o.data(ctrl_strict_c)                                <= ctrl.strict;
+  113 |           bus_rsp_o.data(ctrl_timeout_msb_c downto ctrl_timeout_lsb_c) <= ctrl.timeout;
+  114 |         end if;
+  115 |       end if;
+  116 |     end if;
+  117 |   end process bus_access;
+  122 |   wdt_counter: process(rstn_sys_i, clk_i)
+  123 |   begin
+  124 |     if (rstn_sys_i = '0') then
+  125 |       cnt_inc     <= '0';
+  126 |       cnt_started <= '0';
+  127 |       cnt         <= (others => '0');
+  128 |     elsif rising_edge(clk_i) then
+  129 |       cnt_inc     <= prsc_tick and cnt_started;
+  130 |       cnt_started <= ctrl.enable and (cnt_started or prsc_tick);
+  131 |       if (ctrl.enable = '0') or (reset_wdt = '1') then
+  132 |         cnt <= (others => '0');
+  133 |       elsif (cnt_inc = '1') then
+  134 |         cnt <= std_ulogic_vector(unsigned(cnt) + 1);
+  135 |       end if;
+  136 |     end if;
+  137 |   end process wdt_counter;
+  140 |   clkgen_en_o <= ctrl.enable;
+  141 |   prsc_tick   <= clkgen_i(clk_div4096_c);
+  144 |   cnt_timeout <= '1' when (cnt_started = '1') and (cnt = ctrl.timeout) else '0';
+  149 |   reset_generator: process(rstn_sys_i, clk_i)
+  150 |   begin
+  151 |     if (rstn_sys_i = '0') then
+  152 |       hw_rst_timeout <= '0';
+  153 |       hw_rst_access  <= '0';
+  154 |     elsif rising_edge(clk_i) then
+  155 |       hw_rst_timeout <= ctrl.enable and cnt_timeout and prsc_tick;
+  156 |       hw_rst_access  <= ctrl.enable and ctrl.strict and reset_force;
+  157 |     end if;
+  158 |   end process reset_generator;
+  161 |   rstn_o <= not (hw_rst_timeout or hw_rst_access);
+  166 |   reset_identifier: process(rstn_ext_i, clk_i)
+  167 |   begin
+  168 |     if (rstn_ext_i = '0') then
+  169 |       reset_cause <= "00";
+  170 |     elsif rising_edge(clk_i) then
+  171 |       if (rstn_dbg_i = '0') then
+  172 |         reset_cause <= "01";
+  173 |       elsif (hw_rst_timeout = '1') then
+  174 |         reset_cause <= "10";
+  175 |       elsif (hw_rst_access = '1') then
+  176 |         reset_cause <= "11";
+  177 |       end if;
+  178 |     end if;
+  179 |   end process reset_identifier;
+  182 | end neorv32_wdt_rtl;

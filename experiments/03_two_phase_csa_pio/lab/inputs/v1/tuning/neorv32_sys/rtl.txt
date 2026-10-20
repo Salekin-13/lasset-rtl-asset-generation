@@ -1,0 +1,92 @@
+   17 | entity neorv32_sys_reset is
+   18 |   port (
+   20 |     clk_i       : in  std_ulogic;
+   22 |     rstn_ext_i  : in  std_ulogic;
+   23 |     rstn_wdt_i  : in  std_ulogic;
+   24 |     rstn_dbg_i  : in  std_ulogic;
+   26 |     rstn_ext_o  : out std_ulogic;
+   27 |     rstn_sys_o  : out std_ulogic;
+   29 |     xrstn_wdt_o : out std_ulogic;
+   30 |     xrstn_ocd_o : out std_ulogic
+   31 |   );
+   32 | end neorv32_sys_reset;
+
+   34 | architecture neorv32_sys_reset_rtl of neorv32_sys_reset is
+   36 |   signal sreg_sys, sreg_ext : std_ulogic_vector(3 downto 0);
+   38 | begin
+   42 |   sequencer: process(rstn_ext_i, clk_i)
+   43 |   begin
+   44 |     if (rstn_ext_i = '0') then
+   45 |       sreg_ext   <= (others => '0');
+   46 |       rstn_ext_o <= '0';
+   47 |       sreg_sys   <= (others => '0');
+   48 |       rstn_sys_o <= '0';
+   49 |     elsif rising_edge(clk_i) then
+   51 |       sreg_ext   <= sreg_ext(sreg_ext'left-1 downto 0) & '1';
+   52 |       rstn_ext_o <= and_reduce_f(sreg_ext);
+   54 |       if (rstn_wdt_i = '0') or (rstn_dbg_i = '0') then
+   55 |         sreg_sys <= (others => '0');
+   56 |       else
+   57 |         sreg_sys <= sreg_sys(sreg_sys'left-1 downto 0) & '1';
+   58 |       end if;
+   59 |       rstn_sys_o <= and_reduce_f(sreg_sys);
+   60 |     end if;
+   61 |   end process sequencer;
+   66 |   synchronizer: process(rstn_ext_i, clk_i)
+   67 |   begin
+   68 |     if (rstn_ext_i = '0') then
+   69 |       xrstn_wdt_o <= '0';
+   70 |       xrstn_ocd_o <= '0';
+   71 |     elsif rising_edge(clk_i) then
+   72 |       xrstn_wdt_o <= rstn_wdt_i;
+   73 |       xrstn_ocd_o <= rstn_dbg_i;
+   74 |     end if;
+   75 |   end process synchronizer;
+   78 | end neorv32_sys_reset_rtl;
+   94 | library ieee;
+   95 | use ieee.std_logic_1164.all;
+   96 | use ieee.numeric_std.all;
+   98 | library neorv32;
+   99 | use neorv32.neorv32_package.all;
+
+  101 | entity neorv32_sys_clock is
+  102 |   generic (
+  103 |     NUM_EN : natural
+  104 |   );
+  105 |   port (
+  106 |     clk_i    : in  std_ulogic;
+  107 |     rstn_i   : in  std_ulogic;
+  108 |     enable_i : in  std_ulogic_vector(NUM_EN-1 downto 0);
+  109 |     clk_en_o : out std_ulogic_vector(7 downto 0)
+  110 |   );
+  111 | end neorv32_sys_clock;
+
+  113 | architecture neorv32_sys_clock_rtl of neorv32_sys_clock is
+  115 |   signal en : std_ulogic;
+  116 |   signal cnt, cnt2 : std_ulogic_vector(11 downto 0);
+  118 | begin
+  122 |   ticker: process(rstn_i, clk_i)
+  123 |   begin
+  124 |     if (rstn_i = '0') then
+  125 |       en   <= '0';
+  126 |       cnt  <= (others => '0');
+  127 |       cnt2 <= (others => '0');
+  128 |     elsif rising_edge(clk_i) then
+  129 |       en <= or_reduce_f(enable_i);
+  130 |       if (en = '1') then
+  131 |         cnt <= std_ulogic_vector(unsigned(cnt) + 1);
+  132 |       else
+  133 |         cnt <= (others => '0');
+  134 |       end if;
+  135 |       cnt2 <= cnt;
+  136 |     end if;
+  137 |   end process ticker;
+  140 |   clk_en_o(clk_div2_c)    <= cnt(0)  and (not cnt2(0));
+  141 |   clk_en_o(clk_div4_c)    <= cnt(1)  and (not cnt2(1));
+  142 |   clk_en_o(clk_div8_c)    <= cnt(2)  and (not cnt2(2));
+  143 |   clk_en_o(clk_div64_c)   <= cnt(5)  and (not cnt2(5));
+  144 |   clk_en_o(clk_div128_c)  <= cnt(6)  and (not cnt2(6));
+  145 |   clk_en_o(clk_div1024_c) <= cnt(9)  and (not cnt2(9));
+  146 |   clk_en_o(clk_div2048_c) <= cnt(10) and (not cnt2(10));
+  147 |   clk_en_o(clk_div4096_c) <= cnt(11) and (not cnt2(11));
+  150 | end neorv32_sys_clock_rtl;

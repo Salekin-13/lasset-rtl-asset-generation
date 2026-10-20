@@ -15,7 +15,7 @@ Then, for each row of the three pin tables as they stand at the tag:
      f-string, the expression tokens must be identical; only its literal text may gain a prefix.
 Folders are hashed with each table's own rule (lasset_layer skips __pycache__; the two held-out verifiers do not).
 This proves that nothing but the move's prefixes changed. It does not prove that every needed prefix was added: that
-was measured by re-running the live notebooks in both layouts (docs/LAYOUT.md).
+was measured by re-running the live notebooks in both layouts (logs/LAYOUT.md).
 Prints one line per row and exits 1 on any failure. Run from the repo root:  python src/verify_layout_move.py
 Needs Python 3.12 or later (f-string tokens). No file is written."""
 from __future__ import annotations

@@ -1,0 +1,30 @@
+UNIT neorv32_cpu_cp_shifter
+  INPUTS: clk_i, ctrl_i, rs1_i, rstn_i, shamt_i
+  OUTPUTS: res_o, valid_o
+  BLOCKS
+    [generate] barrel_shifter: bs_level, bs_sign
+    [generate] barrel_shifter_core: bs_level
+    [generate] serial_shifter: shifter.done, shifter.run
+    [logic] valid_cmd: valid_cmd
+    [process] barrel_shifter_buf: bs_result; clocked by clk_i; reset by rstn_i
+    [process] serial_shifter_core: shifter.busy, shifter.cnt, shifter.done_ff, shifter.sreg; clocked by clk_i; reset by rstn_i
+  ARROWS (==> a value moves; --> only decides; [the elements the arrow carries])
+    barrel_shifter ==> barrel_shifter_core   [bs_level, bs_sign]
+    barrel_shifter ==> res_o
+    barrel_shifter ==> valid_o
+    barrel_shifter ==> barrel_shifter_buf   [bs_level]
+    barrel_shifter_core ==> barrel_shifter_buf   [bs_level]
+    serial_shifter ==> res_o
+    serial_shifter ==> valid_o
+    serial_shifter ==> serial_shifter_core   [shifter.{done,run}]
+    ctrl_i ==> barrel_shifter   [ctrl_i.{ir_funct12,ir_funct3}]
+    ctrl_i --> valid_cmd   [ctrl_i.{alu_cp_alu,ir_funct12,ir_funct3}]
+    ctrl_i ==> serial_shifter_core   [ctrl_i.{cpu_trap,ir_funct12,ir_funct3}]
+    rs1_i ==> barrel_shifter   [rs1_i]
+    rs1_i ==> serial_shifter_core   [rs1_i]
+    shamt_i --> barrel_shifter_core   [shamt_i]
+    shamt_i ==> serial_shifter_core   [shamt_i]
+    valid_cmd ==> barrel_shifter   [valid_cmd]
+    valid_cmd --> serial_shifter_core   [valid_cmd]
+    barrel_shifter_buf ==> barrel_shifter   [bs_result]
+    serial_shifter_core ==> serial_shifter   [shifter.{busy,cnt,done_ff,sreg}]

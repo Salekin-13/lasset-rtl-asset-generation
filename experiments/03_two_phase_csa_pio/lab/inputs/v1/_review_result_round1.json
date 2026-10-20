@@ -1,0 +1,1404 @@
+[
+ {
+  "module": "neorv32_bus",
+  "lens": "lines-type-tags",
+  "findings": [
+   {
+    "element": "neorv32_bus_gateway / b_rsp_i.data (in)",
+    "what": "occurrence lines",
+    "claim": "Line 367 is missing from the occurrence lines, which list only the declaration (313). Line 367 copies the whole record b_rsp_i into port_rsp(1), so b_rsp_i.data moves there too. The builder lists this kind of whole-record read for other fields in this module: line 772 for arbiter.wdata and line 763 for arbiter_nxt.state.",
+    "lines": [
+     313,
+     367
+    ],
+    "rtl_quote": "367 | b_req_o <= port_req(1); port_rsp(1) <= b_rsp_i;",
+    "votes": [
+     {
+      "real": false,
+      "reason": "The claim does not hold up when the RTL is read with the README's definitions.\n\n1. Line 367 (`port_rsp(1) <= b_rsp_i;`) reads the whole record b_rsp_i. It never names the field b_rsp_i.data.\n2. The README says whole-record copies belong to the record entry: \"For a record entry: only the lines that name the whole record (its declaration, whole-record copies, sensitivity lists, port maps).\"\n3. For a field, the README adds exactly two kinds of line: \"its record's declaration line, and any line that assigns the whole record (the field is assigned there too).\" Line 367 reads b_rsp_i. It does not assign it. So the stated rule does not put 367 in the field's list, and the entry's [313] (the declaration) follows that rule.\n4. The two lines the reviewer cites are a different case. Line 772 (`arbiter_nxt <= arbiter;`) and line 763 (`arbiter <= arbiter_nxt;`) copy one record into another record of the same type, arbiter_t. So each field pairs with a named field on the other side. The entries show this: arbiter.wdata gives value to arbiter_nxt.wdata at 772, and gets value from arbiter_nxt.wdata at 763.\n5. At 367 the target is port_rsp(1), an entry of an array of records. The README says: \"An array of records (port_rsp) is one element; its entries are not listed.\" So port_rsp has no field to pair b_rsp_i.data with, and there is no field-level flow at 367 to add to the field's lines.\n6. The reviewer generalises from the record-to-record case to a record-to-array copy that the README treats differently. Neither the definitions nor the RTL clearly show the entry is wrong. At most it is a judgement call.\n\nA side note, outside this claim: in the RTL, data from b_rsp_i reaches port_rsp(1).data, which line 390 reads. So the tag \"not used in this module\" is open to question. The reviewer's claim is only about the occurrence lines, though.",
+      "lines": [
+       313,
+       367,
+       390,
+       763,
+       772
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds. I tried to refute it from the README's narrow wording and could not. The README lists two extra lines for a field: its record's declaration, and any line that \"assigns the whole record\". A whole-record read is not named. But the builder does not follow that narrow reading in this module. arbiter.wdata lists 772 (`arbiter_nxt <= arbiter;`), where arbiter is only read, with the flow \"gives value to arbiter_nxt.wdata @772\". arbiter_nxt.state lists 763 (`arbiter <= arbiter_nxt;`), where arbiter_nxt is only read. So the builder treats a whole-record copy as an occurrence of each field on both sides. The README's opening rule (\"every line where the occurrence profiler found the element\") and its reason for the assign case (\"the field is assigned there too\") point the same way: at a whole-record read, the field is read there too. Line 367 (`port_rsp(1) <= b_rsp_i;`) is the same kind of whole-record read. It is concurrent and runs under every generic setting, so b_rsp_i.data moves into port_rsp there. An array of records on the other side is no excuse. At 625 (`dev_08_req_o <= dev_req(8)`) the builder gives dev_08_req_o.debug line 625 with counterpart dev_req, the mirror case. The value also reaches the module's logic: port_rsp(i).data is ORed into tmp_v.data at 390 (when B_EN is true), then int_rsp at 395, then rsp_o.data at 399. So listing only 313 is wrong. The entry's own tags, \"not read\" and \"not used in this module\" (defined as appears only in its declaration), are wrong for the same reason. The fix is to add 367 to the occurrence lines, with a \"gives value to port_rsp @367\" counterpart.",
+      "lines": [
+       313,
+       367,
+       772,
+       763,
+       625,
+       390
+      ]
+     },
+     {
+      "real": false,
+      "reason": "The claim is not real. The entry follows the README's own rule. Line 367 (`port_rsp(1) <= b_rsp_i;`) copies the whole record b_rsp_i. It never names the field b_rsp_i.data, and it does not assign b_rsp_i, which is an input port. The README says a record entry gets only the lines that name the whole record, \"whole-record copies\" included. It says a field gets the lines that use that field, plus its record's declaration line, plus \"any line that assigns the whole record\". So 367 belongs to the record entry b_rsp_i, not to the field. The field's only qualifying line is 313, the declaration, and that is exactly what the entry lists.\n\nThe comparison with 772 and 763 does not hold. Line 772 (`arbiter_nxt <= arbiter;`) and line 763 (`arbiter <= arbiter_nxt;`) copy one listed record into another listed record of the same kind. So the builder can split each copy into field-to-field flows: arbiter.wdata into arbiter_nxt.wdata, and arbiter_nxt.state into arbiter.state. At 367 the target is port_rsp(1), an entry of an array of records. The README says such an array is one element and its entries are not listed, so there is no target field to split the copy into.\n\nOther entries may handle whole-record reads more broadly than the README states. That is a gap between the builder and its documentation. It does not make this entry wrong under the definitions.\n\nA side note, separate from this claim: the entry's role tags (\"not read\", \"not used in this module\") look doubtful. b_rsp_i reaches port_rsp(1) at 367, and port_rsp(i).data is read at 390 when B_EN is set. The claim is only about occurrence lines, so this does not change the verdict.",
+      "lines": [
+       313,
+       367,
+       390,
+       763,
+       772
+      ]
+     }
+    ],
+    "confirmed": false
+   },
+   {
+    "element": "neorv32_bus_gateway / b_rsp_i.data (in)",
+    "what": "role tags",
+    "claim": "The tags 'not read' and 'not used in this module' are wrong, and 'read' and 'copied' are missing. The field does not appear only in its declaration. Line 367 copies the whole record, field unchanged, into port_rsp(1). Line 390 then reads port_rsp(i).data when port_en_list_c(i) is set (B_EN for i=1), so the data reaches int_rsp (395) and rsp_o.data (399).",
+    "lines": [
+     367,
+     390,
+     395,
+     399
+    ],
+    "rtl_quote": "390 | tmp_v.data := tmp_v.data or port_rsp(i).data;",
+    "votes": [
+     {
+      "real": true,
+      "reason": "The claim holds. The entry tags b_rsp_i.data as \"not read\" and \"not used in this module\", with occurrence lines [313] and no counterparts. The RTL says otherwise. Line 367 (`port_rsp(1) <= b_rsp_i;`) is an unconditional concurrent assignment, a statement that runs all the time outside any process. It copies the whole b_rsp_i record, data field included and unchanged, into port_rsp(1). Inside the response process (384-396), the loop at 388-394 tests port_en_list_c(i) at 389. That constant is defined at 331 as (A_EN, B_EN, C_EN, X_EN), so i=1 is B_EN. When B_EN is set, line 390 (`tmp_v.data := tmp_v.data or port_rsp(i).data;`) reads that copied data. Line 395 puts tmp_v into int_rsp, and line 399 sends int_rsp.data to rsp_o.data. README defines \"read\" for input ports as \"is read by this module's logic or wired into an instance\". Line 367 alone already reads the field. It also fits \"copied\": the field is moved unchanged into port_rsp(1). README also says a record's read and not-used tags \"come from its fields\". Line 367 clearly reads the record b_rsp_i, so its data field cannot be \"not read\". Something must also flow from it, so it cannot be \"not used in this module\". One weak defence fails: README's occurrence-line rule gives a field only the whole-record lines that assign the record, not those that read it. That rule is about which lines are listed. It does not change what \"read\" means for an input port. One part is less certain: README puts what the RTL does with the whole record on the record's own entry, so \"copied\" might be meant for b_rsp_i rather than the field. The wrong \"not read\" / \"not used\" tags and the missing \"read\" tag are still clear. Likely cause, which is reasoning and not checked: the target is an indexed element of an array of records (port_rsp(1)), so the whole-record copy was never expanded to the fields.",
+      "lines": [
+       313,
+       331,
+       337,
+       367,
+       384,
+       388,
+       389,
+       390,
+       395,
+       399
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds. The entry lists b_rsp_i.data (in) with occurrence lines [313], the tags \"not read\" and \"not used in this module\", and no counterparts. The RTL shows the field is read.\n\n1. Line 367 is an unconditional concurrent assignment: `port_rsp(1) <= b_rsp_i;`. It is not inside any if, case or generate. It copies the whole input record, .data included, unchanged into port_rsp(1). README defines \"copied\" as \"is moved unchanged into another element\" and \"read\" as \"is read by this module's logic\".\n2. Lines 384-396 are the response process. Its sensitivity list is port_rsp. For each i in 0..3, if port_en_list_c(i) (line 331: index 1 = B_EN), line 390 runs `tmp_v.data := tmp_v.data or port_rsp(i).data;`. Line 395 assigns tmp_v to int_rsp. Line 399 drives `rsp_o.data <= int_rsp.data`. So when B_EN is set, the value of b_rsp_i.data reaches the output rsp_o.data. Even when B_EN is clear, line 367 still reads the field.\n3. The tool already treats whole-record copies as field-level flows elsewhere in this module. In the same sample, the field dev_08_req_o.debug \"gets value from dev_req\" at 625, from the whole-record copy `dev_08_req_o <= dev_req(8)`. The source-side field here was simply not expanded, because the target port_rsp is an array of records.\n4. README says a record's \"read\" and \"not used\" tags come from its fields. With every b_rsp_i field marked not read, the record b_rsp_i would inherit \"not read\", even though line 367 plainly reads it. That contradiction shows the field tags are wrong.\n\nOne part is defensible. README's occurrence rule adds a whole-record line to a field's lines only when that line assigns the record, and 367 reads it. So [313] as the occurrence lines follows the stated rule. But \"read / not read\" and \"not used\" describe what the logic does, and the logic reads the field at 367 and forwards it at 390/395/399. \"not read\" and \"not used in this module\" are wrong; \"read\" should be present, and \"copied\" fits the README definition (value moved unchanged at 367).",
+      "lines": [
+       313,
+       331,
+       337,
+       367,
+       384,
+       389,
+       390,
+       395,
+       399
+      ]
+     },
+     {
+      "real": true,
+      "reason": "I agree with the reviewer: the entry is wrong. Line 367 (`port_rsp(1) <= b_rsp_i;`) is an unconditional concurrent assignment. It copies the whole input record, data field included, unchanged into port_rsp. That makes b_rsp_i.data \"read\" by this module's logic and \"copied\" (moved unchanged into another element), as README defines those tags. So \"not read\" and \"not used in this module\" are false. The value also goes further. port_rsp is in the sensitivity list of process response (384). Inside the loop, `if port_en_list_c(i)` (389) holds for i=1 when the setting B_EN is true, and line 390 then ORs port_rsp(i).data into tmp_v.data. tmp_v is assigned to int_rsp at 395, and line 399 copies int_rsp.data to rsp_o.data. The same sample file treats the opposite direction as a real flow. dev_08_req_o.debug lists \"gets value from dev_req\" at line 625, a whole-record copy out of an array of records. The mirror flow here, b_rsp_i.data gives value to port_rsp at 367, is missing. README also says a record's own \"read\" tag comes from its fields. If this field and its siblings were all \"not read\", b_rsp_i would be marked \"not read\" even though line 367 reads it. One point I could not refute but which does not save the entry: the field's occurrence lines [313] do follow README's line rule. That rule adds whole-record lines to a field only when the record is assigned, and here b_rsp_i is the source, not the target. But the role tags are facts about what the code does, and line 367 reads the record. The only generic-dependent step is line 390, under B_EN. Line 367 does not depend on any setting.",
+      "lines": [
+       313,
+       337,
+       367,
+       384,
+       389,
+       390,
+       395,
+       399
+      ]
+     }
+    ],
+    "confirmed": true
+   },
+   {
+    "element": "neorv32_bus_switch / a_req_i.amoop (in)",
+    "what": "role tags",
+    "claim": "The tag 'operand' should be 'copied'. On line 142 a_req_i.amoop goes into x_req_o.amoop unchanged; sel only picks between it and b_req_i.amoop. Nothing computes with the value. That matches the 'copied' definition (moved unchanged into another element), not 'operand' (used in a computation). This is the only line where the field is used.",
+    "lines": [
+     142
+    ],
+    "rtl_quote": "142 | x_req_o.amoop <= a_req_i.amoop when (sel = '0') else b_req_i.amoop;",
+    "votes": [
+     {
+      "real": true,
+      "reason": "The claim holds. Line 142 is the only place a_req_i.amoop is used; line 26 is the port declaration, and the entry's own occurrence lines are just 26 and 142. Line 142 reads `x_req_o.amoop <= a_req_i.amoop when (sel = '0') else b_req_i.amoop;`. This is a VHDL conditional assignment. It has the same meaning as `if sel='0' then x_req_o.amoop <= a_req_i.amoop; else ... end if;`. No operator acts on a_req_i.amoop. When sel = '0', its value reaches x_req_o.amoop unchanged. README.md defines 'copied' as \"is moved unchanged into another element\". It defines 'operand' as \"is used in a computation whose result is assigned\", with the example `ctrl.enable and cnt_timeout and prsc_tick`, which uses a logic operator. README also lists a 'when' test under 'condition', and puts the element that only decides in the 'decided by' group (dashed arrow). So it treats when/else as a decision plus value arms, not as a computation. The test belongs to sel, and the value arm is a plain move. The entry's own counterpart is \"gives value to x_req_o.amoop at 142\", which fits a plain move. Line 142 is a concurrent statement at architecture level, outside any process, if, case or generate, so nothing around it turns the move into a computation. Line 141 (amo) and lines 143-147 have the same shape, so the program likely mis-tags all the fields assigned this way, not just this one. The tag 'operand' is wrong and should be 'copied'; the 'read' tag is correct.",
+      "lines": [
+       142,
+       26
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds. The field a_req_i.amoop appears on only two lines: line 26, where the a_req_i port is declared, and line 142. Line 142 is the only line that uses it: \"x_req_o.amoop <= a_req_i.amoop when (sel = '0') else b_req_i.amoop;\". This statement sits on its own, outside any process, if, case or generate. Lines 140 to 147 are its sibling assignments of the same shape. When sel is '0', the value of a_req_i.amoop goes into x_req_o.amoop exactly as it is. No operator such as and, or or + is applied to it.\n\nREADME.md defines 'copied' as \"is moved unchanged into another element\". It defines 'operand' as \"is used in a computation whose result is assigned\", and its example is an 'and' expression (wdt line 155). README also treats a when-test as deciding an assignment, not as computing a value. The 'condition' tag covers \"an if / elsif / when test ... that decides an assignment\", and the 'decided by' counterpart group (dashed arrow) is for an element that only decides. So sel decides which source is used, and a_req_i.amoop is moved unchanged. The entry's own counterparts say the same: \"gives value to\" x_req_o.amoop at line 142, which is a solid arrow and a plain move of a value.\n\nIn VHDL, a conditional assignment means the same thing as an if/else that assigns x_req_o.amoop <= a_req_i.amoop in one arm. Under the README definitions, that arm is plainly 'copied'.\n\nNothing in README.md says that a source inside a when/else becomes an 'operand'. So the 'operand' tag does not match the definitions, and 'copied' does. The 'read' tag is right and stays.",
+      "lines": [
+       142,
+       140,
+       141,
+       26
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds. Line 142 is a plain conditional assignment, outside any process or generate: `x_req_o.amoop <= a_req_i.amoop when (sel = '0') else b_req_i.amoop;`. When sel is '0', the value of a_req_i.amoop goes into x_req_o.amoop unchanged. No operator (and, or, +, &, compare) is applied to it. The `when (sel = '0')` test belongs to sel: under README.md that is a 'condition' / 'decided by' fact for sel. It does not make a_req_i.amoop part of a computation.\n\nREADME.md defines 'copied' as \"moved unchanged into another element\". It defines 'operand' as \"used in a computation whose result is assigned\", with the example `ctrl.enable and cnt_timeout and prsc_tick`. Line 142 fits 'copied', not 'operand'.\n\nThe entry itself agrees. Its only counterpart is \"gives value to\" x_req_o.amoop at 142, which is the solid value-moves arrow. It has no partner that would show a computation. Its occurrence lines are 26 (the port declaration) and 142, so 142 is the only line where the field is used.\n\nSo 'operand' is wrong and should be 'copied'. 'read' stays correct.",
+      "lines": [
+       142,
+       26
+      ]
+     }
+    ],
+    "confirmed": true
+   }
+  ]
+ },
+ {
+  "module": "neorv32_bus",
+  "lens": "counterparts",
+  "findings": [
+   {
+    "element": "neorv32_bus_gateway / b_rsp_i.data",
+    "what": "missing partner",
+    "claim": "The entry has empty counterparts and is tagged 'not read' and 'not used in this module', but line 367 copies the whole b_rsp_i record into port_rsp(1), so the data field moves with it. Missing partner: gives value to port_rsp at line 367. This is a plain value flow. The RTL then reads port_rsp(i).data into tmp_v.data at line 390, and from there it reaches int_rsp at line 395 and rsp_o.data at line 399. The same file records the mirror case: dev_08_req_o.debug gets value from the array dev_req at line 625. So a flow between a record field and an array of records counts as a counterpart here, and b_rsp_i.data should have the same flow to port_rsp.",
+    "lines": [
+     367,
+     390,
+     395,
+     399,
+     625
+    ],
+    "rtl_quote": "367 | b_req_o <= port_req(1); port_rsp(1) <= b_rsp_i;",
+    "votes": [
+     {
+      "real": true,
+      "reason": "The claim holds. The entry is wrong.\n\n1. Line 313 declares b_rsp_i as an input of type bus_rsp_t. Line 337 declares port_rsp as an array of bus_rsp_t (type at 335). README.md treats that array as one element.\n\n2. Line 367, `port_rsp(1) <= b_rsp_i;`, is a plain concurrent assignment. It sits outside any process, if, case or generate, and no condition guards it. It copies the whole b_rsp_i record, so b_rsp_i.data moves unchanged into port_rsp(1).data. README.md defines \"gives value to\" as \"a value moves from one element into the other\" and \"copied\" as \"is moved unchanged into another element\". Both fit b_rsp_i.data at 367, with port_rsp as the partner.\n\n3. The value is really used. Line 390 reads port_rsp(i).data into tmp_v.data inside the loop that tests port_en_list_c(i). Line 395 copies tmp_v into int_rsp, and line 399 copies int_rsp.data into rsp_o.data. Even if the B_EN generic switches off the read at 390, the flow at 367 is unconditional.\n\n4. The same file already counts a flow between a record field and the array as a partner. dev_08_req_o.debug \"gets value from\" dev_req at 625 (`dev_08_req_o <= dev_req(8)`). Line 367 is the mirror flow. By README.md's rule that every flow appears on both ends, b_rsp_i.data should give value to port_rsp at 367, and port_rsp should show the matching \"gets value from\".\n\n5. The tags \"not read\" and \"not used in this module\" are also wrong. README.md defines \"read\" as read by this module's logic, and line 367 reads b_rsp_i, data included. README.md also says a record's read tag comes from its fields. So if every field were \"not read\", the record b_rsp_i would come out \"not read\" too, which line 367 contradicts.\n\nOne part is open to argument. README.md's rule for a field's occurrence lines adds only lines that assign the whole record, so the list [313] may follow that literal rule. The empty partners and the two tags do not follow from it, so the entry is wrong as claimed.",
+      "lines": [
+       313,
+       335,
+       337,
+       367,
+       389,
+       390,
+       395,
+       399,
+       625
+      ]
+     },
+     {
+      "real": false,
+      "reason": "The claim does not hold under README.md. The README splits whole-record lines unevenly, and says so on purpose. For a record, a field's occurrence lines include its record's declaration and \"any line that assigns the whole record (the field is assigned there too)\". A line that only reads the whole record, such as a whole-record copy out of it, goes to the record's own entry: \"only the lines that name the whole record (its declaration, whole-record copies, ...)\". The README also says \"A record's own tags are what the RTL does with the whole record\".\n\nLine 367 (`port_rsp(1) <= b_rsp_i;`) does not assign b_rsp_i. It reads b_rsp_i as a whole and copies it into port_rsp, an array of records that the README counts as one element. So under the README, 367 is a line of the record b_rsp_i, not of the field b_rsp_i.data. The flow b_rsp_i -> port_rsp at 367 belongs on the record entry.\n\nCounterpart lines are \"the source element's lines in the statement that sets the target\". The field has no line in that statement, so its empty counterparts follow the rule. With occurrence lines [313], the declaration only, the tag 'not used in this module' (\"appears only in its declaration\") also follows. Lines 390, 395 and 399 read port_rsp(i).data, tmp_v and int_rsp. They never name b_rsp_i.data, so they cannot give it a partner.\n\nThe claimed mirror case reverses the direction. At 625 (`dev_08_req_o <= dev_req(8)`), the record dev_08_req_o is the one being assigned. The README says a whole-record assignment is expanded to the target's fields, so dev_08_req_o.debug rightly gets value from dev_req at 625. At 367 the record b_rsp_i is the source, and the README does not expand a source record into its fields. The two cases are not symmetric under the stated rules.\n\nOne open point: in plain VHDL terms the data bits do flow b_rsp_i -> port_rsp(1) -> tmp_v.data (390) -> int_rsp (395) -> rsp_o.data (399). Under that reading the field-level 'not read' tag is debatable. But the README puts that flow on the record entry, so this entry is not clearly wrong as the claim describes.",
+      "lines": [
+       313,
+       367,
+       390,
+       625
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds. The entry for neorv32_bus_gateway / b_rsp_i.data lists only line 313, tags the field 'not read' and 'not used in this module', and gives no counterparts. The RTL contradicts all three.\n\n1. Line 367 (`port_rsp(1) <= b_rsp_i;`) is a concurrent assignment with no condition. It copies the whole b_rsp_i record, data field included, into port_rsp(1). README defines 'read' as 'is read by this module's logic', and 'not used' as 'appears only in its declaration'. Line 367 reads the field, so neither tag fits.\n\n2. The value does go somewhere. The response process (lines 384-396) reads port_rsp(i).data into tmp_v.data at line 390 when port_en_list_c(i) holds (B_EN for i=1). tmp_v goes to int_rsp at line 395, and int_rsp.data goes to rsp_o.data at line 399. Under README, this is a plain 'gives value to' flow from b_rsp_i.data into port_rsp at line 367. README counts an array of records such as port_rsp as one element.\n\n3. The same file treats whole-record copies this way on both sides:\n- arbiter.wdata (sample entry) lists line 772 (`arbiter_nxt <= arbiter`, the whole record read) in its occurrence lines and has 'gives value to arbiter_nxt.wdata' at 772.\n- arbiter_nxt.state has 'gives value to arbiter.state' at line 763 (`arbiter <= arbiter_nxt`).\n- dev_08_req_o.debug has 'gets value from dev_req' at line 625, a flow between a record field and an array of records.\n\nSo the entry should at least carry 'gives value to port_rsp' at line 367, with 367 in its occurrence lines, and be tagged 'read' and 'copied', not 'not read' and 'not used'.\n\nOne possible defence fails. README says a field's occurrence lines include lines that 'assign' the whole record, which alone would not add line 367. But the tool adds whole-record read lines anyway (772 for arbiter.wdata). And the 'not read' and 'not used' tags would be wrong either way.",
+      "lines": [
+       313,
+       337,
+       367,
+       384,
+       389,
+       390,
+       395,
+       399,
+       772,
+       763,
+       625
+      ]
+     }
+    ],
+    "confirmed": true
+   }
+  ]
+ },
+ {
+  "module": "neorv32_cache",
+  "lens": "lines-type-tags",
+  "findings": [
+   {
+    "element": "data_mem_b1 (entity neorv32_cache_memory)",
+    "what": "Role tag 'operand' may be wrong; 'copied' may be the right tag. This depends on how the definitions treat array indexing. The other 9 neorv32_cache entries had no errors I could show from the RTL. Every listed occurrence line contains its element, no written line is missing, and all six signal types fit the rule.",
+    "claim": "At line 426, one element of data_mem_b1 goes unchanged into a slice of rdata_o. No operator acts on its value. The only work on that line is picking the array element, and README.md gives that picking to acc_adr as the 'index' tag. Under the README definitions ('copied' = moved unchanged into another element; 'operand' = used in a computation), data_mem_b1's role on this line reads as 'copied'. The RTL shows no line where data_mem_b1 is part of a computation. If the builder deliberately treats an indexed read as 'operand' (tap_sync.tms_ff in the debug_dtm sample looks tagged the same way), this is a convention to write into README.md, not a bug in the builder.",
+    "lines": [
+     426,
+     417,
+     354
+    ],
+    "rtl_quote": "426 | rdata_o(15 downto  8) <= data_mem_b1(to_integer(unsigned(acc_adr)));",
+    "votes": [
+     {
+      "real": false,
+      "reason": "The RTL does not clearly show the entry is wrong. I could not refute the facts the claim relies on, but its conclusion depends on a reading that README.md does not settle.\n\nWhat the RTL shows. Line 353 declares data_mem_t as an array of 8-bit vectors, and line 354 declares data_mem_b1 with that type. Line 426, inside the clocked process data_memory (lines 410-430, under rising_edge(clk_i) at 412), assigns one entry, data_mem_b1(to_integer(unsigned(acc_adr))), to the 8-bit slice rdata_o(15 downto 8). The only other use is line 417, a write under we_i(1) at 416. The entry's 'held on a clock edge' tag and its counterparts all match this: wdata_i at 417, acc_adr at 417, we_i at 416, rdata_o at 426 and clk_i at 412.\n\nWhy 'operand' is not clearly wrong. README line 52 defines 'copied' as 'is moved unchanged into another element'. The element here is the whole array data_mem_b1. At 426 the whole array is not moved into rdata_o. Only one 8-bit entry moves, picked at run time by acc_adr. Reading an array through a run-time index is a choice among many entries, which hardware builds as a multiplexer (a switch that passes one of several inputs). So the value rdata_o gets depends on both data_mem_b1 and acc_adr. That reasonably counts as 'used in a computation whose result is assigned', README line 53.\n\nREADME line 51 gives the 'index' tag to the picker (acc_adr). It does not say what tag the array being picked from gets. Nothing in README says a run-time indexed read counts as 'copied'. The only 'copied' example (line 52, clkgen_en_o <= ctrl.enable) is a whole element moved unchanged.\n\nThe reviewer says the same thing: 'This depends on how the definitions treat array indexing.' Under the README as written, both tags can be argued. That makes this a missing convention to add to README.md, not an error the RTL plus the definitions clearly show. Deciding lines: 426, 354, 353.",
+      "lines": [
+       426,
+       354,
+       353,
+       417
+      ]
+     },
+     {
+      "real": false,
+      "reason": "The claim is not clearly an error. It rests on how README.md treats an indexed read, and README.md does not say. What the RTL shows: data_mem_b1 is declared at 354 as an array (data_mem_t). It is written only at 417 inside `if rising_edge(clk_i)` (412) under `if (we_i(1) = '1')` (416). It is read only at 426: `rdata_o(15 downto 8) <= data_mem_b1(to_integer(unsigned(acc_adr)));`. So the occurrence lines (354, 417, 426), the type `reg`, 'held on a clock edge' and every counterpart are right. The only open question is 'operand' versus 'copied' at 426. README.md defines 'copied' as 'is moved unchanged into another element', 'operand' as 'is used in a computation whose result is assigned', and 'index' as 'picks an array element or slice'. None of these rows says how to tag the array itself when only one entry, picked by a changing index, is read. The element data_mem_b1 is the whole array, and the whole array is not moved into rdata_o. Only the entry that acc_adr selects is, and in hardware that read is a multiplexer across all entries (a multiplexer picks one of several inputs). So 'operand' is a defensible reading. 'Copied' is a defensible reading too, since no operator acts on the value. The claim itself says the answer 'depends on how the definitions treat array indexing' and that a deliberate builder convention would be a README gap, not a builder bug. Read with README.md as written, the RTL does not clearly show the entry is wrong. The fix is to write the indexed-read convention into README.md.",
+      "lines": [
+       426,
+       417,
+       416,
+       412,
+       354
+      ]
+     },
+     {
+      "real": false,
+      "reason": "The claim gets the RTL right but does not show an error under README.md. In the data_memory process (410-430, clocked at 412), data_mem_b1 appears on three lines. Line 354 declares it. Line 417 writes to it under the we_i(1) test at 416, with the slot picked by acc_adr. Line 426 is `rdata_o(15 downto 8) <= data_mem_b1(to_integer(unsigned(acc_adr)));`. On 426, no operator acts on the value read from data_mem_b1. The to_integer(unsigned(...)) conversion works on acc_adr, the index, not on the stored data. So one 8-bit slot does go into the rdata_o slice unchanged.\n\nREADME.md does not decide which tag this read gets. 'copied' is defined as 'is moved unchanged into another element'. 'operand' is defined as 'is used in a computation whose result is assigned'. Here the element is the whole array, data_mem_b1, and the whole array is never moved into rdata_o. Only one slot is read, and which slot depends on a value that changes at run time. In hardware that read is a read port or multiplexer, so it can fairly be called a computation. The 'index' row only tags the element that does the picking (acc_adr). It says nothing about how to tag the array being read. README also does not say whether a partial or indexed read counts as 'moved unchanged'.\n\nThe builder applies the same rule every time. In this same sample, the imem byte arrays mem_ram_b0 and mem_ram_b2 are also read by index into rdata and are also tagged 'operand' only. The reviewer says the answer 'depends on how the definitions treat array indexing'. That is right, and it makes this a missing convention in README.md, not an entry that is clearly wrong. A good fix is to add one sentence to README.md stating which tag an array read with a run-time index gets.",
+      "lines": [
+       354,
+       412,
+       416,
+       417,
+       425,
+       426,
+       427,
+       428
+      ]
+     }
+    ],
+    "confirmed": false
+   }
+  ]
+ },
+ {
+  "module": "neorv32_cache",
+  "lens": "counterparts",
+  "findings": []
+ },
+ {
+  "module": "neorv32_cpu",
+  "lens": "lines-type-tags",
+  "findings": [
+   {
+    "element": "frontend.compr",
+    "what": "occurrence lines",
+    "claim": "Line 199 is missing from the occurrence lines. They list only 109, the record declaration. At line 199 the instance output drives the whole record frontend, so frontend.compr is set there too. README says a field's lines include any line that assigns the whole record. The entry's own data points the same way: its 'set by an instance' tag and its 'gets value from' counterpart (neorv32_cpu_frontend_inst, port frontend_o.compr) both cite line 199. Expected occurrence lines: [109, 199].",
+    "lines": [
+     109,
+     199
+    ],
+    "rtl_quote": "199 |     frontend_o => frontend",
+    "votes": [
+     {
+      "real": false,
+      "reason": "The claim does not hold. It reads README's field rule (\"any line that assigns the whole record\") as covering a port map, but README itself keeps the two apart.\n\n1. README says a record entry's lines are \"its declaration, whole-record copies, sensitivity lists, port maps\". Copies and port maps are listed as separate things.\n2. README never calls an instance output driving a signal an \"assignment\". The type rule says \"wire: assigned only without a clock edge, or driven by an instance's output port\". The output-port tag says \"is assigned or driven by an instance\". The tag \"set by an instance\" is defined as \"driven by an instance's output port\", while \"set without a clock\" is \"has an assignment\".\n\nLine 199 (`frontend_o => frontend`, in the instance neorv32_cpu_frontend_inst at lines 186-200, not inside any process, if, case or generate) is a port map. Under README it belongs to the whole-record entry frontend. It is not a whole-record assignment that the field would inherit.\n\nThe entry follows that reading consistently:\n- Occurrence lines [109] hold only the record's declaration.\n- Line 255 (`frontend_i => frontend`), the other port map of the whole record, is also left out of the field's lines.\n- Line 199 shows up only in the field's counterparts and tags. README defines those from the flow graph, not from the occurrence profiler, and does not require occurrence lines to include counterpart lines.\n\nSo the entry agrees with README's own wording. The claim depends on a looser meaning of \"assigns\" that README does not support. At best that is uncertain, and uncertain means real=false.",
+      "lines": [
+       109,
+       186,
+       199,
+       255
+      ]
+     },
+     {
+      "real": false,
+      "reason": "The claim is not clearly right, so I return false. The RTL facts are as the claim says. Line 109 declares `signal frontend : if_bus_t`, and line 199 (`frontend_o => frontend`, in the port map of neorv32_cpu_frontend_inst, lines 186-200) is the only place the whole record is driven. Line 255 (`frontend_i => frontend`) only reads it. The disagreement is over a word in README.md. Its field rule adds \"any line that assigns the whole record\". But README never treats an instance's output port as an assignment. It keeps the two apart every time: the wire type is \"assigned only without a clock edge, or driven by an instance's output port\" (README line 39); \"set without a clock\" (an assignment) and \"set by an instance\" are separate tags (lines 56-57); output ports are \"assigned or driven by an instance\" (line 60). The record-entry rule also names \"whole-record copies\" and \"port maps\" as separate kinds of line (lines 35-36). Read that way, line 199 is a port map, not an assignment, and the entry's lines [109] follow the rule as written. Counterpart lines do not have to appear in occurrence lines. The same sample shows this for ibus_rsp_i.ack, whose lines are [85] while its counterpart cites the port map at 197. So the 199 under counterparts does not show that 109 alone is wrong. The claim's reading (a port-map output sets every field, so the field is assigned there) is reasonable, and README may need to say which reading it means. Still, the claim depends on a reading README does not clearly support, so it is uncertain.",
+      "lines": [
+       109,
+       199,
+       255
+      ]
+     },
+     {
+      "real": false,
+      "reason": "Line 199 is a port-map association, `frontend_o => frontend`. It is not an assignment statement. README sorts these two cases apart. For a record entry it lists the whole-record lines as \"its declaration, whole-record copies, sensitivity lists, port maps\", so port maps are named separately from copies and belong to the record. The field rule adds only the declaration and \"any line that assigns the whole record\". README keeps \"assigned\" apart from \"driven by an instance's output port\" every time: in the wire definition, in the 'set without a clock' vs 'set by an instance' tags, and in 'driven: is assigned or driven by an instance'. So the field rule most naturally covers whole-record assignment statements, and frontend has none. The RTL names frontend in only three places: 109 (declaration), 199 (port map, output) and 255 (port map, input). The entry is also self-consistent under this reading. Its counterparts cite 199 and 255, yet neither is in its occurrence lines, which matches port-map lines going to the record entry. The claim's reading (an instance output counts as assigning the whole record) is possible, but README does not clearly support it. The entry is not clearly wrong.",
+      "lines": [
+       109,
+       199,
+       255
+      ]
+     }
+    ],
+    "confirmed": false
+   }
+  ]
+ },
+ {
+  "module": "neorv32_cpu",
+  "lens": "counterparts",
+  "findings": []
+ },
+ {
+  "module": "neorv32_cpu_cp_cfu",
+  "lens": "lines-type-tags",
+  "findings": [
+   {
+    "element": "xtea.opb",
+    "what": "missing role tag: copied",
+    "claim": "The entry tags xtea.opb as operand, held on a clock edge and reset to a constant, but not copied. README defines copied as 'is moved unchanged into another element'. At lines 232 and 233 xtea.opb is moved unchanged into tmp_a and tmp_b (one branch of a conditional assignment; no computation on it). The sibling field xtea.opa gets copied from the same two lines. So xtea.opb should also have the copied tag. Its occurrence lines (163, 195, 206, 232-235) and its type (reg) are correct.",
+    "lines": [
+     232,
+     233
+    ],
+    "rtl_quote": "232: tmp_a <= xtea.opb when (funct3_i(0) = '0') else xtea.opa;  233: tmp_b <= xtea.opa when (funct3_i(0) = '0') else xtea.opb;",
+    "votes": [
+     {
+      "real": true,
+      "reason": "The claim holds. Lines 232 and 233 are concurrent conditional assignments with no process, if, case or generate around them. In one arm of each, xtea.opb is the whole right-hand side with no arithmetic, slice or concatenation. At 232, tmp_a gets xtea.opb when funct3_i(0) = '0'. At 233, tmp_b gets xtea.opb in the else arm. README line 52 defines copied as \"is moved unchanged into another element\". README line 48 lists a \"when\" test as a condition that decides an assignment, the same as an if test. So each when/else arm is an assignment decided by the condition, like an if/else branch inside a process. The entry agrees that a value moves here: its \"gives value to\" list names tmp_a at 232 and tmp_b at 233, which the README draws as solid arrows. The same module applies this logic elsewhere. xtea.opa is tagged copied, and line 214 (xtea.sum <= xtea.opa inside if funct3_i(2) = '1') is also a conditional unchanged move. Calling a when/else a computation (operand) and not a copy would contradict the README's treatment of when as a condition. The operand tag is still correct from lines 234 and 235, where xtea.opb is sliced and concatenated. The reviewer may be wrong that xtea.opa's copied tag comes from lines 232 and 233, since line 214 alone would justify it. That does not change the finding: xtea.opb is missing the copied tag.",
+      "lines": [
+       232,
+       233,
+       214
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds: the entry is missing the copied tag.\n\n1. Lines 232 and 233 are concurrent conditional assignments: `tmp_a <= xtea.opb when (funct3_i(0) = '0') else xtea.opa;` and `tmp_b <= xtea.opa when (funct3_i(0) = '0') else xtea.opb;`. In the branch that picks it, xtea.opb goes into tmp_a or tmp_b with no operator, slice or concatenation. That matches the README's definition of copied: \"is moved unchanged into another element\".\n\n2. The README treats a `when` test as a condition, the same as if / elsif. It does not treat it as a computation. Its condition tag reads \"is in an if / elsif / when test ... that decides an assignment\". The closed set already follows this: tmp_x lists funct3_i under \"decided by\", not as a value source. So line 232 is the same as `if funct3_i(0)='0' then tmp_a <= xtea.opb; else tmp_a <= xtea.opa; end if;`. That is a plain move under a condition, just like line 214 (`xtea.sum <= xtea.opa` inside an if).\n\n3. The operand tag is still correct. It comes from lines 234 and 235, where xtea.opb is sliced and concatenated (`xtea.opb(27 downto 0) & \"0000\"`, `\"00000\" & xtea.opb(31 downto 5)`). That is a computation. Being an operand there does not cancel being copied at 232 and 233. The entry itself lists tmp_a (232) and tmp_b (233) under \"gives value to\".\n\n4. One detail of the claim is probably wrong. xtea.opa's copied tag is most likely explained by line 214 (`xtea.sum <= xtea.opa`), not by lines 232 and 233. If the builder counted 232 and 233 as copies, xtea.opb would have the tag too. This does not change the verdict: by the README's definition, xtea.opb is copied at 232 and 233. The role list (operand, held on a clock edge, reset to a constant) should also include copied.",
+      "lines": [
+       232,
+       233,
+       234,
+       235,
+       214
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds. README defines copied as \"is moved unchanged into another element\". At line 232 (`tmp_a <= xtea.opb when (funct3_i(0) = '0') else xtea.opa;`) and line 233 (`tmp_b <= xtea.opa when (funct3_i(0) = '0') else xtea.opb;`), xtea.opb is the whole value of one branch. Nothing is computed on it: no slice, no concatenation, no arithmetic. When that branch is taken, the target equals xtea.opb exactly. funct3_i(0) is the \"when test\" that decides the assignment, which is how README defines a condition. A when-else is the concurrent form of an if/else, and a value moved by an if/else branch would plainly be copied. The entry itself lists tmp_a (232) and tmp_b (233) under \"gives value to\", which README describes as \"a value moves from one element into the other\", but it leaves out the copied tag.\n\nI could not refute it. The existing operand tag is justified by lines 234 and 235: there xtea.opb is sliced and concatenated with constants, which is a computation. That does not cover 232 and 233. One part of the reviewer's argument is weak: xtea.opa's copied tag may come from line 214 (`xtea.sum <= xtea.opa;`, an unconditional copy) rather than from 232 and 233. That sibling argument does not settle the question either way. The verdict rests on the README definition applied to lines 232 and 233.\n\nThe occurrence lines (163, 195, 206, 232-235) and the type reg are correct, as the claim says. The type is reg because xtea.opb is assigned only at 195 (reset arm) and 206 (under `rising_edge(clk_i)` at 198).",
+      "lines": [
+       232,
+       233,
+       234,
+       235,
+       214
+      ]
+     }
+    ],
+    "confirmed": true
+   }
+  ]
+ },
+ {
+  "module": "neorv32_cpu_cp_cfu",
+  "lens": "counterparts",
+  "findings": []
+ },
+ {
+  "module": "neorv32_cpu_cp_muldiv",
+  "lens": "lines-type-tags",
+  "findings": [
+   {
+    "element": "valid_o",
+    "what": "role tag missing: set to constants only",
+    "claim": "README defines 'set to constants only' as 'every assignment gives a constant'. valid_o has one assignment, at 145, and both of its values are the constants '1' and '0'. So the tag applies, but the entry lists only 'set without a clock' and 'driven'. ctrl.out_en in the same module does get this tag: its constants are chosen by the ctrl.state case at 116. The only difference is that valid_o uses the concurrent 'when ... else' form, and README makes no exception for that form.",
+    "lines": [
+     145
+    ],
+    "rtl_quote": "valid_o <= '1' when (ctrl.state = S_DONE) else '0';",
+    "votes": [
+     {
+      "real": true,
+      "reason": "The claim holds. README line 58 defines 'set to constants only' as \"every assignment gives a constant\". It gives no exception for the concurrent 'when ... else' form, and the tag is allowed on output ports (its own example is the output field bus_rsp_o.err).\n\nIn rtl.txt, valid_o is assigned once, at line 145: valid_o <= '1' when (ctrl.state = S_DONE) else '0';. Nothing else drives it: no process, generate or instance assigns it. Both values at 145 are the literal constants '1' and '0'.\n\nThe entry agrees that ctrl.state only decides valid_o. Its counterparts list ctrl.state under 'decided by' at 145, with no 'gets value from' partner. README line 49 also counts a 'when' test as a condition that decides, not a value that moves. So by the entry's own reading, no non-constant value reaches valid_o.\n\nThe same module's ctrl.out_en carries the tag. Its assignments at 109, 112 and 137 are all constants, chosen by the case on ctrl.state at 116. valid_o differs only in using the concurrent form.\n\nThe sample shows the same gap on ctrl.rs2_is_signed (150: '1' when ... else '0', also untagged). So the program seems to skip conditional concurrent assignments systematically. README does not support that.\n\nThe entry's 'set without a clock' and 'driven' are correct. It is missing 'set to constants only'.",
+      "lines": [
+       145
+      ]
+     },
+     {
+      "real": true,
+      "reason": "I could not refute the claim. The entry is wrong: valid_o is missing the tag \"set to constants only\".\n\n1. What README says. The tag means \"every assignment gives a constant\". README makes no exception for any statement form. Its own example, bus_rsp_o.err, is an output-port field, so output ports can carry the tag.\n2. What the RTL does. valid_o is assigned in exactly one place, line 145: `valid_o <= '1' when (ctrl.state = S_DONE) else '0';`. Its occurrence lines are 38 (the declaration) and 145, and nothing else drives it. Both values it can take, '1' and '0', are constant literals.\n3. What the entry itself records. Its only counterpart is \"decided by ctrl.state\" at line 145. It has no \"gets value from\". So the builder's own graph already treats ctrl.state as the thing that picks the value, not as a source of it. Only constants flow into valid_o. That matches README's \"when\" test under the \"condition\" tag.\n4. The comparison case. ctrl.out_en is assigned '0' at 109 (the reset arm), '0' at 112, and '1' at 137, inside `case ctrl.state` at 116. In the graph it looks the same as valid_o: decided by ctrl.state, no value source. It does get the tag. The only difference is the statement form: a case inside a process versus a concurrent `when ... else`. README never makes that distinction.\n\nThe other two tags are correct. \"set without a clock\" holds because line 145 is a concurrent assignment with no clock-edge test. \"driven\" holds rather than \"tied to a constant\" because the value changes with ctrl.state, not with a generic.\n\nThe same gap shows elsewhere in this file. ctrl.rs2_is_signed (line 150, `'1' when ... else '0'`) also lacks the tag. So the builder seems to skip it for every constant `when ... else`. That is a consistent builder habit, not something README states. It does not make the valid_o entry correct.",
+      "lines": [
+       145,
+       38,
+       116,
+       109,
+       112,
+       137,
+       150
+      ]
+     },
+     {
+      "real": true,
+      "lines": [
+       145,
+       38,
+       109,
+       112,
+       137,
+       116
+      ],
+      "reason": "The claim holds: the valid_o entry is missing the \"set to constants only\" tag.\n\nWhat the RTL shows: valid_o appears on two lines only. Line 38 is its port declaration. Line 145 is its only assignment: `valid_o <= '1' when (ctrl.state = S_DONE) else '0';`. That line sits at architecture level, outside any process, if, case or generate. Both values it can take, '1' and '0', are constants. The entry's own occurrence lines are [38, 145], which agrees.\n\nWhat README.md says: line 58 defines \"set to constants only\" as \"every assignment gives a constant\". It makes no exception for the concurrent `when ... else` form or for output ports. Its own example of the tag, wdt bus_rsp_o.err, is an output port field. The value being chosen by a condition does not block the tag either:\n- In this module, ctrl.out_en is assigned '0' at 109 and 112 and '1' at 137, with the choice made by the ctrl.state case at 116. Its entry has the tag.\n- In the same sample file, cache_o.cmd_clr is \"decided by ctrl.state\" and also has the tag.\n\nI tried three ways to refute the claim, and none works:\n1. There is no second, non-constant assignment to valid_o.\n2. The \"tied to a constant\" output tag is a different fact (\"only by constants under generics\"). It does not replace \"set to constants only\".\n3. One could argue that `'1' when c else '0'` really computes a value from c. README defines the tag by the values the assignment gives, not by what decides them. ctrl.out_en shows that constants picked by a condition still count.\n\nSo the entry should list \"set to constants only\" next to \"set without a clock\" and \"driven\".\n\nA side note: ctrl.rs2_is_signed (line 150) has the same `'1' when ... else '0'` form and also lacks the tag in the sample. The tag seems to be missed for this form in general, not just for valid_o."
+     }
+    ],
+    "confirmed": true
+   },
+   {
+    "element": "ctrl.rs2_is_signed",
+    "what": "role tag missing: set to constants only",
+    "claim": "ctrl.rs2_is_signed has one assignment, at 150-151, and it gives only the constants '1' or '0'; ctrl_i.ir_funct3 only decides which one. Under README's 'every assignment gives a constant', the tag 'set to constants only' is missing. The listed tags (condition, operand, set without a clock) are correct. The occurrence lines (66, 150, 172, 225, 227, 235, 269) and the type 'wire' are also correct.",
+    "lines": [
+     150,
+     151
+    ],
+    "rtl_quote": "ctrl.rs2_is_signed <= '1' when (ctrl_i.ir_funct3 = op_mulh_c) or ... else '0';",
+    "votes": [
+     {
+      "real": true,
+      "lines": [
+       150,
+       151,
+       66,
+       106,
+       107,
+       108,
+       109
+      ],
+      "reason": "The claim holds. ctrl.rs2_is_signed is assigned in only one place, the conditional assignment at lines 150-151. That line gives '1' when ctrl_i.ir_funct3 matches op_mulh_c, op_div_c or op_rem_c, and '0' otherwise. Nothing else assigns it. The reset arm (106-109) sets only ctrl.state, ctrl.cnt and ctrl.out_en. The record ctrl is never assigned as a whole. There is no instance or port map in the file. Every other line where the field appears (172, 225, 227, 235, 269) only reads it. So every value this field ever gets is a constant. That is exactly README's test for 'set to constants only': \"every assignment gives a constant\". The entry itself agrees: it lists ctrl_i.ir_funct3 only under 'decided by' (README: \"only decides whether, which or how the target is assigned\"). It has no 'gets value from' partner at all, so in the graph the only value sources are constants. The same file also gives the tag where the same pattern appears inside a process. ctrl.out_en gets only '0' (109, 112) or '1' (137), with ctrl.state picking which, and it is tagged 'set to constants only'. wdt reset_force is likewise tagged while bus_req_i.* decides it. The only difference here is the syntax: a concurrent when/else instead of an if/case inside a process. VHDL defines that form as the same as a process with if/else, and README makes no exception for it. A possible defence is that the right-hand side as a whole depends on ir_funct3. That defence breaks on the entry's own 'decided by' classification and on the ctrl.out_en precedent. The listed tags (condition at 269; operand at 172, 225, 227, 235; set without a clock at 150), the occurrence lines and the type 'wire' are correct. One tag is missing: 'set to constants only'."
+     },
+     {
+      "real": true,
+      "reason": "The claim holds. ctrl.rs2_is_signed has one assignment, the concurrent statement at 150-151: `ctrl.rs2_is_signed <= '1' when (ctrl_i.ir_funct3 = op_mulh_c) or ... else '0';`. Both values it can give are the literal constants '1' and '0'. No other line assigns this field. The control process (104-142) assigns only ctrl.state, ctrl.cnt and ctrl.out_en, and nothing in the module assigns the whole record ctrl. The field is only read at 172, 225, 227, 235 and 269.\n\nThe entry itself lists ctrl_i.ir_funct3 under 'decided by' at 150-151 and has no 'gets value from'. README defines 'decided by' as \"the source only decides whether, which or how the target is assigned\", so by the entry's own graph no element's value flows into this field. README defines 'set to constants only' as \"every assignment gives a constant\", with no exception for conditional assignments. The same module's closed set already applies the tag to a field whose constants are chosen by a condition: ctrl.out_en gets '0' at 109 and 112 and '1' at 137 (inside `case ctrl.state`, `when others`), and it carries 'set to constants only'.\n\nIn VHDL a `'1' when c else '0'` statement is the same as an if/else that assigns '1' or '0', so the tag should be present. The other listed tags (condition at 269, operand at 172/225/227/235, set without a clock at 150) are right, as the claim says.\n\nThe program seems to leave this tag off every concurrent when/else of constants: valid_o at 145 is also untagged. That is a gap between the code and README, not a reason to reject the claim.",
+      "lines": [
+       150,
+       151,
+       66,
+       109,
+       112,
+       137
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds. The RTL assigns ctrl.rs2_is_signed in only one place: the concurrent statement at lines 150-151, `ctrl.rs2_is_signed <= '1' when (...) else '0';`. There is no other driver in any process, generate or instance. Both values it can take, '1' and '0', are constants. ctrl_i.ir_funct3 only picks between them, and the entry already records this correctly: ctrl_i.ir_funct3 appears under \"decided by\", and there is no \"gets value from\" group. So no element's value ever moves into this field. README defines \"set to constants only\" as \"every assignment gives a constant\", and this field meets that definition.\n\nThe README gives no exception for when/else assignments. In VHDL a when/else assignment works the same as an if/else in a process with one constant assignment per branch. The same file uses the tag for exactly that pattern: ctrl.out_en gets only '0' (lines 109 and 112) and '1' (line 137) and is tagged \"set to constants only\". Another module in the sample does the same with cache_o.cmd_clr, which is tagged both \"set without a clock\" and \"set to constants only\".\n\nOne caveat: valid_o at line 145 has the same when/else pattern with constants and also lacks the tag. This points to a gap in how the program handles concurrent when/else assignments, not to a README rule that excuses this entry.\n\nThe other parts of the entry check out:\n- condition: line 269.\n- operand: lines 172, 225, 227 and 235.\n- set without a clock: line 150.\n- type: wire.\n\nThe only error is the missing tag.",
+      "lines": [
+       150,
+       151,
+       109,
+       112,
+       137,
+       145
+      ]
+     }
+    ],
+    "confirmed": true
+   },
+   {
+    "element": "div.res_u",
+    "what": "role tag missing: copied",
+    "claim": "At 300 the else branch moves div.res_u unchanged into div.res. That matches README's 'copied' ('is moved unchanged into another element'). The entry has only 'operand' (from the subtraction in the same line) and 'set without a clock'. Its occurrence lines (79, 299, 300, 312) and type 'wire' are correct: it is assigned only by concurrent statements, at 299 and 312.",
+    "lines": [
+     300
+    ],
+    "rtl_quote": "div.res <= std_ulogic_vector(0 - unsigned(div.res_u)) when (div.sign_mod = '1') else div.res_u;",
+    "votes": [
+     {
+      "real": true,
+      "reason": "The claim holds. Line 300 reads `div.res <= std_ulogic_vector(0 - unsigned(div.res_u)) when (div.sign_mod = '1') else div.res_u;`. When div.sign_mod is '0', the else branch puts the whole of div.res_u into div.res with no change: no slice, no operator, no type conversion. README's 'copied' is \"is moved unchanged into another element\", so that branch qualifies. Being an 'operand' in the other branch does not rule 'copied' out, because the README tags are a list of facts and one element can carry several. The same closed set shows this for rs1_i, which carries both 'operand' and 'copied'. Its source is lines 263-267, an if/else that sets div.quotient: 264 computes `0 - unsigned(rs1_i)` and 266 copies `rs1_i` unchanged. Line 300 is the concurrent form of that same if/else: computed in one branch, copied unchanged in the other. Treated the same way, div.res_u should also be tagged 'copied'. The tool most likely judges the whole conditional statement as one expression and misses the plain copy in the else branch. The rest of the entry is correct. Occurrences are 79 (declaration of div), 299 and 312 (its two concurrent assignments) and 300 (its only read). Type 'wire' is right. The counterparts (gets value from div.quotient and div.remainder at 299, decided by ctrl_i.ir_funct3 at 299, gives value to div.res at 300) also match the RTL. Only the 'copied' role tag is missing.",
+      "lines": [
+       300,
+       299,
+       263,
+       264,
+       266
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds. Line 300 is a concurrent conditional assignment inside the DIVISION_EN generate (lines 249-302): `div.res <= std_ulogic_vector(0 - unsigned(div.res_u)) when (div.sign_mod = '1') else div.res_u;`. Its else branch gives div.res the bare value div.res_u, with no slice, cast or operator. README defines 'copied' as \"is moved unchanged into another element\", and that is what happens there. The when/else only chooses which value is assigned. That choice is the 'condition' role of div.sign_mod. It does not count as a computation applied to div.res_u. 'operand' is still right for the `0 - unsigned(div.res_u)` branch, and README allows one element to carry several tags (each tag is one fact). So the entry should have both tags, and 'copied' is missing. I checked that this is not just how the program reads slices: mul.prod lacks 'copied' at 325 and 215, but those lines move slices (`mul.prod(31 downto 0)`), not the whole element. Line 300 moves the whole of div.res_u. The entry's own counterparts already list 'gives value to div.res' at line 300, a value flow. Its other parts are correct: occurrence lines 79/299/300/312, type 'wire' (assigned only by concurrent statements at 299 and 312), and 'set without a clock'.",
+      "lines": [
+       300,
+       299,
+       312
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds. Line 300 is `div.res <= std_ulogic_vector(0 - unsigned(div.res_u)) when (div.sign_mod = '1') else div.res_u;`. It is a concurrent conditional assignment inside `divider_core_serial: if DIVISION_EN generate` (lines 249-250, closed at 302). The when-arm uses div.res_u in a subtraction, so 'operand' is correct. The else-arm puts div.res_u into div.res as it is, with no change. That fits README's 'copied' tag word for word: \"is moved unchanged into another element\". The README says each tag is one fact of the graph. Nothing in it says that a computation in one arm of a when-else hides a plain copy in another arm.\n\nThe entry gets this flow right in its counterparts ('gives value to' div.res at 300), but the role list leaves out 'copied'. The same file's entries do tag a plain move in one branch as 'copied' when other branches compute. Example: rs1_i is tagged 'copied' because of line 266 (`div.quotient <= rs1_i`), while line 264 subtracts. So the tag is missing here.\n\nThe parts the reviewer accepts are also correct. The type 'wire' fits: div.res_u is assigned only by concurrent statements, at 299 and 312, and never under a clock edge. The occurrence lines 79, 299, 300 and 312 are right too.",
+      "lines": [
+       300,
+       299,
+       249,
+       250,
+       266
+      ]
+     }
+    ],
+    "confirmed": true
+   },
+   {
+    "element": "mul.prod",
+    "what": "role tag missing: copied",
+    "claim": "At 325 and 327, slices of mul.prod go unchanged into res_o, with no computation. That is README's 'copied'. The entry has condition, operand, held on a clock edge and reset to a constant, but not copied. README says nothing to exclude a moved slice. Its occurrence lines (91, 184, 208, 211, 212, 214, 215, 223, 225, 227, 230, 235, 319, 325, 327) are complete. The type 'reg' is correct: every assignment is under a clock edge in both generate branches (184; 208-215).",
+    "lines": [
+     325,
+     327
+    ],
+    "rtl_quote": "res_o <= mul.prod(31 downto 0);  /  res_o <= mul.prod(63 downto 32);",
+    "votes": [
+     {
+      "real": true,
+      "reason": "The claim holds. README line 52 defines 'copied' as an element that \"is moved unchanged into another element\". In process operation_result (319-332), when ctrl.out_en = '1' (322), the case on ctrl_i.ir_funct3 (323) gives res_o <= mul.prod(31 downto 0) at 325 and res_o <= mul.prod(63 downto 32) at 327. Each line is a constant-range slice put straight into res_o, with no operator and no conversion function. The bits arrive in another element unchanged.\n\nREADME gives no rule that limits 'copied' to a bare whole-element right-hand side. The 'index' tag (line 51) belongs to whatever picks the slice, not to the element being sliced. The record rule (line 63) covers whole records, and mul.prod is a plain vector field. The entry's own counterparts list 'gives value to res_o' at 325 and 327 as a value flow (solid arrow), and none of them is a computation.\n\nThe existing 'operand' tag comes from other lines: 225 and 227 (add and subtract), 235 ('and') and 230 (concatenation). It does not cover 325 and 327. Line 215 moves a slice of mul.prod into mul.prod itself, which is not 'another element', so 325 and 327 are the deciding lines. The other tags are correct and are not in dispute: 'held on a clock edge' (184, 208-215), 'reset to a constant' (208) and 'condition' (223). 'copied' is missing.",
+      "lines": [
+       319,
+       322,
+       323,
+       325,
+       327
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds. The entry for mul.prod should carry the \"copied\" tag. README line 52 says \"copied\" means the element \"is moved unchanged into another element\". It names no exception for a part (slice) of a vector. Lines 325 and 327 are plain assignments: `res_o <= mul.prod(31 downto 0);` and `res_o <= mul.prod(63 downto 32);`. Each one moves a slice of mul.prod bit for bit into res_o. Both sit inside a case statement (323-330) under `if (ctrl.out_en = '1')` (322), in the operation_result process (319-332). The ctrl.out_en test and ctrl_i.ir_funct3 only decide whether and which assignment happens. They do not change the value. No other tag fits this use. There is no computation, so \"operand\" (README line 53) does not apply. \"index\" (line 51) is for the element that picks a slice, not for the element being sliced. The entry already records the move as a value flow: under \"gives value to\" it lists res_o at 325 and 327, a solid arrow (README line 71). Yet its tags are only condition, operand, held on a clock edge and reset to a constant. Those come from 223, 225/227/235, 184/208-215 and 208. None of them covers 325/327. The other plain moves of mul.prod do not supply the tag. Line 215 moves it into itself, not \"another element\". Line 230 joins it with mul.p_sext into a wider value. The program does tag \"copied\" when a whole element goes into a slice: rs1_i is \"copied\" for line 212, `mul.prod(31 downto 0) <= rs1_i`. It seems to miss the reverse case, a slice going into a whole element. The other points in the claim also check out. The occurrence lines match the RTL. The type 'reg' is right: every assignment to mul.prod is under rising_edge, at 184 and at 208-215.",
+      "lines": [
+       325,
+       327,
+       322,
+       323,
+       212
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds, so the entry is wrong. README defines 'copied' as \"is moved unchanged into another element\". The operation_result process (319-332) sits outside every generate, so it is active under all settings. At 325 (`res_o <= mul.prod(31 downto 0);`) and 327 (`res_o <= mul.prod(63 downto 32);`) the right-hand side is just a slice with constant bounds. There is no operator, so nothing is computed. Bits of mul.prod go unchanged into a different element, res_o. README treats slices only under 'index', and that tag belongs to whatever picks the slice, not to the sliced element. README has no rule that leaves a moved slice out of 'copied'. The entry itself records this flow as a value moving: 'gives value to' res_o at 325 and 327, and res_o's entry mirrors it as 'gets value from' mul.prod at the same lines. Yet mul.prod's role list is only condition, operand, held on a clock edge and reset to a constant. The 'operand' tag does not cover 325 and 327. It comes from the computations at 225, 227, 230 and 235. So 'copied' is missing. The other parts of the claim check out. Type 'reg' is right, because every assignment is under rising_edge: 184 in the parallel generate, and 211, 212, 214 and 215 in the serial one, with 208 in the reset arm.",
+      "lines": [
+       319,
+       323,
+       325,
+       327
+      ]
+     }
+    ],
+    "confirmed": true
+   }
+  ]
+ },
+ {
+  "module": "neorv32_cpu_cp_muldiv",
+  "lens": "counterparts",
+  "findings": []
+ },
+ {
+  "module": "neorv32_cpu_pmp",
+  "lens": "lines-type-tags",
+  "findings": [
+   {
+    "element": "pmpcfg",
+    "what": "missing role tag: copied",
+    "claim": "pmpcfg is moved unchanged into another element on four lines: a whole array element into cfg_rd at 203, and single bits into allow at 325, 332 and 339. The README defines 'copied' as 'is moved unchanged into another element', so the tag should be there. The entry lists only condition, operand, held on a clock edge and reset to a constant. 'operand' is still right, because 323, 330 and 337 compute with pmpcfg ('... or (not pmpcfg(r)(cfg_l_c))'). Occurrence lines (27 listed, none missing, none wrong) and type reg are correct.",
+    "lines": [
+     203,
+     325,
+     332,
+     339
+    ],
+    "rtl_quote": "203: cfg_rd(i) <= pmpcfg(i);  325: allow(r) <= pmpcfg(r)(cfg_x_c);",
+    "votes": [
+     {
+      "real": true,
+      "reason": "The claim holds, and I could not refute it. README line 52 defines 'copied' as 'is moved unchanged into another element'. The pmpcfg entry in _review_sample.json lists only condition, operand, held on a clock edge and reset to a constant, with no 'copied'.\n\n- Line 203, `cfg_rd(i) <= pmpcfg(i);`, sits inside the for-generate csr_read_back_gen (200-201, i in 0 to NUM_REGIONS-1). It is an unconditional concurrent assignment. The right side is just pmpcfg(i), with no operator, and both sides are std_ulogic_vector(7 downto 0) (lines 67 and 77). Across the loop, every entry of pmpcfg is moved unchanged into cfg_rd.\n- Lines 325, 332 and 339 (`allow(r) <= pmpcfg(r)(cfg_x_c);`, `(cfg_r_c)`, `(cfg_w_c)`) are in process perm_gen (318-342). Each sits in the non-machine-mode else arm of an if on ctrl_i.lsu_mo_we / ctrl_i.lsu_rw and acc_priv. Each moves one std_ulogic bit unchanged into allow(r), with no operator.\n- The entry itself shows the value moves: it lists 'gives value to' cfg_rd at 203 and allow at 325, 332 and 339.\n\nPossible refutation I checked: the program seems to tag indexed or sliced moves as 'operand'. It does the same for pmpaddr at 208 and addr_rd at 192. But README defines 'operand' as use 'in a computation', and nothing in README says picking an array element or a bit is a computation. The 'index' tag (line 51) applies to the index expression, not to the array being read. So under README's definitions, 'copied' is missing. 'operand' stays correct because of 323, 330 and 337 (`pmpcfg(r)(cfg_x_c) or (not pmpcfg(r)(cfg_l_c))`).",
+      "lines": [
+       200,
+       201,
+       203,
+       318,
+       321,
+       322,
+       324,
+       325,
+       332,
+       339
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds: the entry should carry the 'copied' tag. README line 52 defines 'copied' as \"is moved unchanged into another element\". Its example (ctrl.enable) carries both 'copied' and 'operand', so the two tags can appear together. In the RTL, line 203 sits in the generate csr_read_back_gen (for i in 0 to NUM_REGIONS-1) and reads `cfg_rd(i) <= pmpcfg(i);`. That is a plain concurrent assignment with no operator, so each array element of pmpcfg moves unchanged into cfg_rd. Lines 325, 332 and 339 are in process perm_gen (lines 318-342). In the non-machine-mode else arms they read `allow(r) <= pmpcfg(r)(cfg_x_c / cfg_r_c / cfg_w_c);`, which moves single bits unchanged into allow. The entry already records these flows as 'gives value to' cfg_rd at 203 and allow at 325/332/339. Yet its role list is only condition, operand, held on a clock edge and reset to a constant, so 'copied' is missing. 'operand' is still right because of 323, 330 and 337 ('... or (not pmpcfg(r)(cfg_l_c))'). I found nothing in the README that excludes indexed or bit-select copies from 'copied'. The pmpaddr entry also lacks 'copied' despite a slice copy at 208. That suggests the generator applies one unwritten convention throughout, but the README definitions do not support that convention.",
+      "lines": [
+       203,
+       325,
+       332,
+       339,
+       323,
+       318,
+       342
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds. README.md defines 'copied' as \"is moved unchanged into another element, or wired into an instance's input\". It defines 'operand' as use \"in a computation whose result is assigned\".\n\nLine 203 is `cfg_rd(i) <= pmpcfg(i);`. It sits in generate csr_read_back_gen (200-201, i in 0 to NUM_REGIONS-1) and does no computation. Each array entry of pmpcfg goes into cfg_rd unchanged, and across the loop that is the whole of pmpcfg. The README treats an array as one element and does not list its entries, so moving an entry is moving the element.\n\nLines 325, 332 and 339 are `allow(r) <= pmpcfg(r)(cfg_x_c)`, `(cfg_r_c)` and `(cfg_w_c)`, in process perm_gen (318-342). They are the else arms of the `acc_priv = priv_mode_m_c` tests. Each moves one bit unchanged, with no operator. Selecting a bit or entry is the 'index' role of the selecting expression, not a computation on pmpcfg.\n\nThe entry itself records \"gives value to\" cfg_rd at 203 and allow at 325/332/339. None of its four tags covers those flows. 'condition' does not apply, because these lines are assignment right-hand sides, not tests. 'operand' does not apply, because nothing is computed there. 'held on a clock edge' and 'reset to a constant' are about pmpcfg being assigned (124-126). So 'copied' is missing.\n\n'operand' stays correct because of 323, 330 and 337 (`... or (not pmpcfg(r)(cfg_l_c))`). A possible refutation is that the program may skip 'copied' for indexed or sliced sources: pmpaddr at 208 is also untagged in the sample. That would be a convention of the program, not a rule in README.md, so it does not save the entry.",
+      "lines": [
+       201,
+       203,
+       318,
+       322,
+       323,
+       325,
+       332,
+       339
+      ]
+     }
+    ],
+    "confirmed": true
+   },
+   {
+    "element": "pmpaddr",
+    "what": "missing role tag: copied",
+    "claim": "At 208 a slice of pmpaddr(i) is moved unchanged into a slice of addr_rd(i). No operator is applied to it, so by the README definition this is 'copied'. The entry lists condition, operand, held on a clock edge and reset to a constant, without 'copied'. 'operand' is still supported by 257 ('or (not pmpaddr(r)(i-3))'). Occurrence lines (10 listed, all correct, none missing) and type reg are correct.",
+    "lines": [
+     208
+    ],
+    "rtl_quote": "addr_rd(i)(XLEN-3 downto pmp_lsb_c-2) <= pmpaddr(i)(XLEN-3 downto pmp_lsb_c-2);",
+    "votes": [
+     {
+      "real": true,
+      "reason": "The claim holds. Line 208 (`addr_rd(i)(XLEN-3 downto pmp_lsb_c-2) <= pmpaddr(i)(XLEN-3 downto pmp_lsb_c-2);`) sits in the combinational process address_read_back (205-223). The right-hand side is a slice of pmpaddr(i) with no operator on it. In VHDL a slice selects bits; it computes nothing, so this is not 'used in a computation' ('operand'). The README defines 'copied' as 'is moved unchanged into another element'. Line 208 fits that definition, and the entry's own counterparts already record pmpaddr 'gives value to' addr_rd at 208. Tags are facts about single statements, as in the README example (wdt 140). So later partial overwrites do not undo this one. Those are line 211 (bit pmp_lsb_c, only when g_c=8 and TOR_EN) and lines 215/219 (only when g_c>8). Also, when GRANULARITY<4, g_c=4 and neither branch runs, so addr_rd(i) gets the slice with no change at all. The README's 'index' tag covers the element that picks the slice, not the element being sliced, so nothing in the README excludes sliced sources from 'copied'. The other tags stay supported: 'operand' by 257 (`or (not pmpaddr(r)(i-3))`), 'condition' by the when-tests at 285/295/296, 'held on a clock edge' by 173/176, and 'reset to a constant' by 168. The entry is wrong only because 'copied' is missing. One more observation, outside this check: pmpcfg at 203 (`cfg_rd(i) <= pmpcfg(i);`) also lacks 'copied'. This suggests the program treats indexed or sliced sources as not copied. That rule is not in the README.",
+      "lines": [
+       208,
+       205,
+       207,
+       209,
+       213,
+       257
+      ]
+     },
+     {
+      "real": true,
+      "reason": "I could not refute the claim. Line 208 is \"addr_rd(i)(XLEN-3 downto pmp_lsb_c-2) <= pmpaddr(i)(XLEN-3 downto pmp_lsb_c-2);\". It sits in the address_read_back process (205-223) inside the csr_read_back_gen generate. The right-hand side is a slice of pmpaddr(i) with no operator, function or conversion, so the value moves unchanged into a slice of addr_rd(i). The README defines 'copied' as \"is moved unchanged into another element\", so the tag applies. The 'index' tag does not cover this case: it is for the expression that picks an element or slice, not for the array being sliced. Line 207 only sets defaults before 208. Lines 209-222 are later if-statements that overwrite a few low bits of addr_rd(i) under some generic settings. They do not change the fact that 208 itself is an unchanged move. When GRANULARITY < 4 (g_c = 4, pmp_lsb_c = 2), no override applies and the whole slice XLEN-3 downto 0 arrives unchanged. The entry's own counterparts agree: they list 'gives value to addr_rd at 208', a value flow with no computation. The four tags the entry does have are supported: condition (285/295/296), operand (257), held on a clock edge (173/176) and reset to a constant (168). Still, 'copied' is missing, as claimed. Side note, not the claimed entry: the pmpcfg entry also lacks 'copied' despite 203 'cfg_rd(i) <= pmpcfg(i);', which suggests the builder skips 'copied' whenever the source is indexed or sliced.",
+      "lines": [
+       208,
+       205,
+       207
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds. Line 208 (`addr_rd(i)(XLEN-3 downto pmp_lsb_c-2) <= pmpaddr(i)(XLEN-3 downto pmp_lsb_c-2);`) is in process address_read_back inside generate csr_read_back_gen (i in 0 to NUM_REGIONS-1). It runs unconditionally: no if, case or generic test covers it, and the generics never make the slice empty (pmp_lsb_c-2 >= 0). The right side is only a slice of pmpaddr(i). No operator is applied, so the bits arrive in addr_rd(i) unchanged.\n\nREADME defines 'copied' as \"is moved unchanged into another element\". It defines 'operand' as \"used in a computation whose result is assigned\". A slice name is not a computation. The 'index' tag goes to whatever picks the element or slice (i, pmp_lsb_c), not to the array being read. The entry itself records this flow as 'gives value to addr_rd' at 208. Yet its tags (condition, operand, held on a clock edge, reset to a constant) leave out 'copied', and no listed tag describes what 208 does. 'operand' is still correct because of line 257 (`or (not pmpaddr(r)(i-3))`). 'condition' comes from 285, 295 and 296.\n\nThe program seems to tag any indexed array read as 'operand'. The same thing happens at 203 (`cfg_rd(i) <= pmpcfg(i)`, pmpcfg not tagged 'copied') and at 192 (addr_rd tagged only 'operand'). README does not state that convention, so by README's definitions this entry is missing 'copied'.",
+      "lines": [
+       208,
+       257
+      ]
+     }
+    ],
+    "confirmed": true
+   },
+   {
+    "element": "addr_rd",
+    "what": "wrong role tag: operand",
+    "claim": "addr_rd is read in only one statement, line 192 (186 is its sensitivity list). There, one element is moved unchanged into csr_o. The only computation on that line works on the index, ctrl_i.csr_addr, not on the value of addr_rd. So no line of rtl.txt uses addr_rd in a computation whose result is assigned, and the 'operand' tag has no supporting line.",
+    "lines": [
+     186,
+     192
+    ],
+    "rtl_quote": "csr_o <= addr_rd(to_integer(unsigned(ctrl_i.csr_addr(3 downto 0))));",
+    "votes": [
+     {
+      "real": true,
+      "reason": "The claim holds. addr_rd is read in only one place, line 192. Every other line in the entry's occurrence list is either its declaration (82), its sensitivity list (186), or a line where it is the target: 207, 208, 211, 215 and 219 in process address_read_back, and 230. None of those lines reads its value. At line 192, inside process csr_read_access (lines 186-197, under the if at 188 and the else of 189), the statement is `csr_o <= addr_rd(to_integer(unsigned(ctrl_i.csr_addr(3 downto 0))));`. The one element of addr_rd that the index picks goes into csr_o unchanged. Both are std_ulogic_vector(XLEN-1 downto 0) (lines 36 and 79), and no operator or function is applied to addr_rd's value. The only computation on the line, to_integer(unsigned(...)), works on ctrl_i.csr_addr. README gives that a separate tag ('index: picks an array element or slice'). So under README's definitions, picking an element is the index's role, not a computation on the array. README defines 'operand' as 'used in a computation whose result is assigned', and no line of rtl.txt uses addr_rd that way. The definition that fits line 192 is 'copied' ('moved unchanged into another element'), and the entry does not have it. The entry's own counterpart (csr_o 'gets value from' addr_rd at 192) agrees: it is a plain value transfer. The same pattern appears elsewhere in this module's entries. pmpcfg(i) is moved unchanged into cfg_rd(i) at line 203, and pmpaddr into addr_rd at line 208, yet neither entry is tagged 'copied'. This suggests the generator tags any indexed or sliced read as 'operand' rather than 'copied'.",
+      "lines": [
+       186,
+       188,
+       189,
+       192,
+       207,
+       208,
+       211,
+       215,
+       219,
+       230
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds. In rtl.txt, addr_rd is read in only one statement, line 192: `csr_o <= addr_rd(to_integer(unsigned(ctrl_i.csr_addr(3 downto 0))));`. Line 186 only names it in the sensitivity list of process csr_read_access. Every other line in the entry's occurrence list puts addr_rd on the left side, as the target: 207, 208, 211, 215 and 219 in process address_read_back, and 230 in csr_read_back_terminate. Line 82 is the declaration. On line 192, no operator acts on the value of addr_rd. The only functions, to_integer and unsigned, work on the index ctrl_i.csr_addr(3 downto 0). Under README.md, the index is handled as picking: the 'index' tag is for an element that 'picks an array element or slice', and dashed 'decided by' arrows cover the source that decides 'which' element is assigned. This entry's own counterparts match that reading: csr_o is decided by ctrl_i.csr_addr at 192, and addr_rd gives value to csr_o at 192. The entry that is picked goes into csr_o with its bits unchanged. That is README's 'copied' ('is moved unchanged into another element'), not 'operand' ('is used in a computation whose result is assigned'). The same choice written as `a when sel else b` would be 'copied' plus 'decided by' under README. A refutation would argue that a run-time index builds a 16-to-1 multiplexer (a circuit that passes one of 16 inputs to its output), and that this counts as a computation. That argument conflicts with how README models selection, so it does not hold. Side note, outside this claim: the tool seems to treat indexed reads as 'operand' throughout. pmpcfg moves unchanged at 203 (`cfg_rd(i) <= pmpcfg(i)`) and 325, and pmpaddr moves unchanged at 208, yet neither entry has a 'copied' tag. The other lines of this file never use addr_rd in any computation, so the 'operand' tag on addr_rd has no supporting line.",
+      "lines": [
+       186,
+       192,
+       207,
+       208,
+       211,
+       215,
+       219,
+       230
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds. The entry tags addr_rd as \"operand\" and \"set without a clock\". README.md defines \"operand\" as \"is used in a computation whose result is assigned\". It defines \"copied\" as \"is moved unchanged into another element\". The tag \"index\" goes to the element that picks the array entry.\n\nI checked every occurrence line of addr_rd in the entry (82, 186, 192, 207, 208, 211, 215, 219, 230):\n- 82 is the declaration.\n- 186 is the sensitivity list of csr_read_access. That is not an assignment.\n- 207, 208, 211, 215, 219 (process address_read_back, inside generate csr_read_back_gen) and 230 (generate csr_read_back_terminate) all have addr_rd(i) as the assignment target. They are not reads.\n- 192 is the only read: `csr_o <= addr_rd(to_integer(unsigned(ctrl_i.csr_addr(3 downto 0))));`. It sits in the else arm of the if at 189, nested in the if at 188.\n\nOn line 192, addr_rd is only an indexed name. One 32-bit entry, the same width as csr_o (lines 36 and 79), goes into csr_o with no operator applied to it. The only computation on the line is to_integer(unsigned(...)), and it acts on ctrl_i.csr_addr. By the README, that is the \"index\" role of ctrl_i.csr_addr. Line 190 has the same shape for cfg_rd32.\n\nSo no line uses the value of addr_rd in a computation, and the \"operand\" tag has no supporting line. Read with the README, line 192 supports \"copied\" instead. One weak counter-reading exists: a select with a changing index could be called a multiplexer, which is a kind of computation. The README does not support that reading, because it gives picking an array element its own tag (\"index\") and attaches it to the element that does the picking.",
+      "lines": [
+       186,
+       189,
+       192,
+       207,
+       208,
+       211,
+       215,
+       219,
+       230
+      ]
+     }
+    ],
+    "confirmed": true
+   },
+   {
+    "element": "addr_rd",
+    "what": "missing role tag: copied",
+    "claim": "At 192 an element of addr_rd goes into the output csr_o unchanged. The entry's own counterparts already say 'gives value to csr_o at 192'. By the README definition, the tag for this is 'copied', and it is missing from the role list (operand, set without a clock). Occurrence lines (82, 186, 192, 207, 208, 211, 215, 219, 230) and type wire are correct.",
+    "lines": [
+     192
+    ],
+    "rtl_quote": "csr_o <= addr_rd(to_integer(unsigned(ctrl_i.csr_addr(3 downto 0))));",
+    "votes": [
+     {
+      "real": false,
+      "reason": "The claim stretches the README's definition of \"copied\". The README says the element itself is moved unchanged. For arrays it says the array is one element and its entries are not listed. Here addr_rd is a 16-entry array of XLEN-bit words (lines 79 and 82). At line 192, csr_o, which is one XLEN-bit word, does not get addr_rd unchanged. It gets one entry, picked at run time by ctrl_i.csr_addr(3 downto 0). That is a 16-to-1 selection (a multiplexer) over the whole array, so it can fairly count as a computation whose result is assigned. That is the README's \"operand\". The claim quietly swaps \"the element\" for \"an element of addr_rd\", meaning one array entry. Line 192 is the only place addr_rd is read (line 186 is a sensitivity list; the other lines assign it). So the \"operand\" tag comes from line 192, and the builder deliberately classed that read as operand, not as a missed copy. The builder does the same everywhere else in the sample. pmpcfg(i) at line 203 (cfg_rd(i) <= pmpcfg(i)) and pmpaddr's slice at line 208 are tagged operand, not copied. The imem run-time-indexed reads of mem_ram_b0 and mem_ram_b2 into rdata are also tagged operand. The README never says that reading one indexed entry counts as copying the array. One could argue the selected word does pass through unchanged, so the README is ambiguous here. It does not clearly show the entry is wrong.",
+      "lines": [
+       192,
+       82,
+       79,
+       186,
+       203
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds. I could not refute it.\n\n1. **What line 192 does.** It sits in the process csr_read_access (186-197). It is the else-arm of the test at line 189 (`ctrl_i.csr_addr(4) = '0'`), which is inside the test at line 188. The right-hand side has no operator. It is a single entry of addr_rd, chosen by `ctrl_i.csr_addr(3 downto 0)`. That 32-bit entry goes into csr_o bit for bit. Both are XLEN-wide: addr_rd is declared at line 82 as an array of `std_ulogic_vector(XLEN-1 downto 0)`, and csr_o at line 36.\n\n2. **How the README covers it.**\n   - `copied` = \"is moved unchanged into another element\". Line 192 is exactly that.\n   - `operand` = \"is used in a computation whose result is assigned\". The README's example is an `and` of three elements. Reading an array entry by index is a name, not a computation.\n   - The README has a separate tag for the part that picks the entry: `index`, \"picks an array element or slice in an assignment\". So the picking belongs to ctrl_i.csr_addr, not to addr_rd. The csr_o entry records it that way: csr_o is \"decided by ctrl_i.csr_addr\" at 188, 189, 190 and 192.\n   - The same read written as a with-select would make ctrl_i.csr_addr the `selector`, and the chosen addr_rd entry would just be moved into csr_o, which is `copied`.\n\n3. **Where addr_rd is read.** Its occurrence lines are 82 (declaration), 186 (sensitivity list), 192 (read), and 207, 208, 211, 215, 219, 230 (all assignments to addr_rd). So line 192 is its only read, and its only outgoing flow is \"gives value to csr_o at 192\". By the README, that read earns `copied`. The role list has only (operand, set without a clock), so `copied` is missing. The `operand` tag also has no other line in the RTL that would support it.\n\n4. **Why the tool probably did this.** Other entries in the sample read through an index the same way and also get `operand` without `copied`. Examples: pmpcfg at line 203 (`cfg_rd(i) <= pmpcfg(i)`) and mem_ram_b0 in neorv32_imem. So the code seems to follow a rule that any indexed or sliced read counts as `operand`. README.md does not state that rule, and the definitions it does give make line 192 `copied`.\n\n5. **Occurrence lines and type.** Both are correct, as the claim says. Every assignment to addr_rd (207-219 in a process with no clock edge, and 230 in a generate) is made without a clock edge, so `wire` is right.\n\nDeciding lines: 192, with 186-197 as the surrounding process, and 82 for the declaration.",
+      "lines": [
+       192,
+       186,
+       188,
+       189,
+       82
+      ]
+     },
+     {
+      "real": false,
+      "reason": "The claim depends on a reading that README.md does not settle, so it is not clearly an error. Line 192 is `csr_o <= addr_rd(to_integer(unsigned(ctrl_i.csr_addr(3 downto 0))));`. It does not move the element addr_rd into csr_o. addr_rd is a 16-entry array of XLEN-bit words (lines 79 and 82). Line 192 picks one entry with a run-time index from ctrl_i.csr_addr. In hardware that is a 16-to-1 multiplexer, so the value csr_o gets depends on both addr_rd and the index. README.md says an array is one element and its entries are not listed (line 32). It defines 'copied' with a whole-element move (`clkgen_en_o <= ctrl.enable`) and gives indexing its own tag, 'index'. It never says whether the array an index picks from counts as 'copied' or 'operand'. Reading the runtime pick as a computation, which makes addr_rd an 'operand', is defensible. Line 192 is addr_rd's only use outside the sensitivity list at 186, so 'operand' clearly comes from this line. The program also treats part-of-an-array reads this way elsewhere: pmpaddr at 208 is a slice moved with no operator, and its role list has no 'copied' either. The reviewer's 'moved unchanged' reading is plausible, but it relies on a rule README.md does not state. Lines 188-196 are an if/else that chooses which value csr_o gets; it does not change the value, so it decides nothing either way. The occurrence lines, the type wire and the counterpart 'gives value to csr_o at 192' are all consistent with the RTL.",
+      "lines": [
+       79,
+       82,
+       186,
+       188,
+       189,
+       192,
+       208
+      ]
+     }
+    ],
+    "confirmed": false
+   }
+  ]
+ },
+ {
+  "module": "neorv32_cpu_pmp",
+  "lens": "counterparts",
+  "findings": [
+   {
+    "element": "pmpcfg",
+    "what": "wrong lines on partner: decided by ctrl_i.csr_wdata lists line 134",
+    "claim": "The flow itself is real: ctrl_i.csr_wdata feeds the process variable mode_v at 133, and mode_v is tested in the if at 134-137 that picks mode_off_c (138) or mode_v (140) for pmpcfg. Line 134 is the problem. It does not contain ctrl_i.csr_wdata. Its only element is the variable mode_v. The README says that for a flow through a process variable, the lines are 'the lines where the source feeds that variable'. Here that is line 133 only. The same entry's 'gets value from ctrl_i.csr_wdata' already follows that rule: it cites 133 and not 140. Line 134 also does not fit an 'if line' reading, because the condition runs over 134-137 and only 134 is cited. Expected: decided by ctrl_i.csr_wdata at [133]. The mirror entry, ctrl_i.csr_wdata 'decides pmpcfg', would carry the same extra line, but it is not in this sample.",
+    "lines": [
+     133,
+     134,
+     135,
+     136,
+     137,
+     138,
+     140
+    ],
+    "rtl_quote": "133: mode_v := ctrl_i.csr_wdata((i mod 4)*8+cfg_ah_c downto ...); 134: if ((mode_v = mode_tor_c) and (not TOR_EN)) or",
+    "votes": [
+     {
+      "real": true,
+      "reason": "The claim holds. In the sample entry (_review_sample.json, lines 2427-2434), pmpcfg is \"decided by\" ctrl_i.csr_wdata at [133, 134].\n\nWhat the RTL shows:\n- Line 133 is the only line in process csr_pmpcfg (lines 121-148) where ctrl_i.csr_wdata feeds the variable mode_v.\n- Lines 134-137 hold one if condition. That condition reads only mode_v, constants and generics.\n- That if picks what pmpcfg gets: mode_off_c at line 138, or mode_v at line 140.\n- ctrl_i.csr_wdata does not appear on line 134, or anywhere in 134-137.\n\nWhat the README says (line 66-67): the lines are \"the source element's lines\" in the statement or the if/case/when. For a flow through a process variable, they are \"the lines where the source feeds that variable\". For this flow, that gives [133] only.\n\nLine 134 fails both readings:\n- Under the first reading, the source element must be on the line, and it is not.\n- If the cited lines meant \"the if that tests mode_v\", then 135, 136 and 137 would also be cited, since they test mode_v too. Only 134 is cited.\n\nThe same entry already follows the variable rule elsewhere. Its \"gets value from ctrl_i.csr_wdata\" lists 133 and not 140, where mode_v is copied into pmpcfg.\n\nConclusion: the expected lines are [133]. Line 134 is an extra line. The README says every flow is listed on both ends with the same lines, so the mirror entry (ctrl_i.csr_wdata \"decides\" pmpcfg) would carry the same extra 134. That entry is not in the sample, so this was not checked.",
+      "lines": [
+       133,
+       134,
+       135,
+       136,
+       137,
+       138,
+       140
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds. The entry for pmpcfg lists 'decided by' ctrl_i.csr_wdata at lines [133, 134]. Here is how the RTL reads. In the csr_pmpcfg process (121-148), line 133 is `mode_v := ctrl_i.csr_wdata(...)`. The if condition at 134-137 tests only the variable mode_v, against mode_tor_c, mode_na4_c and mode_napot_c, plus generics and the constant g_c. That if picks mode_off_c (138) or mode_v (140) for pmpcfg(i)(cfg_ah_c downto cfg_al_c). ctrl_i.csr_wdata does not appear anywhere in 134-137. The README line rule allows two readings. (a) 'the source element's lines in ... the if / case / when that decides it': the source is not on 134, so 134 fails. (b) 'through a process variable, the lines where the source feeds that variable': that gives 133 only. So line 134 fits neither reading. It is not even a consistent 'variable in the if' reading, because mode_v is tested on 134, 135, 136 and 137, yet only 134 is cited. The same entry's 'gets value from ctrl_i.csr_wdata' follows rule (b). It lists 133 for the mode_v path and leaves out 140, which confirms the intended convention. The README also requires each flow to carry the same lines on both ends, so the error would repeat in ctrl_i.csr_wdata's 'decides pmpcfg'. That entry is not in the sample, so this point is reasoning, not checked. Expected value: decided by ctrl_i.csr_wdata at [133].",
+      "lines": [
+       133,
+       134,
+       135,
+       136,
+       137,
+       138,
+       140
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds; I could not refute it. The README says a flow's lines are the source element's own lines in the statement that sets the target, or its lines in the if/case/when that decides it. For a flow through a process variable, they are \"the lines where the source feeds that variable\". Inside process csr_pmpcfg (lines 121-148), ctrl_i.csr_wdata appears only at 129, 130, 131, 133 and 145. At 133 it feeds the variable mode_v. The if at 134-137 tests only mode_v and the constants mode_tor_c, mode_na4_c, mode_napot_c, TOR_EN, NAP_EN and g_c. That if picks mode_off_c (138) or mode_v (140) for pmpcfg. So line 134 has no ctrl_i.csr_wdata in it, and it is not the line where ctrl_i.csr_wdata feeds mode_v. It fits none of the README's three cases. Even a looser reading, where the variable stands in for the source inside the if, does not save the entry. That reading would give 134-137, because mode_v appears on all four lines. The entry cites only 134, so it is wrong under either reading. The same entry's \"gets value from ctrl_i.csr_wdata\" follows the variable rule: it cites 133, not 140. So \"decided by ctrl_i.csr_wdata\" should be [133], not [133, 134].",
+      "lines": [
+       133,
+       134,
+       135,
+       136,
+       137,
+       138,
+       140
+      ]
+     }
+    ],
+    "confirmed": true
+   }
+  ]
+ },
+ {
+  "module": "neorv32_debug_dtm",
+  "lens": "lines-type-tags",
+  "findings": [
+   {
+    "element": "tap_sync.tms_ff",
+    "what": "missing role tag: copied",
+    "claim": "At line 110, bit 2 of tap_sync.tms_ff moves into tap_sync.tms with no operator, so it is moved unchanged. README defines 'copied' as 'is moved unchanged into another element'. The entry has only 'operand', which can come from the '&' concatenation at line 101, plus 'held on a clock edge' and 'reset to a constant'. 'copied' is missing for the line-110 flow. It depends on a bit-select counting as an unchanged move, which is how the entry's own 'gives value to tap_sync.tms' at 110 treats it.",
+    "lines": [
+     110,
+     101
+    ],
+    "rtl_quote": "tap_sync.tms <= tap_sync.tms_ff(2);",
+    "votes": [
+     {
+      "real": false,
+      "reason": "The RTL itself is as the claim says. Line 110 is `tap_sync.tms <= tap_sync.tms_ff(2);`. It is a plain concurrent assignment outside any process, if or case, and has no operator. Line 101, inside the clocked arm of tap_synchronizer (lines 98-102), feeds tms_ff(1 downto 0) into a '&' concatenation, so 'operand' is backed by line 101 either way.\n\nThe claim does not clearly show the entry is wrong, for three reasons:\n\n1. The README never says how a part-select reads. It defines 'copied' as the element being \"moved unchanged into another element\". Its only example is a whole-element move (`clkgen_en_o <= ctrl.enable`). Here the element is the 3-bit vector tap_sync.tms_ff (line 49), and only bit 2 reaches the 1-bit tap_sync.tms. Whether a 3-bit value cut to one bit counts as \"the element moved unchanged\" is a reading the README does not settle. The claim admits this itself: \"It depends on a bit-select counting as an unchanged move.\"\n\n2. The one piece of evidence the claim gives for that reading misreads the README. 'gives value to' means \"a value moves from one element into the other\". It covers computed flows too. The same entry lists 'gives value to tap_sync.tms_ff' at line 101, which is the concatenation, an operand flow. So the line-110 'gives value to' says nothing about whether the move is unchanged.\n\n3. The builder applies the same treatment on purpose and consistently. The parallel element tap_sync.tdi_ff has the same pattern: concatenation at 100 and bit-select into tap_sync.tdi at 111. It carries the same three tags (operand, held on a clock edge, reset to a constant).\n\nUnder the README as written, the entry may be incomplete, but it is not clearly wrong. This should be raised as a definition gap: the README should say whether a bit-select or slice read counts as 'copied' or 'operand'.",
+      "lines": [
+       110,
+       101,
+       49,
+       111,
+       100
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds. Line 110 is a concurrent assignment, `tap_sync.tms <= tap_sync.tms_ff(2);`, sitting outside any process, if, case or generate. Its right side is an indexed name with a constant index. It has no operator, so there is no computation. Bit 2 of tms_ff (declared at line 49 as std_ulogic_vector(2 downto 0)) goes into the one-bit tap_sync.tms with its value unchanged. README defines 'copied' as 'is moved unchanged into another element'. It defines 'operand' as 'is used in a computation whose result is assigned', which does not fit line 110. The README has an 'index' tag for whatever picks an element or slice, so it does treat slicing as something separate. Nothing in the README says a sliced source stops being a plain move. The entry itself records this flow as 'gives value to tap_sync.tms' at 110, a solid-arrow value move. Its only computation tag, 'operand', is explained by the '&' concatenation at line 101, `tap_sync.tms_ff <= tap_sync.tms_ff(1 downto 0) & jtag_tms_i;`. No listed tag covers the plain line-110 move, so 'copied' is missing. One caveat: if 'moved unchanged' meant only a whole-element move, the claim would fail. But the README's definition does not say that, and the bit's value reaches tms unaltered.",
+      "lines": [
+       110,
+       101,
+       49
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds; I could not refute it. Line 110 (`tap_sync.tms <= tap_sync.tms_ff(2);`) is a concurrent assignment with no operator, condition or function. It takes bit 2 of tap_sync.tms_ff and puts that value into tap_sync.tms unchanged. The README defines 'copied' as 'is moved unchanged into another element'. It defines 'operand' as use 'in a computation whose result is assigned'. Picking one bit is not a computation. The README treats picking as its own act: the 'index' tag is for the expression that does the picking, not for the array being picked from. So the only tag that fits tms_ff's part in the line-110 flow is 'copied'. The entry's own counterparts record this flow ('gives value to tap_sync.tms' at 110), but its tags are only 'operand', 'held on a clock edge' and 'reset to a constant'. 'operand' is fully explained by the '&' concatenation at line 101 (`tap_sync.tms_ff <= tap_sync.tms_ff(1 downto 0) & jtag_tms_i;`). The other two tags describe how tms_ff itself is assigned at lines 97 and 101 under the reset and clock tests (94/98). No tag covers the unchanged move at 110, so 'copied' is missing. One weak point: a strict reader could say only one bit of the 3-bit element moves, not the whole element. But no README definition carves out bit-selects, and the entry itself treats line 110 as a direct value flow. The sibling entry tap_sync.tdi_ff has the same gap for line 111. That points to a consistent rule in the program, not a misreading by the reviewer.",
+      "lines": [
+       110,
+       101,
+       97,
+       94,
+       98
+      ]
+     }
+    ],
+    "confirmed": true
+   },
+   {
+    "element": "tap_sync.tdi_ff",
+    "what": "missing role tag: copied",
+    "claim": "Same pattern as tms_ff. At line 111, bit 2 of tap_sync.tdi_ff moves unchanged into tap_sync.tdi, with no computation. The entry lists 'operand' (from the line-100 concatenation), 'held on a clock edge' and 'reset to a constant', but not 'copied'.",
+    "lines": [
+     111,
+     100
+    ],
+    "rtl_quote": "tap_sync.tdi <= tap_sync.tdi_ff(2);",
+    "votes": [
+     {
+      "real": true,
+      "reason": "The claim holds. Line 111 is `tap_sync.tdi <= tap_sync.tdi_ff(2);`, a plain concurrent assignment with no operator. Bit 2 of tap_sync.tdi_ff goes into tap_sync.tdi unchanged. README defines 'copied' as \"is moved unchanged into another element\", with the example `clkgen_en_o <= ctrl.enable`. It defines 'operand' as use \"in a computation whose result is assigned\", and picking a bit with a constant index is not a computation. 'index' does not apply either: it tags the element that does the picking, and here the index is the constant 2. The entry itself records this flow as a value move (\"gives value to\" tap_sync.tdi at line 111, a solid arrow), so the move needs a role tag. Its tags are 'operand', 'held on a clock edge' and 'reset to a constant'. 'operand' is explained by line 100, `tap_sync.tdi_ff <= tap_sync.tdi_ff(1 downto 0) & jtag_tdi_i;`, where the concatenation is a computation. 'Held on a clock edge' comes from line 100 under `rising_edge(clk_i)` at line 98. 'Reset to a constant' comes from line 96 in the reset arm at line 94. No tag covers the unchanged move at line 111, so 'copied' is missing. Line 111 is a separate concurrent statement outside the tap_synchronizer process (lines 92-103), with no if, case or generate around it. One weaker reading would say the whole 3-bit element is not moved, only one bit. But README's 'unchanged' is about the value not being transformed, and it gives no other tag for a constant bit-select copy. The same pattern at line 110 (tms_ff to tms) has the same omission.",
+      "lines": [
+       111,
+       100,
+       98,
+       96,
+       94
+      ]
+     },
+     {
+      "real": true,
+      "reason": "I could not refute the claim. Line 111 is a concurrent assignment that does no computation: `tap_sync.tdi <= tap_sync.tdi_ff(2);`. Bit 2 of tdi_ff (a 3-bit vector, declared at line 49) goes into tap_sync.tdi exactly as it is. There is no operator, no condition and no other source.\n\nREADME.md defines 'copied' as \"is moved unchanged into another element\". It defines 'operand' as \"used in a computation whose result is assigned\". Line 111 matches the first and not the second. The entry itself records this flow as a value flow: \"gives value to\" tap_sync.tdi at 111, which is a solid arrow. No other tag in the list covers it. 'index' belongs to the element that does the picking, and here the pick is the constant 2.\n\nThe entry's 'operand' tag is still justified by line 100, where `tap_sync.tdi_ff(1 downto 0) & jtag_tdi_i` joins tdi_ff's low bits with a port. That is a combination, not a plain move. 'held on a clock edge' (line 100 under `rising_edge` at 98) and 'reset to a constant' (line 96 in the reset arm at 94) are also correct. So the entry has every tag except 'copied', which line 111 requires.\n\nThe only possible defence is that taking one bit does not count as moving \"the element\". README.md never says that. Its 'index' tag puts slice selection on the picker, not on the array being read, so the plain reading stands. Lines 110 and 111 have the same pattern, so the tms_ff entry has the same gap. The entry is wrong as claimed.",
+      "lines": [
+       111,
+       49,
+       100,
+       98,
+       96
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds. Line 111 is a plain concurrent assignment, `tap_sync.tdi <= tap_sync.tdi_ff(2);`. It sits outside any process, if, case or generate. It takes one bit of tap_sync.tdi_ff and moves it into tap_sync.tdi with no operator, no function and no condition. Selecting a bit only picks the bit; it does not change its value. README line 52 defines 'copied' as \"is moved unchanged into another element\". Nothing in the README limits this tag to whole-element copies. README line 53 defines 'operand' as use \"in a computation whose result is assigned\", and a bare bit-select is not a computation. The entry itself records this flow: \"gives value to\" tap_sync.tdi at line 111, which is a solid value arrow. So line 111 calls for 'copied'. The entry's other tags are correct but cannot account for line 111. 'Operand' comes from the line-100 concatenation (`tap_sync.tdi_ff(1 downto 0) & jtag_tdi_i`, a computation). 'Held on a clock edge' comes from line 100 inside `elsif rising_edge(clk_i)` at line 98. 'Reset to a constant' comes from line 96 in the `rstn_i = '0'` arm at line 94. Leaving out 'copied' is therefore a real omission under the README's definitions. One caveat: the README gives no example of a bit-select copy. A reader who takes \"moved unchanged\" to mean the whole element would disagree, but no line in the README supports that reading. The tms_ff entry shows the same pattern at line 110.",
+      "lines": [
+       111,
+       100,
+       98,
+       96,
+       94
+      ]
+     }
+    ],
+    "confirmed": true
+   },
+   {
+    "element": "tap_sync.tck_rising",
+    "what": "possibly missing role tag: set to constants only",
+    "claim": "The only assignment, at line 106, gives one of two literals, '1' or '0'. The entry itself has no 'gets value from' partner, only 'decided by tap_sync.tck_ff' at 106. README defines 'set to constants only' as 'every assignment gives a constant', which literally fits, but the tag is absent. This is borderline: it holds only if a when/else choosing between two literals counts as giving a constant. The README example (bus_rsp_o.err) is an assignment with no condition.",
+    "lines": [
+     106
+    ],
+    "rtl_quote": "tap_sync.tck_rising  <= '1' when (tap_sync.tck_ff(2 downto 1) = \"01\") else '0';",
+    "votes": [
+     {
+      "real": true,
+      "reason": "The claim holds: the entry should carry the \"set to constants only\" tag and does not. Line 106 is the only assignment to tap_sync.tck_rising. Its occurrence lines are 52, 106, 121, 180 and 192. Line 52 is the record signal's declaration, and nothing else assigns the whole tap_sync record. Lines 121, 180 and 192 only read the field inside if tests. Line 106 can give only '1' or '0', so every value assigned is a literal. The README treats a \"when\" test the same as an if test: the \"condition\" tag covers \"if / elsif / when\", and a condition is a \"decided by\" partner, not a value source. Read that way, line 106 is an if/else in which each branch assigns a constant. That matches \"every assignment gives a constant\". The entry agrees: it has no \"gets value from\" partner, only \"decided by tap_sync.tck_ff\" at 106. The program's other entries in the same sample show it does tag conditionally chosen constants. neorv32_cache cache_o.cmd_clr (decided by ctrl.state at 164, no value source) and neorv32_cpu_cp_muldiv ctrl.out_en (decided by ctrl.state at 116, no value source) both carry the tag. So leaving it off tck_rising is inconsistent with the README definition and with the program's own practice. The reviewer's doubt about whether a two-literal choice counts as a constant does not hold up.",
+      "lines": [
+       106,
+       52,
+       121,
+       180,
+       192
+      ]
+     },
+     {
+      "real": false,
+      "reason": "Line 106 is the only assignment: `tap_sync.tck_rising <= '1' when (tap_sync.tck_ff(2 downto 1) = \"01\") else '0';`. Both choices are literals, so a word-for-word reading of README's \"every assignment gives a constant\" could fit. But the line does not give one fixed value. It gives '1' or '0' depending on tck_ff, so the signal works as an edge detector whose value changes with data. The README's example for this tag, bus_rsp_o.err at lines 74 and 84, uses plain constant assignments with no condition. The related output-port tag \"tied to a constant\" means \"only by constants under generics\", which points to a value that stays fixed. The entry already records the dependence the README way: \"decided by tap_sync.tck_ff\" at line 106, and \"set without a clock\". That matches README's meaning for \"decided by\": the source decides which value is assigned. My reading, not something the README states: the tag is meant for elements that carry no information, and a when/else choosing between two literals under a data test is not that. The reviewer also calls the case borderline. The definitions do not clearly say the tag is missing, so the claim is not shown to be a real error.",
+      "lines": [
+       106,
+       99,
+       121
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds: the entry is missing the \"set to constants only\" tag.\n\n1. Line 106 is the element's only assignment. Its other occurrence lines are 52 (the declaration of the record tap_sync), 121, 180 and 192. Those three only read it in if tests.\n2. Line 106 is `tap_sync.tck_rising <= '1' when (tap_sync.tck_ff(2 downto 1) = \"01\") else '0';`. Both values it can give are literals. In VHDL, this when/else statement means the same as `if c then x <= '1'; else x <= '0'; end if;`. Every assignment gives a constant, which is exactly how README.md defines \"set to constants only\".\n3. The entry agrees with this. It has no \"gets value from\" partner, only \"decided by tap_sync.tck_ff\" at 106.\n4. The condition does not rule the tag out. The same sample file applies the tag to elements whose constant is chosen by a condition: neorv32_cache cache_o.cmd_clr (\"set without a clock\", decided by ctrl.state), neorv32_spi spi_csn_o (decided by rtx_engine.cs_ctrl), neorv32_uart uart_rtsn_o (decided by ctrl.enable, ctrl.hwfc_en and rx_fifo.half) and neorv32_wdt reset_force (decided by bus_req_i.addr). So \"a condition picks which constant\" still counts as \"set to constants only\", both by README.md's wording and by how the program uses the tag elsewhere.\n5. The entry tags only \"condition\" and \"set without a clock\", so the tag is missing. The deciding line is 106. Lines 52, 121, 180 and 192 show there is no other assignment.",
+      "lines": [
+       106,
+       52,
+       121,
+       180,
+       192
+      ]
+     }
+    ],
+    "confirmed": true
+   }
+  ]
+ },
+ {
+  "module": "neorv32_debug_dtm",
+  "lens": "counterparts",
+  "findings": []
+ },
+ {
+  "module": "neorv32_hwspinlock",
+  "lens": "lines-type-tags",
+  "findings": [
+   {
+    "element": "sel",
+    "what": "missing role tag: set to constants only",
+    "claim": "The README defines 'set to constants only' as 'every assignment gives a constant'. sel has a single assignment, the concurrent conditional assignment at line 51, and it gives only the constants '1' or '0'. bus_req_i.addr only picks which constant is used; the entry's own counterparts already record it as 'decided by' at 51, not 'gets value from'. So sel should also carry 'set to constants only', in the same way bus_rsp_o.err carries it for its constant-only assignments at 61 and 64. The occurrence lines (29, 44, 51, 68), the type 'wire' and the other tags (condition, operand, set without a clock) agree with the RTL.",
+    "lines": [
+     51
+    ],
+    "rtl_quote": "sel(i) <= '1' when (bus_req_i.addr(6 downto 2) = std_ulogic_vector(to_unsigned(i, 5))) else '0';",
+    "votes": [
+     {
+      "real": true,
+      "reason": "The claim holds; I could not refute it. sel is declared at line 29. The only place it is assigned is line 51, inside the spinlock_gen generate: `sel(i) <= '1' when (bus_req_i.addr(6 downto 2) = ...) else '0';`. Lines 44 and 68 only read it. So every value sel can receive is the constant '1' or the constant '0'. The README defines 'set to constants only' as \"every assignment gives a constant\", and that is met. The README also counts a 'when' test as a condition that \"decides an assignment\". It defines 'decided by' as the source \"only decides whether, which or how the target is assigned\". The entry itself lists bus_req_i.addr under 'decided by' at 51 and has no 'gets value from' partner. So, by the entry's own graph, no value flows into sel except constants. The same file shows the program uses this tag when conditions only choose between constants. cache_o.cmd_clr (decided by ctrl.state), spi_csn_o (decided by rtx_engine.cs_ctrl) and uart_rtsn_o (decided by ctrl.enable, ctrl.hwfc_en and rx_fifo.half) all carry 'set to constants only'. So sel's missing tag is inconsistent with both the README and the program's other entries. The likely cause is that the when-else form is not recognised as two constant assignments. The other parts of the entry are correct: type wire, condition (44), operand (68), set without a clock (51), and occurrence lines 29, 44, 51, 68.",
+      "lines": [
+       51,
+       44,
+       68,
+       29
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds. sel is declared at 29, and line 51, inside the spinlock_gen generate at 35-53, is its only assignment: sel(i) <= '1' when (bus_req_i.addr(6 downto 2) = ...) else '0'. Lines 44 and 68 only read sel. They do not assign it. Both values line 51 can give are the constants '1' and '0'. README line 58 defines 'set to constants only' as 'every assignment gives a constant'. README line 49 treats a 'when' test as deciding an assignment, and line 72 says 'decided by' means the source only decides 'whether, which or how the target is assigned'. So bus_req_i.addr only picks which constant line 51 assigns. The entry itself records addr as 'decided by' at 51. It has no 'gets value from' partner at all. So no element's value flows into sel, and every value it gets is a constant. The sample also has a precedent: neorv32_cache cache_o.cmd_clr carries 'set to constants only' while it is 'decided by ctrl.state'. So a deciding element does not block the tag. I found no reading of the README that excludes sel. The tag is missing, and the other fields agree with the RTL. One related point: neorv32_cpu_cp_muldiv valid_o has the same shape (only 'decided by ctrl.state' at 145, no tag). That may be the same omission, but its RTL was not available to check.",
+      "lines": [
+       51,
+       29,
+       44,
+       68
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds. sel is declared at line 29 and assigned only at line 51, inside generate spinlock_gen (lines 35-53). Lines 44 and 68 only read it. Line 51 is sel(i) <= '1' when (bus_req_i.addr(6 downto 2) = ...) else '0'. Both possible values are the literals '1' and '0'. The generate index i and bus_req_i.addr appear only in the when test, never in a value. The README defines 'set to constants only' as 'every assignment gives a constant'. That is true for sel's one assignment. The README says 'decided by' means the source only decides whether, which or how the target is assigned. The entry records bus_req_i.addr that way at 51, with no 'gets value from' partner, so the entry's own counterparts agree that no value flows into sel. The same closed set gives this tag to elements whose constant assignments are picked by other signals: spi_csn_o (decided by rtx_engine.cs_ctrl) and uart_rtsn_o (decided by ctrl.enable, ctrl.hwfc_en and rx_fifo.half). Neither has a 'gets value from' partner. So a 'decided by' partner does not rule the tag out. A concurrent conditional assignment of two constants works the same as an if/else that assigns a constant in each branch. I found no reading of README.md under which sel fails 'every assignment gives a constant'. The entry lacks the tag, so it is wrong as claimed. The other tags (condition at 44, operand at 68, set without a clock at 51) and type 'wire' are correct.",
+      "lines": [
+       29,
+       44,
+       51,
+       68
+      ]
+     }
+    ],
+    "confirmed": true
+   }
+  ]
+ },
+ {
+  "module": "neorv32_hwspinlock",
+  "lens": "counterparts",
+  "findings": []
+ },
+ {
+  "module": "neorv32_imem",
+  "lens": "lines-type-tags",
+  "findings": []
+ },
+ {
+  "module": "neorv32_imem",
+  "lens": "counterparts",
+  "findings": []
+ },
+ {
+  "module": "neorv32_spi",
+  "lens": "lines-type-tags",
+  "findings": []
+ },
+ {
+  "module": "neorv32_spi",
+  "lens": "counterparts",
+  "findings": []
+ },
+ {
+  "module": "neorv32_sys",
+  "lens": "lines-type-tags",
+  "findings": []
+ },
+ {
+  "module": "neorv32_sys",
+  "lens": "counterparts",
+  "findings": []
+ },
+ {
+  "module": "neorv32_trng",
+  "lens": "lines-type-tags",
+  "findings": [
+   {
+    "element": "neoTRNG / signal sample_cnt",
+    "what": "missing role tag: copied",
+    "claim": "At line 367 one bit of sample_cnt goes into the output port valid_o with no computation. README defines 'copied' as 'is moved unchanged into another element', so the tag should be there. The entry lists only condition, operand, held on a clock edge and reset to a constant. The entry's own counterparts already list 'gives value to valid_o' at 367, which is a value move. The 'operand' tag comes from line 359 (unsigned(sample_cnt) + 1), not from 367. sample_cnt'left only reads the attribute, which is a fixed number, so 367 is a plain bit-select copy and not a computation or an index use. Confidence is moderate: the RTL fits the README definition, but this check did not establish whether the code is meant to tag a copy of a single selected bit as 'copied'. The other nine neorv32_trng entries checked clean on occurrence lines, type and tags: bus_req_i.stb, neoTRNG_cell clk_i, en_o, rnd_o, enable, cell_en_in, cell_sum, the fifo record (lines [84], type wire, no whole-record tags) and bus_req_i.src.",
+    "lines": [
+     367,
+     359,
+     355
+    ],
+    "rtl_quote": "valid_o <= sample_cnt(sample_cnt'left);",
+    "votes": [
+     {
+      "real": false,
+      "reason": "The claim is not clearly right. The RTL is as the reviewer says: line 367 `valid_o <= sample_cnt(sample_cnt'left);` puts one bit of sample_cnt into valid_o with no operator. Line 359 `unsigned(sample_cnt) + 1` supplies 'operand'. Line 355 supplies 'condition'. Lines 351 and 353-359 supply 'reset to a constant' and 'held on a clock edge'.\n\nThe gap is in README.md, not the RTL. README defines 'copied' as 'is moved unchanged into another element'. Line 275 declares sample_cnt as a 7-bit counter (6 downto 0). At 367 the counter's value is not moved unchanged. Only its top bit is taken, which acts as a flag that the count reached 64. README never says whether moving one bit or a slice of a vector counts as 'copied'. It only splits records into fields; it says nothing about bits of a vector. It also never says whether bit-selection counts as a 'computation' (the 'operand' tag). So the README can be read either way, and the entry does not clearly break it. The reviewer also admits they did not establish this point.\n\nThe 'index' tag does not apply. sample_cnt is the array being indexed, and the index sample_cnt'left is a constant attribute.\n\nOther entries in the sample are consistent with a 'slices are not copied' convention. mul.prod gives value to res_o at 325 and 327, which I believe are slices like mul.prod(31 downto 0). That entry also has no 'copied' tag. This is reasoning: I could not read that module's RTL here. cell_en_in's 'copied' comes from the instance-input clause ('wired into an instance's input') at 304 `en_i => cell_en_in(i)`. That clause does not require 'unchanged', so it does not contradict this entry.\n\nThe reviewer's counterpart observation is correct: 'gives value to valid_o' at 367 is a value move. That supports a possible rule refinement, not a clear error under the current README definitions.",
+      "lines": [
+       367,
+       359,
+       355,
+       275
+      ]
+     },
+     {
+      "real": true,
+      "lines": [
+       367,
+       359,
+       355,
+       351,
+       304
+      ],
+      "reason": "The claim holds. I could not refute it. Line 367 (`valid_o <= sample_cnt(sample_cnt'left);`) is a plain concurrent assignment: one bit of sample_cnt goes into valid_o with no operator. The index `sample_cnt'left` is a fixed attribute, not a computed value. README defines 'copied' as 'is moved unchanged into another element', and that bit reaches valid_o unchanged. The entry itself records this move: under 'gives value to' it lists valid_o at 367, and README says that group means 'a value moves from one element into the other'.\n\nNone of the entry's four tags comes from line 367:\n- 'operand' comes from 359 (`unsigned(sample_cnt) + 1`). README's 'operand' needs 'a computation whose result is assigned', and picking one bit is not a computation.\n- 'condition' comes from 355.\n- 'reset to a constant' comes from 351.\n- 'held on a clock edge' comes from 356 and 359, inside the rising_edge arm of sampling_control (lines 347-363).\n- 'index' does not fit either: sample_cnt is the array being indexed, not the value used to index it.\n\nSo the only tag that describes the line-367 move is 'copied', and it is missing.\n\nSame-module evidence that a bit-select still counts as a copy: the cell_en_in entry is tagged 'copied' because of line 304 (`en_i => cell_en_in(i)`), where a single selected bit is wired into an instance input.\n\nCaveat: an entry outside this module, the neorv32_wdt field bus_req_i.data, has value moves at 94-97 but no 'copied' tag. That hints the program may skip 'copied' when only part of the source moves. I could not check those lines, because only the trng RTL was in scope. README does not state any such exception. Read with README's definitions, the entry is missing 'copied'."
+     },
+     {
+      "real": false,
+      "reason": "The claim is plausible but not clearly right, so I return false. The RTL reading is correct. Line 367 is `valid_o <= sample_cnt(sample_cnt'left);`. It takes one bit of the 7-bit sample_cnt (declared at 275) with no arithmetic or logic, and the attribute 'left is a fixed number. The entry does list 'gives value to valid_o' at 367. The doubt is in the definitions, not the RTL. README defines 'copied' as 'is moved unchanged into another element', and its only example is a whole-element copy (`clkgen_en_o <= ctrl.enable`). README never says how to tag a source that is only partly read through a bit-select or slice. A strict reading says the element was not moved unchanged, only one of its 7 bits was. So the missing tag is not clearly wrong by README. The same entries file points the same way. In neorv32_wdt, bus_req_i.data 'gives value to' ctrl.enable, ctrl.lock, ctrl.strict and ctrl.timeout at lines 94-97, and is tagged condition, operand and read, but not copied. This suggests the code tags a selected part of a source as 'operand', not 'copied'. Caveat: I could not open the wdt RTL, so the claim that lines 94-97 are plain bit-selects is my inference. The only indexed source in neorv32_trng tagged 'copied' is cell_en_in(i) at 304, and it gets the tag through the separate rule 'wired into an instance's input'. The reviewer also asserts that 'operand' comes only from line 359 and not from 367. The entry does not show which line a tag comes from, so that point is not established. The reviewer also rated their own confidence as moderate. Net result: the RTL fits either reading of README, so this is uncertain.",
+      "lines": [
+       367,
+       359,
+       355,
+       275,
+       304
+      ]
+     }
+    ],
+    "confirmed": false
+   }
+  ]
+ },
+ {
+  "module": "neorv32_trng",
+  "lens": "counterparts",
+  "findings": []
+ },
+ {
+  "module": "neorv32_twi",
+  "lens": "lines-type-tags",
+  "findings": [
+   {
+    "element": "fifo.tx_we",
+    "what": "role in RTL: missing tag 'set to constants only'",
+    "claim": "fifo.tx_we has a single assignment, at line 197, and it gives a constant on both branches: '1' when the bus_req_i test holds, '0' otherwise. That fits the README definition 'every assignment gives a constant'. The entry's counterparts also show only 'decided by' sources and no 'gets value from', which is the constants-only pattern. The tags list only 'copied' and 'set without a clock'. The occurrence lines (85, 189, 197) and the type 'wire' are correct.",
+    "lines": [
+     197
+    ],
+    "rtl_quote": "fifo.tx_we    <= '1' when (bus_req_i.stb = '1') and (bus_req_i.rw = '1') and (bus_req_i.addr(2) = '1') else '0';",
+    "votes": [
+     {
+      "real": true,
+      "reason": "The claim holds. In rtl.txt, fifo.tx_we is assigned in exactly one place, line 197: `fifo.tx_we <= '1' when (...) else '0';`. Both choices are constants ('1' and '0'). Its other lines are not assignments. Line 85 declares `signal fifo : fifo_t`. Line 189 maps it into tx_fifo_inst's input port we_i (`we_i => fifo.tx_we`), which reads it. No line assigns the whole `fifo` record. Lines 168, 198, 199 and 228-230 each assign other fields. So the README definition of 'set to constants only' (\"every assignment gives a constant\") is met. The entry's own counterparts agree: bus_req_i.stb, .rw and .addr appear only under 'decided by' at 197, with no 'gets value from' source. The same file's own practice confirms that a condition picking between constants still counts. cache_o.cmd_clr is decided by ctrl.state and wired into an instance input. It is tagged 'copied', 'set without a clock' and 'set to constants only'. Clocked conditional outputs such as spi_csn_o and uart_rtsn_o also get the tag. fifo.tx_we has the same pattern, written as a when/else statement instead of an if/case, and lacks the tag. That looks like the builder does not handle the when/else form, not like a rule in the definitions. uart rx_fifo.re seems to have the same omission (decided only by bus_req_i fields, no value source, tag missing). I did not read uart's RTL, so this is only a guess from its entry. The entry's other parts are correct: type 'wire', occurrence lines 85/189/197, and the tags 'copied' (189) and 'set without a clock' (197). The only error is the missing 'set to constants only' tag.",
+      "lines": [
+       197,
+       189,
+       85
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds. In rtl.txt, fifo.tx_we is assigned in exactly one place, line 197: `fifo.tx_we <= '1' when (bus_req_i.stb = '1') and (bus_req_i.rw = '1') and (bus_req_i.addr(2) = '1') else '0';`. Line 189 (`we_i => fifo.tx_we`) only reads it into the instance tx_fifo_inst. Line 85 is the record's declaration. Neither of those assigns it. Both branches of the line-197 assignment are literal constants ('1' and '0'), so every assignment gives a constant. That is the README definition of 'set to constants only'. The README does not say a conditional assignment is excluded. Its 'condition' tag even names 'when' tests, so a 'when ... else' between constants is covered. The same sample file applies the tag this way elsewhere. uart_rtsn_o (neorv32_uart) has 'decided by' partners only (ctrl.enable, ctrl.hwfc_en, rx_fifo.half) and no 'gets value from', and it carries 'set to constants only'. So the builder does give the tag to an element whose constant value is chosen by conditions. fifo.tx_we has the same counterpart pattern: decided by bus_req_i.addr, .rw and .stb at 197, gives value to tx_fifo_inst.we_i at 189, and no 'gets value from'. Yet it lacks the tag. Its other tags are correct: 'copied' (wired into an instance input at 189) and 'set without a clock' (197 is a concurrent assignment). So is the type 'wire'. The one error is the missing 'set to constants only' tag.",
+      "lines": [
+       197,
+       189,
+       85
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds. Line 197 is the only assignment to fifo.tx_we: fifo.tx_we <= '1' when (bus_req_i.stb='1') and (bus_req_i.rw='1') and (bus_req_i.addr(2)='1') else '0'. Both possible values are constants. The other lines do not assign it. Line 85 is the record declaration. Line 189 (we_i => fifo.tx_we) reads it into tx_fifo_inst's input port. Nothing in the RTL assigns the whole record fifo; line 168 assigns only fifo.clear. So README's 'set to constants only' test, 'every assignment gives a constant', is met. The entry agrees with this reading: it lists bus_req_i.stb, .rw and .addr only under 'decided by' (they only choose which constant is assigned) and has no 'gets value from' partner. The tool tags the same pattern elsewhere in the sample: neorv32_cache cache_o.cmd_clr is a wire whose only partner is 'decided by' ctrl.state, and it carries 'set to constants only'. Its other tags are correct: 'copied' (189, into the instance input) and 'set without a clock' (197 is a concurrent statement). Type wire and occurrence lines 85, 189, 197 are also correct. The only error is the missing 'set to constants only' tag.",
+      "lines": [
+       197,
+       189,
+       85,
+       168
+      ]
+     }
+    ],
+    "confirmed": true
+   }
+  ]
+ },
+ {
+  "module": "neorv32_twi",
+  "lens": "counterparts",
+  "findings": []
+ },
+ {
+  "module": "neorv32_uart",
+  "lens": "lines-type-tags",
+  "findings": [
+   {
+    "element": "rx_fifo.re",
+    "what": "missing role tag: set to constants only",
+    "claim": "The only assignment to rx_fifo.re is line 307, and it can only give the constant '1' or the constant '0'. The rule for 'set to constants only' is that every assignment gives a constant, so the tag should be there. Other entries of this module carry the tag for the same pattern, for example uart_rtsn_o, which is set only to '0' or '1'. The entry's tags are just ['copied', 'set without a clock'].",
+    "lines": [
+     307
+    ],
+    "rtl_quote": "307 | rx_fifo.re <= '1' when (bus_req_i.stb = '1') and (bus_req_i.rw = '0') and (bus_req_i.addr(2) = '1') else '0';",
+    "votes": [
+     {
+      "real": true,
+      "reason": "The claim holds. The entry for rx_fifo.re should carry 'set to constants only'.\n\nWhat the RTL shows: line 307 is the only line that assigns rx_fifo.re. It is `rx_fifo.re <= '1' when (...) else '0'`, a concurrent statement, not inside any process, if, case or generate. Line 299 only reads rx_fifo.re in a port map (re_i => rx_fifo.re). Line 146 is the declaration. Both values line 307 can give, '1' and '0', are constants.\n\nWhat README.md says: the tag means \"every assignment gives a constant\". In VHDL a conditional assignment means the same as an if/else in which each branch assigns a constant. That is the uart_rtsn_o pattern (470, 475, 477, 480: '0' or '1' under if/else), and uart_rtsn_o does carry the tag.\n\nThe entry agrees with this reading. Its only counterparts for bus_req_i.stb, .rw and .addr are 'decided by' at line 307. By README.md, that means these fields only decide which value is assigned; none of them gives a value. So rx_fifo.re has no non-constant value source. Its other tags are right: 'copied' (wired into re_i at 299) and 'set without a clock' (307). Only the constants tag is missing.\n\nOne limit: I was told to open only these three files, so I could not check how the program treats the same pattern elsewhere (tx_fifo.re at 262, the *.clear lines at 259/304). README.md gives no exception for when-else assignments.",
+      "lines": [
+       307,
+       299,
+       146,
+       470,
+       475,
+       477,
+       480
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds. Line 307 is the only place rx_fifo.re is assigned. Nothing assigns the whole rx_fifo record, and line 299 (re_i => rx_fifo.re) only reads it as the input of the rx_engine_fifo_inst instance. Line 307 is a when/else assignment, and both of its values are constants: '1' when (stb='1' and rw='0' and addr(2)='1'), else '0'. In VHDL, a when/else statement means the same thing as an if/else with one plain assignment in each arm. So every assignment to rx_fifo.re gives a constant. README line 58 defines 'set to constants only' as \"every assignment gives a constant\", with no exception for when/else or for assignments made without a clock. The same entries file gives this tag to uart_rtsn_o, which follows the same pattern written as if/else: '0' at 470, '1' at 475, '0' at 477 and 480. The two existing tags are correct. 'copied' is right because of the port map at 299, and 'set without a clock' is right because 307 is a concurrent assignment. But 'set to constants only' is missing, so the entry is wrong as claimed. The other when/else-from-constants lines (259, 261, 262, 304, 389) would likely need the same fix if they lack the tag. This is a guess: those entries are not in the sample, so they were not checked.",
+      "lines": [
+       307,
+       299,
+       146,
+       470,
+       475,
+       477,
+       480
+      ]
+     },
+     {
+      "real": true,
+      "lines": [
+       307,
+       299,
+       146,
+       470,
+       475,
+       477,
+       480
+      ],
+      "reason": "The claim holds, so the entry is wrong. README.md defines \"set to constants only\" as \"every assignment gives a constant\". In the RTL, rx_fifo.re is assigned in one place only, line 307: `rx_fifo.re <= '1' when (bus_req_i.stb = '1') and (bus_req_i.rw = '0') and (bus_req_i.addr(2) = '1') else '0';`. Both values it can take, '1' and '0', are constants. The bus_req_i fields in the when-test only decide which constant is picked. They do not supply a value. The entry itself agrees: its counterparts list only \"decided by\" (bus_req_i.addr, .rw and .stb at 307) and no \"gets value from\". The other lines in its occurrence list are not assignments. Line 146 is the declaration (`signal rx_fifo, tx_fifo : fifo_t`). Line 299 is the port map `re_i => rx_fifo.re`, where the signal is read and fed into the instance's re_i input. That is why the entry correctly has \"copied\" and \"gives value to rx_engine_fifo_inst.re_i\". Nothing else drives rx_fifo.re. The same entries file shows the tag being used for this pattern. uart_rtsn_o is set only to '0' or '1' (lines 470, 475, 477 and 480, chosen by if-tests), and its entry has \"set to constants only\". So rx_fifo.re's tags ['copied', 'set without a clock'] are missing \"set to constants only\". This is a missed tag (a recall error), not a wrong tag."
+     }
+    ],
+    "confirmed": true
+   },
+   {
+    "element": "bus_rsp_o",
+    "what": "wrong role tag: set without a clock",
+    "claim": "The only whole-record assignment to bus_rsp_o is line 155. That line sits in the reset arm 'if (rstn_i = '0')' at 154 of process bus_access, which comes before the clock-edge arm 'elsif rising_edge(clk_i)' at 168. It is not a plain unclocked assignment. The same line is tagged only 'reset to a constant' on the field bus_rsp_o.data, which has no 'set without a clock'. Every other reset-arm assignment in the sample is handled the same way, for example tx_engine.txd at 334 and ctrl.irq_rx_nempty at 161. So 'set without a clock' on the record contradicts how line 155 is read everywhere else. 'reset to a constant', 'set to constants only' and 'driven' are correct.",
+    "lines": [
+     154,
+     155,
+     168
+    ],
+    "rtl_quote": "154 | if (rstn_i = '0') then / 155 | bus_rsp_o <= rsp_terminate_c; / 168 | elsif rising_edge(clk_i) then",
+    "votes": [
+     {
+      "real": true,
+      "reason": "The claim holds. In the neorv32_uart RTL, line 155 (bus_rsp_o <= rsp_terminate_c) is the only line that assigns the whole bus_rsp_o record. I read every process, the concurrent assignments, both FIFO port maps and the sim_mode generate (lines 490-516), and found no other whole-record assignment. Line 155 sits in the reset arm 'if (rstn_i = '0')' at 154 of process bus_access (152-225). The clock-edge arm 'elsif rising_edge(clk_i)' follows at 168. So it is an asynchronous reset of a clocked register, not a plain unclocked assignment.\n\nREADME.md defines 'reset to a constant' as 'is set to a constant in a reset arm'. It defines 'set without a clock' as 'has an assignment outside any clock-edge test'. Its own examples keep these two apart. The README calls rstn_sys_i at 73 a reset and cites ctrl.enable at 75 as 'reset to a constant'. It cites wdt bus_rsp_o.err at 74 and 84 (a hand-checked self-test case), and that sample entry has no 'set without a clock'. The type rule says 'reg' means every assignment waits for a clock edge. Signals with a reset-arm assignment are typed reg (for example ctrl.irq_rx_nempty, reset at 161). So a reset-arm assignment is not read as 'without a clock edge'.\n\nThe same line 155 also counts as an assignment of the field bus_rsp_o.data. The README says a field is assigned wherever its whole record is assigned. That field entry is tagged 'held on a clock edge', 'reset to a constant' and 'driven', with no 'set without a clock'. The record entry therefore reads line 155 one way and its field reads it the other way. The record's other tags are right: 'reset to a constant' (reset by rstn_i at 154), 'set to constants only' (rsp_terminate_c) and 'driven'. Only 'set without a clock' is wrong.",
+      "lines": [
+       152,
+       154,
+       155,
+       168,
+       172,
+       225
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds. In the whole RTL, line 155 (`bus_rsp_o <= rsp_terminate_c;`) is the only assignment to the whole bus_rsp_o record. Every other assignment names a field (170-172, 195-219). Line 155 sits in the reset arm `if (rstn_i = '0')` at 154 of process bus_access (152). That arm comes before the clock-edge arm `elsif rising_edge(clk_i)` at 168. README.md gives reset-arm assignments their own tag, 'reset to a constant', and that tag is correct here.\n\nThe only basis for 'set without a clock' would be a literal reading of 'has an assignment outside any clock-edge test'. Under that reading every reset-arm assignment would get the tag, but the same file and README never apply it that way:\n(1) The field bus_rsp_o.data lists 155 among its lines, because README says a whole-record assignment also assigns the field there. Yet it has only 'held on a clock edge', 'reset to a constant' and 'driven'.\n(2) ctrl.irq_rx_nempty is reset at 161 in the same arm, and tx_engine.txd is reset at 334 in the transmitter's reset arm (327, before the clock-edge arm at 335). Neither has 'set without a clock'. Both are typed 'reg', which README defines as 'every assignment waits for a clock edge'. So README counts reset-arm assignments as clocked-process assignments, not unclocked ones.\n(3) README's example for this tag is cnt_timeout 144, a plain unclocked assignment, not a reset-arm one.\n\nNo generate block or concurrent statement assigns bus_rsp_o. The sim_mode generate at 490-516 does not touch it. So nothing on the whole record is a plain unclocked assignment. The tag contradicts how line 155 is read for the record's own field, so the record entry is wrong. 'reset to a constant', 'set to constants only' and 'driven' stand.",
+      "lines": [
+       152,
+       154,
+       155,
+       161,
+       168,
+       170,
+       171,
+       172,
+       327,
+       334,
+       335
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds. Line 155 is the only place the RTL assigns the whole record bus_rsp_o. Lines 170-219 assign only its fields (.ack, .err, .data), and no concurrent statement drives bus_rsp_o. Line 155 sits in the reset arm 'if (rstn_i = '0')' at 154 of the clocked process bus_access (152). The clock-edge arm 'elsif rising_edge(clk_i)' follows at 168.\n\nThe README separates three cases: 'held on a clock edge' (under the clock-edge test), 'reset to a constant' (in a reset arm), and 'set without a clock'. The README's own wdt example, bus_rsp_o.err (lines 74 and 84, where 74 is a reset arm), is tagged without 'set without a clock'. The 'type' rule counts fields with reset-arm assignments as 'reg', checked against ModelSim's clocked-process vs concurrent drivers. So a reset-arm assignment in a clocked process is not 'set without a clock'.\n\nThe same file reads line 155 that way elsewhere. The field bus_rsp_o.data lists 155 in its occurrence lines and is tagged 'reset to a constant' with no 'set without a clock'. tx_engine.txd (334) and ctrl.irq_rx_nempty (161) are reset-arm assignments too, and neither gets the tag. The record entry's own counterparts show only 'reset by rstn_i 154', with no unclocked flow. So 'set without a clock' on the record has no assignment to support it.\n\nThe other three tags are correct: 'reset to a constant' (rsp_terminate_c in the reset arm), 'set to constants only' (the one whole-record assignment is a constant), and 'driven'. A strictly literal reading of 'outside any clock-edge test' could cover a reset arm. But the README's examples, the type rule and every field entry in the file all reject that reading.",
+      "lines": [
+       152,
+       154,
+       155,
+       168
+      ]
+     }
+    ],
+    "confirmed": true
+   }
+  ]
+ },
+ {
+  "module": "neorv32_uart",
+  "lens": "counterparts",
+  "findings": []
+ },
+ {
+  "module": "neorv32_wdt",
+  "lens": "lines-type-tags",
+  "findings": [
+   {
+    "element": "cnt_timeout",
+    "what": "missing tag: set to constants only",
+    "claim": "cnt_timeout has one assignment in the RTL (line 144), and both of its values are constants ('1' and '0'). The definition of 'set to constants only' is 'every assignment gives a constant', so the tag should be there. Only 'operand' and 'set without a clock' are listed. Other entries follow this rule: reset_force in this module and cache_o.cmd_clr in neorv32_cache both carry the tag. The occurrence lines (60, 144, 155) and the type 'wire' are correct.",
+    "lines": [
+     144
+    ],
+    "rtl_quote": "cnt_timeout <= '1' when (cnt_started = '1') and (cnt = ctrl.timeout) else '0';",
+    "votes": [
+     {
+      "real": true,
+      "reason": "The claim holds; I could not refute it. In the comment-stripped RTL, cnt_timeout is declared at line 60, assigned only once at line 144 (`cnt_timeout <= '1' when (cnt_started = '1') and (cnt = ctrl.timeout) else '0';`), and read only at line 155 (`hw_rst_timeout <= ctrl.enable and cnt_timeout and prsc_tick;`). No other statement assigns it. That includes the bus_access process (71-117), the wdt_counter process (122-137), the other concurrent lines (140, 141, 161) and the reset_identifier process (166-179). Both values at line 144 are literals ('1' and '0'). README.md defines 'set to constants only' as 'every assignment gives a constant'. The README also treats a 'when' test as a condition that decides an assignment, not as a value source. So the only assignment gives a constant in both arms, and the tag should be present. The entry's own counterparts agree. cnt, cnt_started and ctrl.timeout are listed under 'decided by', not 'gets value from', so the program itself records that no element's value flows into cnt_timeout. The tag is not limited to clocked elements. Other entries carry it alongside 'set without a clock': cache_o.cmd_clr in neorv32_cache, bus_rsp_o.err in neorv32_imem, and the bus_rsp_o record in neorv32_uart. Entries that get 0 and 1 under conditions also carry it: reset_force in this module, set to '0' at lines 80 and 88 and to '1' at lines 99 and 105. The listed tags 'operand' (from line 155) and 'set without a clock' (from line 144) are correct, but 'set to constants only' is missing. The type 'wire' and the occurrence lines 60, 144 and 155 are correct.",
+      "lines": [
+       144,
+       60,
+       155
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds; I could not refute it. cnt_timeout is assigned only at RTL line 144: `cnt_timeout <= '1' when (cnt_started = '1') and (cnt = ctrl.timeout) else '0';`. No other line assigns it. Lines 60 and 155 are its declaration and a read. Both values that line 144 can write are constants ('1' and '0'). README.md defines the tag 'set to constants only' as 'every assignment gives a constant'. It also counts a 'when' test as a condition that decides an assignment, and it defines 'decided by' as a source that 'only decides whether, which or how the target is assigned'. The entry agrees with this reading. Its only counterparts on the input side are 'decided by' cnt, cnt_started and ctrl.timeout, all at line 144, and there is no 'gets value from' at all. So, by the entry's own counterparts, no element gives cnt_timeout a value; only constants do. The same pattern in a clocked process gets the tag. reset_force (lines 80, 88, 99, 105) is set to '0'/'1' under if-tests and is tagged 'set to constants only'. uart_rtsn_o is in the same situation (only 'decided by' counterparts) and also carries the tag. The README separates the two concerns with other tags: 'set without a clock' covers the concurrent form, 'operand' covers the use at 155. Nothing in the README excludes a when/else of constants from 'set to constants only'. One caveat, which I could not check: other sampled entries that look like the same when/else pattern (hwspinlock sel, muldiv valid_o, dtm tap_sync.tck_rising) also lack the tag. That points to a consistent gap in the builder, not a rule in README.md. I did not read their RTL, so this is inference only. Conclusion: the entry is missing 'set to constants only'. Its type 'wire', its occurrence lines 60/144/155 and its other tags are correct.",
+      "lines": [
+       144,
+       80,
+       88,
+       99,
+       105,
+       155
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds; I could not refute it. cnt_timeout has one assignment in the RTL, line 144: `cnt_timeout <= '1' when (cnt_started = '1') and (cnt = ctrl.timeout) else '0';`. Both values it can take are the constants '1' and '0'. The signals cnt_started, cnt and ctrl.timeout only pick which constant is used. The entry itself says this: those three are listed under 'decided by', and there is no 'gets value from'. README.md treats a 'when' test as a decision, like an 'if' (the 'condition' tag covers 'if / elsif / when'). It defines 'set to constants only' as 'every assignment gives a constant'. So the tag applies. The same reading gives the tag to reset_force in this module. Its assignments are '0' at lines 80 and 88 and '1' at lines 99 and 105, chosen by if tests on bus_req_i, and it carries 'set to constants only'. cache_o.cmd_clr is an unclocked field decided by ctrl.state, and it also carries the tag. So the tag does not mean 'never changes', and it is not dropped because a condition picks the constant. The cnt_timeout entry lists only 'operand' and 'set without a clock', so 'set to constants only' is missing. The other parts of the entry are right: occurrence lines 60, 144 and 155, and type 'wire' (it is assigned only outside a clock edge).",
+      "lines": [
+       144,
+       60,
+       80,
+       88,
+       99,
+       105
+      ]
+     }
+    ],
+    "confirmed": true
+   },
+   {
+    "element": "bus_req_i.data",
+    "what": "missing tag: copied (likely; depends on how a bit or slice select is read)",
+    "claim": "At lines 94, 96 and 97, a bit or a slice of bus_req_i.data is assigned straight into ctrl.enable, ctrl.strict and ctrl.timeout. No operator is applied, so the value moves unchanged, which is the definition of 'copied'. The entry lists only 'condition' (line 102), 'operand' (line 95, where it is ANDed with ctrl.enable) and 'read'. The tag is missing unless the builder deliberately counts a bit or slice select as a computation, and the README does not say that it does. The occurrence lines (24, 94, 95, 96, 97, 102) are correct.",
+    "lines": [
+     94,
+     96,
+     97
+    ],
+    "rtl_quote": "ctrl.enable  <= bus_req_i.data(ctrl_enable_c);",
+    "votes": [
+     {
+      "real": false,
+      "reason": "The RTL matches the claim's description. Lines 94, 96 and 97 assign one bit or a slice of bus_req_i.data straight into ctrl.enable, ctrl.strict and ctrl.timeout, with no logic operator. The entry also correctly lists those flows as \"gives value to\". The open question is whether those lines earn the 'copied' tag, and README.md does not settle it. Its 'copied' row says the element \"is moved unchanged into another element\", and its example (line 140, clkgen_en_o <= ctrl.enable) moves a whole element. At lines 94, 96 and 97 the 32-bit bus_req_i.data is not moved unchanged. A sub-range is cut out of it first, and the 'operand' row (\"used in a computation whose result is assigned\") can fairly cover that extraction. Under that reading, line 94 would add only 'operand', which the entry already has from line 95. So the entry is not clearly wrong. The same file suggests this is the builder's consistent convention. neorv32_uart's clkgen_i gives its value to uart_clk at line 229 and is tagged only 'operand' and 'read', with no 'copied'. That is likely another bit select from the clock-enable vector, but I did not read the uart RTL, so this is supporting evidence only. The reviewer's claim itself says it depends on how a select is read. The README is silent and the builder's convention is internally consistent, so I am not upholding the claim. The case would be clear only if README.md said that a bit or slice select counts as an unchanged move. Occurrence lines 24, 94, 95, 96, 97 and 102 are correct, and so are the 'condition' tag (line 102) and the 'operand' tag (line 95).",
+      "lines": [
+       94,
+       95,
+       96,
+       97,
+       102,
+       140
+      ]
+     },
+     {
+      "real": false,
+      "reason": "I could not show the entry is clearly wrong, so the answer is not real. The occurrence lines are correct (24, 94, 95, 96, 97, 102). The counterparts are also right: 94, 96 and 97 appear as \"gives value to\" flows into ctrl.enable, ctrl.strict and ctrl.timeout, and 95 is a flow into ctrl.lock.\n\nThe dispute is only about the role tags. At 94, 96 and 97 the source is not the whole element. It is a bit select, bus_req_i.data(ctrl_enable_c) or (ctrl_strict_c), or a 24-bit slice, (31 downto 8). The README defines \"copied\" as \"the element is moved unchanged into another element\". Its only example is a whole-element copy (line 140, clkgen_en_o <= ctrl.enable). The README also treats picking a bit or slice as its own act: it has a separate \"index\" tag for the element that does the picking. It never says whether the element being picked from counts as copied, or as an operand of a selection.\n\nSo \"a 32-bit bus_req_i.data, of which one bit goes into ctrl.enable\" can fairly be read either way:\n- \"copied\", because the bit itself is unchanged;\n- not copied, because the element's value is narrowed, and the \"operand\" tag already on the entry could then cover 94, 96 and 97 as well as 95.\n\nThe entry does not say which line produced which tag. That means the claim's premise, that \"operand\" comes from line 95 alone, cannot be checked. The reviewer also admits the claim depends on how a bit or slice select is read. Since the README does not settle that case, this is a convention question, not a clear error.",
+      "lines": [
+       94,
+       95,
+       96,
+       97,
+       140
+      ]
+     },
+     {
+      "real": true,
+      "reason": "The claim holds when the RTL is read with the README's definitions. The entry for bus_req_i.data (module neorv32_wdt) has the role tags condition, operand and read. Its \"gives value to\" list names ctrl.enable at 94, ctrl.strict at 96 and ctrl.timeout at 97. Those lines sit in the clocked arm of process bus_access, under the nested ifs at 90/91/92/93. They are: line 94 `ctrl.enable <= bus_req_i.data(ctrl_enable_c);`, line 96 `ctrl.strict <= bus_req_i.data(ctrl_strict_c);` and line 97 `ctrl.timeout <= bus_req_i.data(ctrl_timeout_msb_c downto ctrl_timeout_lsb_c);`. None of them applies an operator, so the selected bits arrive unchanged. The README defines 'copied' as \"is moved unchanged into another element\", with the example `clkgen_en_o <= ctrl.enable`. It defines 'operand' as \"used in a computation whose result is assigned\", with an `and` example. It never calls a bit or slice select a computation. Its only rule about slices is the 'index' tag, which belongs to whatever picks the slice (here a constant), not to the vector being sliced. Line 95 (`... and ctrl.enable`) is a real computation and explains 'operand'. Line 102 (an if test) explains 'condition'. Nothing in the tag list explains the value flows the entry itself records at 94, 96 and 97. Under the README those flows can only be 'copied', so that tag is missing. The occurrence lines (24, 94-97, 102) are correct, as the claim says. One caveat: the verdict assumes the builder does not secretly count a slice as a computation. The README gives no sign that it does.",
+      "lines": [
+       94,
+       95,
+       96,
+       97,
+       102
+      ]
+     }
+    ],
+    "confirmed": false
+   }
+  ]
+ },
+ {
+  "module": "neorv32_wdt",
+  "lens": "counterparts",
+  "findings": []
+ }
+]

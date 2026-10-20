@@ -1,0 +1,75 @@
+UNIT neorv32_twd
+  INPUTS: bus_req_i, clk_i, clkgen_i, rstn_i, twd_scl_i, twd_sda_i
+  OUTPUTS: bus_rsp_o, clkgen_en_o, irq_o, twd_scl_o, twd_sda_o
+  BLOCKS
+    [inst] rx_fifo_inst (neorv32_fifo, another IP): rx_fifo.avail, rx_fifo.free, rx_fifo.rdata
+    [inst] tx_fifo_inst (neorv32_fifo, another IP): tx_fifo.avail, tx_fifo.free, tx_fifo.rdata
+    [logic] engine.busy: engine.busy
+    [logic] engine.rdata: engine.rdata
+    [logic] rx_fifo.clr: rx_fifo.clr
+    [logic] rx_fifo.re: rx_fifo.re
+    [logic] rx_fifo.wdata: rx_fifo.wdata
+    [logic] rx_fifo.we: rx_fifo.we
+    [logic] smp.clk_en: smp.clk_en
+    [logic] tx_fifo.clr: tx_fifo.clr
+    [logic] tx_fifo.re: tx_fifo.re
+    [logic] tx_fifo.wdata: tx_fifo.wdata
+    [logic] tx_fifo.we: tx_fifo.we
+    [process] bus_access: ctrl.clr_rx, ctrl.clr_tx, ctrl.device_addr, ctrl.enable, ctrl.fsel, ctrl.hide_read, ctrl.irq_rx_avail, ctrl.irq_rx_full, ctrl.irq_tx_empty, ctrl.tx_dummy_en; clocked by clk_i; reset by rstn_i
+    [process] bus_engine: engine.ack, engine.cmd, engine.cnt, engine.dout, engine.rd_re, engine.sreg, engine.state, engine.wr_we; clocked by clk_i; reset by rstn_i
+    [process] bus_event: smp.scl, smp.scl_fall, smp.scl_rise, smp.sda, smp.start, smp.stop; clocked by clk_i; reset by rstn_i
+    [process] irq_trigger: -; clocked by clk_i; reset by rstn_i
+    [process] synchronizer: smp.scl_sreg, smp.sda_sreg, smp.valid; clocked by clk_i; reset by rstn_i
+    [process] tx_backup: tx_dummy; clocked by clk_i; reset by rstn_i
+  ARROWS (==> a value moves; --> only decides; [the elements the arrow carries])
+    bus_req_i --> rx_fifo.re   [bus_req_i.{addr,rw,stb}]
+    bus_req_i ==> tx_fifo.wdata   [bus_req_i.data]
+    bus_req_i --> tx_fifo.we   [bus_req_i.{addr,rw,stb}]
+    bus_req_i ==> bus_access   [bus_req_i.{addr,data,rw,stb}]
+    clk_i ==> rx_fifo_inst   [clk_i]
+    clk_i ==> tx_fifo_inst   [clk_i]
+    clkgen_i ==> smp.clk_en   [clkgen_i]
+    rstn_i ==> rx_fifo_inst   [rstn_i]
+    rstn_i ==> tx_fifo_inst   [rstn_i]
+    twd_scl_i ==> synchronizer   [twd_scl_i]
+    twd_sda_i ==> synchronizer   [twd_sda_i]
+    rx_fifo_inst ==> bus_access   [rx_fifo.{avail,free,rdata}]
+    rx_fifo_inst --> bus_engine   [rx_fifo.free]
+    rx_fifo_inst ==> irq_trigger   [rx_fifo.{avail,free}]
+    tx_fifo_inst ==> engine.rdata   [tx_fifo.{avail,rdata}]
+    tx_fifo_inst ==> bus_access   [tx_fifo.{avail,free}]
+    tx_fifo_inst --> bus_engine   [tx_fifo.free]
+    tx_fifo_inst ==> irq_trigger   [tx_fifo.avail]
+    tx_fifo_inst ==> tx_backup   [tx_fifo.{avail,rdata}]
+    engine.busy ==> bus_access   [engine.busy]
+    engine.rdata ==> bus_engine   [engine.rdata]
+    rx_fifo.clr ==> rx_fifo_inst   [rx_fifo.clr]
+    rx_fifo.re ==> rx_fifo_inst   [rx_fifo.re]
+    rx_fifo.wdata ==> rx_fifo_inst   [rx_fifo.wdata]
+    rx_fifo.we ==> rx_fifo_inst   [rx_fifo.we]
+    smp.clk_en --> synchronizer   [smp.clk_en]
+    tx_fifo.clr ==> tx_fifo_inst   [tx_fifo.clr]
+    tx_fifo.re ==> tx_fifo_inst   [tx_fifo.re]
+    tx_fifo.wdata ==> tx_fifo_inst   [tx_fifo.wdata]
+    tx_fifo.we ==> tx_fifo_inst   [tx_fifo.we]
+    bus_access --> engine.rdata   [ctrl.tx_dummy_en]
+    bus_access --> rx_fifo.clr   [ctrl.{clr_rx,enable}]
+    bus_access --> smp.clk_en   [ctrl.fsel]
+    bus_access --> tx_fifo.clr   [ctrl.{clr_tx,enable}]
+    bus_access ==> bus_rsp_o
+    bus_access ==> clkgen_en_o   [ctrl.enable]
+    bus_access --> bus_engine   [ctrl.{device_addr,enable,hide_read}]
+    bus_access ==> irq_trigger   [ctrl.{enable,irq_rx_avail,irq_rx_full,irq_tx_empty}]
+    bus_access --> synchronizer   [ctrl.enable]
+    bus_engine --> engine.busy   [engine.state]
+    bus_engine ==> rx_fifo.wdata   [engine.sreg]
+    bus_engine ==> rx_fifo.we   [engine.wr_we]
+    bus_engine ==> tx_fifo.re   [engine.rd_re]
+    bus_engine ==> twd_scl_o
+    bus_engine ==> twd_sda_o
+    bus_engine --> tx_backup   [engine.rd_re]
+    bus_event ==> bus_access   [smp.{scl,sda}]
+    bus_event ==> bus_engine   [smp.{scl_fall,scl_rise,sda,start,stop}]
+    irq_trigger ==> irq_o
+    synchronizer ==> bus_event   [smp.{scl_sreg,sda_sreg,valid}]
+    tx_backup ==> engine.rdata   [tx_dummy]

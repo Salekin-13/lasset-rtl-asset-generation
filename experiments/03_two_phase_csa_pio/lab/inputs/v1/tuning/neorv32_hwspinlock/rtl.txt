@@ -1,0 +1,44 @@
+   18 | entity neorv32_hwspinlock is
+   19 |   port (
+   20 |     clk_i     : in  std_ulogic;
+   21 |     rstn_i    : in  std_ulogic;
+   22 |     bus_req_i : in  bus_req_t;
+   23 |     bus_rsp_o : out bus_rsp_t
+   24 |   );
+   25 | end neorv32_hwspinlock;
+
+   27 | architecture neorv32_hwspinlock_rtl of neorv32_hwspinlock is
+   29 |   signal lock_q, sel : std_ulogic_vector(31 downto 0);
+   31 | begin
+   35 |   spinlock_gen:
+   36 |   for i in 0 to 31 generate
+   39 |     spinlock: process(rstn_i, clk_i)
+   40 |     begin
+   41 |       if (rstn_i = '0') then
+   42 |         lock_q(i) <= '0';
+   43 |       elsif rising_edge(clk_i) then
+   44 |         if (bus_req_i.stb = '1') and (bus_req_i.addr(7) = '0') and (sel(i) = '1') then
+   45 |           lock_q(i) <= not bus_req_i.rw;
+   46 |         end if;
+   47 |       end if;
+   48 |     end process spinlock;
+   51 |     sel(i) <= '1' when (bus_req_i.addr(6 downto 2) = std_ulogic_vector(to_unsigned(i, 5))) else '0';
+   53 |   end generate;
+   58 |   bus_response: process(rstn_i, clk_i)
+   59 |   begin
+   60 |     if (rstn_i = '0') then
+   61 |       bus_rsp_o <= rsp_terminate_c;
+   62 |     elsif rising_edge(clk_i) then
+   63 |       bus_rsp_o.ack  <= bus_req_i.stb;
+   64 |       bus_rsp_o.err  <= '0';
+   65 |       bus_rsp_o.data <= (others => '0');
+   66 |       if (bus_req_i.stb = '1') and (bus_req_i.rw = '0') then
+   67 |         if (bus_req_i.addr(7) = '0') then
+   68 |           bus_rsp_o.data <= lock_q and sel;
+   69 |         else
+   70 |           bus_rsp_o.data <= lock_q;
+   71 |         end if;
+   72 |       end if;
+   73 |     end if;
+   74 |   end process bus_response;
+   76 | end neorv32_hwspinlock_rtl;

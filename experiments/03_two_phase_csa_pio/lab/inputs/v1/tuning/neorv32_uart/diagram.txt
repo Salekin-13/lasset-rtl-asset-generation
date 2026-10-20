@@ -1,0 +1,75 @@
+UNIT neorv32_uart
+  INPUTS: bus_req_i, clk_i, clkgen_i, rstn_i, uart_ctsn_i, uart_rxd_i
+  OUTPUTS: bus_rsp_o, clkgen_en_o, irq_rx_o, irq_tx_o, uart_rtsn_o, uart_txd_o
+  BLOCKS
+    [inst] rx_engine_fifo_inst (neorv32_fifo, another IP): rx_fifo.avail, rx_fifo.free, rx_fifo.half, rx_fifo.rdata
+    [inst] tx_engine_fifo_inst (neorv32_fifo, another IP): tx_fifo.avail, tx_fifo.free, tx_fifo.half, tx_fifo.rdata
+    [logic] rx_fifo.clear: rx_fifo.clear
+    [logic] rx_fifo.re: rx_fifo.re
+    [logic] rx_fifo.wdata: rx_fifo.wdata
+    [logic] rx_fifo.we: rx_fifo.we
+    [logic] tx_engine.busy: tx_engine.busy
+    [logic] tx_fifo.clear: tx_fifo.clear
+    [logic] tx_fifo.re: tx_fifo.re
+    [logic] tx_fifo.wdata: tx_fifo.wdata
+    [logic] tx_fifo.we: tx_fifo.we
+    [logic] uart_clk: uart_clk
+    [process] bus_access: ctrl.baud, ctrl.clr_rx, ctrl.clr_tx, ctrl.enable, ctrl.hwfc_en, ctrl.irq_rx_full, ctrl.irq_rx_half, ctrl.irq_rx_nempty, ctrl.irq_tx_empty, ctrl.irq_tx_nhalf, ctrl.prsc, ctrl.sim_mode; clocked by clk_i; reset by rstn_i
+    [process] fifo_overrun: rx_engine.over; clocked by clk_i; reset by rstn_i
+    [process] receiver: rx_engine.baudcnt, rx_engine.bitcnt, rx_engine.done, rx_engine.sreg, rx_engine.state, rx_engine.sync; clocked by clk_i; reset by rstn_i
+    [process] rtr_control: -; clocked by clk_i; reset by rstn_i
+    [process] rx_irq_generator: -; clocked by clk_i; reset by rstn_i
+    [process] sim_tx: -
+    [process] transmitter: tx_engine.baudcnt, tx_engine.bitcnt, tx_engine.cts, tx_engine.done, tx_engine.sreg, tx_engine.state, tx_engine.txd; clocked by clk_i; reset by rstn_i
+    [process] tx_irq_generator: -; clocked by clk_i; reset by rstn_i
+  ARROWS (==> a value moves; --> only decides; [the elements the arrow carries])
+    bus_req_i --> rx_fifo.re   [bus_req_i.{addr,rw,stb}]
+    bus_req_i ==> tx_fifo.wdata   [bus_req_i.data]
+    bus_req_i --> tx_fifo.we   [bus_req_i.{addr,rw,stb}]
+    bus_req_i ==> bus_access   [bus_req_i.{addr,data,rw,stb}]
+    clk_i ==> rx_engine_fifo_inst   [clk_i]
+    clk_i ==> tx_engine_fifo_inst   [clk_i]
+    clkgen_i ==> uart_clk   [clkgen_i]
+    rstn_i ==> rx_engine_fifo_inst   [rstn_i]
+    rstn_i ==> tx_engine_fifo_inst   [rstn_i]
+    uart_ctsn_i ==> transmitter   [uart_ctsn_i]
+    uart_rxd_i ==> receiver   [uart_rxd_i]
+    rx_engine_fifo_inst ==> bus_access   [rx_fifo.{avail,free,half,rdata}]
+    rx_engine_fifo_inst --> fifo_overrun   [rx_fifo.free]
+    rx_engine_fifo_inst --> rtr_control   [rx_fifo.half]
+    rx_engine_fifo_inst ==> rx_irq_generator   [rx_fifo.{avail,free,half}]
+    tx_engine_fifo_inst ==> bus_access   [tx_fifo.{avail,free,half}]
+    tx_engine_fifo_inst ==> transmitter   [tx_fifo.{avail,rdata}]
+    tx_engine_fifo_inst ==> tx_irq_generator   [tx_fifo.{avail,half}]
+    rx_fifo.clear ==> rx_engine_fifo_inst   [rx_fifo.clear]
+    rx_fifo.re ==> rx_engine_fifo_inst   [rx_fifo.re]
+    rx_fifo.wdata ==> rx_engine_fifo_inst   [rx_fifo.wdata]
+    rx_fifo.we ==> rx_engine_fifo_inst   [rx_fifo.we]
+    rx_fifo.we --> fifo_overrun   [rx_fifo.we]
+    tx_engine.busy ==> bus_access   [tx_engine.busy]
+    tx_fifo.clear ==> tx_engine_fifo_inst   [tx_fifo.clear]
+    tx_fifo.re ==> tx_engine_fifo_inst   [tx_fifo.re]
+    tx_fifo.wdata ==> tx_engine_fifo_inst   [tx_fifo.wdata]
+    tx_fifo.we ==> tx_engine_fifo_inst   [tx_fifo.we]
+    uart_clk --> receiver   [uart_clk]
+    uart_clk --> transmitter   [uart_clk]
+    bus_access --> rx_fifo.clear   [ctrl.{clr_rx,enable,sim_mode}]
+    bus_access --> tx_fifo.clear   [ctrl.{clr_tx,enable,sim_mode}]
+    bus_access --> uart_clk   [ctrl.prsc]
+    bus_access ==> bus_rsp_o
+    bus_access ==> clkgen_en_o   [ctrl.enable]
+    bus_access --> fifo_overrun   [ctrl.enable]
+    bus_access ==> receiver   [ctrl.{baud,enable}]
+    bus_access --> rtr_control   [ctrl.{enable,hwfc_en}]
+    bus_access ==> rx_irq_generator   [ctrl.{enable,irq_rx_full,irq_rx_half,irq_rx_nempty}]
+    bus_access ==> transmitter   [ctrl.{baud,enable,hwfc_en}]
+    bus_access ==> tx_irq_generator   [ctrl.{enable,irq_tx_empty,irq_tx_nhalf}]
+    fifo_overrun ==> bus_access   [rx_engine.over]
+    receiver ==> rx_fifo.wdata   [rx_engine.sreg]
+    receiver ==> rx_fifo.we   [rx_engine.done]
+    rtr_control ==> uart_rtsn_o
+    rx_irq_generator ==> irq_rx_o
+    transmitter --> tx_engine.busy   [tx_engine.state]
+    transmitter --> tx_fifo.re   [tx_engine.state]
+    transmitter ==> uart_txd_o   [tx_engine.txd]
+    tx_irq_generator ==> irq_tx_o

@@ -1,0 +1,79 @@
+UNIT neorv32_cpu
+  INPUTS: clk_i, dbi_i, dbus_rsp_i, firq_i, ibus_rsp_i, icc_rx_i, mei_i, msi_i, mti_i, rstn_i
+  OUTPUTS: dbus_req_o, ibus_req_o, icc_tx_o
+  BLOCKS
+    [generate] cnts_disabled: xcsr_cnt
+    [generate] icc_disabled: xcsr_icc
+    [generate] pmp_disabled: pmp_fault, xcsr_pmp
+    [inst] neorv32_cpu_alu_inst (neorv32_cpu_alu, another IP): alu_add, alu_cmp, alu_cp_done, alu_res, xcsr_alu
+    [inst] neorv32_cpu_control_inst (neorv32_cpu_control, another IP): csr_rdata, ctrl, ctrl.alu_cp_alu, ctrl.alu_cp_cfu, ctrl.alu_cp_fpu, ctrl.alu_imm, ctrl.alu_op, ctrl.alu_opa_mux, ctrl.alu_opb_mux, ctrl.alu_sub, ctrl.alu_unsigned, ctrl.cnt_event, ctrl.cnt_halt, ctrl.cpu_debug, ctrl.cpu_priv, ctrl.cpu_sleep, ctrl.cpu_trap, ctrl.csr_addr, ctrl.csr_re, ctrl.csr_wdata, ctrl.csr_we, ctrl.if_ack, ctrl.if_fence, ctrl.if_reset, ctrl.ir_funct12, ctrl.ir_funct3, ctrl.ir_opcode, ctrl.lsu_amo, ctrl.lsu_fence, ctrl.lsu_mo_we, ctrl.lsu_priv, ctrl.lsu_req, ctrl.lsu_rw, ctrl.pc_cur, ctrl.pc_nxt, ctrl.pc_ret, ctrl.rf_rd, ctrl.rf_rs1, ctrl.rf_rs2, ctrl.rf_wb_en, ctrl.rf_zero_we
+    [inst] neorv32_cpu_counters_inst (neorv32_cpu_counters, another IP): xcsr_cnt
+    [inst] neorv32_cpu_frontend_inst (neorv32_cpu_frontend, another IP): frontend, frontend.compr, frontend.fault, frontend.halted, frontend.instr, frontend.valid
+    [inst] neorv32_cpu_icc_inst (neorv32_cpu_icc, another IP): xcsr_icc
+    [inst] neorv32_cpu_lsu_inst (neorv32_cpu_lsu, another IP): lsu_err, lsu_mar, lsu_rdata, lsu_wait
+    [inst] neorv32_cpu_pmp_inst (neorv32_cpu_pmp, another IP): pmp_fault, xcsr_pmp
+    [inst] neorv32_cpu_regfile_inst (neorv32_cpu_regfile, another IP): rs1, rs2, rs3
+    [logic] irq_machine: irq_machine
+    [logic] rf_wdata: rf_wdata
+    [logic] xcsr_res: xcsr_res
+  ARROWS (==> a value moves; --> only decides; [the elements the arrow carries])
+    cnts_disabled ==> xcsr_res   [xcsr_cnt]
+    icc_disabled ==> xcsr_res   [xcsr_icc]
+    icc_disabled ==> icc_tx_o
+    pmp_disabled ==> neorv32_cpu_control_inst   [pmp_fault]
+    pmp_disabled ==> neorv32_cpu_lsu_inst   [pmp_fault]
+    pmp_disabled ==> xcsr_res   [xcsr_pmp]
+    clk_i ==> neorv32_cpu_alu_inst   [clk_i]
+    clk_i ==> neorv32_cpu_control_inst   [clk_i]
+    clk_i ==> neorv32_cpu_counters_inst   [clk_i]
+    clk_i ==> neorv32_cpu_frontend_inst   [clk_i]
+    clk_i ==> neorv32_cpu_icc_inst   [clk_i]
+    clk_i ==> neorv32_cpu_lsu_inst   [clk_i]
+    clk_i ==> neorv32_cpu_pmp_inst   [clk_i]
+    clk_i ==> neorv32_cpu_regfile_inst   [clk_i]
+    dbi_i ==> neorv32_cpu_control_inst   [dbi_i]
+    dbus_rsp_i ==> neorv32_cpu_lsu_inst   [dbus_rsp_i.{ack,data,err}]
+    firq_i ==> neorv32_cpu_control_inst   [firq_i]
+    ibus_rsp_i ==> neorv32_cpu_frontend_inst   [ibus_rsp_i.{ack,data,err}]
+    icc_rx_i ==> neorv32_cpu_icc_inst   [icc_rx_i.{ack,dat,rdy}]
+    mei_i ==> irq_machine   [mei_i]
+    msi_i ==> irq_machine   [msi_i]
+    mti_i ==> irq_machine   [mti_i]
+    rstn_i ==> neorv32_cpu_alu_inst   [rstn_i]
+    rstn_i ==> neorv32_cpu_control_inst   [rstn_i]
+    rstn_i ==> neorv32_cpu_counters_inst   [rstn_i]
+    rstn_i ==> neorv32_cpu_frontend_inst   [rstn_i]
+    rstn_i ==> neorv32_cpu_icc_inst   [rstn_i]
+    rstn_i ==> neorv32_cpu_lsu_inst   [rstn_i]
+    rstn_i ==> neorv32_cpu_pmp_inst   [rstn_i]
+    rstn_i ==> neorv32_cpu_regfile_inst   [rstn_i]
+    neorv32_cpu_alu_inst ==> neorv32_cpu_control_inst   [alu_add, alu_cmp, alu_cp_done]
+    neorv32_cpu_alu_inst ==> neorv32_cpu_lsu_inst   [alu_add]
+    neorv32_cpu_alu_inst ==> neorv32_cpu_pmp_inst   [alu_add]
+    neorv32_cpu_alu_inst ==> rf_wdata   [alu_res]
+    neorv32_cpu_alu_inst ==> xcsr_res   [xcsr_alu]
+    neorv32_cpu_control_inst ==> neorv32_cpu_alu_inst   [ctrl.{alu_cp_alu,alu_cp_cfu,alu_cp_fpu,alu_imm,alu_op,alu_opa_mux,alu_opb_mux,alu_sub,alu_unsigned,cnt_event,cnt_halt,cpu_debug,cpu_priv,cpu_sleep,cpu_trap,csr_addr,csr_re,csr_wdata,csr_we,if_ack,if_fence,if_reset,ir_funct12,ir_funct3,ir_opcode,lsu_amo,lsu_fence,lsu_mo_we,lsu_priv,lsu_req,lsu_rw,pc_cur,pc_nxt,pc_ret,rf_rd,rf_rs1,rf_rs2,rf_wb_en,rf_zero_we}]
+    neorv32_cpu_control_inst ==> neorv32_cpu_counters_inst   [ctrl.{alu_cp_alu,alu_cp_cfu,alu_cp_fpu,alu_imm,alu_op,alu_opa_mux,alu_opb_mux,alu_sub,alu_unsigned,cnt_event,cnt_halt,cpu_debug,cpu_priv,cpu_sleep,cpu_trap,csr_addr,csr_re,csr_wdata,csr_we,if_ack,if_fence,if_reset,ir_funct12,ir_funct3,ir_opcode,lsu_amo,lsu_fence,lsu_mo_we,lsu_priv,lsu_req,lsu_rw,pc_cur,pc_nxt,pc_ret,rf_rd,rf_rs1,rf_rs2,rf_wb_en,rf_zero_we}]
+    neorv32_cpu_control_inst ==> neorv32_cpu_frontend_inst   [ctrl.{alu_cp_alu,alu_cp_cfu,alu_cp_fpu,alu_imm,alu_op,alu_opa_mux,alu_opb_mux,alu_sub,alu_unsigned,cnt_event,cnt_halt,cpu_debug,cpu_priv,cpu_sleep,cpu_trap,csr_addr,csr_re,csr_wdata,csr_we,if_ack,if_fence,if_reset,ir_funct12,ir_funct3,ir_opcode,lsu_amo,lsu_fence,lsu_mo_we,lsu_priv,lsu_req,lsu_rw,pc_cur,pc_nxt,pc_ret,rf_rd,rf_rs1,rf_rs2,rf_wb_en,rf_zero_we}]
+    neorv32_cpu_control_inst ==> neorv32_cpu_icc_inst   [ctrl.{csr_addr,csr_re,csr_wdata,csr_we}]
+    neorv32_cpu_control_inst ==> neorv32_cpu_lsu_inst   [ctrl.{alu_cp_alu,alu_cp_cfu,alu_cp_fpu,alu_imm,alu_op,alu_opa_mux,alu_opb_mux,alu_sub,alu_unsigned,cnt_event,cnt_halt,cpu_debug,cpu_priv,cpu_sleep,cpu_trap,csr_addr,csr_re,csr_wdata,csr_we,if_ack,if_fence,if_reset,ir_funct12,ir_funct3,ir_opcode,lsu_amo,lsu_fence,lsu_mo_we,lsu_priv,lsu_req,lsu_rw,pc_cur,pc_nxt,pc_ret,rf_rd,rf_rs1,rf_rs2,rf_wb_en,rf_zero_we}]
+    neorv32_cpu_control_inst ==> neorv32_cpu_pmp_inst   [ctrl.{alu_cp_alu,alu_cp_cfu,alu_cp_fpu,alu_imm,alu_op,alu_opa_mux,alu_opb_mux,alu_sub,alu_unsigned,cnt_event,cnt_halt,cpu_debug,cpu_priv,cpu_sleep,cpu_trap,csr_addr,csr_re,csr_wdata,csr_we,if_ack,if_fence,if_reset,ir_funct12,ir_funct3,ir_opcode,lsu_amo,lsu_fence,lsu_mo_we,lsu_priv,lsu_req,lsu_rw,pc_cur,pc_nxt,pc_ret,rf_rd,rf_rs1,rf_rs2,rf_wb_en,rf_zero_we}]
+    neorv32_cpu_control_inst ==> neorv32_cpu_regfile_inst   [ctrl.{alu_cp_alu,alu_cp_cfu,alu_cp_fpu,alu_imm,alu_op,alu_opa_mux,alu_opb_mux,alu_sub,alu_unsigned,cnt_event,cnt_halt,cpu_debug,cpu_priv,cpu_sleep,cpu_trap,csr_addr,csr_re,csr_wdata,csr_we,if_ack,if_fence,if_reset,ir_funct12,ir_funct3,ir_opcode,lsu_amo,lsu_fence,lsu_mo_we,lsu_priv,lsu_req,lsu_rw,pc_cur,pc_nxt,pc_ret,rf_rd,rf_rs1,rf_rs2,rf_wb_en,rf_zero_we}]
+    neorv32_cpu_control_inst ==> rf_wdata   [csr_rdata, ctrl.pc_ret]
+    neorv32_cpu_counters_inst ==> xcsr_res   [xcsr_cnt]
+    neorv32_cpu_frontend_inst ==> neorv32_cpu_control_inst   [frontend.{compr,fault,halted,instr,valid}]
+    neorv32_cpu_frontend_inst ==> ibus_req_o
+    neorv32_cpu_icc_inst ==> xcsr_res   [xcsr_icc]
+    neorv32_cpu_icc_inst ==> icc_tx_o
+    neorv32_cpu_lsu_inst ==> neorv32_cpu_control_inst   [lsu_err, lsu_mar, lsu_wait]
+    neorv32_cpu_lsu_inst ==> rf_wdata   [lsu_rdata]
+    neorv32_cpu_lsu_inst ==> dbus_req_o
+    neorv32_cpu_pmp_inst ==> neorv32_cpu_control_inst   [pmp_fault]
+    neorv32_cpu_pmp_inst ==> neorv32_cpu_lsu_inst   [pmp_fault]
+    neorv32_cpu_pmp_inst ==> xcsr_res   [xcsr_pmp]
+    neorv32_cpu_regfile_inst ==> neorv32_cpu_alu_inst   [rs1, rs2, rs3]
+    neorv32_cpu_regfile_inst ==> neorv32_cpu_control_inst   [rs1]
+    neorv32_cpu_regfile_inst ==> neorv32_cpu_lsu_inst   [rs2]
+    irq_machine ==> neorv32_cpu_control_inst   [irq_machine]
+    rf_wdata ==> neorv32_cpu_regfile_inst   [rf_wdata]
+    xcsr_res ==> neorv32_cpu_control_inst   [xcsr_res]

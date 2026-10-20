@@ -1,0 +1,42 @@
+UNIT neorv32_debug_dtm
+  INPUTS: clk_i, dmi_rsp_i, jtag_tck_i, jtag_tdi_i, jtag_tms_i, rstn_i
+  OUTPUTS: dmi_req_o, jtag_tdo_o
+  BLOCKS
+    [logic] dr_trigger.valid: dr_trigger.valid
+    [logic] tap_reg.dmi_nxt: tap_reg.dmi_nxt
+    [logic] tap_reg.dtmcs_nxt: tap_reg.dtmcs_nxt
+    [logic] tap_sync.tck_falling: tap_sync.tck_falling
+    [logic] tap_sync.tck_rising: tap_sync.tck_rising
+    [logic] tap_sync.tdi: tap_sync.tdi
+    [logic] tap_sync.tms: tap_sync.tms
+    [process] dmi_controller: dmi_ctrl.addr, dmi_ctrl.busy, dmi_ctrl.dmihardreset, dmi_ctrl.dmireset, dmi_ctrl.err, dmi_ctrl.op, dmi_ctrl.rdata, dmi_ctrl.wdata; clocked by clk_i; reset by rstn_i
+    [process] reg_access: tap_reg.bypass, tap_reg.dmi, tap_reg.dtmcs, tap_reg.idcode, tap_reg.ireg; clocked by clk_i; reset by rstn_i
+    [process] tap_control: tap_ctrl_state; clocked by clk_i; reset by rstn_i
+    [process] tap_synchronizer: tap_sync.tck_ff, tap_sync.tdi_ff, tap_sync.tms_ff; clocked by clk_i; reset by rstn_i
+    [process] update_trigger: dr_trigger.sreg; clocked by clk_i; reset by rstn_i
+  ARROWS (==> a value moves; --> only decides; [the elements the arrow carries])
+    dmi_rsp_i ==> dmi_controller   [dmi_rsp_i.{ack,data}]
+    jtag_tck_i ==> tap_synchronizer   [jtag_tck_i]
+    jtag_tdi_i ==> tap_synchronizer   [jtag_tdi_i]
+    jtag_tms_i ==> tap_synchronizer   [jtag_tms_i]
+    dr_trigger.valid --> dmi_controller   [dr_trigger.valid]
+    tap_reg.dmi_nxt ==> tap_reg.dtmcs_nxt   [tap_reg.dmi_nxt]
+    tap_reg.dmi_nxt ==> reg_access   [tap_reg.dmi_nxt]
+    tap_reg.dtmcs_nxt ==> reg_access   [tap_reg.dtmcs_nxt]
+    tap_sync.tck_falling --> reg_access   [tap_sync.tck_falling]
+    tap_sync.tck_rising --> reg_access   [tap_sync.tck_rising]
+    tap_sync.tck_rising --> tap_control   [tap_sync.tck_rising]
+    tap_sync.tdi ==> reg_access   [tap_sync.tdi]
+    tap_sync.tms --> tap_control   [tap_sync.tms]
+    dmi_controller ==> tap_reg.dmi_nxt   [dmi_ctrl.{addr,err,rdata}]
+    dmi_controller ==> tap_reg.dtmcs_nxt   [dmi_ctrl.{dmihardreset,dmireset}]
+    dmi_controller ==> dmi_req_o   [dmi_ctrl.{addr,op,wdata}]
+    reg_access ==> jtag_tdo_o
+    reg_access ==> dmi_controller   [tap_reg.{dmi,dtmcs,ireg}]
+    tap_control --> reg_access   [tap_ctrl_state]
+    tap_control --> update_trigger   [tap_ctrl_state]
+    tap_synchronizer --> tap_sync.tck_falling   [tap_sync.tck_ff]
+    tap_synchronizer --> tap_sync.tck_rising   [tap_sync.tck_ff]
+    tap_synchronizer ==> tap_sync.tdi   [tap_sync.tdi_ff]
+    tap_synchronizer ==> tap_sync.tms   [tap_sync.tms_ff]
+    update_trigger --> dr_trigger.valid   [dr_trigger.sreg]

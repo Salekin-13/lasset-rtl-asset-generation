@@ -1,0 +1,241 @@
+   18 | entity neorv32_neoled is
+   19 |   generic (
+   20 |     FIFO_DEPTH : natural range 1 to 2**15
+   21 |   );
+   22 |   port (
+   23 |     clk_i       : in  std_ulogic;
+   24 |     rstn_i      : in  std_ulogic;
+   25 |     bus_req_i   : in  bus_req_t;
+   26 |     bus_rsp_o   : out bus_rsp_t;
+   27 |     clkgen_en_o : out std_ulogic;
+   28 |     clkgen_i    : in  std_ulogic_vector(7 downto 0);
+   29 |     irq_o       : out std_ulogic;
+   30 |     neoled_o    : out std_ulogic
+   31 |   );
+   32 | end neorv32_neoled;
+
+   34 | architecture neorv32_neoled_rtl of neorv32_neoled is
+   37 |   constant ctrl_en_c       : natural :=  0;
+   38 |   constant ctrl_mode_c     : natural :=  1;
+   39 |   constant ctrl_strobe_c   : natural :=  2;
+   40 |   constant ctrl_clksel0_c  : natural :=  3;
+   41 |   constant ctrl_clksel2_c  : natural :=  5;
+   42 |   constant ctrl_bufs_0_c   : natural :=  6;
+   43 |   constant ctrl_bufs_3_c   : natural :=  9;
+   44 |   constant ctrl_t_tot_0_c  : natural := 10;
+   45 |   constant ctrl_t_tot_4_c  : natural := 14;
+   46 |   constant ctrl_t_0h_0_c   : natural := 15;
+   47 |   constant ctrl_t_0h_4_c   : natural := 19;
+   48 |   constant ctrl_t_1h_0_c   : natural := 20;
+   49 |   constant ctrl_t_1h_4_c   : natural := 24;
+   51 |   constant ctrl_irq_conf_c : natural := 27;
+   52 |   constant ctrl_tx_empty_c : natural := 28;
+   53 |   constant ctrl_tx_half_c  : natural := 29;
+   54 |   constant ctrl_tx_full_c  : natural := 30;
+   55 |   constant ctrl_tx_busy_c  : natural := 31;
+   58 |   constant log2_fifo_size_c : natural := index_size_f(FIFO_DEPTH);
+   61 |   type ctrl_t is record
+   62 |     enable   : std_ulogic;
+   63 |     mode     : std_ulogic;
+   64 |     strobe   : std_ulogic;
+   65 |     clk_prsc : std_ulogic_vector(2 downto 0);
+   66 |     irq_conf : std_ulogic;
+   67 |     t_total  : std_ulogic_vector(4 downto 0);
+   68 |     t0_high  : std_ulogic_vector(4 downto 0);
+   69 |     t1_high  : std_ulogic_vector(4 downto 0);
+   70 |   end record;
+   71 |   signal ctrl : ctrl_t;
+   74 |   type tx_fifo_t is record
+   75 |     we    : std_ulogic;
+   76 |     re    : std_ulogic;
+   77 |     clear : std_ulogic;
+   78 |     wdata : std_ulogic_vector(31+2 downto 0);
+   79 |     rdata : std_ulogic_vector(31+2 downto 0);
+   80 |     avail : std_ulogic;
+   81 |     free  : std_ulogic;
+   82 |     half  : std_ulogic;
+   83 |   end record;
+   84 |   signal tx_fifo : tx_fifo_t;
+   87 |   type serial_t is record
+   89 |     state      : std_ulogic_vector(2 downto 0);
+   90 |     mode       : std_ulogic;
+   91 |     done       : std_ulogic;
+   92 |     busy       : std_ulogic;
+   93 |     bit_cnt    : std_ulogic_vector(5 downto 0);
+   95 |     sreg       : std_ulogic_vector(31 downto 0);
+   96 |     next_bit   : std_ulogic;
+   98 |     pulse_clk  : std_ulogic;
+   99 |     pulse_cnt  : std_ulogic_vector(4 downto 0);
+  100 |     t_high     : std_ulogic_vector(4 downto 0);
+  101 |     strobe_cnt : std_ulogic_vector(6 downto 0);
+  102 |   end record;
+  103 |   signal serial : serial_t;
+  105 | begin
+  109 |   bus_access: process(rstn_i, clk_i)
+  110 |   begin
+  111 |     if (rstn_i = '0') then
+  112 |       ctrl.enable   <= '0';
+  113 |       ctrl.mode     <= '0';
+  114 |       ctrl.strobe   <= '0';
+  115 |       ctrl.clk_prsc <= (others => '0');
+  116 |       ctrl.irq_conf <= '0';
+  117 |       ctrl.t_total  <= (others => '0');
+  118 |       ctrl.t0_high  <= (others => '0');
+  119 |       ctrl.t1_high  <= (others => '0');
+  120 |       bus_rsp_o     <= rsp_terminate_c;
+  121 |     elsif rising_edge(clk_i) then
+  123 |       bus_rsp_o.ack  <= bus_req_i.stb;
+  124 |       bus_rsp_o.err  <= '0';
+  125 |       bus_rsp_o.data <= (others => '0');
+  127 |       if (bus_req_i.stb = '1') then
+  128 |         if (bus_req_i.rw = '1') then
+  129 |           if (bus_req_i.addr(2) = '0') then
+  130 |             ctrl.enable   <= bus_req_i.data(ctrl_en_c);
+  131 |             ctrl.mode     <= bus_req_i.data(ctrl_mode_c);
+  132 |             ctrl.strobe   <= bus_req_i.data(ctrl_strobe_c);
+  133 |             ctrl.clk_prsc <= bus_req_i.data(ctrl_clksel2_c downto ctrl_clksel0_c);
+  134 |             ctrl.irq_conf <= bus_req_i.data(ctrl_irq_conf_c);
+  135 |             ctrl.t_total  <= bus_req_i.data(ctrl_t_tot_4_c downto ctrl_t_tot_0_c);
+  136 |             ctrl.t0_high  <= bus_req_i.data(ctrl_t_0h_4_c  downto ctrl_t_0h_0_c);
+  137 |             ctrl.t1_high  <= bus_req_i.data(ctrl_t_1h_4_c  downto ctrl_t_1h_0_c);
+  138 |           end if;
+  139 |         else
+  140 |           bus_rsp_o.data(ctrl_en_c)                            <= ctrl.enable;
+  141 |           bus_rsp_o.data(ctrl_mode_c)                          <= ctrl.mode;
+  142 |           bus_rsp_o.data(ctrl_strobe_c)                        <= ctrl.strobe;
+  143 |           bus_rsp_o.data(ctrl_clksel2_c downto ctrl_clksel0_c) <= ctrl.clk_prsc;
+  144 |           bus_rsp_o.data(ctrl_irq_conf_c)                      <= ctrl.irq_conf or bool_to_ulogic_f(boolean(FIFO_DEPTH = 1));
+  145 |           bus_rsp_o.data(ctrl_bufs_3_c  downto ctrl_bufs_0_c)  <= std_ulogic_vector(to_unsigned(log2_fifo_size_c, 4));
+  146 |           bus_rsp_o.data(ctrl_t_tot_4_c downto ctrl_t_tot_0_c) <= ctrl.t_total;
+  147 |           bus_rsp_o.data(ctrl_t_0h_4_c  downto ctrl_t_0h_0_c)  <= ctrl.t0_high;
+  148 |           bus_rsp_o.data(ctrl_t_1h_4_c  downto ctrl_t_1h_0_c)  <= ctrl.t1_high;
+  150 |           bus_rsp_o.data(ctrl_tx_empty_c)                      <= not tx_fifo.avail;
+  151 |           bus_rsp_o.data(ctrl_tx_half_c)                       <= tx_fifo.half;
+  152 |           bus_rsp_o.data(ctrl_tx_full_c)                       <= not tx_fifo.free;
+  153 |           bus_rsp_o.data(ctrl_tx_busy_c)                       <= serial.busy;
+  154 |         end if;
+  155 |       end if;
+  156 |     end if;
+  157 |   end process bus_access;
+  160 |   clkgen_en_o <= ctrl.enable;
+  165 |   data_buffer: entity neorv32.neorv32_fifo
+  166 |   generic map (
+  167 |     FIFO_DEPTH => FIFO_DEPTH,
+  168 |     FIFO_WIDTH => 32+2,
+  169 |     FIFO_RSYNC => true,
+  170 |     FIFO_SAFE  => true,
+  171 |     FULL_RESET => false
+  172 |   )
+  173 |   port map (
+  175 |     clk_i   => clk_i,
+  176 |     rstn_i  => rstn_i,
+  177 |     clear_i => tx_fifo.clear,
+  178 |     half_o  => tx_fifo.half,
+  179 |     level_o => open,
+  181 |     wdata_i => tx_fifo.wdata,
+  182 |     we_i    => tx_fifo.we,
+  183 |     free_o  => tx_fifo.free,
+  185 |     re_i    => tx_fifo.re,
+  186 |     rdata_o => tx_fifo.rdata,
+  187 |     avail_o => tx_fifo.avail
+  188 |   );
+  190 |   tx_fifo.re    <= '1' when (serial.state = "100") else '0';
+  191 |   tx_fifo.we    <= '1' when (bus_req_i.stb = '1') and (bus_req_i.rw = '1') and (bus_req_i.addr(2) = '1') else '0';
+  192 |   tx_fifo.wdata <= ctrl.strobe & ctrl.mode & bus_req_i.data;
+  193 |   tx_fifo.clear <= not ctrl.enable;
+  196 |   irq_generator: process(rstn_i, clk_i)
+  197 |   begin
+  198 |     if (rstn_i = '0') then
+  199 |       irq_o <= '0';
+  200 |     elsif rising_edge(clk_i) then
+  201 |       irq_o <= ctrl.enable and (
+  202 |                ((not ctrl.irq_conf) and (not tx_fifo.avail)) or
+  203 |                ((    ctrl.irq_conf) and (not tx_fifo.half)));
+  204 |     end if;
+  205 |   end process irq_generator;
+  210 |   serial_engine: process(rstn_i, clk_i)
+  211 |   begin
+  212 |     if (rstn_i = '0') then
+  213 |       serial.pulse_clk  <= '0';
+  214 |       serial.done       <= '0';
+  215 |       serial.state      <= (others => '0');
+  216 |       serial.pulse_cnt  <= (others => '0');
+  217 |       serial.strobe_cnt <= (others => '0');
+  218 |       serial.sreg       <= (others => '0');
+  219 |       serial.mode       <= '0';
+  220 |       serial.bit_cnt    <= (others => '0');
+  221 |       serial.t_high     <= (others => '0');
+  222 |       neoled_o          <= '0';
+  223 |     elsif rising_edge(clk_i) then
+  225 |       serial.pulse_clk <= clkgen_i(to_integer(unsigned(ctrl.clk_prsc)));
+  228 |       serial.done <= '0';
+  231 |       serial.state(2) <= ctrl.enable;
+  232 |       case serial.state is
+  234 |         when "100" =>
+  236 |           neoled_o          <= '0';
+  237 |           serial.pulse_cnt  <= (others => '0');
+  238 |           serial.strobe_cnt <= (others => '0');
+  239 |           serial.sreg       <= tx_fifo.rdata(31 downto 0);
+  240 |           if (tx_fifo.rdata(32) = '0') then
+  241 |             serial.mode    <= '0';
+  242 |             serial.bit_cnt <= "011000";
+  243 |           else
+  244 |             serial.mode    <= '1';
+  245 |             serial.bit_cnt <= "100000";
+  246 |           end if;
+  247 |           if (tx_fifo.avail = '1') then
+  248 |             if (tx_fifo.rdata(33) = '0') then
+  249 |               serial.state(1 downto 0) <= "01";
+  250 |             else
+  251 |               serial.state(1 downto 0) <= "11";
+  252 |             end if;
+  253 |           end if;
+  255 |         when "101" =>
+  257 |           serial.sreg      <= serial.sreg(serial.sreg'left-1 downto 0) & '0';
+  258 |           serial.bit_cnt   <= std_ulogic_vector(unsigned(serial.bit_cnt) - 1);
+  259 |           serial.pulse_cnt <= (others => '0');
+  260 |           if (serial.next_bit = '0') then
+  261 |             serial.t_high <= ctrl.t0_high;
+  262 |           else
+  263 |             serial.t_high <= ctrl.t1_high;
+  264 |           end if;
+  265 |           if (serial.bit_cnt = "000000") then
+  266 |             neoled_o                 <= '0';
+  267 |             serial.done              <= '1';
+  268 |             serial.state(1 downto 0) <= "00";
+  269 |           else
+  270 |             neoled_o                 <= '1';
+  271 |             serial.state(1 downto 0) <= "10";
+  272 |           end if;
+  274 |         when "110" =>
+  278 |           if (serial.pulse_clk = '1') then
+  279 |             serial.pulse_cnt <= std_ulogic_vector(unsigned(serial.pulse_cnt) + 1);
+  281 |             if (serial.pulse_cnt = serial.t_high) then
+  282 |               neoled_o <= '0';
+  283 |             end if;
+  285 |             if (serial.pulse_cnt = ctrl.t_total) then
+  286 |               serial.state(1 downto 0) <= "01";
+  287 |             end if;
+  288 |           end if;
+  290 |         when "111" =>
+  293 |           if (serial.pulse_clk = '1') then
+  295 |             if (serial.pulse_cnt = ctrl.t_total) then
+  296 |               serial.pulse_cnt  <= (others => '0');
+  297 |               serial.strobe_cnt <= std_ulogic_vector(unsigned(serial.strobe_cnt) + 1);
+  298 |             else
+  299 |               serial.pulse_cnt <= std_ulogic_vector(unsigned(serial.pulse_cnt) + 1);
+  300 |             end if;
+  301 |           end if;
+  303 |           if (and_reduce_f(serial.strobe_cnt) = '1') then
+  304 |             serial.done              <= '1';
+  305 |             serial.state(1 downto 0) <= "00";
+  306 |           end if;
+  308 |         when others =>
+  310 |           neoled_o                 <= '0';
+  311 |           serial.state(1 downto 0) <= "00";
+  313 |       end case;
+  314 |     end if;
+  315 |   end process serial_engine;
+  318 |   serial.next_bit <= serial.sreg(23) when (serial.mode = '0') else serial.sreg(31);
+  321 |   serial.busy <= '0' when (serial.state(1 downto 0) = "00") else '1';
+  324 | end neorv32_neoled_rtl;

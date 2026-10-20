@@ -1,0 +1,128 @@
+   18 | entity neorv32_sysinfo is
+   19 |   generic (
+   20 |     NUM_HARTS             : natural;
+   21 |     CLOCK_FREQUENCY       : natural;
+   22 |     BOOT_MODE_SELECT      : natural;
+   23 |     INT_BOOTLOADER_EN     : boolean;
+   24 |     MEM_INT_IMEM_EN       : boolean;
+   25 |     MEM_INT_IMEM_ROM      : boolean;
+   26 |     MEM_INT_IMEM_SIZE     : natural;
+   27 |     MEM_INT_DMEM_EN       : boolean;
+   28 |     MEM_INT_DMEM_SIZE     : natural;
+   29 |     ICACHE_EN             : boolean;
+   30 |     ICACHE_NUM_BLOCKS     : natural;
+   31 |     DCACHE_EN             : boolean;
+   32 |     DCACHE_NUM_BLOCKS     : natural;
+   33 |     CACHE_BLOCK_SIZE      : natural;
+   34 |     XBUS_EN               : boolean;
+   35 |     OCD_EN                : boolean;
+   36 |     OCD_AUTH              : boolean;
+   37 |     IO_GPIO_EN            : boolean;
+   38 |     IO_CLINT_EN           : boolean;
+   39 |     IO_UART0_EN           : boolean;
+   40 |     IO_UART1_EN           : boolean;
+   41 |     IO_SPI_EN             : boolean;
+   42 |     IO_SDI_EN             : boolean;
+   43 |     IO_TWI_EN             : boolean;
+   44 |     IO_TWD_EN             : boolean;
+   45 |     IO_PWM_EN             : boolean;
+   46 |     IO_WDT_EN             : boolean;
+   47 |     IO_TRNG_EN            : boolean;
+   48 |     IO_CFS_EN             : boolean;
+   49 |     IO_NEOLED_EN          : boolean;
+   50 |     IO_GPTMR_EN           : boolean;
+   51 |     IO_ONEWIRE_EN         : boolean;
+   52 |     IO_DMA_EN             : boolean;
+   53 |     IO_SLINK_EN           : boolean;
+   54 |     IO_CRC_EN             : boolean;
+   55 |     IO_HWSPINLOCK_EN      : boolean
+   56 |   );
+   57 |   port (
+   58 |     clk_i     : in  std_ulogic;
+   59 |     rstn_i    : in  std_ulogic;
+   60 |     bus_req_i : in  bus_req_t;
+   61 |     bus_rsp_o : out bus_rsp_t
+   62 |   );
+   63 | end neorv32_sysinfo;
+
+   65 | architecture neorv32_sysinfo_rtl of neorv32_sysinfo is
+   68 |   constant int_imem_en_c    : boolean := MEM_INT_IMEM_EN and boolean(MEM_INT_IMEM_SIZE > 0);
+   69 |   constant int_dmem_en_c    : boolean := MEM_INT_DMEM_EN and boolean(MEM_INT_DMEM_SIZE > 0);
+   70 |   constant int_imem_rom_c   : boolean := int_imem_en_c and MEM_INT_IMEM_ROM;
+   71 |   constant log2_imem_size_c : natural := index_size_f(MEM_INT_IMEM_SIZE);
+   72 |   constant log2_dmem_size_c : natural := index_size_f(MEM_INT_DMEM_SIZE);
+   73 |   constant log2_ic_bnum_c   : natural := index_size_f(ICACHE_NUM_BLOCKS);
+   74 |   constant log2_dc_bnum_c   : natural := index_size_f(DCACHE_NUM_BLOCKS);
+   75 |   constant log2_c_bsize_c   : natural := index_size_f(CACHE_BLOCK_SIZE);
+   78 |   type sysinfo_t is array (0 to 3) of std_ulogic_vector(31 downto 0);
+   79 |   signal sysinfo : sysinfo_t;
+   82 |   signal buf_adr : std_ulogic_vector(1 downto 0);
+   83 |   signal buf_ack : std_ulogic;
+   85 | begin
+   89 |   sysinfo_clk: process(rstn_i, clk_i)
+   90 |   begin
+   91 |     if (rstn_i = '0') then
+   92 |       sysinfo(0) <= std_ulogic_vector(to_unsigned(CLOCK_FREQUENCY, 32));
+   93 |     elsif rising_edge(clk_i) then
+   94 |       if (bus_req_i.stb = '1') and (bus_req_i.rw = '1') and (bus_req_i.addr(3 downto 2) = "00") then
+   95 |         sysinfo(0) <= bus_req_i.data;
+   96 |       end if;
+   97 |     end if;
+   98 |   end process sysinfo_clk;
+  102 |   sysinfo(1)(7  downto 0)  <= std_ulogic_vector(to_unsigned(log2_imem_size_c, 8)) when int_imem_en_c else (others => '0');
+  103 |   sysinfo(1)(15 downto 8)  <= std_ulogic_vector(to_unsigned(log2_dmem_size_c, 8)) when int_dmem_en_c else (others => '0');
+  104 |   sysinfo(1)(23 downto 16) <= std_ulogic_vector(to_unsigned(NUM_HARTS, 8));
+  105 |   sysinfo(1)(31 downto 24) <= std_ulogic_vector(to_unsigned(BOOT_MODE_SELECT, 8));
+  109 |   sysinfo(2)(0)  <= '1' when INT_BOOTLOADER_EN else '0';
+  110 |   sysinfo(2)(1)  <= '1' when XBUS_EN           else '0';
+  111 |   sysinfo(2)(2)  <= '1' when int_imem_en_c     else '0';
+  112 |   sysinfo(2)(3)  <= '1' when int_dmem_en_c     else '0';
+  113 |   sysinfo(2)(4)  <= '1' when OCD_EN            else '0';
+  114 |   sysinfo(2)(5)  <= '1' when ICACHE_EN         else '0';
+  115 |   sysinfo(2)(6)  <= '1' when DCACHE_EN         else '0';
+  116 |   sysinfo(2)(7)  <= '0';
+  117 |   sysinfo(2)(8)  <= '0';
+  118 |   sysinfo(2)(9)  <= '0';
+  119 |   sysinfo(2)(10) <= '0';
+  120 |   sysinfo(2)(11) <= '1' when OCD_AUTH          else '0';
+  121 |   sysinfo(2)(12) <= '1' when int_imem_rom_c    else '0';
+  122 |   sysinfo(2)(13) <= '1' when IO_TWD_EN         else '0';
+  123 |   sysinfo(2)(14) <= '1' when IO_DMA_EN         else '0';
+  124 |   sysinfo(2)(15) <= '1' when IO_GPIO_EN        else '0';
+  125 |   sysinfo(2)(16) <= '1' when IO_CLINT_EN       else '0';
+  126 |   sysinfo(2)(17) <= '1' when IO_UART0_EN       else '0';
+  127 |   sysinfo(2)(18) <= '1' when IO_SPI_EN         else '0';
+  128 |   sysinfo(2)(19) <= '1' when IO_TWI_EN         else '0';
+  129 |   sysinfo(2)(20) <= '1' when IO_PWM_EN         else '0';
+  130 |   sysinfo(2)(21) <= '1' when IO_WDT_EN         else '0';
+  131 |   sysinfo(2)(22) <= '1' when IO_CFS_EN         else '0';
+  132 |   sysinfo(2)(23) <= '1' when IO_TRNG_EN        else '0';
+  133 |   sysinfo(2)(24) <= '1' when IO_SDI_EN         else '0';
+  134 |   sysinfo(2)(25) <= '1' when IO_UART1_EN       else '0';
+  135 |   sysinfo(2)(26) <= '1' when IO_NEOLED_EN      else '0';
+  136 |   sysinfo(2)(27) <= '1' when IO_HWSPINLOCK_EN  else '0';
+  137 |   sysinfo(2)(28) <= '1' when IO_GPTMR_EN       else '0';
+  138 |   sysinfo(2)(29) <= '1' when IO_SLINK_EN       else '0';
+  139 |   sysinfo(2)(30) <= '1' when IO_ONEWIRE_EN     else '0';
+  140 |   sysinfo(2)(31) <= '1' when IO_CRC_EN         else '0';
+  144 |   sysinfo(3)(3 downto 0)   <= std_ulogic_vector(to_unsigned(log2_c_bsize_c, 4)) when ICACHE_EN else (others => '0');
+  145 |   sysinfo(3)(7 downto 4)   <= std_ulogic_vector(to_unsigned(log2_ic_bnum_c, 4)) when ICACHE_EN else (others => '0');
+  147 |   sysinfo(3)(11 downto 8)  <= std_ulogic_vector(to_unsigned(log2_c_bsize_c, 4)) when DCACHE_EN else (others => '0');
+  148 |   sysinfo(3)(15 downto 12) <= std_ulogic_vector(to_unsigned(log2_dc_bnum_c, 4)) when DCACHE_EN else (others => '0');
+  150 |   sysinfo(3)(31 downto 16) <= (others => '0');
+  154 |   access_buffer: process(rstn_i, clk_i)
+  155 |   begin
+  156 |     if (rstn_i = '0') then
+  157 |       buf_ack <= '0';
+  158 |       buf_adr <= (others => '0');
+  159 |     elsif rising_edge(clk_i) then
+  160 |       buf_ack <= bus_req_i.stb;
+  161 |       if (bus_req_i.stb = '1') then
+  162 |         buf_adr <= bus_req_i.addr(3 downto 2);
+  163 |       end if;
+  164 |     end if;
+  165 |   end process access_buffer;
+  168 |   bus_rsp_o.data <= sysinfo(to_integer(unsigned(buf_adr))) when (buf_ack = '1') else (others => '0');
+  169 |   bus_rsp_o.ack  <= buf_ack;
+  170 |   bus_rsp_o.err  <= '0';
+  172 | end neorv32_sysinfo_rtl;

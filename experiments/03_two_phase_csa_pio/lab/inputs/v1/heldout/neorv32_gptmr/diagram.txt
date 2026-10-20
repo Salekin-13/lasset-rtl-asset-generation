@@ -1,0 +1,22 @@
+UNIT neorv32_gptmr
+  INPUTS: bus_req_i, clk_i, clkgen_i, rstn_i
+  OUTPUTS: bus_rsp_o, clkgen_en_o, irq_o
+  BLOCKS
+    [logic] timer.match: timer.match
+    [process] bus_access: ctrl, irq_clr, timer.thres; clocked by clk_i; reset by rstn_i
+    [process] irq_generator: irq_pnd; clocked by clk_i; reset by rstn_i
+    [process] timer_core: timer.count, timer.tick; clocked by clk_i; reset by rstn_i
+  ARROWS (==> a value moves; --> only decides; [the elements the arrow carries])
+    bus_req_i ==> bus_access   [bus_req_i.{addr,data,rw,stb}]
+    clkgen_i ==> timer_core   [clkgen_i]
+    timer.match --> irq_generator   [timer.match]
+    timer.match --> timer_core   [timer.match]
+    bus_access --> timer.match   [timer.thres]
+    bus_access ==> bus_rsp_o
+    bus_access ==> clkgen_en_o   [ctrl]
+    bus_access --> irq_generator   [ctrl, irq_clr]
+    bus_access --> timer_core   [ctrl]
+    irq_generator ==> irq_o   [irq_pnd]
+    irq_generator ==> bus_access   [irq_pnd]
+    timer_core --> timer.match   [timer.count]
+    timer_core ==> bus_access   [timer.count]

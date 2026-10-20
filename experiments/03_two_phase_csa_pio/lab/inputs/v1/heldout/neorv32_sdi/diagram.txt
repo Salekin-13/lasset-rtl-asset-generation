@@ -1,0 +1,63 @@
+UNIT neorv32_sdi
+  INPUTS: bus_req_i, clk_i, rstn_i, sdi_clk_i, sdi_csn_i, sdi_dat_i
+  OUTPUTS: bus_rsp_o, irq_o, sdi_dat_o
+  BLOCKS
+    [inst] rx_fifo_inst (neorv32_fifo, another IP): rx_fifo.avail, rx_fifo.free, rx_fifo.half, rx_fifo.rdata
+    [inst] tx_fifo_inst (neorv32_fifo, another IP): tx_fifo.avail, tx_fifo.free, tx_fifo.half, tx_fifo.rdata
+    [logic] rx_fifo.clear: rx_fifo.clear
+    [logic] rx_fifo.re: rx_fifo.re
+    [logic] rx_fifo.wdata: rx_fifo.wdata
+    [logic] rx_fifo.we: rx_fifo.we
+    [logic] sync.csn: sync.csn
+    [logic] sync.sck: sync.sck
+    [logic] sync.sdi: sync.sdi
+    [logic] tx_fifo.clear: tx_fifo.clear
+    [logic] tx_fifo.re: tx_fifo.re
+    [logic] tx_fifo.wdata: tx_fifo.wdata
+    [logic] tx_fifo.we: tx_fifo.we
+    [process] bus_access: ctrl.enable, ctrl.irq_rx_avail, ctrl.irq_rx_full, ctrl.irq_rx_half, ctrl.irq_tx_empty, ctrl.irq_tx_nhalf; clocked by clk_i; reset by rstn_i
+    [process] irq_generator: -; clocked by clk_i; reset by rstn_i
+    [process] serial_engine: serial.cnt, serial.done, serial.sdi_ff, serial.sreg, serial.start, serial.state; clocked by clk_i; reset by rstn_i
+    [process] synchronizer: sync.csn_ff, sync.sck_ff, sync.sdi_ff; clocked by clk_i; reset by rstn_i
+  ARROWS (==> a value moves; --> only decides; [the elements the arrow carries])
+    bus_req_i --> rx_fifo.re   [bus_req_i.{addr,rw,stb}]
+    bus_req_i ==> tx_fifo.wdata   [bus_req_i.data]
+    bus_req_i --> tx_fifo.we   [bus_req_i.{addr,rw,stb}]
+    bus_req_i ==> bus_access   [bus_req_i.{addr,data,rw,stb}]
+    clk_i ==> rx_fifo_inst   [clk_i]
+    clk_i ==> tx_fifo_inst   [clk_i]
+    rstn_i ==> rx_fifo_inst   [rstn_i]
+    rstn_i ==> tx_fifo_inst   [rstn_i]
+    sdi_clk_i ==> synchronizer   [sdi_clk_i]
+    sdi_csn_i ==> synchronizer   [sdi_csn_i]
+    sdi_dat_i ==> synchronizer   [sdi_dat_i]
+    rx_fifo_inst ==> bus_access   [rx_fifo.{avail,free,half,rdata}]
+    rx_fifo_inst ==> irq_generator   [rx_fifo.{avail,free,half}]
+    tx_fifo_inst ==> bus_access   [tx_fifo.{avail,free,half}]
+    tx_fifo_inst ==> irq_generator   [tx_fifo.{avail,half}]
+    tx_fifo_inst ==> serial_engine   [tx_fifo.{avail,rdata}]
+    rx_fifo.clear ==> rx_fifo_inst   [rx_fifo.clear]
+    rx_fifo.re ==> rx_fifo_inst   [rx_fifo.re]
+    rx_fifo.wdata ==> rx_fifo_inst   [rx_fifo.wdata]
+    rx_fifo.we ==> rx_fifo_inst   [rx_fifo.we]
+    sync.csn ==> bus_access   [sync.csn]
+    sync.csn --> serial_engine   [sync.csn]
+    sync.sck --> serial_engine   [sync.sck]
+    sync.sdi ==> serial_engine   [sync.sdi]
+    tx_fifo.clear ==> tx_fifo_inst   [tx_fifo.clear]
+    tx_fifo.re ==> tx_fifo_inst   [tx_fifo.re]
+    tx_fifo.wdata ==> tx_fifo_inst   [tx_fifo.wdata]
+    tx_fifo.we ==> tx_fifo_inst   [tx_fifo.we]
+    bus_access ==> rx_fifo.clear   [ctrl.enable]
+    bus_access ==> tx_fifo.clear   [ctrl.enable]
+    bus_access ==> bus_rsp_o
+    bus_access ==> irq_generator   [ctrl.{enable,irq_rx_avail,irq_rx_full,irq_rx_half,irq_tx_empty,irq_tx_nhalf}]
+    bus_access ==> serial_engine   [ctrl.enable]
+    irq_generator ==> irq_o
+    serial_engine ==> rx_fifo.wdata   [serial.sreg]
+    serial_engine ==> rx_fifo.we   [serial.done]
+    serial_engine ==> tx_fifo.re   [serial.start]
+    serial_engine ==> sdi_dat_o   [serial.sreg]
+    synchronizer ==> sync.csn   [sync.csn_ff]
+    synchronizer ==> sync.sck   [sync.sck_ff]
+    synchronizer ==> sync.sdi   [sync.sdi_ff]

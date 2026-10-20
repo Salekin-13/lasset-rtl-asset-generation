@@ -1,0 +1,23 @@
+UNIT neorv32_trng
+  INPUTS: bus_req_i, clk_i, rstn_i
+  OUTPUTS: bus_rsp_o
+  BLOCKS
+    [inst] neoTRNG_inst (neoTRNG, this file): cell_en_in, cell_en_out, cell_rnd, cell_sum, data_o, debias_data, debias_sreg, debias_state, debias_valid, en_o, fifo.wdata, fifo.we, inv_in, inv_out, latch, rnd_o, sample_cnt, sample_en, sample_sreg, sreg, sync, valid_o; clocked by clk_i; reset by rstn_i
+    [inst] rnd_pool_fifo_inst (neorv32_fifo, another IP): fifo.avail, fifo.free, fifo.half, fifo.rdata
+    [logic] fifo.clear: fifo.clear
+    [logic] fifo.re: fifo.re
+    [process] bus_access: enable, fifo_clr; clocked by clk_i; reset by rstn_i
+  ARROWS (==> a value moves; --> only decides; [the elements the arrow carries])
+    bus_req_i --> fifo.re   [bus_req_i.{addr,rw,stb}]
+    bus_req_i ==> bus_access   [bus_req_i.{addr,data,rw,stb}]
+    clk_i ==> neoTRNG_inst   [clk_i]
+    clk_i ==> rnd_pool_fifo_inst   [clk_i]
+    rstn_i ==> neoTRNG_inst   [rstn_i]
+    rstn_i ==> rnd_pool_fifo_inst   [rstn_i]
+    neoTRNG_inst ==> rnd_pool_fifo_inst   [fifo.{wdata,we}]
+    rnd_pool_fifo_inst ==> bus_access   [fifo.{avail,rdata}]
+    fifo.clear ==> rnd_pool_fifo_inst   [fifo.clear]
+    fifo.re ==> rnd_pool_fifo_inst   [fifo.re]
+    bus_access ==> neoTRNG_inst   [enable]
+    bus_access --> fifo.clear   [enable, fifo_clr]
+    bus_access ==> bus_rsp_o

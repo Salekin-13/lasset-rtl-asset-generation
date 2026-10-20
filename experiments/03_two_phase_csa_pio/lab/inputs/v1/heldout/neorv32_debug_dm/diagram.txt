@@ -1,0 +1,108 @@
+UNIT neorv32_debug_dm
+  INPUTS: bus_req_i, clk_i, dmi_req_i, rstn_i
+  OUTPUTS: bus_rsp_o, dmi_rsp_o, halt_req_o, ndmrstn_o
+  BLOCKS
+    [generate] authenticator_disabled: auth.busy, auth.rdata, auth.re, auth.valid, auth.we
+    [generate] authenticator_enabled: auth.re, auth.we
+    [generate] hart_id_decode_gen: cpu_rsp_dec
+    [generate] hart_id_decode_single: cpu_rsp_dec
+    [generate] hartsel_decode: dm_reg.hartsel_dec
+    [generate] request_gen: dci.req_res
+    [inst] neorv32_debug_auth_inst (neorv32_debug_auth, another IP): auth.busy, auth.rdata, auth.valid
+    [logic] accen: accen
+    [logic] cpu_progbuf: cpu_progbuf
+    [logic] dci.data_reg_we: dci.data_reg_we
+    [logic] dm_ctrl.busy: dm_ctrl.busy
+    [logic] dm_reg.hartsel_inv: dm_reg.hartsel_inv
+    [logic] dmi_rden: dmi_rden
+    [logic] dmi_rden_auth: dmi_rden_auth
+    [logic] dmi_wren: dmi_wren
+    [logic] dmi_wren_auth: dmi_wren_auth
+    [logic] rden: rden
+    [logic] wren: wren
+    [process] bus_access: dci.ack_exc, dci.ack_exe, dci.ack_hlt, dci.ack_res, dci.data_reg; clocked by clk_i; reset by rstn_i
+    [process] dm_controller: dci.req_exe, dm_ctrl.cmderr, dm_ctrl.illegal_cmd, dm_ctrl.illegal_state, dm_ctrl.ldsw_progbuf, dm_ctrl.pbuf_en, dm_ctrl.state; clocked by clk_i; reset by rstn_i
+    [process] dmi_read_access: dm_reg.autoexec_rd, dm_reg.rd_acc_err; clocked by clk_i; reset by rstn_i
+    [process] dmi_write_access: dm_reg.abstractauto_autoexecdata, dm_reg.abstractauto_autoexecprogbuf, dm_reg.autoexec_wr, dm_reg.clr_acc_err, dm_reg.command, dm_reg.dmcontrol_dmactive, dm_reg.dmcontrol_ndmreset, dm_reg.halt_req, dm_reg.hartsel, dm_reg.progbuf, dm_reg.req_res, dm_reg.reset_ack, dm_reg.wr_acc_err; clocked by clk_i; reset by rstn_i
+    [process] hart_status: dm_ctrl.hart_halted, dm_ctrl.hart_reset, dm_ctrl.hart_resume_ack, dm_ctrl.hart_resume_req; clocked by clk_i; reset by rstn_i
+  ARROWS (==> a value moves; --> only decides; [the elements the arrow carries])
+    authenticator_disabled --> request_gen   [auth.valid]
+    authenticator_disabled --> dmi_rden_auth   [auth.valid]
+    authenticator_disabled --> dmi_wren_auth   [auth.valid]
+    authenticator_disabled --> ndmrstn_o   [auth.valid]
+    authenticator_disabled ==> dmi_read_access   [auth.{busy,rdata,valid}]
+    authenticator_enabled ==> neorv32_debug_auth_inst   [auth.{re,we}]
+    hart_id_decode_gen ==> bus_access   [cpu_rsp_dec]
+    hart_id_decode_single ==> bus_access   [cpu_rsp_dec]
+    hartsel_decode ==> request_gen   [dm_reg.hartsel_dec]
+    hartsel_decode ==> dm_controller   [dm_reg.hartsel_dec]
+    hartsel_decode ==> dmi_read_access   [dm_reg.hartsel_dec]
+    hartsel_decode --> hart_status   [dm_reg.hartsel_dec]
+    request_gen ==> halt_req_o
+    request_gen ==> bus_access   [dci.req_res]
+    bus_req_i --> hart_id_decode_gen   [bus_req_i.data]
+    bus_req_i ==> accen   [bus_req_i.{debug,stb}]
+    bus_req_i ==> rden   [bus_req_i.rw]
+    bus_req_i ==> wren   [bus_req_i.{ben,rw}]
+    bus_req_i ==> bus_access   [bus_req_i.{addr,data}]
+    clk_i ==> neorv32_debug_auth_inst   [clk_i]
+    dmi_req_i --> authenticator_enabled   [dmi_req_i.addr]
+    dmi_req_i ==> neorv32_debug_auth_inst   [dmi_req_i.data]
+    dmi_req_i --> dci.data_reg_we   [dmi_req_i.addr]
+    dmi_req_i --> dmi_rden   [dmi_req_i.op]
+    dmi_req_i --> dmi_wren   [dmi_req_i.op]
+    dmi_req_i ==> bus_access   [dmi_req_i.data]
+    dmi_req_i --> dm_controller   [dmi_req_i.addr]
+    dmi_req_i --> dmi_read_access   [dmi_req_i.addr]
+    dmi_req_i ==> dmi_write_access   [dmi_req_i.{addr,data}]
+    rstn_i ==> neorv32_debug_auth_inst   [rstn_i]
+    neorv32_debug_auth_inst --> request_gen   [auth.valid]
+    neorv32_debug_auth_inst --> dmi_rden_auth   [auth.valid]
+    neorv32_debug_auth_inst --> dmi_wren_auth   [auth.valid]
+    neorv32_debug_auth_inst --> ndmrstn_o   [auth.valid]
+    neorv32_debug_auth_inst ==> dmi_read_access   [auth.{busy,rdata,valid}]
+    accen ==> rden   [accen]
+    accen ==> wren   [accen]
+    accen ==> bus_access   [accen]
+    cpu_progbuf ==> bus_access   [cpu_progbuf]
+    dci.data_reg_we --> bus_access   [dci.data_reg_we]
+    dm_ctrl.busy --> dci.data_reg_we   [dm_ctrl.busy]
+    dm_ctrl.busy ==> dmi_read_access   [dm_ctrl.busy]
+    dm_ctrl.busy --> dmi_write_access   [dm_ctrl.busy]
+    dm_reg.hartsel_inv ==> dmi_read_access   [dm_reg.hartsel_inv]
+    dmi_rden --> authenticator_enabled   [dmi_rden]
+    dmi_rden ==> dmi_rden_auth   [dmi_rden]
+    dmi_rden ==> dmi_read_access   [dmi_rden]
+    dmi_rden_auth --> dmi_read_access   [dmi_rden_auth]
+    dmi_wren --> authenticator_enabled   [dmi_wren]
+    dmi_wren ==> dmi_wren_auth   [dmi_wren]
+    dmi_wren ==> dmi_read_access   [dmi_wren]
+    dmi_wren --> dmi_write_access   [dmi_wren]
+    dmi_wren_auth --> dci.data_reg_we   [dmi_wren_auth]
+    dmi_wren_auth --> dm_controller   [dmi_wren_auth]
+    dmi_wren_auth --> dmi_write_access   [dmi_wren_auth]
+    rden --> bus_access   [rden]
+    wren --> bus_access   [wren]
+    bus_access ==> bus_rsp_o
+    bus_access --> dm_controller   [dci.{ack_exc,ack_exe,ack_hlt}]
+    bus_access ==> dmi_read_access   [dci.data_reg]
+    bus_access --> hart_status   [dci.{ack_hlt,ack_res}]
+    dm_controller ==> cpu_progbuf   [dm_ctrl.{ldsw_progbuf,pbuf_en}]
+    dm_controller --> dm_ctrl.busy   [dm_ctrl.state]
+    dm_controller ==> bus_access   [dci.req_exe]
+    dm_controller ==> dmi_read_access   [dm_ctrl.cmderr]
+    dm_controller --> dmi_write_access   [dm_ctrl.cmderr]
+    dmi_read_access ==> dmi_rsp_o
+    dmi_read_access --> dm_controller   [dm_reg.{autoexec_rd,rd_acc_err}]
+    dmi_write_access --> hartsel_decode   [dm_reg.hartsel]
+    dmi_write_access ==> request_gen   [dm_reg.{dmcontrol_dmactive,halt_req}]
+    dmi_write_access ==> neorv32_debug_auth_inst   [dm_reg.dmcontrol_dmactive]
+    dmi_write_access ==> cpu_progbuf   [dm_reg.progbuf]
+    dmi_write_access --> dm_reg.hartsel_inv   [dm_reg.hartsel]
+    dmi_write_access --> ndmrstn_o   [dm_reg.{dmcontrol_dmactive,dmcontrol_ndmreset}]
+    dmi_write_access ==> dm_controller   [dm_reg.{autoexec_wr,clr_acc_err,command,dmcontrol_dmactive,wr_acc_err}]
+    dmi_write_access ==> dmi_read_access   [dm_reg.{abstractauto_autoexecdata,abstractauto_autoexecprogbuf,dmcontrol_dmactive,dmcontrol_ndmreset,hartsel}]
+    dmi_write_access --> hart_status   [dm_reg.{dmcontrol_ndmreset,req_res,reset_ack}]
+    hart_status ==> request_gen   [dm_ctrl.hart_resume_req]
+    hart_status --> dm_controller   [dm_ctrl.hart_halted]
+    hart_status ==> dmi_read_access   [dm_ctrl.{hart_halted,hart_reset,hart_resume_ack}]

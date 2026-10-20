@@ -1,0 +1,171 @@
+   18 | entity neorv32_fifo is
+   19 |   generic (
+   20 |     FIFO_DEPTH : natural := 4;
+   21 |     FIFO_WIDTH : natural := 32;
+   22 |     FIFO_RSYNC : boolean := false;
+   23 |     FIFO_SAFE  : boolean := false;
+   24 |     FULL_RESET : boolean := false
+   25 |   );
+   26 |   port (
+   28 |     clk_i   : in  std_ulogic;
+   29 |     rstn_i  : in  std_ulogic;
+   30 |     clear_i : in  std_ulogic;
+   31 |     half_o  : out std_ulogic;
+   32 |     level_o : out std_ulogic_vector(31 downto 0);
+   34 |     wdata_i : in  std_ulogic_vector(FIFO_WIDTH-1 downto 0);
+   35 |     we_i    : in  std_ulogic;
+   36 |     free_o  : out std_ulogic;
+   38 |     re_i    : in  std_ulogic;
+   39 |     rdata_o : out std_ulogic_vector(FIFO_WIDTH-1 downto 0);
+   40 |     avail_o : out std_ulogic
+   41 |   );
+   42 | end neorv32_fifo;
+
+   44 | architecture neorv32_fifo_rtl of neorv32_fifo is
+   47 |   constant fifo_depth_c : natural := cond_sel_natural_f(is_power_of_two_f(FIFO_DEPTH), FIFO_DEPTH, 2**index_size_f(FIFO_DEPTH));
+   50 |   type fifo_mem_t is array (0 to fifo_depth_c-1) of std_ulogic_vector(FIFO_WIDTH-1 downto 0);
+   51 |   signal fifo_mem : fifo_mem_t;
+   52 |   signal fifo_reg : std_ulogic_vector(FIFO_WIDTH-1 downto 0);
+   55 |   signal we, re, match, empty, full, half, free, avail : std_ulogic;
+   58 |   signal w_pnt, w_nxt, r_pnt, r_nxt, r_pnt_ff, level : std_ulogic_vector(index_size_f(fifo_depth_c) downto 0);
+   60 | begin
+   64 |   re <= re_i when (FIFO_SAFE = false) else (re_i and avail);
+   65 |   we <= we_i when (FIFO_SAFE = false) else (we_i and free);
+   70 |   pointer_reg: process(rstn_i, clk_i)
+   71 |   begin
+   72 |     if (rstn_i = '0') then
+   73 |       w_pnt <= (others => '0');
+   74 |       r_pnt <= (others => '0');
+   75 |     elsif rising_edge(clk_i) then
+   76 |       w_pnt <= w_nxt;
+   77 |       r_pnt <= r_nxt;
+   78 |     end if;
+   79 |   end process pointer_reg;
+   82 |   w_nxt <= (others => '0') when (clear_i = '1') else std_ulogic_vector(unsigned(w_pnt) + 1) when (we = '1') else w_pnt;
+   83 |   r_nxt <= (others => '0') when (clear_i = '1') else std_ulogic_vector(unsigned(r_pnt) + 1) when (re = '1') else r_pnt;
+   90 |   check_large:
+   91 |   if (fifo_depth_c > 1) generate
+   92 |     match <= '1' when (r_pnt(r_pnt'left-1 downto 0) = w_pnt(w_pnt'left-1 downto 0)) else '0';
+   93 |     full  <= '1' when (r_pnt(r_pnt'left) /= w_pnt(w_pnt'left)) and (match = '1') else '0';
+   94 |     empty <= '1' when (r_pnt(r_pnt'left)  = w_pnt(w_pnt'left)) and (match = '1') else '0';
+   95 |     level <= std_ulogic_vector(unsigned(w_pnt) - unsigned(r_pnt));
+   96 |     half  <= level(level'left-1) or full;
+   97 |   end generate;
+  100 |   check_small:
+  101 |   if (fifo_depth_c = 1) generate
+  102 |     match <= '1' when (r_pnt(0) = w_pnt(0)) else '0';
+  103 |     full  <= not match;
+  104 |     empty <= match;
+  105 |     level <= (others => full);
+  106 |     half  <= full;
+  107 |   end generate;
+  110 |   free  <= not full;
+  111 |   avail <= not empty;
+  114 |   level_extend: process(level)
+  115 |   begin
+  116 |     level_o <= (others => '0');
+  117 |     level_o(level'left downto 0) <= level(level'left downto 0);
+  118 |   end process level_extend;
+  123 |   memory_full_reset:
+  124 |   if FULL_RESET generate
+  127 |     fifo_write_reset_small:
+  128 |     if (fifo_depth_c = 1) generate
+  129 |       write_reset_small: process(rstn_i, clk_i)
+  130 |       begin
+  131 |         if (rstn_i = '0') then
+  132 |           fifo_reg <= (others => '0');
+  133 |         elsif rising_edge(clk_i) then
+  134 |           if (we = '1') then
+  135 |             fifo_reg <= wdata_i;
+  136 |           end if;
+  137 |         end if;
+  138 |       end process write_reset_small;
+  139 |     end generate;
+  142 |     fifo_write_reset_large:
+  143 |     if (fifo_depth_c > 1) generate
+  144 |       write_reset_large: process(rstn_i, clk_i)
+  145 |       begin
+  146 |         if (rstn_i = '0') then
+  147 |           fifo_mem <= (others => (others => '0'));
+  148 |         elsif rising_edge(clk_i) then
+  149 |           if (we = '1') then
+  150 |             fifo_mem(to_integer(unsigned(w_pnt(w_pnt'left-1 downto 0)))) <= wdata_i;
+  151 |           end if;
+  152 |         end if;
+  153 |       end process write_reset_large;
+  154 |     end generate;
+  156 |   end generate;
+  161 |   memory_no_reset:
+  162 |   if not FULL_RESET generate
+  165 |     fifo_write_noreset_small:
+  166 |     if (fifo_depth_c = 1) generate
+  167 |       write_small: process(clk_i)
+  168 |       begin
+  169 |         if rising_edge(clk_i) then
+  170 |           if (we = '1') then
+  171 |             fifo_reg <= wdata_i;
+  172 |           end if;
+  173 |         end if;
+  174 |       end process write_small;
+  175 |     end generate;
+  178 |     fifo_write_noreset_large:
+  179 |     if (fifo_depth_c > 1) generate
+  180 |       write_large: process(clk_i)
+  181 |       begin
+  182 |         if rising_edge(clk_i) then
+  183 |           if (we = '1') then
+  184 |             fifo_mem(to_integer(unsigned(w_pnt(w_pnt'left-1 downto 0)))) <= wdata_i;
+  185 |           end if;
+  186 |         end if;
+  187 |       end process write_large;
+  188 |     end generate;
+  190 |   end generate;
+  195 |   fifo_read_async:
+  196 |   if not FIFO_RSYNC generate
+  199 |     fifo_read_async_small:
+  200 |     if (fifo_depth_c = 1) generate
+  201 |       rdata_o <= fifo_reg;
+  202 |     end generate;
+  205 |     fifo_read_async_large:
+  206 |     if (fifo_depth_c > 1) generate
+  207 |       async_r_pnt_reg: process(clk_i)
+  208 |       begin
+  209 |         if rising_edge(clk_i) then
+  210 |           r_pnt_ff <= r_nxt;
+  211 |         end if;
+  212 |       end process async_r_pnt_reg;
+  213 |       rdata_o <= fifo_mem(to_integer(unsigned(r_pnt_ff(r_pnt_ff'left-1 downto 0))));
+  214 |     end generate;
+  217 |     free_o  <= free;
+  218 |     avail_o <= avail;
+  219 |     half_o  <= half;
+  221 |   end generate;
+  226 |   fifo_read_sync:
+  227 |   if FIFO_RSYNC generate
+  230 |     fifo_read_sync_small:
+  231 |     if (fifo_depth_c = 1) generate
+  232 |       rdata_o <= fifo_reg;
+  233 |     end generate;
+  236 |     fifo_read_sync_large:
+  237 |     if (fifo_depth_c > 1) generate
+  238 |       sync_read_large: process(clk_i)
+  239 |       begin
+  240 |         if rising_edge(clk_i) then
+  241 |           rdata_o <= fifo_mem(to_integer(unsigned(r_pnt(r_pnt'left-1 downto 0))));
+  242 |         end if;
+  243 |       end process sync_read_large;
+  244 |     end generate;
+  247 |     sync_status: process(rstn_i, clk_i)
+  248 |     begin
+  249 |       if (rstn_i = '0') then
+  250 |         free_o  <= '0';
+  251 |         avail_o <= '0';
+  252 |         half_o  <= '0';
+  253 |       elsif rising_edge(clk_i) then
+  254 |         free_o  <= free;
+  255 |         avail_o <= avail;
+  256 |         half_o  <= half;
+  257 |       end if;
+  258 |     end process sync_status;
+  260 |   end generate;
+  263 | end neorv32_fifo_rtl;

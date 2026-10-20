@@ -1,0 +1,86 @@
+   30 | entity neorv32_cpu_regfile is
+   31 |   generic (
+   32 |     RST_EN : boolean;
+   33 |     RVE_EN : boolean;
+   34 |     RS3_EN : boolean
+   35 |   );
+   36 |   port (
+   38 |     clk_i  : in  std_ulogic;
+   39 |     rstn_i : in  std_ulogic;
+   40 |     ctrl_i : in  ctrl_bus_t;
+   42 |     rd_i   : in  std_ulogic_vector(XLEN-1 downto 0);
+   43 |     rs1_o  : out std_ulogic_vector(XLEN-1 downto 0);
+   44 |     rs2_o  : out std_ulogic_vector(XLEN-1 downto 0);
+   45 |     rs3_o  : out std_ulogic_vector(XLEN-1 downto 0)
+   46 |   );
+   47 | end neorv32_cpu_regfile;
+
+   49 | architecture neorv32_cpu_regfile_rtl of neorv32_cpu_regfile is
+   52 |   constant addr_bits_c : natural := cond_sel_natural_f(RVE_EN, 4, 5);
+   55 |   type   reg_file_t is array ((2**addr_bits_c)-1 downto 0) of std_ulogic_vector(XLEN-1 downto 0);
+   56 |   signal reg_file : reg_file_t;
+   59 |   signal rf_we    : std_ulogic;
+   60 |   signal rd_zero  : std_ulogic;
+   61 |   signal opa_addr : std_ulogic_vector(4 downto 0);
+   62 |   signal rs3_addr : std_ulogic_vector(4 downto 0);
+   64 | begin
+   68 |   register_file_fpga:
+   69 |   if not RST_EN generate
+   76 |     rd_zero  <= '1' when (ctrl_i.rf_rd = "00000") else '0';
+   77 |     rf_we    <= (ctrl_i.rf_wb_en and (not rd_zero)) or ctrl_i.rf_zero_we;
+   78 |     opa_addr <= "00000" when (ctrl_i.rf_zero_we = '1') else
+   79 |                 ctrl_i.rf_rd when (ctrl_i.rf_wb_en = '1') else
+   80 |                 ctrl_i.rf_rs1;
+   82 |     register_file: process(clk_i)
+   83 |     begin
+   84 |       if rising_edge(clk_i) then
+   85 |         if (rf_we = '1') then
+   86 |           reg_file(to_integer(unsigned(opa_addr(addr_bits_c-1 downto 0)))) <= rd_i;
+   87 |         end if;
+   88 |         rs1_o <= reg_file(to_integer(unsigned(opa_addr(addr_bits_c-1 downto 0))));
+   89 |         rs2_o <= reg_file(to_integer(unsigned(ctrl_i.rf_rs2(addr_bits_c-1 downto 0))));
+   90 |       end if;
+   91 |     end process register_file;
+   93 |   end generate;
+   98 |   register_file_asic:
+   99 |   if RST_EN generate
+  102 |     reg_gen:
+  103 |     for i in 1 to (2**addr_bits_c)-1 generate
+  104 |       register_file: process(rstn_i, clk_i)
+  105 |       begin
+  106 |         if (rstn_i = '0') then
+  107 |           reg_file(i) <= (others => '0');
+  108 |         elsif rising_edge(clk_i) then
+  109 |           if (unsigned(ctrl_i.rf_rd(addr_bits_c-1 downto 0)) = to_unsigned(i, addr_bits_c)) and (ctrl_i.rf_wb_en = '1') then
+  110 |             reg_file(i) <= rd_i;
+  111 |           end if;
+  112 |         end if;
+  113 |       end process register_file;
+  114 |     end generate;
+  117 |     reg_file(0) <= (others => '0');
+  120 |     rf_read: process(rstn_i, clk_i)
+  121 |     begin
+  122 |       if (rstn_i = '0') then
+  123 |         rs1_o <= (others => '0');
+  124 |         rs2_o <= (others => '0');
+  125 |       elsif rising_edge(clk_i) then
+  126 |         rs1_o <= reg_file(to_integer(unsigned(ctrl_i.rf_rs1(addr_bits_c-1 downto 0))));
+  127 |         rs2_o <= reg_file(to_integer(unsigned(ctrl_i.rf_rs2(addr_bits_c-1 downto 0))));
+  128 |       end if;
+  129 |     end process rf_read;
+  131 |   end generate;
+  136 |   rs3_enabled:
+  137 |   if RS3_EN generate
+  138 |     rs3_read: process(clk_i)
+  139 |     begin
+  140 |       if rising_edge(clk_i) then
+  141 |         rs3_o <= reg_file(to_integer(unsigned(rs3_addr(addr_bits_c-1 downto 0))));
+  142 |       end if;
+  143 |     end process rs3_read;
+  144 |     rs3_addr <= ctrl_i.ir_funct12(11 downto 7);
+  145 |   end generate;
+  147 |   rs3_disabled:
+  148 |   if not RS3_EN generate
+  149 |     rs3_o <= (others => '0');
+  150 |   end generate;
+  153 | end neorv32_cpu_regfile_rtl;

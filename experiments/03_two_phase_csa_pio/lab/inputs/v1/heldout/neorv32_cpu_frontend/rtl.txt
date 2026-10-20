@@ -1,0 +1,187 @@
+   22 | entity neorv32_cpu_frontend is
+   23 |   generic (
+   24 |     RVC_EN : boolean
+   25 |   );
+   26 |   port (
+   28 |     clk_i      : in  std_ulogic;
+   29 |     rstn_i     : in  std_ulogic;
+   30 |     ctrl_i     : in  ctrl_bus_t;
+   32 |     ibus_req_o : out bus_req_t;
+   33 |     ibus_rsp_i : in  bus_rsp_t;
+   35 |     frontend_o : out if_bus_t
+   36 |   );
+   37 | end neorv32_cpu_frontend;
+
+   39 | architecture neorv32_cpu_frontend_rtl of neorv32_cpu_frontend is
+   42 |   type fetch_state_t is (S_RESTART, S_REQUEST, S_PENDING);
+   43 |   type fetch_t is record
+   44 |     state   : fetch_state_t;
+   45 |     restart : std_ulogic;
+   46 |     pc      : std_ulogic_vector(XLEN-1 downto 0);
+   47 |     priv    : std_ulogic;
+   48 |   end record;
+   49 |   signal fetch : fetch_t;
+   52 |   type ipb_data_t is array (0 to 1) of std_ulogic_vector(16 downto 0);
+   53 |   type ipb_t is record
+   54 |     wdata, rdata : ipb_data_t;
+   55 |     we,    re    : std_ulogic_vector(1 downto 0);
+   56 |     free,  avail : std_ulogic_vector(1 downto 0);
+   57 |   end record;
+   58 |   signal ipb : ipb_t;
+   61 |   type issue_t is record
+   62 |     algn  : std_ulogic;
+   63 |     aset  : std_ulogic;
+   64 |     aclr  : std_ulogic;
+   65 |     ack   : std_ulogic_vector(1 downto 0);
+   66 |     cmd16 : std_ulogic_vector(15 downto 0);
+   67 |     cmd32 : std_ulogic_vector(31 downto 0);
+   68 |   end record;
+   69 |   signal issue : issue_t;
+   71 | begin
+   79 |   fetch_fsm: process(rstn_i, clk_i)
+   80 |   begin
+   81 |     if (rstn_i = '0') then
+   82 |       fetch.state   <= S_RESTART;
+   83 |       fetch.restart <= '1';
+   84 |       fetch.pc      <= (others => '0');
+   85 |       fetch.priv    <= priv_mode_m_c;
+   86 |     elsif rising_edge(clk_i) then
+   87 |       case fetch.state is
+   89 |         when S_REQUEST =>
+   91 |           fetch.restart <= fetch.restart or ctrl_i.if_reset;
+   92 |           if (ipb.free = "11") then
+   93 |             fetch.state <= S_PENDING;
+   94 |           elsif (fetch.restart = '1') or (ctrl_i.if_reset = '1') then
+   95 |             fetch.state <= S_RESTART;
+   96 |           end if;
+   98 |         when S_PENDING =>
+  100 |           fetch.restart <= fetch.restart or ctrl_i.if_reset;
+  101 |           if (ibus_rsp_i.ack = '1') then
+  102 |             fetch.pc    <= std_ulogic_vector(unsigned(fetch.pc) + 4);
+  103 |             fetch.pc(1) <= '0';
+  104 |             if (fetch.restart = '1') or (ctrl_i.if_reset = '1') then
+  105 |               fetch.state <= S_RESTART;
+  106 |             else
+  107 |               fetch.state <= S_REQUEST;
+  108 |             end if;
+  109 |           end if;
+  111 |         when others =>
+  113 |           fetch.restart <= '0';
+  114 |           fetch.pc      <= ctrl_i.pc_nxt;
+  115 |           fetch.priv    <= ctrl_i.cpu_priv;
+  116 |           fetch.state   <= S_REQUEST;
+  118 |       end case;
+  119 |     end if;
+  120 |   end process fetch_fsm;
+  123 |   ibus_req_o.addr  <= fetch.pc(XLEN-1 downto 2) & "00";
+  124 |   ibus_req_o.stb   <= '1' when (fetch.state = S_REQUEST) and (ipb.free = "11") else '0';
+  125 |   ibus_req_o.data  <= (others => '0');
+  126 |   ibus_req_o.ben   <= (others => '0');
+  127 |   ibus_req_o.rw    <= '0';
+  128 |   ibus_req_o.src   <= '1';
+  129 |   ibus_req_o.priv  <= fetch.priv;
+  130 |   ibus_req_o.debug <= ctrl_i.cpu_debug;
+  131 |   ibus_req_o.amo   <= '0';
+  132 |   ibus_req_o.amoop <= (others => '0');
+  133 |   ibus_req_o.lock  <= '0';
+  134 |   ibus_req_o.fence <= ctrl_i.if_fence;
+  137 |   ipb.wdata(0) <= ibus_rsp_i.err & ibus_rsp_i.data(15 downto 0);
+  138 |   ipb.wdata(1) <= ibus_rsp_i.err & ibus_rsp_i.data(31 downto 16);
+  141 |   ipb.we(0) <= '1' when (fetch.state = S_PENDING) and (ibus_rsp_i.ack = '1') and ((fetch.pc(1) = '0') or (not RVC_EN)) else '0';
+  142 |   ipb.we(1) <= '1' when (fetch.state = S_PENDING) and (ibus_rsp_i.ack = '1') else '0';
+  145 |   frontend_o.halted <= '1' when (fetch.state = S_REQUEST) and (ipb.free /= "11") else '0';
+  150 |   prefetch_buffer:
+  151 |   for i in 0 to 1 generate
+  152 |     prefetch_buffer_inst: entity neorv32.neorv32_fifo
+  153 |     generic map (
+  154 |       FIFO_DEPTH => 2,
+  155 |       FIFO_WIDTH => 17,
+  156 |       FIFO_RSYNC => false,
+  157 |       FIFO_SAFE  => false,
+  158 |       FULL_RESET => false
+  159 |     )
+  160 |     port map (
+  162 |       clk_i   => clk_i,
+  163 |       rstn_i  => rstn_i,
+  164 |       clear_i => fetch.restart,
+  165 |       half_o  => open,
+  166 |       level_o => open,
+  168 |       wdata_i => ipb.wdata(i),
+  169 |       we_i    => ipb.we(i),
+  170 |       free_o  => ipb.free(i),
+  172 |       re_i    => ipb.re(i),
+  173 |       rdata_o => ipb.rdata(i),
+  174 |       avail_o => ipb.avail(i)
+  175 |     );
+  176 |   end generate;
+  183 |   issue_enabled:
+  184 |   if RVC_EN generate
+  188 |     neorv32_cpu_decompressor_inst: entity neorv32.neorv32_cpu_decompressor
+  189 |     port map (
+  190 |       instr_i => issue.cmd16,
+  191 |       instr_o => issue.cmd32
+  192 |     );
+  195 |     issue.cmd16 <= ipb.rdata(0)(15 downto 0) when (issue.algn = '0') else ipb.rdata(1)(15 downto 0);
+  200 |     issue_fsm_sync: process(rstn_i, clk_i)
+  201 |     begin
+  202 |       if (rstn_i = '0') then
+  203 |         issue.algn <= '0';
+  204 |       elsif rising_edge(clk_i) then
+  205 |         if (fetch.restart = '1') then
+  206 |           issue.algn <= ctrl_i.pc_nxt(1);
+  207 |         elsif (ctrl_i.if_ack = '1') then
+  208 |           issue.algn <= (issue.algn and (not issue.aclr)) or issue.aset;
+  209 |         end if;
+  210 |       end if;
+  211 |     end process issue_fsm_sync;
+  213 |     issue_fsm_comb: process(issue, ipb)
+  214 |     begin
+  216 |       issue.aset <= '0';
+  217 |       issue.aclr <= '0';
+  219 |       if (issue.algn = '0') then
+  220 |         frontend_o.fault <= ipb.rdata(0)(16);
+  221 |         if (ipb.rdata(0)(1 downto 0) /= "11") then
+  222 |           issue.aset       <= ipb.avail(0);
+  223 |           issue.ack        <= "01";
+  224 |           frontend_o.valid <= ipb.avail(0);
+  225 |           frontend_o.instr <= issue.cmd32;
+  226 |           frontend_o.compr <= '1';
+  227 |         else
+  228 |           issue.ack        <= "11";
+  229 |           frontend_o.valid <= ipb.avail(1) and ipb.avail(0);
+  230 |           frontend_o.instr <= ipb.rdata(1)(15 downto 0) & ipb.rdata(0)(15 downto 0);
+  231 |           frontend_o.compr <= '0';
+  232 |         end if;
+  234 |       else
+  235 |         frontend_o.fault <= ipb.rdata(1)(16);
+  236 |         if (ipb.rdata(1)(1 downto 0) /= "11") then
+  237 |           issue.aclr       <= ipb.avail(1);
+  238 |           issue.ack        <= "10";
+  239 |           frontend_o.valid <= ipb.avail(1);
+  240 |           frontend_o.instr <= issue.cmd32;
+  241 |           frontend_o.compr <= '1';
+  242 |         else
+  243 |           issue.ack        <= "11";
+  244 |           frontend_o.valid <= ipb.avail(0) and ipb.avail(1);
+  245 |           frontend_o.instr <= ipb.rdata(0)(15 downto 0) & ipb.rdata(1)(15 downto 0);
+  246 |           frontend_o.compr <= '0';
+  247 |         end if;
+  248 |       end if;
+  249 |     end process issue_fsm_comb;
+  252 |     ipb.re(0) <= issue.ack(0) and ctrl_i.if_ack;
+  253 |     ipb.re(1) <= issue.ack(1) and ctrl_i.if_ack;
+  255 |   end generate;
+  259 |   issue_disabled:
+  260 |   if not RVC_EN generate
+  261 |     issue.algn       <= '0';
+  262 |     issue.aset       <= '0';
+  263 |     issue.aclr       <= '0';
+  264 |     issue.cmd16      <= (others => '0');
+  265 |     issue.cmd32      <= (others => '0');
+  266 |     ipb.re           <= (others => ctrl_i.if_ack);
+  267 |     frontend_o.valid <= ipb.avail(0);
+  268 |     frontend_o.instr <= ipb.rdata(1)(15 downto 0) & ipb.rdata(0)(15 downto 0);
+  269 |     frontend_o.compr <= '0';
+  270 |     frontend_o.fault <= ipb.rdata(0)(16);
+  271 |   end generate;
+  274 | end neorv32_cpu_frontend_rtl;

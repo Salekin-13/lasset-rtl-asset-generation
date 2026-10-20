@@ -1,0 +1,218 @@
+UNIT neorv32_bus_switch
+  INPUTS: a_req_i, b_req_i, clk_i, rstn_i, x_rsp_i
+  OUTPUTS: a_rsp_o, b_rsp_o, x_req_o
+  BLOCKS
+    [process] arbiter_fsm: locked_nxt, sel, state_nxt, stb
+    [process] arbiter_sync: a_req, b_req, locked, sel_q, state; clocked by clk_i; reset by rstn_i
+  ARROWS (==> a value moves; --> only decides; [the elements the arrow carries])
+    a_req_i ==> x_req_o   [a_req_i.{addr,amo,amoop,ben,data,debug,fence,lock,priv,rw,src}]
+    a_req_i ==> arbiter_fsm   [a_req_i.{lock,stb}]
+    a_req_i ==> arbiter_sync   [a_req_i.stb]
+    b_req_i ==> x_req_o   [b_req_i.{addr,amo,amoop,ben,data,debug,fence,lock,priv,rw,src}]
+    b_req_i ==> arbiter_fsm   [b_req_i.{lock,stb}]
+    b_req_i ==> arbiter_sync   [b_req_i.stb]
+    x_rsp_i ==> a_rsp_o   [x_rsp_i.{ack,data,err}]
+    x_rsp_i ==> b_rsp_o   [x_rsp_i.{ack,data,err}]
+    x_rsp_i --> arbiter_fsm   [x_rsp_i.ack]
+    arbiter_fsm --> a_rsp_o   [sel]
+    arbiter_fsm --> b_rsp_o   [sel]
+    arbiter_fsm ==> x_req_o   [sel, stb]
+    arbiter_fsm ==> arbiter_sync   [locked_nxt, sel, state_nxt]
+    arbiter_sync ==> arbiter_fsm   [a_req, b_req, locked, sel_q, state]
+
+UNIT neorv32_bus_gateway
+  INPUTS: a_rsp_i, b_rsp_i, c_rsp_i, clk_i, req_i, rstn_i, x_rsp_i
+  OUTPUTS: a_req_o, b_req_o, c_req_o, rsp_o, x_req_o
+  BLOCKS
+    [logic] port_rsp: port_rsp
+    [logic] port_sel: port_sel
+    [process] bus_monitor: keeper.busy, keeper.cnt, keeper.err, keeper.halt, keeper.lock; clocked by clk_i; reset by rstn_i
+    [process] request: port_req
+    [process] response: int_rsp, int_rsp.ack, int_rsp.data, int_rsp.err
+  ARROWS (==> a value moves; --> only decides; [the elements the arrow carries])
+    a_rsp_i ==> port_rsp   [a_rsp_i]
+    b_rsp_i ==> port_rsp   [b_rsp_i]
+    c_rsp_i ==> port_rsp   [c_rsp_i]
+    req_i --> port_sel   [req_i.addr]
+    req_i ==> bus_monitor   [req_i.{lock,stb}]
+    req_i ==> request   [req_i.stb]
+    x_rsp_i ==> port_rsp   [x_rsp_i]
+    port_rsp ==> response   [port_rsp]
+    port_sel ==> bus_monitor   [port_sel]
+    port_sel ==> request   [port_sel]
+    bus_monitor ==> rsp_o   [keeper.err]
+    request ==> a_req_o   [port_req]
+    request ==> b_req_o   [port_req]
+    request ==> c_req_o   [port_req]
+    request ==> x_req_o   [port_req]
+    response ==> rsp_o   [int_rsp.{ack,data,err}]
+    response --> bus_monitor   [int_rsp.ack]
+
+UNIT neorv32_bus_io_switch
+  INPUTS: clk_i, dev_00_rsp_i, dev_01_rsp_i, dev_02_rsp_i, dev_03_rsp_i, dev_04_rsp_i, dev_05_rsp_i, dev_06_rsp_i, dev_07_rsp_i, dev_08_rsp_i, dev_09_rsp_i, dev_10_rsp_i, dev_11_rsp_i, dev_12_rsp_i, dev_13_rsp_i, dev_14_rsp_i, dev_15_rsp_i, dev_16_rsp_i, dev_17_rsp_i, dev_18_rsp_i, dev_19_rsp_i, dev_20_rsp_i, dev_21_rsp_i, dev_22_rsp_i, dev_23_rsp_i, dev_24_rsp_i, dev_25_rsp_i, dev_26_rsp_i, dev_27_rsp_i, dev_28_rsp_i, dev_29_rsp_i, dev_30_rsp_i, dev_31_rsp_i, main_req_i, rstn_i
+  OUTPUTS: dev_00_req_o, dev_01_req_o, dev_02_req_o, dev_03_req_o, dev_04_req_o, dev_05_req_o, dev_06_req_o, dev_07_req_o, dev_08_req_o, dev_09_req_o, dev_10_req_o, dev_11_req_o, dev_12_req_o, dev_13_req_o, dev_14_req_o, dev_15_req_o, dev_16_req_o, dev_17_req_o, dev_18_req_o, dev_19_req_o, dev_20_req_o, dev_21_req_o, dev_22_req_o, dev_23_req_o, dev_24_req_o, dev_25_req_o, dev_26_req_o, dev_27_req_o, dev_28_req_o, dev_29_req_o, dev_30_req_o, dev_31_req_o, main_rsp_o
+  BLOCKS
+    [generate] bus_request_port_disabled: dev_req
+    [inst] neorv32_bus_reg_inst (neorv32_bus_reg, this file): device_req_o, device_req_o.addr, device_req_o.amo, device_req_o.amoop, device_req_o.ben, device_req_o.data, device_req_o.debug, device_req_o.fence, device_req_o.lock, device_req_o.priv, device_req_o.rw, device_req_o.src, device_req_o.stb, host_rsp_o, host_rsp_o.ack, host_rsp_o.data, host_rsp_o.err, main_req, main_req.addr, main_req.amo, main_req.amoop, main_req.ben, main_req.data, main_req.debug, main_req.fence, main_req.lock, main_req.priv, main_req.rw, main_req.src, main_req.stb; clocked by clk_i; reset by rstn_i
+    [logic] dev_rsp: dev_rsp
+    [process] bus_request: dev_req
+    [process] bus_response: main_rsp, main_rsp.ack, main_rsp.data, main_rsp.err
+  ARROWS (==> a value moves; --> only decides; [the elements the arrow carries])
+    bus_request_port_disabled ==> dev_00_req_o   [dev_req]
+    bus_request_port_disabled ==> dev_01_req_o   [dev_req]
+    bus_request_port_disabled ==> dev_02_req_o   [dev_req]
+    bus_request_port_disabled ==> dev_03_req_o   [dev_req]
+    bus_request_port_disabled ==> dev_04_req_o   [dev_req]
+    bus_request_port_disabled ==> dev_05_req_o   [dev_req]
+    bus_request_port_disabled ==> dev_06_req_o   [dev_req]
+    bus_request_port_disabled ==> dev_07_req_o   [dev_req]
+    bus_request_port_disabled ==> dev_08_req_o   [dev_req]
+    bus_request_port_disabled ==> dev_09_req_o   [dev_req]
+    bus_request_port_disabled ==> dev_10_req_o   [dev_req]
+    bus_request_port_disabled ==> dev_11_req_o   [dev_req]
+    bus_request_port_disabled ==> dev_12_req_o   [dev_req]
+    bus_request_port_disabled ==> dev_13_req_o   [dev_req]
+    bus_request_port_disabled ==> dev_14_req_o   [dev_req]
+    bus_request_port_disabled ==> dev_15_req_o   [dev_req]
+    bus_request_port_disabled ==> dev_16_req_o   [dev_req]
+    bus_request_port_disabled ==> dev_17_req_o   [dev_req]
+    bus_request_port_disabled ==> dev_18_req_o   [dev_req]
+    bus_request_port_disabled ==> dev_19_req_o   [dev_req]
+    bus_request_port_disabled ==> dev_20_req_o   [dev_req]
+    bus_request_port_disabled ==> dev_21_req_o   [dev_req]
+    bus_request_port_disabled ==> dev_22_req_o   [dev_req]
+    bus_request_port_disabled ==> dev_23_req_o   [dev_req]
+    bus_request_port_disabled ==> dev_24_req_o   [dev_req]
+    bus_request_port_disabled ==> dev_25_req_o   [dev_req]
+    bus_request_port_disabled ==> dev_26_req_o   [dev_req]
+    bus_request_port_disabled ==> dev_27_req_o   [dev_req]
+    bus_request_port_disabled ==> dev_28_req_o   [dev_req]
+    bus_request_port_disabled ==> dev_29_req_o   [dev_req]
+    bus_request_port_disabled ==> dev_30_req_o   [dev_req]
+    bus_request_port_disabled ==> dev_31_req_o   [dev_req]
+    clk_i ==> neorv32_bus_reg_inst   [clk_i]
+    dev_00_rsp_i ==> dev_rsp   [dev_00_rsp_i]
+    dev_01_rsp_i ==> dev_rsp   [dev_01_rsp_i]
+    dev_02_rsp_i ==> dev_rsp   [dev_02_rsp_i]
+    dev_03_rsp_i ==> dev_rsp   [dev_03_rsp_i]
+    dev_04_rsp_i ==> dev_rsp   [dev_04_rsp_i]
+    dev_05_rsp_i ==> dev_rsp   [dev_05_rsp_i]
+    dev_06_rsp_i ==> dev_rsp   [dev_06_rsp_i]
+    dev_07_rsp_i ==> dev_rsp   [dev_07_rsp_i]
+    dev_08_rsp_i ==> dev_rsp   [dev_08_rsp_i]
+    dev_09_rsp_i ==> dev_rsp   [dev_09_rsp_i]
+    dev_10_rsp_i ==> dev_rsp   [dev_10_rsp_i]
+    dev_11_rsp_i ==> dev_rsp   [dev_11_rsp_i]
+    dev_12_rsp_i ==> dev_rsp   [dev_12_rsp_i]
+    dev_13_rsp_i ==> dev_rsp   [dev_13_rsp_i]
+    dev_14_rsp_i ==> dev_rsp   [dev_14_rsp_i]
+    dev_15_rsp_i ==> dev_rsp   [dev_15_rsp_i]
+    dev_16_rsp_i ==> dev_rsp   [dev_16_rsp_i]
+    dev_17_rsp_i ==> dev_rsp   [dev_17_rsp_i]
+    dev_18_rsp_i ==> dev_rsp   [dev_18_rsp_i]
+    dev_19_rsp_i ==> dev_rsp   [dev_19_rsp_i]
+    dev_20_rsp_i ==> dev_rsp   [dev_20_rsp_i]
+    dev_21_rsp_i ==> dev_rsp   [dev_21_rsp_i]
+    dev_22_rsp_i ==> dev_rsp   [dev_22_rsp_i]
+    dev_23_rsp_i ==> dev_rsp   [dev_23_rsp_i]
+    dev_24_rsp_i ==> dev_rsp   [dev_24_rsp_i]
+    dev_25_rsp_i ==> dev_rsp   [dev_25_rsp_i]
+    dev_26_rsp_i ==> dev_rsp   [dev_26_rsp_i]
+    dev_27_rsp_i ==> dev_rsp   [dev_27_rsp_i]
+    dev_28_rsp_i ==> dev_rsp   [dev_28_rsp_i]
+    dev_29_rsp_i ==> dev_rsp   [dev_29_rsp_i]
+    dev_30_rsp_i ==> dev_rsp   [dev_30_rsp_i]
+    dev_31_rsp_i ==> dev_rsp   [dev_31_rsp_i]
+    main_req_i ==> neorv32_bus_reg_inst   [main_req_i.{addr,amo,amoop,ben,data,debug,fence,lock,priv,rw,src,stb}]
+    rstn_i ==> neorv32_bus_reg_inst   [rstn_i]
+    neorv32_bus_reg_inst ==> main_rsp_o   [host_rsp_o.{ack,data,err}]
+    neorv32_bus_reg_inst ==> bus_request   [main_req.{addr,stb}]
+    dev_rsp ==> bus_response   [dev_rsp]
+    bus_request ==> dev_00_req_o   [dev_req]
+    bus_request ==> dev_01_req_o   [dev_req]
+    bus_request ==> dev_02_req_o   [dev_req]
+    bus_request ==> dev_03_req_o   [dev_req]
+    bus_request ==> dev_04_req_o   [dev_req]
+    bus_request ==> dev_05_req_o   [dev_req]
+    bus_request ==> dev_06_req_o   [dev_req]
+    bus_request ==> dev_07_req_o   [dev_req]
+    bus_request ==> dev_08_req_o   [dev_req]
+    bus_request ==> dev_09_req_o   [dev_req]
+    bus_request ==> dev_10_req_o   [dev_req]
+    bus_request ==> dev_11_req_o   [dev_req]
+    bus_request ==> dev_12_req_o   [dev_req]
+    bus_request ==> dev_13_req_o   [dev_req]
+    bus_request ==> dev_14_req_o   [dev_req]
+    bus_request ==> dev_15_req_o   [dev_req]
+    bus_request ==> dev_16_req_o   [dev_req]
+    bus_request ==> dev_17_req_o   [dev_req]
+    bus_request ==> dev_18_req_o   [dev_req]
+    bus_request ==> dev_19_req_o   [dev_req]
+    bus_request ==> dev_20_req_o   [dev_req]
+    bus_request ==> dev_21_req_o   [dev_req]
+    bus_request ==> dev_22_req_o   [dev_req]
+    bus_request ==> dev_23_req_o   [dev_req]
+    bus_request ==> dev_24_req_o   [dev_req]
+    bus_request ==> dev_25_req_o   [dev_req]
+    bus_request ==> dev_26_req_o   [dev_req]
+    bus_request ==> dev_27_req_o   [dev_req]
+    bus_request ==> dev_28_req_o   [dev_req]
+    bus_request ==> dev_29_req_o   [dev_req]
+    bus_request ==> dev_30_req_o   [dev_req]
+    bus_request ==> dev_31_req_o   [dev_req]
+    bus_response ==> neorv32_bus_reg_inst   [main_rsp.{ack,data,err}]
+
+UNIT neorv32_bus_amo_rmw
+  INPUTS: clk_i, core_req_i, rstn_i, sys_rsp_i
+  OUTPUTS: core_rsp_o, sys_req_o
+  BLOCKS
+    [logic] cmp_less: cmp_less
+    [logic] cmp_opa: cmp_opa
+    [logic] cmp_opb: cmp_opb
+    [logic] cmp_res: cmp_res
+    [process] amo_alu: alu_res; clocked by clk_i; reset by rstn_i
+    [process] arbiter_comb: arbiter_nxt, arbiter_nxt.cmd, arbiter_nxt.rdata, arbiter_nxt.state, arbiter_nxt.wdata
+    [process] arbiter_sync: arbiter, arbiter.cmd, arbiter.rdata, arbiter.state, arbiter.wdata; clocked by clk_i; reset by rstn_i
+  ARROWS (==> a value moves; --> only decides; [the elements the arrow carries])
+    core_req_i ==> sys_req_o   [core_req_i.{addr,amo,amoop,ben,data,debug,fence,lock,priv,rw,src,stb}]
+    core_req_i ==> arbiter_comb   [core_req_i.{amo,amoop,data,stb}]
+    sys_rsp_i ==> core_rsp_o   [sys_rsp_i.{ack,data,err}]
+    sys_rsp_i ==> arbiter_comb   [sys_rsp_i.{ack,data}]
+    cmp_less --> cmp_res   [cmp_less]
+    cmp_opa --> cmp_less   [cmp_opa]
+    cmp_opa ==> cmp_res   [cmp_opa]
+    cmp_opb --> cmp_less   [cmp_opb]
+    cmp_opb ==> cmp_res   [cmp_opb]
+    cmp_res ==> amo_alu   [cmp_res]
+    amo_alu ==> sys_req_o   [alu_res]
+    arbiter_comb ==> arbiter_sync   [arbiter_nxt.{cmd,rdata,state,wdata}]
+    arbiter_sync ==> cmp_opa   [arbiter.{cmd,rdata}]
+    arbiter_sync ==> cmp_opb   [arbiter.{cmd,wdata}]
+    arbiter_sync --> cmp_res   [arbiter.cmd]
+    arbiter_sync ==> core_rsp_o   [arbiter.{rdata,state}]
+    arbiter_sync --> sys_req_o   [arbiter.state]
+    arbiter_sync ==> amo_alu   [arbiter.{cmd,rdata,wdata}]
+    arbiter_sync ==> arbiter_comb   [arbiter.{cmd,rdata,state,wdata}]
+
+UNIT neorv32_bus_amo_rvs
+  INPUTS: clk_i, core_req_i, rstn_i, sys_rsp_i
+  OUTPUTS: core_rsp_o, sys_req_o
+  BLOCKS
+    [logic] rvso: rvso
+    [process] bus_request: -
+    [process] rvs_control: state; clocked by clk_i; reset by rstn_i
+    [process] sc_result: sc_fail; clocked by clk_i; reset by rstn_i
+  ARROWS (==> a value moves; --> only decides; [the elements the arrow carries])
+    core_req_i --> rvso   [core_req_i.{amo,amoop}]
+    core_req_i ==> bus_request   [core_req_i.{addr,amo,amoop,ben,data,debug,fence,lock,priv,rw,src,stb}]
+    core_req_i --> rvs_control   [core_req_i.{rw,stb}]
+    core_req_i ==> sc_result   [core_req_i.{rw,stb}]
+    sys_rsp_i ==> core_rsp_o   [sys_rsp_i.{ack,data,err}]
+    sys_rsp_i --> rvs_control   [sys_rsp_i.ack]
+    rvso --> bus_request   [rvso]
+    rvso --> rvs_control   [rvso]
+    rvso ==> sc_result   [rvso]
+    bus_request ==> sys_req_o
+    rvs_control ==> bus_request   [state]
+    rvs_control ==> sc_result   [state]
+    sc_result ==> core_rsp_o   [sc_fail]

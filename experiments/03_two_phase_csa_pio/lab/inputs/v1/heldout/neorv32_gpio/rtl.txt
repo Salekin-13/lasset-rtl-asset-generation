@@ -1,0 +1,106 @@
+   17 | entity neorv32_gpio is
+   18 |   generic (
+   19 |     GPIO_NUM : natural range 0 to 32
+   20 |   );
+   21 |   port (
+   22 |     clk_i     : in  std_ulogic;
+   23 |     rstn_i    : in  std_ulogic;
+   24 |     bus_req_i : in  bus_req_t;
+   25 |     bus_rsp_o : out bus_rsp_t;
+   26 |     gpio_o    : out std_ulogic_vector(31 downto 0);
+   27 |     gpio_i    : in  std_ulogic_vector(31 downto 0);
+   28 |     cpu_irq_o : out std_ulogic
+   29 |   );
+   30 | end neorv32_gpio;
+
+   32 | architecture neorv32_gpio_rtl of neorv32_gpio is
+   35 |   constant addr_in_c  : std_ulogic_vector(2 downto 0) := "000";
+   36 |   constant addr_out_c : std_ulogic_vector(2 downto 0) := "001";
+   38 |   constant addr_tt_c  : std_ulogic_vector(2 downto 0) := "100";
+   39 |   constant addr_tp_c  : std_ulogic_vector(2 downto 0) := "101";
+   40 |   constant addr_ie_c  : std_ulogic_vector(2 downto 0) := "110";
+   41 |   constant addr_ip_c  : std_ulogic_vector(2 downto 0) := "111";
+   44 |   signal port_in, port_out : std_ulogic_vector(GPIO_NUM-1 downto 0);
+   45 |   signal irq_typ, irq_pol  : std_ulogic_vector(GPIO_NUM-1 downto 0);
+   46 |   signal irq_en, irq_clrn  : std_ulogic_vector(GPIO_NUM-1 downto 0);
+   49 |   signal port_in2, irq_trig, irq_pend : std_ulogic_vector(GPIO_NUM-1 downto 0);
+   51 | begin
+   55 |   bus_access: process(rstn_i, clk_i)
+   56 |   begin
+   57 |     if (rstn_i = '0') then
+   58 |       bus_rsp_o <= rsp_terminate_c;
+   59 |       port_out  <= (others => '0');
+   60 |       irq_typ   <= (others => '0');
+   61 |       irq_pol   <= (others => '0');
+   62 |       irq_en    <= (others => '0');
+   63 |       irq_clrn  <= (others => '0');
+   64 |     elsif rising_edge(clk_i) then
+   66 |       bus_rsp_o.ack  <= bus_req_i.stb;
+   67 |       bus_rsp_o.err  <= '0';
+   68 |       bus_rsp_o.data <= (others => '0');
+   69 |       irq_clrn       <= (others => '1');
+   71 |       if (bus_req_i.stb = '1') then
+   72 |         if (bus_req_i.rw = '1') then
+   73 |           case bus_req_i.addr(4 downto 2) is
+   74 |             when addr_out_c => port_out <= bus_req_i.data(GPIO_NUM-1 downto 0);
+   75 |             when addr_tt_c  => irq_typ  <= bus_req_i.data(GPIO_NUM-1 downto 0);
+   76 |             when addr_tp_c  => irq_pol  <= bus_req_i.data(GPIO_NUM-1 downto 0);
+   77 |             when addr_ie_c  => irq_en   <= bus_req_i.data(GPIO_NUM-1 downto 0);
+   78 |             when addr_ip_c  => irq_clrn <= bus_req_i.data(GPIO_NUM-1 downto 0);
+   79 |             when others     => NULL;
+   80 |           end case;
+   81 |         else
+   82 |           case bus_req_i.addr(4 downto 2) is
+   83 |             when addr_in_c  => bus_rsp_o.data(GPIO_NUM-1 downto 0) <= port_in;
+   84 |             when addr_out_c => bus_rsp_o.data(GPIO_NUM-1 downto 0) <= port_out;
+   85 |             when addr_tt_c  => bus_rsp_o.data(GPIO_NUM-1 downto 0) <= irq_typ;
+   86 |             when addr_tp_c  => bus_rsp_o.data(GPIO_NUM-1 downto 0) <= irq_pol;
+   87 |             when addr_ie_c  => bus_rsp_o.data(GPIO_NUM-1 downto 0) <= irq_en;
+   88 |             when addr_ip_c  => bus_rsp_o.data(GPIO_NUM-1 downto 0) <= irq_pend;
+   89 |             when others     => NULL;
+   90 |           end case;
+   91 |         end if;
+   92 |       end if;
+   93 |     end if;
+   94 |   end process bus_access;
+   97 |   input_stage: process(rstn_i, clk_i)
+   98 |   begin
+   99 |     if (rstn_i = '0') then
+  100 |       port_in  <= (others => '0');
+  101 |       port_in2 <= (others => '0');
+  102 |     elsif rising_edge(clk_i) then
+  103 |       port_in  <= gpio_i(GPIO_NUM-1 downto 0);
+  104 |       port_in2 <= port_in;
+  105 |     end if;
+  106 |   end process input_stage;
+  109 |   output_stage: process(port_out)
+  110 |   begin
+  111 |     gpio_o <= (others => '0');
+  112 |     gpio_o(GPIO_NUM-1 downto 0) <= port_out;
+  113 |   end process output_stage;
+  118 |   irq_trigger_gen:
+  119 |   for i in 0 to GPIO_NUM-1 generate
+  120 |     irq_trigger: process(port_in, port_in2, irq_typ, irq_pol)
+  121 |       variable sel_v : std_ulogic_vector(1 downto 0);
+  122 |     begin
+  123 |       sel_v := irq_typ(i) & irq_pol(i);
+  124 |       case sel_v is
+  125 |         when "00"   => irq_trig(i) <= not port_in(i);
+  126 |         when "01"   => irq_trig(i) <= port_in(i);
+  127 |         when "10"   => irq_trig(i) <= (not port_in(i)) and port_in2(i);
+  128 |         when "11"   => irq_trig(i) <= port_in(i) and (not port_in2(i));
+  129 |         when others => irq_trig(i) <= '0';
+  130 |       end case;
+  131 |     end process irq_trigger;
+  132 |   end generate;
+  135 |   irq_buffer: process(rstn_i, clk_i)
+  136 |   begin
+  137 |     if (rstn_i = '0') then
+  138 |       irq_pend  <= (others => '0');
+  139 |       cpu_irq_o <= '0';
+  140 |     elsif rising_edge(clk_i) then
+  141 |       irq_pend  <= irq_en and ((irq_pend and irq_clrn) or irq_trig);
+  142 |       cpu_irq_o <= or_reduce_f(irq_pend);
+  143 |     end if;
+  144 |   end process irq_buffer;
+  147 | end neorv32_gpio_rtl;

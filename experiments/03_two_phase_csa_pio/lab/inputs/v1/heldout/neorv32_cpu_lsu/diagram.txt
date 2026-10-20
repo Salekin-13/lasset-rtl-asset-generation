@@ -1,0 +1,39 @@
+UNIT neorv32_cpu_lsu
+  INPUTS: addr_i, clk_i, ctrl_i, dbus_rsp_i, pmp_fault_i, rstn_i, wdata_i
+  OUTPUTS: dbus_req_o, err_o, mar_o, rdata_o, wait_o
+  BLOCKS
+    [process] access_arbiter: pending, pmp_err; clocked by clk_i; reset by rstn_i
+    [process] amo_encode: amo_cmd
+    [process] bus_lock: -; clocked by clk_i; reset by rstn_i
+    [process] mem_addr_reg: mar, misaligned; clocked by clk_i; reset by rstn_i
+    [process] mem_di_reg: -; clocked by clk_i; reset by rstn_i
+    [process] mem_do_reg: -; clocked by clk_i; reset by rstn_i
+  ARROWS (==> a value moves; --> only decides; [the elements the arrow carries])
+    addr_i ==> mem_addr_reg   [addr_i]
+    addr_i ==> mem_do_reg   [addr_i]
+    ctrl_i ==> dbus_req_o   [ctrl_i.{lsu_fence,lsu_req}]
+    ctrl_i ==> err_o   [ctrl_i.lsu_rw]
+    ctrl_i ==> access_arbiter   [ctrl_i.{cpu_trap,lsu_req}]
+    ctrl_i --> amo_encode   [ctrl_i.ir_funct12]
+    ctrl_i --> bus_lock   [ctrl_i.{ir_funct12,lsu_amo,lsu_mo_we}]
+    ctrl_i --> mem_addr_reg   [ctrl_i.{ir_funct3,lsu_mo_we}]
+    ctrl_i ==> mem_di_reg   [ctrl_i.ir_funct3]
+    ctrl_i ==> mem_do_reg   [ctrl_i.{cpu_debug,ir_funct3,lsu_amo,lsu_mo_we,lsu_priv,lsu_rw}]
+    dbus_rsp_i ==> err_o   [dbus_rsp_i.err]
+    dbus_rsp_i ==> wait_o   [dbus_rsp_i.ack]
+    dbus_rsp_i --> access_arbiter   [dbus_rsp_i.ack]
+    dbus_rsp_i ==> mem_di_reg   [dbus_rsp_i.data]
+    pmp_fault_i ==> dbus_req_o   [pmp_fault_i]
+    pmp_fault_i ==> access_arbiter   [pmp_fault_i]
+    wdata_i ==> mem_do_reg   [wdata_i]
+    access_arbiter ==> err_o   [pending, pmp_err]
+    access_arbiter --> bus_lock   [pending]
+    access_arbiter --> mem_di_reg   [pending]
+    amo_encode ==> mem_do_reg   [amo_cmd]
+    bus_lock ==> dbus_req_o
+    mem_addr_reg ==> dbus_req_o   [mar, misaligned]
+    mem_addr_reg ==> err_o   [misaligned]
+    mem_addr_reg ==> mar_o   [mar]
+    mem_addr_reg --> mem_di_reg   [mar]
+    mem_di_reg ==> rdata_o
+    mem_do_reg ==> dbus_req_o

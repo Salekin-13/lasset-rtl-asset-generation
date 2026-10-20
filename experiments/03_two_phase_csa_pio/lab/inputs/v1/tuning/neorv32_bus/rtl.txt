@@ -1,0 +1,671 @@
+   17 | entity neorv32_bus_switch is
+   18 |   generic (
+   19 |     ROUND_ROBIN_EN   : boolean := false;
+   20 |     PORT_A_READ_ONLY : boolean := false;
+   21 |     PORT_B_READ_ONLY : boolean := false
+   22 |   );
+   23 |   port (
+   24 |     clk_i   : in  std_ulogic;
+   25 |     rstn_i  : in  std_ulogic;
+   26 |     a_req_i : in  bus_req_t;
+   27 |     a_rsp_o : out bus_rsp_t;
+   28 |     b_req_i : in  bus_req_t;
+   29 |     b_rsp_o : out bus_rsp_t;
+   30 |     x_req_o : out bus_req_t;
+   31 |     x_rsp_i : in  bus_rsp_t
+   32 |   );
+   33 | end neorv32_bus_switch;
+
+   35 | architecture neorv32_bus_switch_rtl of neorv32_bus_switch is
+   37 |   type state_t is (S_IDLE, S_BUSY_A, S_BUSY_B);
+   38 |   signal state, state_nxt : state_t;
+   39 |   signal a_req, b_req, sel, sel_q, stb : std_ulogic;
+   40 |   signal locked, locked_nxt : std_ulogic_vector(1 downto 0);
+   42 | begin
+   46 |   arbiter_sync: process(rstn_i, clk_i)
+   47 |   begin
+   48 |     if (rstn_i = '0') then
+   49 |       state  <= S_IDLE;
+   50 |       sel_q  <= '0';
+   51 |       locked <= "00";
+   52 |       a_req  <= '0';
+   53 |       b_req  <= '0';
+   54 |     elsif rising_edge(clk_i) then
+   55 |       state  <= state_nxt;
+   56 |       sel_q  <= sel;
+   57 |       locked <= locked_nxt;
+   58 |       if (state = S_BUSY_A) then
+   59 |         a_req <= '0';
+   60 |       else
+   61 |         a_req <= a_req or a_req_i.stb;
+   62 |       end if;
+   63 |       if (state = S_BUSY_B) then
+   64 |         b_req <= '0';
+   65 |       else
+   66 |         b_req <= b_req or b_req_i.stb;
+   67 |       end if;
+   68 |     end if;
+   69 |   end process arbiter_sync;
+   74 |   arbiter_fsm: process(state, locked, sel_q, a_req, b_req, a_req_i, b_req_i, x_rsp_i)
+   75 |   begin
+   77 |     state_nxt  <= state;
+   78 |     locked_nxt <= locked;
+   79 |     sel        <= '0';
+   80 |     stb        <= '0';
+   83 |     case state is
+   85 |       when S_BUSY_A =>
+   87 |         sel <= '0';
+   88 |         if (locked(0) = '1') then
+   89 |           stb <= a_req_i.stb;
+   90 |           if (a_req_i.lock = '0') then
+   91 |             state_nxt <= S_IDLE;
+   92 |           end if;
+   93 |         elsif (x_rsp_i.ack = '1') then
+   94 |           state_nxt <= S_IDLE;
+   95 |         end if;
+   97 |       when S_BUSY_B =>
+   99 |         sel <= '1';
+  100 |         if (locked(1) = '1') then
+  101 |           stb <= b_req_i.stb;
+  102 |           if (b_req_i.lock = '0') then
+  103 |             state_nxt <= S_IDLE;
+  104 |           end if;
+  105 |         elsif (x_rsp_i.ack = '1') then
+  106 |           state_nxt <= S_IDLE;
+  107 |         end if;
+  109 |       when others =>
+  111 |         locked_nxt <= b_req_i.lock & a_req_i.lock;
+  112 |         if (sel_q = '1') or (not ROUND_ROBIN_EN) then
+  113 |           if (a_req_i.stb = '1') or (a_req = '1') then
+  114 |             sel       <= '0';
+  115 |             stb       <= '1';
+  116 |             state_nxt <= S_BUSY_A;
+  117 |           elsif (b_req_i.stb = '1') or (b_req = '1') then
+  118 |             sel       <= '1';
+  119 |             stb       <= '1';
+  120 |             state_nxt <= S_BUSY_B;
+  121 |           end if;
+  122 |         else
+  123 |           if (b_req_i.stb = '1') or (b_req = '1') then
+  124 |             sel       <= '1';
+  125 |             stb       <= '1';
+  126 |             state_nxt <= S_BUSY_B;
+  127 |           elsif (a_req_i.stb = '1') or (a_req = '1') then
+  128 |             sel       <= '0';
+  129 |             stb       <= '1';
+  130 |             state_nxt <= S_BUSY_A;
+  131 |           end if;
+  132 |         end if;
+  134 |     end case;
+  135 |   end process arbiter_fsm;
+  140 |   x_req_o.addr  <= a_req_i.addr  when (sel = '0') else b_req_i.addr;
+  141 |   x_req_o.amo   <= a_req_i.amo   when (sel = '0') else b_req_i.amo;
+  142 |   x_req_o.amoop <= a_req_i.amoop when (sel = '0') else b_req_i.amoop;
+  143 |   x_req_o.lock  <= a_req_i.lock  when (sel = '0') else b_req_i.lock;
+  144 |   x_req_o.priv  <= a_req_i.priv  when (sel = '0') else b_req_i.priv;
+  145 |   x_req_o.debug <= a_req_i.debug when (sel = '0') else b_req_i.debug;
+  146 |   x_req_o.src   <= a_req_i.src   when (sel = '0') else b_req_i.src;
+  147 |   x_req_o.rw    <= a_req_i.rw    when (sel = '0') else b_req_i.rw;
+  148 |   x_req_o.fence <= a_req_i.fence or b_req_i.fence;
+  150 |   x_req_o.data  <= b_req_i.data  when PORT_A_READ_ONLY else
+  151 |                    a_req_i.data  when PORT_B_READ_ONLY else
+  152 |                    a_req_i.data  when (sel = '0')      else b_req_i.data;
+  154 |   x_req_o.ben   <= b_req_i.ben   when PORT_A_READ_ONLY else
+  155 |                    a_req_i.ben   when PORT_B_READ_ONLY else
+  156 |                    a_req_i.ben   when (sel = '0')      else b_req_i.ben;
+  158 |   x_req_o.stb   <= stb;
+  163 |   a_rsp_o.data <= x_rsp_i.data;
+  164 |   a_rsp_o.ack  <= x_rsp_i.ack when (sel = '0') else '0';
+  165 |   a_rsp_o.err  <= x_rsp_i.err when (sel = '0') else '0';
+  167 |   b_rsp_o.data <= x_rsp_i.data;
+  168 |   b_rsp_o.ack  <= x_rsp_i.ack when (sel = '1') else '0';
+  169 |   b_rsp_o.err  <= x_rsp_i.err when (sel = '1') else '0';
+  172 | end neorv32_bus_switch_rtl;
+  185 | library ieee;
+  186 | use ieee.std_logic_1164.all;
+  188 | library neorv32;
+  189 | use neorv32.neorv32_package.all;
+
+  191 | entity neorv32_bus_reg is
+  192 |   generic (
+  193 |     REQ_REG_EN : boolean := false;
+  194 |     RSP_REG_EN : boolean := false
+  195 |   );
+  196 |   port (
+  198 |     clk_i        : in  std_ulogic;
+  199 |     rstn_i       : in  std_ulogic;
+  201 |     host_req_i   : in  bus_req_t;
+  202 |     host_rsp_o   : out bus_rsp_t;
+  203 |     device_req_o : out bus_req_t;
+  204 |     device_rsp_i : in  bus_rsp_t
+  205 |   );
+  206 | end neorv32_bus_reg;
+
+  208 | architecture neorv32_bus_reg_rtl of neorv32_bus_reg is
+  210 | begin
+  214 |   request_reg_enabled:
+  215 |   if REQ_REG_EN generate
+  216 |     request_reg: process(rstn_i, clk_i)
+  217 |     begin
+  218 |       if (rstn_i = '0') then
+  219 |         device_req_o <= req_terminate_c;
+  220 |       elsif rising_edge(clk_i) then
+  221 |         if (host_req_i.stb = '1') then
+  222 |           device_req_o <= host_req_i;
+  223 |         end if;
+  224 |         device_req_o.stb   <= host_req_i.stb;
+  225 |         device_req_o.lock  <= host_req_i.lock;
+  226 |         device_req_o.fence <= host_req_i.fence;
+  227 |       end if;
+  228 |     end process request_reg;
+  229 |   end generate;
+  231 |   request_reg_disabled:
+  232 |   if not REQ_REG_EN generate
+  233 |     device_req_o <= host_req_i;
+  234 |   end generate;
+  239 |   response_reg_enabled:
+  240 |   if RSP_REG_EN generate
+  241 |     response_reg: process(rstn_i, clk_i)
+  242 |     begin
+  243 |       if (rstn_i = '0') then
+  244 |         host_rsp_o <= rsp_terminate_c;
+  245 |       elsif rising_edge(clk_i) then
+  246 |         host_rsp_o <= device_rsp_i;
+  247 |       end if;
+  248 |     end process response_reg;
+  249 |   end generate;
+  251 |   response_reg_disabled:
+  252 |   if not RSP_REG_EN generate
+  253 |     host_rsp_o <= device_rsp_i;
+  254 |   end generate;
+  257 | end neorv32_bus_reg_rtl;
+  277 | library ieee;
+  278 | use ieee.std_logic_1164.all;
+  279 | use ieee.numeric_std.all;
+  281 | library neorv32;
+  282 | use neorv32.neorv32_package.all;
+
+  284 | entity neorv32_bus_gateway is
+  285 |   generic (
+  286 |     TIMEOUT : natural;
+  288 |     A_EN    : boolean;
+  289 |     A_BASE  : std_ulogic_vector(31 downto 0);
+  290 |     A_SIZE  : natural;
+  292 |     B_EN    : boolean;
+  293 |     B_BASE  : std_ulogic_vector(31 downto 0);
+  294 |     B_SIZE  : natural;
+  296 |     C_EN    : boolean;
+  297 |     C_BASE  : std_ulogic_vector(31 downto 0);
+  298 |     C_SIZE  : natural;
+  300 |     X_EN    : boolean
+  301 |   );
+  302 |   port (
+  304 |     clk_i   : in  std_ulogic;
+  305 |     rstn_i  : in  std_ulogic;
+  307 |     req_i   : in  bus_req_t;
+  308 |     rsp_o   : out bus_rsp_t;
+  310 |     a_req_o : out bus_req_t;
+  311 |     a_rsp_i : in  bus_rsp_t;
+  312 |     b_req_o : out bus_req_t;
+  313 |     b_rsp_i : in  bus_rsp_t;
+  314 |     c_req_o : out bus_req_t;
+  315 |     c_rsp_i : in  bus_rsp_t;
+  316 |     x_req_o : out bus_req_t;
+  317 |     x_rsp_i : in  bus_rsp_t
+  318 |   );
+  319 | end neorv32_bus_gateway;
+
+  321 | architecture neorv32_bus_gateway_rtl of neorv32_bus_gateway is
+  324 |   constant a_lo_c : natural := index_size_f(A_SIZE);
+  325 |   constant b_lo_c : natural := index_size_f(B_SIZE);
+  326 |   constant c_lo_c : natural := index_size_f(C_SIZE);
+  327 |   signal port_sel : std_ulogic_vector(3 downto 0);
+  330 |   type port_bool_list_t is array (0 to 3) of boolean;
+  331 |   constant port_en_list_c : port_bool_list_t := (A_EN, B_EN, C_EN, X_EN);
+  334 |   type port_req_t is array (0 to 3) of bus_req_t;
+  335 |   type port_rsp_t is array (0 to 3) of bus_rsp_t;
+  336 |   signal port_req : port_req_t;
+  337 |   signal port_rsp : port_rsp_t;
+  340 |   signal int_rsp : bus_rsp_t;
+  343 |   type keeper_t is record
+  344 |     busy : std_ulogic;
+  345 |     lock : std_ulogic;
+  346 |     cnt  : std_ulogic_vector(index_size_f(TIMEOUT) downto 0);
+  347 |     err  : std_ulogic;
+  348 |     halt : std_ulogic;
+  349 |   end record;
+  350 |   signal keeper : keeper_t;
+  352 | begin
+  356 |   port_sel(0) <= '1' when A_EN and (req_i.addr(31 downto a_lo_c) = A_BASE(31 downto a_lo_c)) else '0';
+  357 |   port_sel(1) <= '1' when B_EN and (req_i.addr(31 downto b_lo_c) = B_BASE(31 downto b_lo_c)) else '0';
+  358 |   port_sel(2) <= '1' when C_EN and (req_i.addr(31 downto c_lo_c) = C_BASE(31 downto c_lo_c)) else '0';
+  361 |   port_sel(3) <= '1' when X_EN and (port_sel(2 downto 0) = "000") else '0';
+  366 |   a_req_o <= port_req(0); port_rsp(0) <= a_rsp_i;
+  367 |   b_req_o <= port_req(1); port_rsp(1) <= b_rsp_i;
+  368 |   c_req_o <= port_req(2); port_rsp(2) <= c_rsp_i;
+  369 |   x_req_o <= port_req(3); port_rsp(3) <= x_rsp_i;
+  372 |   request: process(req_i, port_sel)
+  373 |   begin
+  374 |     for i in 0 to 3 loop
+  375 |       port_req(i) <= req_terminate_c;
+  376 |       if port_en_list_c(i) then
+  377 |         port_req(i) <= req_i;
+  378 |         port_req(i).stb <= port_sel(i) and req_i.stb;
+  379 |       end if;
+  380 |     end loop;
+  381 |   end process request;
+  384 |   response: process(port_rsp)
+  385 |     variable tmp_v : bus_rsp_t;
+  386 |   begin
+  387 |     tmp_v := rsp_terminate_c;
+  388 |     for i in 0 to 3 loop
+  389 |       if port_en_list_c(i) then
+  390 |         tmp_v.data := tmp_v.data or port_rsp(i).data;
+  391 |         tmp_v.ack  := tmp_v.ack  or port_rsp(i).ack;
+  392 |         tmp_v.err  := tmp_v.err  or port_rsp(i).err;
+  393 |       end if;
+  394 |     end loop;
+  395 |     int_rsp <= tmp_v;
+  396 |   end process response;
+  399 |   rsp_o.data <= int_rsp.data;
+  400 |   rsp_o.ack  <= int_rsp.ack or keeper.err;
+  401 |   rsp_o.err  <= int_rsp.err or keeper.err;
+  406 |   bus_monitor: process(rstn_i, clk_i)
+  407 |   begin
+  408 |     if (rstn_i = '0') then
+  409 |       keeper.busy <= '0';
+  410 |       keeper.lock <= '0';
+  411 |       keeper.cnt  <= (others => '0');
+  412 |       keeper.err  <= '0';
+  413 |       keeper.halt <= '0';
+  414 |     elsif rising_edge(clk_i) then
+  415 |       keeper.err  <= '0';
+  416 |       keeper.halt <= port_sel(port_sel'left);
+  417 |       if (keeper.busy = '0') then
+  418 |         keeper.cnt  <= (others => '0');
+  419 |         keeper.busy <= req_i.stb;
+  420 |         keeper.lock <= req_i.lock;
+  421 |       else
+  422 |         keeper.cnt <= std_ulogic_vector(unsigned(keeper.cnt) + 1);
+  423 |         if ((keeper.cnt(keeper.cnt'left) = '1') and (keeper.halt = '0')) then
+  424 |           keeper.err  <= '1';
+  425 |           keeper.busy <= '0';
+  426 |         elsif (int_rsp.ack = '1') or ((keeper.lock = '1') and (req_i.lock = '0')) then
+  427 |           keeper.busy <= '0';
+  428 |         end if;
+  429 |       end if;
+  430 |     end if;
+  431 |   end process bus_monitor;
+  434 | end neorv32_bus_gateway_rtl;
+  451 | library ieee;
+  452 | use ieee.std_logic_1164.all;
+  454 | library neorv32;
+  455 | use neorv32.neorv32_package.all;
+
+  457 | entity neorv32_bus_io_switch is
+  458 |   generic (
+  459 |     INREG_EN  : boolean := false;
+  460 |     OUTREG_EN : boolean := false;
+  461 |     DEV_SIZE  : natural := 256;
+  463 |     DEV_00_EN : boolean := false; DEV_00_BASE : std_ulogic_vector(31 downto 0) := (others => '0');
+  464 |     DEV_01_EN : boolean := false; DEV_01_BASE : std_ulogic_vector(31 downto 0) := (others => '0');
+  465 |     DEV_02_EN : boolean := false; DEV_02_BASE : std_ulogic_vector(31 downto 0) := (others => '0');
+  466 |     DEV_03_EN : boolean := false; DEV_03_BASE : std_ulogic_vector(31 downto 0) := (others => '0');
+  467 |     DEV_04_EN : boolean := false; DEV_04_BASE : std_ulogic_vector(31 downto 0) := (others => '0');
+  468 |     DEV_05_EN : boolean := false; DEV_05_BASE : std_ulogic_vector(31 downto 0) := (others => '0');
+  469 |     DEV_06_EN : boolean := false; DEV_06_BASE : std_ulogic_vector(31 downto 0) := (others => '0');
+  470 |     DEV_07_EN : boolean := false; DEV_07_BASE : std_ulogic_vector(31 downto 0) := (others => '0');
+  471 |     DEV_08_EN : boolean := false; DEV_08_BASE : std_ulogic_vector(31 downto 0) := (others => '0');
+  472 |     DEV_09_EN : boolean := false; DEV_09_BASE : std_ulogic_vector(31 downto 0) := (others => '0');
+  473 |     DEV_10_EN : boolean := false; DEV_10_BASE : std_ulogic_vector(31 downto 0) := (others => '0');
+  474 |     DEV_11_EN : boolean := false; DEV_11_BASE : std_ulogic_vector(31 downto 0) := (others => '0');
+  475 |     DEV_12_EN : boolean := false; DEV_12_BASE : std_ulogic_vector(31 downto 0) := (others => '0');
+  476 |     DEV_13_EN : boolean := false; DEV_13_BASE : std_ulogic_vector(31 downto 0) := (others => '0');
+  477 |     DEV_14_EN : boolean := false; DEV_14_BASE : std_ulogic_vector(31 downto 0) := (others => '0');
+  478 |     DEV_15_EN : boolean := false; DEV_15_BASE : std_ulogic_vector(31 downto 0) := (others => '0');
+  479 |     DEV_16_EN : boolean := false; DEV_16_BASE : std_ulogic_vector(31 downto 0) := (others => '0');
+  480 |     DEV_17_EN : boolean := false; DEV_17_BASE : std_ulogic_vector(31 downto 0) := (others => '0');
+  481 |     DEV_18_EN : boolean := false; DEV_18_BASE : std_ulogic_vector(31 downto 0) := (others => '0');
+  482 |     DEV_19_EN : boolean := false; DEV_19_BASE : std_ulogic_vector(31 downto 0) := (others => '0');
+  483 |     DEV_20_EN : boolean := false; DEV_20_BASE : std_ulogic_vector(31 downto 0) := (others => '0');
+  484 |     DEV_21_EN : boolean := false; DEV_21_BASE : std_ulogic_vector(31 downto 0) := (others => '0');
+  485 |     DEV_22_EN : boolean := false; DEV_22_BASE : std_ulogic_vector(31 downto 0) := (others => '0');
+  486 |     DEV_23_EN : boolean := false; DEV_23_BASE : std_ulogic_vector(31 downto 0) := (others => '0');
+  487 |     DEV_24_EN : boolean := false; DEV_24_BASE : std_ulogic_vector(31 downto 0) := (others => '0');
+  488 |     DEV_25_EN : boolean := false; DEV_25_BASE : std_ulogic_vector(31 downto 0) := (others => '0');
+  489 |     DEV_26_EN : boolean := false; DEV_26_BASE : std_ulogic_vector(31 downto 0) := (others => '0');
+  490 |     DEV_27_EN : boolean := false; DEV_27_BASE : std_ulogic_vector(31 downto 0) := (others => '0');
+  491 |     DEV_28_EN : boolean := false; DEV_28_BASE : std_ulogic_vector(31 downto 0) := (others => '0');
+  492 |     DEV_29_EN : boolean := false; DEV_29_BASE : std_ulogic_vector(31 downto 0) := (others => '0');
+  493 |     DEV_30_EN : boolean := false; DEV_30_BASE : std_ulogic_vector(31 downto 0) := (others => '0');
+  494 |     DEV_31_EN : boolean := false; DEV_31_BASE : std_ulogic_vector(31 downto 0) := (others => '0')
+  495 |   );
+  496 |   port (
+  498 |     clk_i        : in  std_ulogic;
+  499 |     rstn_i       : in  std_ulogic;
+  501 |     main_req_i   : in  bus_req_t;
+  502 |     main_rsp_o   : out bus_rsp_t;
+  504 |     dev_00_req_o : out bus_req_t; dev_00_rsp_i : in bus_rsp_t;
+  505 |     dev_01_req_o : out bus_req_t; dev_01_rsp_i : in bus_rsp_t;
+  506 |     dev_02_req_o : out bus_req_t; dev_02_rsp_i : in bus_rsp_t;
+  507 |     dev_03_req_o : out bus_req_t; dev_03_rsp_i : in bus_rsp_t;
+  508 |     dev_04_req_o : out bus_req_t; dev_04_rsp_i : in bus_rsp_t;
+  509 |     dev_05_req_o : out bus_req_t; dev_05_rsp_i : in bus_rsp_t;
+  510 |     dev_06_req_o : out bus_req_t; dev_06_rsp_i : in bus_rsp_t;
+  511 |     dev_07_req_o : out bus_req_t; dev_07_rsp_i : in bus_rsp_t;
+  512 |     dev_08_req_o : out bus_req_t; dev_08_rsp_i : in bus_rsp_t;
+  513 |     dev_09_req_o : out bus_req_t; dev_09_rsp_i : in bus_rsp_t;
+  514 |     dev_10_req_o : out bus_req_t; dev_10_rsp_i : in bus_rsp_t;
+  515 |     dev_11_req_o : out bus_req_t; dev_11_rsp_i : in bus_rsp_t;
+  516 |     dev_12_req_o : out bus_req_t; dev_12_rsp_i : in bus_rsp_t;
+  517 |     dev_13_req_o : out bus_req_t; dev_13_rsp_i : in bus_rsp_t;
+  518 |     dev_14_req_o : out bus_req_t; dev_14_rsp_i : in bus_rsp_t;
+  519 |     dev_15_req_o : out bus_req_t; dev_15_rsp_i : in bus_rsp_t;
+  520 |     dev_16_req_o : out bus_req_t; dev_16_rsp_i : in bus_rsp_t;
+  521 |     dev_17_req_o : out bus_req_t; dev_17_rsp_i : in bus_rsp_t;
+  522 |     dev_18_req_o : out bus_req_t; dev_18_rsp_i : in bus_rsp_t;
+  523 |     dev_19_req_o : out bus_req_t; dev_19_rsp_i : in bus_rsp_t;
+  524 |     dev_20_req_o : out bus_req_t; dev_20_rsp_i : in bus_rsp_t;
+  525 |     dev_21_req_o : out bus_req_t; dev_21_rsp_i : in bus_rsp_t;
+  526 |     dev_22_req_o : out bus_req_t; dev_22_rsp_i : in bus_rsp_t;
+  527 |     dev_23_req_o : out bus_req_t; dev_23_rsp_i : in bus_rsp_t;
+  528 |     dev_24_req_o : out bus_req_t; dev_24_rsp_i : in bus_rsp_t;
+  529 |     dev_25_req_o : out bus_req_t; dev_25_rsp_i : in bus_rsp_t;
+  530 |     dev_26_req_o : out bus_req_t; dev_26_rsp_i : in bus_rsp_t;
+  531 |     dev_27_req_o : out bus_req_t; dev_27_rsp_i : in bus_rsp_t;
+  532 |     dev_28_req_o : out bus_req_t; dev_28_rsp_i : in bus_rsp_t;
+  533 |     dev_29_req_o : out bus_req_t; dev_29_rsp_i : in bus_rsp_t;
+  534 |     dev_30_req_o : out bus_req_t; dev_30_rsp_i : in bus_rsp_t;
+  535 |     dev_31_req_o : out bus_req_t; dev_31_rsp_i : in bus_rsp_t
+  536 |   );
+  537 | end neorv32_bus_io_switch;
+
+  539 | architecture neorv32_bus_io_switch_rtl of neorv32_bus_io_switch is
+  542 |   component neorv32_bus_reg
+  543 |   generic (
+  544 |     REQ_REG_EN : boolean := false;
+  545 |     RSP_REG_EN : boolean := false
+  546 |   );
+  547 |   port (
+  549 |     clk_i        : in  std_ulogic;
+  550 |     rstn_i       : in  std_ulogic;
+  552 |     host_req_i   : in  bus_req_t;
+  553 |     host_rsp_o   : out bus_rsp_t;
+  554 |     device_req_o : out bus_req_t;
+  555 |     device_rsp_i : in  bus_rsp_t
+  556 |   );
+  557 |   end component;
+  560 |   constant num_devs_c : natural := 32;
+  563 |   constant addr_lo_c : natural := index_size_f(DEV_SIZE);
+  564 |   constant addr_hi_c : natural := (index_size_f(DEV_SIZE) + index_size_f(num_devs_c)) - 1;
+  567 |   type dev_en_list_t is array (0 to num_devs_c-1) of boolean;
+  568 |   constant dev_en_list_c : dev_en_list_t := (
+  569 |     DEV_00_EN, DEV_01_EN, DEV_02_EN, DEV_03_EN, DEV_04_EN, DEV_05_EN, DEV_06_EN, DEV_07_EN,
+  570 |     DEV_08_EN, DEV_09_EN, DEV_10_EN, DEV_11_EN, DEV_12_EN, DEV_13_EN, DEV_14_EN, DEV_15_EN,
+  571 |     DEV_16_EN, DEV_17_EN, DEV_18_EN, DEV_19_EN, DEV_20_EN, DEV_21_EN, DEV_22_EN, DEV_23_EN,
+  572 |     DEV_24_EN, DEV_25_EN, DEV_26_EN, DEV_27_EN, DEV_28_EN, DEV_29_EN, DEV_30_EN, DEV_31_EN
+  573 |   );
+  576 |   type dev_base_list_t is array (0 to num_devs_c-1) of std_ulogic_vector(31 downto 0);
+  577 |   constant dev_base_list_c : dev_base_list_t := (
+  578 |     DEV_00_BASE, DEV_01_BASE, DEV_02_BASE, DEV_03_BASE, DEV_04_BASE, DEV_05_BASE, DEV_06_BASE, DEV_07_BASE,
+  579 |     DEV_08_BASE, DEV_09_BASE, DEV_10_BASE, DEV_11_BASE, DEV_12_BASE, DEV_13_BASE, DEV_14_BASE, DEV_15_BASE,
+  580 |     DEV_16_BASE, DEV_17_BASE, DEV_18_BASE, DEV_19_BASE, DEV_20_BASE, DEV_21_BASE, DEV_22_BASE, DEV_23_BASE,
+  581 |     DEV_24_BASE, DEV_25_BASE, DEV_26_BASE, DEV_27_BASE, DEV_28_BASE, DEV_29_BASE, DEV_30_BASE, DEV_31_BASE
+  582 |   );
+  585 |   type dev_req_t is array (0 to num_devs_c-1) of bus_req_t;
+  586 |   type dev_rsp_t is array (0 to num_devs_c-1) of bus_rsp_t;
+  587 |   signal dev_req : dev_req_t;
+  588 |   signal dev_rsp : dev_rsp_t;
+  591 |   signal main_req : bus_req_t;
+  592 |   signal main_rsp : bus_rsp_t;
+  594 | begin
+  598 |   neorv32_bus_reg_inst: neorv32_bus_reg
+  599 |   generic map (
+  600 |     REQ_REG_EN => INREG_EN,
+  601 |     RSP_REG_EN => OUTREG_EN
+  602 |   )
+  603 |   port map (
+  605 |     clk_i        => clk_i,
+  606 |     rstn_i       => rstn_i,
+  608 |     host_req_i   => main_req_i,
+  609 |     host_rsp_o   => main_rsp_o,
+  610 |     device_req_o => main_req,
+  611 |     device_rsp_i => main_rsp
+  612 |   );
+  617 |   dev_00_req_o <= dev_req(0);  dev_rsp(0)  <= dev_00_rsp_i;
+  618 |   dev_01_req_o <= dev_req(1);  dev_rsp(1)  <= dev_01_rsp_i;
+  619 |   dev_02_req_o <= dev_req(2);  dev_rsp(2)  <= dev_02_rsp_i;
+  620 |   dev_03_req_o <= dev_req(3);  dev_rsp(3)  <= dev_03_rsp_i;
+  621 |   dev_04_req_o <= dev_req(4);  dev_rsp(4)  <= dev_04_rsp_i;
+  622 |   dev_05_req_o <= dev_req(5);  dev_rsp(5)  <= dev_05_rsp_i;
+  623 |   dev_06_req_o <= dev_req(6);  dev_rsp(6)  <= dev_06_rsp_i;
+  624 |   dev_07_req_o <= dev_req(7);  dev_rsp(7)  <= dev_07_rsp_i;
+  625 |   dev_08_req_o <= dev_req(8);  dev_rsp(8)  <= dev_08_rsp_i;
+  626 |   dev_09_req_o <= dev_req(9);  dev_rsp(9)  <= dev_09_rsp_i;
+  627 |   dev_10_req_o <= dev_req(10); dev_rsp(10) <= dev_10_rsp_i;
+  628 |   dev_11_req_o <= dev_req(11); dev_rsp(11) <= dev_11_rsp_i;
+  629 |   dev_12_req_o <= dev_req(12); dev_rsp(12) <= dev_12_rsp_i;
+  630 |   dev_13_req_o <= dev_req(13); dev_rsp(13) <= dev_13_rsp_i;
+  631 |   dev_14_req_o <= dev_req(14); dev_rsp(14) <= dev_14_rsp_i;
+  632 |   dev_15_req_o <= dev_req(15); dev_rsp(15) <= dev_15_rsp_i;
+  633 |   dev_16_req_o <= dev_req(16); dev_rsp(16) <= dev_16_rsp_i;
+  634 |   dev_17_req_o <= dev_req(17); dev_rsp(17) <= dev_17_rsp_i;
+  635 |   dev_18_req_o <= dev_req(18); dev_rsp(18) <= dev_18_rsp_i;
+  636 |   dev_19_req_o <= dev_req(19); dev_rsp(19) <= dev_19_rsp_i;
+  637 |   dev_20_req_o <= dev_req(20); dev_rsp(20) <= dev_20_rsp_i;
+  638 |   dev_21_req_o <= dev_req(21); dev_rsp(21) <= dev_21_rsp_i;
+  639 |   dev_22_req_o <= dev_req(22); dev_rsp(22) <= dev_22_rsp_i;
+  640 |   dev_23_req_o <= dev_req(23); dev_rsp(23) <= dev_23_rsp_i;
+  641 |   dev_24_req_o <= dev_req(24); dev_rsp(24) <= dev_24_rsp_i;
+  642 |   dev_25_req_o <= dev_req(25); dev_rsp(25) <= dev_25_rsp_i;
+  643 |   dev_26_req_o <= dev_req(26); dev_rsp(26) <= dev_26_rsp_i;
+  644 |   dev_27_req_o <= dev_req(27); dev_rsp(27) <= dev_27_rsp_i;
+  645 |   dev_28_req_o <= dev_req(28); dev_rsp(28) <= dev_28_rsp_i;
+  646 |   dev_29_req_o <= dev_req(29); dev_rsp(29) <= dev_29_rsp_i;
+  647 |   dev_30_req_o <= dev_req(30); dev_rsp(30) <= dev_30_rsp_i;
+  648 |   dev_31_req_o <= dev_req(31); dev_rsp(31) <= dev_31_rsp_i;
+  653 |   bus_request_gen:
+  654 |   for i in 0 to (num_devs_c-1) generate
+  656 |     bus_request_port_enabled:
+  657 |     if dev_en_list_c(i) generate
+  658 |       bus_request: process(main_req)
+  659 |       begin
+  660 |         dev_req(i) <= main_req;
+  661 |         if (main_req.addr(addr_hi_c downto addr_lo_c) = dev_base_list_c(i)(addr_hi_c downto addr_lo_c)) then
+  662 |           dev_req(i).stb <= main_req.stb;
+  663 |         else
+  664 |           dev_req(i).stb <= '0';
+  665 |         end if;
+  666 |       end process bus_request;
+  667 |     end generate;
+  669 |     bus_request_port_disabled:
+  670 |     if not dev_en_list_c(i) generate
+  671 |       dev_req(i) <= req_terminate_c;
+  672 |     end generate;
+  674 |   end generate;
+  679 |   bus_response: process(dev_rsp)
+  680 |     variable tmp_v : bus_rsp_t;
+  681 |   begin
+  682 |     tmp_v := rsp_terminate_c;
+  683 |     for i in 0 to (num_devs_c-1) loop
+  684 |       if dev_en_list_c(i) then
+  685 |         tmp_v.data := tmp_v.data or dev_rsp(i).data;
+  686 |         tmp_v.ack  := tmp_v.ack  or dev_rsp(i).ack;
+  687 |         tmp_v.err  := tmp_v.err  or dev_rsp(i).err;
+  688 |       end if;
+  689 |     end loop;
+  690 |     main_rsp <= tmp_v;
+  691 |   end process;
+  694 | end neorv32_bus_io_switch_rtl;
+  709 | library ieee;
+  710 | use ieee.std_logic_1164.all;
+  711 | use ieee.numeric_std.all;
+  713 | library neorv32;
+  714 | use neorv32.neorv32_package.all;
+
+  716 | entity neorv32_bus_amo_rmw is
+  717 |   port (
+  719 |     clk_i      : in  std_ulogic;
+  720 |     rstn_i     : in  std_ulogic;
+  722 |     core_req_i : in  bus_req_t;
+  723 |     core_rsp_o : out bus_rsp_t;
+  725 |     sys_req_o  : out bus_req_t;
+  726 |     sys_rsp_i  : in  bus_rsp_t
+  727 |   );
+  728 | end neorv32_bus_amo_rmw;
+
+  730 | architecture neorv32_bus_amo_rmw_rtl of neorv32_bus_amo_rmw is
+  733 |   type state_t is (S_IDLE, S_READ_WAIT, S_EXECUTE, S_WRITE, S_WRITE_WAIT);
+  734 |   type arbiter_t is record
+  735 |     state : state_t;
+  736 |     cmd   : std_ulogic_vector(3 downto 0);
+  737 |     rdata : std_ulogic_vector(31 downto 0);
+  738 |     wdata : std_ulogic_vector(31 downto 0);
+  739 |   end record;
+  740 |   signal arbiter, arbiter_nxt : arbiter_t;
+  743 |   signal alu_res : std_ulogic_vector(31 downto 0);
+  746 |   signal cmp_opa  : std_ulogic_vector(32 downto 0);
+  747 |   signal cmp_opb  : std_ulogic_vector(32 downto 0);
+  748 |   signal cmp_less : std_ulogic;
+  749 |   signal cmp_res  : std_ulogic_vector(31 downto 0);
+  751 | begin
+  755 |   arbiter_sync: process(rstn_i, clk_i)
+  756 |   begin
+  757 |     if (rstn_i = '0') then
+  758 |       arbiter.state <= S_IDLE;
+  759 |       arbiter.cmd   <= (others => '0');
+  760 |       arbiter.rdata <= (others => '0');
+  761 |       arbiter.wdata <= (others => '0');
+  762 |     elsif rising_edge(clk_i) then
+  763 |       arbiter <= arbiter_nxt;
+  764 |     end if;
+  765 |   end process arbiter_sync;
+  770 |   arbiter_comb: process(arbiter, core_req_i, sys_rsp_i)
+  771 |   begin
+  772 |     arbiter_nxt <= arbiter;
+  773 |     case arbiter.state is
+  775 |       when S_IDLE =>
+  777 |         if (core_req_i.stb = '1') and (core_req_i.amo = '1') and (core_req_i.amoop(3 downto 2) /= "10") then
+  778 |           arbiter_nxt.cmd   <= core_req_i.amoop;
+  779 |           arbiter_nxt.wdata <= core_req_i.data;
+  780 |           arbiter_nxt.state <= S_READ_WAIT;
+  781 |         end if;
+  783 |       when S_READ_WAIT =>
+  785 |         arbiter_nxt.rdata <= sys_rsp_i.data;
+  786 |         if (sys_rsp_i.ack = '1') then
+  787 |           arbiter_nxt.state <= S_EXECUTE;
+  788 |         end if;
+  790 |       when S_EXECUTE =>
+  792 |         arbiter_nxt.state <= S_WRITE;
+  794 |       when S_WRITE =>
+  796 |         arbiter_nxt.state <= S_WRITE_WAIT;
+  798 |       when S_WRITE_WAIT =>
+  800 |         if (sys_rsp_i.ack = '1') then
+  801 |           arbiter_nxt.state <= S_IDLE;
+  802 |         end if;
+  804 |       when others =>
+  806 |         arbiter_nxt.state <= S_IDLE;
+  808 |     end case;
+  809 |   end process arbiter_comb;
+  812 |   sys_req_o.addr  <= core_req_i.addr;
+  813 |   sys_req_o.data  <= alu_res when (arbiter.state = S_WRITE) or (arbiter.state = S_WRITE_WAIT) else core_req_i.data;
+  814 |   sys_req_o.ben   <= core_req_i.ben;
+  815 |   sys_req_o.stb   <= '1' when (arbiter.state = S_WRITE) else core_req_i.stb;
+  816 |   sys_req_o.rw    <= '1' when (arbiter.state = S_WRITE) or (arbiter.state = S_WRITE_WAIT) else core_req_i.rw;
+  817 |   sys_req_o.src   <= core_req_i.src;
+  818 |   sys_req_o.priv  <= core_req_i.priv;
+  819 |   sys_req_o.debug <= core_req_i.debug;
+  820 |   sys_req_o.amo   <= core_req_i.amo;
+  821 |   sys_req_o.amoop <= core_req_i.amoop;
+  822 |   sys_req_o.lock  <= core_req_i.lock;
+  823 |   sys_req_o.fence <= core_req_i.fence;
+  826 |   core_rsp_o.data <= sys_rsp_i.data when (arbiter.state = S_IDLE) else arbiter.rdata;
+  827 |   core_rsp_o.err  <= sys_rsp_i.err  when (arbiter.state = S_IDLE) or (arbiter.state = S_WRITE_WAIT) else '0';
+  828 |   core_rsp_o.ack  <= sys_rsp_i.ack  when (arbiter.state = S_IDLE) or (arbiter.state = S_WRITE_WAIT) else '0';
+  833 |   amo_alu: process(rstn_i, clk_i)
+  834 |   begin
+  835 |     if (rstn_i = '0') then
+  836 |       alu_res <= (others => '0');
+  837 |     elsif rising_edge(clk_i) then
+  838 |       case arbiter.cmd(2 downto 0) is
+  839 |         when "000"  => alu_res <= arbiter.wdata;
+  840 |         when "001"  => alu_res <= std_ulogic_vector(unsigned(arbiter.rdata) + unsigned(arbiter.wdata));
+  841 |         when "010"  => alu_res <= arbiter.rdata xor arbiter.wdata;
+  842 |         when "011"  => alu_res <= arbiter.rdata and arbiter.wdata;
+  843 |         when "100"  => alu_res <= arbiter.rdata or arbiter.wdata;
+  844 |         when others => alu_res <= cmp_res;
+  845 |       end case;
+  846 |     end if;
+  847 |   end process amo_alu;
+  850 |   cmp_opa  <= (arbiter.rdata(arbiter.rdata'left) and arbiter.cmd(3)) & arbiter.rdata;
+  851 |   cmp_opb  <= (arbiter.wdata(arbiter.wdata'left) and arbiter.cmd(3)) & arbiter.wdata;
+  852 |   cmp_less <= '1' when (signed(cmp_opa) < signed(cmp_opb)) else '0';
+  853 |   cmp_res  <= cmp_opa(31 downto 0) when ((cmp_less xor arbiter.cmd(0)) = '1') else cmp_opb(31 downto 0);
+  856 | end neorv32_bus_amo_rmw_rtl;
+  872 | library ieee;
+  873 | use ieee.std_logic_1164.all;
+  875 | library neorv32;
+  876 | use neorv32.neorv32_package.all;
+
+  878 | entity neorv32_bus_amo_rvs is
+  879 |   port (
+  881 |     clk_i      : in  std_ulogic;
+  882 |     rstn_i     : in  std_ulogic;
+  884 |     core_req_i : in  bus_req_t;
+  885 |     core_rsp_o : out bus_rsp_t;
+  887 |     sys_req_o  : out bus_req_t;
+  888 |     sys_rsp_i  : in  bus_rsp_t
+  889 |   );
+  890 | end neorv32_bus_amo_rvs;
+
+  892 | architecture neorv32_bus_amo_rvs_rtl of neorv32_bus_amo_rvs is
+  894 |   signal state : std_ulogic_vector(1 downto 0);
+  895 |   signal rvso, sc_fail : std_ulogic;
+  897 | begin
+  901 |   rvs_control: process(rstn_i, clk_i)
+  902 |   begin
+  903 |     if (rstn_i = '0') then
+  904 |       state <= (others => '0');
+  905 |     elsif rising_edge(clk_i) then
+  906 |       case state is
+  908 |         when "10" =>
+  910 |           if (core_req_i.stb = '1') and (core_req_i.rw = '1') then
+  911 |             if (rvso = '1') then
+  912 |               state <= "11";
+  913 |             else
+  914 |               state <= "00";
+  915 |             end if;
+  916 |           end if;
+  918 |         when "11" =>
+  920 |           if (sys_rsp_i.ack = '1') then
+  921 |             state <= "00";
+  922 |           end if;
+  924 |         when others =>
+  926 |           if (core_req_i.stb = '1') and (core_req_i.rw = '0') and (rvso = '1') then
+  927 |             state <= "10";
+  928 |           end if;
+  930 |       end case;
+  931 |     end if;
+  932 |   end process rvs_control;
+  935 |   rvso <= '1' when (core_req_i.amo = '1') and (core_req_i.amoop(3 downto 2) = "10") else '0';
+  940 |   bus_request: process(core_req_i, rvso, state)
+  941 |   begin
+  942 |     sys_req_o <= core_req_i;
+  943 |     if (rvso = '1') and (core_req_i.rw = '1') then
+  944 |       sys_req_o.stb <= core_req_i.stb and state(1);
+  945 |     else
+  946 |       sys_req_o.stb <= core_req_i.stb;
+  947 |     end if;
+  948 |   end process bus_request;
+  952 |   sc_result: process(rstn_i, clk_i)
+  953 |   begin
+  954 |     if (rstn_i = '0') then
+  955 |       sc_fail <= '0';
+  956 |     elsif rising_edge(clk_i) then
+  957 |       sc_fail <= rvso and core_req_i.stb and core_req_i.rw and (not state(1));
+  958 |     end if;
+  959 |   end process sc_result;
+  962 |   core_rsp_o.err  <= sys_rsp_i.err;
+  963 |   core_rsp_o.ack  <= sys_rsp_i.ack or sc_fail;
+  964 |   core_rsp_o.data <= sys_rsp_i.data(31 downto 1) & (sys_rsp_i.data(0) or sc_fail);
+  967 | end neorv32_bus_amo_rvs_rtl;

@@ -1,0 +1,26 @@
+UNIT neorv32_wdt
+  INPUTS: bus_req_i, clk_i, clkgen_i, rstn_dbg_i, rstn_ext_i, rstn_sys_i
+  OUTPUTS: bus_rsp_o, clkgen_en_o, rstn_o
+  BLOCKS
+    [logic] cnt_timeout: cnt_timeout
+    [logic] prsc_tick: prsc_tick
+    [process] bus_access: ctrl.enable, ctrl.lock, ctrl.strict, ctrl.timeout, reset_force, reset_wdt; clocked by clk_i; reset by rstn_sys_i
+    [process] reset_generator: hw_rst_access, hw_rst_timeout; clocked by clk_i; reset by rstn_sys_i
+    [process] reset_identifier: reset_cause; clocked by clk_i; reset by rstn_ext_i
+    [process] wdt_counter: cnt, cnt_inc, cnt_started; clocked by clk_i; reset by rstn_sys_i
+  ARROWS (==> a value moves; --> only decides; [the elements the arrow carries])
+    bus_req_i ==> bus_access   [bus_req_i.{addr,data,rw,stb}]
+    clkgen_i ==> prsc_tick   [clkgen_i]
+    rstn_dbg_i --> reset_identifier   [rstn_dbg_i]
+    cnt_timeout ==> reset_generator   [cnt_timeout]
+    prsc_tick ==> reset_generator   [prsc_tick]
+    prsc_tick ==> wdt_counter   [prsc_tick]
+    bus_access --> cnt_timeout   [ctrl.timeout]
+    bus_access ==> bus_rsp_o
+    bus_access ==> clkgen_en_o   [ctrl.enable]
+    bus_access ==> reset_generator   [ctrl.{enable,strict}, reset_force]
+    bus_access ==> wdt_counter   [ctrl.enable, reset_wdt]
+    reset_generator ==> rstn_o   [hw_rst_access, hw_rst_timeout]
+    reset_generator --> reset_identifier   [hw_rst_access, hw_rst_timeout]
+    reset_identifier ==> bus_access   [reset_cause]
+    wdt_counter --> cnt_timeout   [cnt, cnt_started]

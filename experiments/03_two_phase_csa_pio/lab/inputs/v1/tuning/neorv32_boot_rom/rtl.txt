@@ -1,0 +1,34 @@
+   19 | entity neorv32_boot_rom is
+   20 |   port (
+   21 |     clk_i     : in  std_ulogic;
+   22 |     rstn_i    : in  std_ulogic;
+   23 |     bus_req_i : in  bus_req_t;
+   24 |     bus_rsp_o : out bus_rsp_t
+   25 |   );
+   26 | end neorv32_boot_rom;
+
+   28 | architecture neorv32_boot_rom_rtl of neorv32_boot_rom is
+   31 |   constant boot_rom_size_index_c : natural := index_size_f((bootloader_init_size_c/4));
+   32 |   constant boot_rom_size_c       : natural range 0 to iodev_size_c := (2**boot_rom_size_index_c);
+   35 |   constant mem_rom_c : mem32_t(0 to boot_rom_size_c-1) := mem32_init_f(bootloader_init_image_c, boot_rom_size_c);
+   38 |   signal rden  : std_ulogic;
+   39 |   signal rdata : std_ulogic_vector(31 downto 0);
+   41 | begin
+   45 |   mem_access: process(clk_i)
+   46 |   begin
+   47 |     if rising_edge(clk_i) then
+   48 |       rdata <= mem_rom_c(to_integer(unsigned(bus_req_i.addr(boot_rom_size_index_c+1 downto 2))));
+   49 |     end if;
+   50 |   end process mem_access;
+   55 |   bus_feedback: process(rstn_i, clk_i)
+   56 |   begin
+   57 |     if (rstn_i = '0') then
+   58 |       rden <= '0';
+   59 |     elsif rising_edge(clk_i) then
+   60 |       rden <= bus_req_i.stb and (not bus_req_i.rw);
+   61 |     end if;
+   62 |   end process bus_feedback;
+   64 |   bus_rsp_o.data <= rdata when (rden = '1') else (others => '0');
+   65 |   bus_rsp_o.ack  <= rden;
+   66 |   bus_rsp_o.err  <= '0';
+   69 | end neorv32_boot_rom_rtl;

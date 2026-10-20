@@ -1,0 +1,54 @@
+UNIT neorv32_cpu_counters
+  INPUTS: clk_i, ctrl_i, rstn_i
+  OUTPUTS: rdata_o
+  BLOCKS
+    [generate] acc_gen: cfg_re, cfg_we, cnt_re, cnt_we, sel
+    [generate] base_disabled: cycle_rd, instret_rd, time_rd
+    [generate] base_enabled: time_rd
+    [generate] hpm_disabled: hpm_rd, hpmcnt, hpmevent
+    [generate] hpm_terminate_gen: hpmcnt, hpmevent
+    [inst] cycle_inst (neorv32_cpu_counters_cnt, this file): cy_q, cycle_rd, hi_q, inc, lo_q, nxt, rdata_o; clocked by clk_i; reset by rstn_i
+    [inst] hpmcnt_inst (neorv32_cpu_counters_cnt, this file): cy_q, hi_q, hpmcnt, inc, lo_q, nxt, rdata_o; clocked by clk_i; reset by rstn_i
+    [inst] instret_inst (neorv32_cpu_counters_cnt, this file): cy_q, hi_q, inc, instret_rd, lo_q, nxt, rdata_o; clocked by clk_i; reset by rstn_i
+    [logic] cfg_acc: cfg_acc
+    [logic] cnt_acc: cnt_acc
+    [process] cnt_control: cnt_en; clocked by clk_i; reset by rstn_i
+    [process] hpm_read_back: hpm_rd
+    [process] hpmevent_reg: hpmevent; clocked by clk_i; reset by rstn_i
+  ARROWS (==> a value moves; --> only decides; [the elements the arrow carries])
+    acc_gen ==> cycle_inst   [cnt_re, cnt_we]
+    acc_gen ==> hpmcnt_inst   [cnt_re, cnt_we]
+    acc_gen ==> instret_inst   [cnt_re, cnt_we]
+    acc_gen --> hpm_read_back   [cfg_re]
+    acc_gen --> hpmevent_reg   [cfg_we]
+    base_disabled ==> rdata_o   [cycle_rd, instret_rd, time_rd]
+    base_enabled ==> rdata_o   [time_rd]
+    hpm_disabled ==> rdata_o   [hpm_rd]
+    hpm_disabled ==> cnt_control   [hpmevent]
+    hpm_terminate_gen ==> cnt_control   [hpmevent]
+    hpm_terminate_gen ==> hpm_read_back   [hpmcnt, hpmevent]
+    clk_i ==> cycle_inst   [clk_i]
+    clk_i ==> hpmcnt_inst   [clk_i]
+    clk_i ==> instret_inst   [clk_i]
+    ctrl_i ==> acc_gen   [ctrl_i.{csr_addr,csr_re,csr_we}]
+    ctrl_i ==> cycle_inst   [ctrl_i.{csr_addr,csr_wdata}]
+    ctrl_i ==> hpmcnt_inst   [ctrl_i.{csr_addr,csr_wdata}]
+    ctrl_i ==> instret_inst   [ctrl_i.{csr_addr,csr_wdata}]
+    ctrl_i --> cfg_acc   [ctrl_i.csr_addr]
+    ctrl_i --> cnt_acc   [ctrl_i.csr_addr]
+    ctrl_i ==> cnt_control   [ctrl_i.{cnt_event,cnt_halt,cpu_debug}]
+    ctrl_i ==> hpmevent_reg   [ctrl_i.csr_wdata]
+    rstn_i ==> cycle_inst   [rstn_i]
+    rstn_i ==> hpmcnt_inst   [rstn_i]
+    rstn_i ==> instret_inst   [rstn_i]
+    cycle_inst ==> rdata_o   [cycle_rd]
+    hpmcnt_inst ==> hpm_read_back   [hpmcnt]
+    instret_inst ==> rdata_o   [instret_rd]
+    cfg_acc ==> acc_gen   [cfg_acc]
+    cnt_acc ==> acc_gen   [cnt_acc]
+    cnt_control ==> cycle_inst   [cnt_en]
+    cnt_control ==> hpmcnt_inst   [cnt_en]
+    cnt_control ==> instret_inst   [cnt_en]
+    hpm_read_back ==> rdata_o   [hpm_rd]
+    hpmevent_reg ==> cnt_control   [hpmevent]
+    hpmevent_reg ==> hpm_read_back   [hpmevent]

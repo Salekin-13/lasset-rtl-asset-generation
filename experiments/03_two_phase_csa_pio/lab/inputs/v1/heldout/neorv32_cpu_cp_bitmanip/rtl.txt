@@ -1,0 +1,337 @@
+   26 | entity neorv32_cpu_cp_bitmanip is
+   27 |   generic (
+   28 |     EN_FAST_SHIFT : boolean;
+   29 |     EN_ZBA        : boolean;
+   30 |     EN_ZBB        : boolean;
+   31 |     EN_ZBKC       : boolean;
+   32 |     EN_ZBKB       : boolean;
+   33 |     EN_ZBS        : boolean
+   34 |   );
+   35 |   port (
+   37 |     clk_i   : in  std_ulogic;
+   38 |     rstn_i  : in  std_ulogic;
+   39 |     ctrl_i  : in  ctrl_bus_t;
+   41 |     cmp_i   : in  std_ulogic_vector(1 downto 0);
+   42 |     rs1_i   : in  std_ulogic_vector(XLEN-1 downto 0);
+   43 |     rs2_i   : in  std_ulogic_vector(XLEN-1 downto 0);
+   44 |     shamt_i : in  std_ulogic_vector(index_size_f(XLEN)-1 downto 0);
+   46 |     res_o   : out std_ulogic_vector(XLEN-1 downto 0);
+   47 |     valid_o : out std_ulogic
+   48 |   );
+   49 | end neorv32_cpu_cp_bitmanip;
+
+   51 | architecture neorv32_cpu_cp_bitmanip_rtl of neorv32_cpu_cp_bitmanip is
+   54 |   constant op_andn_c  : natural := 0;
+   55 |   constant op_orn_c   : natural := 1;
+   56 |   constant op_xnor_c  : natural := 2;
+   57 |   constant op_cz_c    : natural := 3;
+   58 |   constant op_cpop_c  : natural := 4;
+   59 |   constant op_max_c   : natural := 5;
+   60 |   constant op_sext_c  : natural := 6;
+   61 |   constant op_zexth_c : natural := 7;
+   62 |   constant op_rot_c   : natural := 8;
+   63 |   constant op_orcb_c  : natural := 9;
+   64 |   constant op_rev8_c  : natural := 10;
+   66 |   constant op_shadd_c : natural := 11;
+   68 |   constant op_bclr_c  : natural := 12;
+   69 |   constant op_bext_c  : natural := 13;
+   70 |   constant op_binv_c  : natural := 14;
+   71 |   constant op_bset_c  : natural := 15;
+   73 |   constant op_pack_c  : natural := 16;
+   74 |   constant op_zip_c   : natural := 17;
+   75 |   constant op_brev8_c : natural := 18;
+   77 |   constant op_clmul_c : natural := 19;
+   79 |   constant op_width_c : natural := 20;
+   82 |   type ctrl_state_t is (S_IDLE, S_START, S_BUSY);
+   83 |   signal ctrl_state : ctrl_state_t;
+   84 |   signal valid_cmd  : std_ulogic;
+   85 |   signal cmd        : std_ulogic_vector(op_width_c-1 downto 0);
+   86 |   signal valid      : std_ulogic;
+   89 |   signal rs1_reg  : std_ulogic_vector(XLEN-1 downto 0);
+   90 |   signal rs2_reg  : std_ulogic_vector(XLEN-1 downto 0);
+   91 |   signal sha_reg  : std_ulogic_vector(index_size_f(XLEN)-1 downto 0);
+   92 |   signal less_reg : std_ulogic;
+   95 |   type shifter_t is record
+   96 |     start   : std_ulogic;
+   97 |     run     : std_ulogic;
+   98 |     nxt     : std_ulogic;
+   99 |     bcnt    : std_ulogic_vector(index_size_f(XLEN) downto 0);
+  100 |     cnt     : std_ulogic_vector(index_size_f(XLEN) downto 0);
+  101 |     cnt_max : std_ulogic_vector(index_size_f(XLEN) downto 0);
+  102 |     sreg    : std_ulogic_vector(XLEN-1 downto 0);
+  103 |   end record;
+  104 |   signal shifter : shifter_t;
+  107 |   type clmul_t is record
+  108 |     start : std_ulogic;
+  109 |     run   : std_ulogic;
+  110 |     cnt   : std_ulogic_vector(index_size_f(XLEN) downto 0);
+  111 |     res   : std_ulogic_vector(2*XLEN-1 downto 0);
+  112 |   end record;
+  113 |   signal clmul : clmul_t;
+  116 |   type bs_level_t is array (index_size_f(XLEN) downto 0) of std_ulogic_vector(XLEN-1 downto 0);
+  117 |   signal bs_level : bs_level_t;
+  118 |   signal bs_shift : std_ulogic_vector(index_size_f(XLEN)-1 downto 0);
+  121 |   type res_t is array (0 to op_width_c-1) of std_ulogic_vector(XLEN-1 downto 0);
+  122 |   signal res_int, res_out : res_t;
+  125 |   signal adder_res, one_hot_res, zip_res, unzip_res : std_ulogic_vector(XLEN-1 downto 0);
+  127 | begin
+  132 |   cmd(op_andn_c)  <= '1' when (EN_ZBB or EN_ZBKB) and (ctrl_i.ir_opcode(5) = '1') and (ctrl_i.ir_funct12(11 downto 5) = "0100000") and (ctrl_i.ir_funct3 = "111") else '0';
+  133 |   cmd(op_orn_c)   <= '1' when (EN_ZBB or EN_ZBKB) and (ctrl_i.ir_opcode(5) = '1') and (ctrl_i.ir_funct12(11 downto 5) = "0100000") and (ctrl_i.ir_funct3 = "110") else '0';
+  134 |   cmd(op_xnor_c)  <= '1' when (EN_ZBB or EN_ZBKB) and (ctrl_i.ir_opcode(5) = '1') and (ctrl_i.ir_funct12(11 downto 5) = "0100000") and (ctrl_i.ir_funct3 = "100") else '0';
+  135 |   cmd(op_max_c)   <= '1' when (EN_ZBB or EN_ZBKB) and (ctrl_i.ir_opcode(5) = '1') and (ctrl_i.ir_funct12(11 downto 5) = "0000101") and (ctrl_i.ir_funct3(2) = '1') else '0';
+  136 |   cmd(op_zexth_c) <= '1' when (EN_ZBB or EN_ZBKB) and (ctrl_i.ir_opcode(5) = '1') and (ctrl_i.ir_funct12 = "000010000000") and (ctrl_i.ir_funct3 = "100") else '0';
+  137 |   cmd(op_orcb_c)  <= '1' when (EN_ZBB or EN_ZBKB) and (ctrl_i.ir_opcode(5) = '0') and (ctrl_i.ir_funct12 = "001010000111") and (ctrl_i.ir_funct3 = "101") else '0';
+  138 |   cmd(op_cz_c)    <= '1' when (EN_ZBB or EN_ZBKB) and (ctrl_i.ir_opcode(5) = '0') and (ctrl_i.ir_funct12(11 downto 1) = "01100000000") and (ctrl_i.ir_funct3 = "001") else '0';
+  139 |   cmd(op_cpop_c)  <= '1' when (EN_ZBB or EN_ZBKB) and (ctrl_i.ir_opcode(5) = '0') and (ctrl_i.ir_funct12 = "011000000010") and (ctrl_i.ir_funct3 = "001") else '0';
+  140 |   cmd(op_sext_c)  <= '1' when (EN_ZBB or EN_ZBKB) and (ctrl_i.ir_opcode(5) = '0') and (ctrl_i.ir_funct12(11 downto 1) = "01100000010") and (ctrl_i.ir_funct3 = "001") else '0';
+  141 |   cmd(op_rev8_c)  <= '1' when (EN_ZBB or EN_ZBKB) and (ctrl_i.ir_opcode(5) = '0') and (ctrl_i.ir_funct12 = "011010011000") and (ctrl_i.ir_funct3 = "101") else '0';
+  142 |   cmd(op_rot_c)   <= '1' when (EN_ZBB or EN_ZBKB) and (ctrl_i.ir_funct12(11 downto 5) = "0110000") and
+  143 |                                                       (((ctrl_i.ir_opcode(5) = '1') and (ctrl_i.ir_funct3 = "001")) or (ctrl_i.ir_funct3 = "101")) else '0';
+  146 |   cmd(op_shadd_c) <= '1' when EN_ZBA and (ctrl_i.ir_opcode(5) = '1') and (ctrl_i.ir_funct12(11 downto 5) = "0010000") and
+  147 |                                          ((ctrl_i.ir_funct3 = "010") or (ctrl_i.ir_funct3 = "100") or (ctrl_i.ir_funct3 = "110")) else '0';
+  150 |   cmd(op_bclr_c)  <= '1' when EN_ZBS and (ctrl_i.ir_funct12(11 downto 5) = "0100100") and (ctrl_i.ir_funct3 = "001") else '0';
+  151 |   cmd(op_bext_c)  <= '1' when EN_ZBS and (ctrl_i.ir_funct12(11 downto 5) = "0100100") and (ctrl_i.ir_funct3 = "101") else '0';
+  152 |   cmd(op_binv_c)  <= '1' when EN_ZBS and (ctrl_i.ir_funct12(11 downto 5) = "0110100") and (ctrl_i.ir_funct3 = "001") else '0';
+  153 |   cmd(op_bset_c)  <= '1' when EN_ZBS and (ctrl_i.ir_funct12(11 downto 5) = "0010100") and (ctrl_i.ir_funct3 = "001") else '0';
+  156 |   cmd(op_pack_c)  <= '1' when EN_ZBKB and (ctrl_i.ir_opcode(5) = '1') and (ctrl_i.ir_funct12(11 downto 5) = "0000100") and ((ctrl_i.ir_funct3 = "100") or (ctrl_i.ir_funct3 = "111")) else '0';
+  157 |   cmd(op_zip_c)   <= '1' when EN_ZBKB and (ctrl_i.ir_opcode(5) = '0') and (ctrl_i.ir_funct12 = "000010001111") and ((ctrl_i.ir_funct3 = "001") or (ctrl_i.ir_funct3 = "101")) else '0';
+  158 |   cmd(op_brev8_c) <= '1' when EN_ZBKB and (ctrl_i.ir_opcode(5) = '0') and (ctrl_i.ir_funct12 = "011010000111") and (ctrl_i.ir_funct3 = "101") else '0';
+  161 |   cmd(op_clmul_c) <= '1' when EN_ZBKC and (ctrl_i.ir_opcode(5) = '1') and (ctrl_i.ir_funct12(11 downto 5) = "0000101") and (ctrl_i.ir_funct3(2) = '0') and (ctrl_i.ir_funct3(0) = '1') else '0';
+  164 |   valid_cmd <= '1' when (ctrl_i.alu_cp_alu = '1') and (or_reduce_f(cmd) = '1') else '0';
+  169 |   controller: process(rstn_i, clk_i)
+  170 |   begin
+  171 |     if (rstn_i = '0') then
+  172 |       ctrl_state    <= S_IDLE;
+  173 |       rs1_reg       <= (others => '0');
+  174 |       rs2_reg       <= (others => '0');
+  175 |       sha_reg       <= (others => '0');
+  176 |       less_reg      <= '0';
+  177 |       shifter.start <= '0';
+  178 |       clmul.start   <= '0';
+  179 |       valid         <= '0';
+  180 |     elsif rising_edge(clk_i) then
+  182 |       shifter.start <= '0';
+  183 |       clmul.start   <= '0';
+  184 |       valid         <= '0';
+  187 |       if (ctrl_i.alu_cp_alu = '1') then
+  188 |         less_reg <= cmp_i(cmp_less_c);
+  189 |         rs1_reg  <= rs1_i;
+  190 |         rs2_reg  <= rs2_i;
+  191 |         sha_reg  <= shamt_i;
+  192 |       end if;
+  195 |       case ctrl_state is
+  197 |         when S_IDLE =>
+  199 |           if (valid_cmd = '1') then
+  200 |             if (not EN_FAST_SHIFT) and ((cmd(op_cz_c) or cmd(op_cpop_c) or cmd(op_rot_c)) = '1') then
+  201 |               shifter.start <= '1';
+  202 |               ctrl_state    <= S_START;
+  203 |             elsif (cmd(op_clmul_c) = '1') then
+  204 |               clmul.start <= '1';
+  205 |               ctrl_state  <= S_START;
+  206 |             else
+  207 |               valid      <= '1';
+  208 |               ctrl_state <= S_IDLE;
+  209 |             end if;
+  210 |           end if;
+  212 |         when S_START =>
+  214 |           ctrl_state <= S_BUSY;
+  216 |         when others =>
+  218 |           if ((shifter.run = '0') and (clmul.run = '0')) or (ctrl_i.cpu_trap = '1') then
+  219 |             valid      <= '1';
+  220 |             ctrl_state <= S_IDLE;
+  221 |           end if;
+  223 |       end case;
+  224 |     end if;
+  225 |   end process controller;
+  230 |   serial_shifter:
+  231 |   if not EN_FAST_SHIFT generate
+  233 |     serial_shifter_core: process(rstn_i, clk_i)
+  234 |     begin
+  235 |       if (rstn_i = '0') then
+  236 |         shifter.cnt     <= (others => '0');
+  237 |         shifter.sreg    <= (others => '0');
+  238 |         shifter.cnt_max <= (others => '0');
+  239 |         shifter.bcnt    <= (others => '0');
+  240 |       elsif rising_edge(clk_i) then
+  241 |         if (shifter.start = '1') then
+  242 |           shifter.cnt  <= (others => '0');
+  243 |           shifter.sreg <= rs1_reg;
+  244 |           if (cmd(op_cpop_c) = '1') then
+  245 |             shifter.cnt_max <= std_ulogic_vector(to_unsigned(XLEN, shifter.cnt_max'length));
+  246 |           else
+  247 |             shifter.cnt_max <= '0' & shamt_i;
+  248 |           end if;
+  249 |           shifter.bcnt <= (others => '0');
+  250 |         elsif (shifter.run = '1') then
+  251 |           if ((cmd(op_rot_c) = '1') and (ctrl_i.ir_funct3(2) = '0')) or
+  252 |              ((cmd(op_cz_c) = '1') and (ctrl_i.ir_funct12(0) = '0')) then
+  253 |             shifter.sreg <= shifter.sreg(shifter.sreg'left-1 downto 0) & shifter.nxt;
+  254 |           else
+  255 |             shifter.sreg <= shifter.nxt & shifter.sreg(shifter.sreg'left downto 1);
+  256 |           end if;
+  257 |           shifter.cnt <= std_ulogic_vector(unsigned(shifter.cnt) + 1);
+  258 |           if (shifter.sreg(0) = '1') then
+  259 |             shifter.bcnt <= std_ulogic_vector(unsigned(shifter.bcnt) + 1);
+  260 |           end if;
+  261 |         end if;
+  262 |       end if;
+  263 |     end process serial_shifter_core;
+  266 |     shifter.nxt <= '1' when (cmd(op_cz_c) = '1') else
+  267 |                    shifter.sreg(0) when (ctrl_i.ir_funct3(2) = '1') else
+  268 |                    shifter.sreg(XLEN-1);
+  271 |     serial_shifter_ctrl: process(cmd, ctrl_i, shifter)
+  272 |     begin
+  274 |       if (cmd(op_cz_c) = '1') then
+  275 |         if (ctrl_i.ir_funct12(0) = '0') then
+  276 |           shifter.run <= not shifter.sreg(XLEN-1);
+  277 |         else
+  278 |           shifter.run <= not shifter.sreg(0);
+  279 |         end if;
+  280 |       else
+  281 |         if (shifter.cnt = shifter.cnt_max) then
+  282 |           shifter.run <= '0';
+  283 |         else
+  284 |           shifter.run <= '1';
+  285 |         end if;
+  286 |       end if;
+  287 |     end process serial_shifter_ctrl;
+  289 |   end generate;
+  294 |   barrel_shifter:
+  295 |   if EN_FAST_SHIFT generate
+  298 |     bs_shift <= std_ulogic_vector(unsigned(not sha_reg) + 1) when (ctrl_i.ir_funct3(2) = '0') else sha_reg;
+  301 |     bs_level(0) <= rs1_reg;
+  302 |     barrel_shifter_core:
+  303 |     for i in 0 to index_size_f(XLEN)-1 generate
+  304 |       bs_level(i+1)(XLEN-1 downto XLEN-(2**i)) <= bs_level(i)((2**i)-1 downto 0)  when (bs_shift(i) = '1') else bs_level(i)(XLEN-1 downto XLEN-(2**i));
+  305 |       bs_level(i+1)((XLEN-(2**i))-1 downto 0)  <= bs_level(i)(XLEN-1 downto 2**i) when (bs_shift(i) = '1') else bs_level(i)((XLEN-(2**i))-1 downto 0);
+  306 |     end generate;
+  307 |     shifter.sreg <= bs_level(bs_level'left);
+  310 |     shifter.bcnt <= std_ulogic_vector(to_unsigned(popcount_f(rs1_reg), shifter.bcnt'length));
+  313 |     shifter.cnt <= std_ulogic_vector(to_unsigned(leading_zeros_f(rs1_reg), shifter.cnt'length)) when (ctrl_i.ir_funct12(0) = '0') else
+  314 |                    std_ulogic_vector(to_unsigned(leading_zeros_f(bit_rev_f(rs1_reg)), shifter.cnt'length));
+  317 |     shifter.run     <= '0';
+  318 |     shifter.nxt     <= '0';
+  319 |     shifter.cnt_max <= (others => '0');
+  321 |   end generate;
+  326 |   shift_adder: process(rs1_reg, rs2_reg, ctrl_i)
+  327 |     variable tmp_v : std_ulogic_vector(XLEN-1 downto 0);
+  328 |   begin
+  329 |     case ctrl_i.ir_funct3(2 downto 1) is
+  330 |       when "01"   => tmp_v := rs1_reg(rs1_reg'left-1 downto 0) & '0';
+  331 |       when "10"   => tmp_v := rs1_reg(rs1_reg'left-2 downto 0) & "00";
+  332 |       when others => tmp_v := rs1_reg(rs1_reg'left-3 downto 0) & "000";
+  333 |     end case;
+  334 |     adder_res <= std_ulogic_vector(unsigned(rs2_reg) + unsigned(tmp_v));
+  335 |   end process shift_adder;
+  340 |   shift_one_hot: process(sha_reg)
+  341 |   begin
+  342 |     one_hot_res <= (others => '0');
+  343 |     one_hot_res(to_integer(unsigned(sha_reg))) <= '1';
+  344 |   end process shift_one_hot;
+  349 |   clmul_enable:
+  350 |   if EN_ZBKC generate
+  352 |       clmul_core: process(rstn_i, clk_i)
+  353 |       begin
+  354 |         if (rstn_i = '0') then
+  355 |           clmul.cnt <= (others => '0');
+  356 |           clmul.res <= (others => '0');
+  357 |         elsif rising_edge(clk_i) then
+  358 |           if (clmul.start = '1') then
+  359 |             clmul.cnt <= std_ulogic_vector(to_unsigned(XLEN, clmul.cnt'length));
+  360 |             clmul.res <= replicate_f('0', XLEN) & rs1_reg;
+  361 |           elsif (clmul.run = '1') then
+  362 |             clmul.cnt <= std_ulogic_vector(unsigned(clmul.cnt) - 1);
+  363 |             if (clmul.res(0) = '1') then
+  364 |               clmul.res(2*XLEN-2 downto XLEN-1) <= clmul.res(2*XLEN-1 downto XLEN) xor rs2_reg;
+  365 |             else
+  366 |               clmul.res(2*XLEN-2 downto XLEN-1) <= clmul.res(2*XLEN-1 downto XLEN);
+  367 |             end if;
+  368 |             clmul.res(XLEN-2 downto 0) <= clmul.res(XLEN-1 downto 1);
+  369 |           end if;
+  370 |         end if;
+  371 |       end process clmul_core;
+  374 |       clmul.run <= '1' when (or_reduce_f(clmul.cnt) = '1') else '0';
+  376 |   end generate;
+  378 |   clmul_disable:
+  379 |   if not EN_ZBKC generate
+  380 |     clmul.cnt <= (others => '0');
+  381 |     clmul.res <= (others => '0');
+  382 |     clmul.run <= '0';
+  383 |   end generate;
+  389 |   res_int(op_andn_c) <= rs1_reg and (not rs2_reg);
+  390 |   res_int(op_orn_c)  <= rs1_reg or  (not rs2_reg);
+  391 |   res_int(op_xnor_c) <= rs1_reg xor (not rs2_reg);
+  394 |   res_int(op_cz_c)(XLEN-1 downto shifter.cnt'left+1) <= (others => '0');
+  395 |   res_int(op_cz_c)(shifter.cnt'left downto 0) <= shifter.cnt;
+  398 |   res_int(op_cpop_c)(XLEN-1 downto shifter.bcnt'left+1) <= (others => '0');
+  399 |   res_int(op_cpop_c)(shifter.bcnt'left downto 0) <= shifter.bcnt;
+  402 |   res_int(op_max_c) <= rs1_reg when ((less_reg xor ctrl_i.ir_funct3(1)) = '1') else rs2_reg;
+  405 |   res_int(op_sext_c)(XLEN-1 downto 16) <= (others => rs1_reg(15)) when (ctrl_i.ir_funct12(0) = '1') else (others => rs1_reg(7));
+  406 |   res_int(op_sext_c)(15 downto 8)      <= rs1_reg(15 downto 8)    when (ctrl_i.ir_funct12(0) = '1') else (others => rs1_reg(7));
+  407 |   res_int(op_sext_c)(7 downto 0)       <= rs1_reg(7 downto 0);
+  410 |   res_int(op_zexth_c)(XLEN-1 downto XLEN/2) <= (others => '0');
+  411 |   res_int(op_zexth_c)(XLEN/2-1 downto 0)    <= rs1_reg(XLEN/2-1 downto 0);
+  414 |   res_int(op_rot_c) <= shifter.sreg;
+  417 |   or_combine_gen:
+  418 |   for i in 0 to (XLEN/8)-1 generate
+  419 |     res_int(op_orcb_c)(i*8+7 downto i*8) <= (others => or_reduce_f(rs1_reg(i*8+7 downto i*8)));
+  420 |   end generate;
+  423 |   res_int(op_rev8_c) <= bswap_f(rs1_reg);
+  426 |   res_int(op_shadd_c) <= adder_res;
+  429 |   res_int(op_bclr_c) <= rs1_reg and (not one_hot_res);
+  430 |   res_int(op_bext_c)(XLEN-1 downto 1) <= (others => '0');
+  431 |   res_int(op_bext_c)(0) <= '1' when (or_reduce_f(rs1_reg and one_hot_res) = '1') else '0';
+  432 |   res_int(op_binv_c) <= rs1_reg xor one_hot_res;
+  433 |   res_int(op_bset_c) <= rs1_reg or one_hot_res;
+  436 |   res_int(op_pack_c) <= rs2_reg(XLEN/2-1 downto 0) & rs1_reg(XLEN/2-1 downto 0) when (ctrl_i.ir_funct3(0) = '0') else
+  437 |                         replicate_f('0', XLEN/2) & rs2_reg(7 downto 0) & rs1_reg(7 downto 0);
+  440 |   interleave_gen:
+  441 |   for i in 0 to (XLEN/2)-1 generate
+  442 |     zip_res(2*i+0)      <= rs1_reg(i);
+  443 |     zip_res(2*i+1)      <= rs1_reg(XLEN/2+i);
+  444 |     unzip_res(i)        <= rs1_reg(2*i);
+  445 |     unzip_res(XLEN/2+i) <= rs1_reg(2*i+1);
+  446 |   end generate;
+  447 |   res_int(op_zip_c) <= zip_res when (ctrl_i.ir_funct3(2) = '0') else unzip_res;
+  450 |   brev_gen:
+  451 |   for i in 0 to (XLEN/8)-1 generate
+  452 |     res_int(op_brev8_c)(i*8+7 downto i*8) <= bit_rev_f(rs1_reg(i*8+7 downto i*8));
+  453 |   end generate;
+  456 |   res_int(op_clmul_c) <= clmul.res(2*XLEN-1 downto XLEN) when (ctrl_i.ir_funct3(1) = '1') else clmul.res(XLEN-1 downto 0);
+  461 |   res_out(op_andn_c)  <= res_int(op_andn_c)  when (EN_ZBB or EN_ZBKB) and (cmd(op_andn_c)  = '1') else (others => '0');
+  462 |   res_out(op_orn_c)   <= res_int(op_orn_c)   when (EN_ZBB or EN_ZBKB) and (cmd(op_orn_c)   = '1') else (others => '0');
+  463 |   res_out(op_xnor_c)  <= res_int(op_xnor_c)  when (EN_ZBB or EN_ZBKB) and (cmd(op_xnor_c)  = '1') else (others => '0');
+  464 |   res_out(op_cz_c)    <= res_int(op_cz_c)    when (EN_ZBB or EN_ZBKB) and (cmd(op_cz_c)    = '1') else (others => '0');
+  465 |   res_out(op_cpop_c)  <= res_int(op_cpop_c)  when (EN_ZBB or EN_ZBKB) and (cmd(op_cpop_c)  = '1') else (others => '0');
+  466 |   res_out(op_max_c)   <= res_int(op_max_c)   when (EN_ZBB or EN_ZBKB) and (cmd(op_max_c)   = '1') else (others => '0');
+  467 |   res_out(op_sext_c)  <= res_int(op_sext_c)  when (EN_ZBB or EN_ZBKB) and (cmd(op_sext_c)  = '1') else (others => '0');
+  468 |   res_out(op_zexth_c) <= res_int(op_zexth_c) when (EN_ZBB or EN_ZBKB) and (cmd(op_zexth_c) = '1') else (others => '0');
+  469 |   res_out(op_rot_c)   <= res_int(op_rot_c)   when (EN_ZBB or EN_ZBKB) and (cmd(op_rot_c)   = '1') else (others => '0');
+  470 |   res_out(op_orcb_c)  <= res_int(op_orcb_c)  when (EN_ZBB or EN_ZBKB) and (cmd(op_orcb_c)  = '1') else (others => '0');
+  471 |   res_out(op_rev8_c)  <= res_int(op_rev8_c)  when (EN_ZBB or EN_ZBKB) and (cmd(op_rev8_c)  = '1') else (others => '0');
+  472 |   res_out(op_shadd_c) <= res_int(op_shadd_c) when EN_ZBA              and (cmd(op_shadd_c) = '1') else (others => '0');
+  473 |   res_out(op_bclr_c)  <= res_int(op_bclr_c)  when EN_ZBS              and (cmd(op_bclr_c)  = '1') else (others => '0');
+  474 |   res_out(op_bext_c)  <= res_int(op_bext_c)  when EN_ZBS              and (cmd(op_bext_c)  = '1') else (others => '0');
+  475 |   res_out(op_binv_c)  <= res_int(op_binv_c)  when EN_ZBS              and (cmd(op_binv_c)  = '1') else (others => '0');
+  476 |   res_out(op_bset_c)  <= res_int(op_bset_c)  when EN_ZBS              and (cmd(op_bset_c)  = '1') else (others => '0');
+  477 |   res_out(op_pack_c)  <= res_int(op_pack_c)  when EN_ZBKB             and (cmd(op_pack_c)  = '1') else (others => '0');
+  478 |   res_out(op_zip_c)   <= res_int(op_zip_c)   when EN_ZBKB             and (cmd(op_zip_c)   = '1') else (others => '0');
+  479 |   res_out(op_brev8_c) <= res_int(op_brev8_c) when EN_ZBKB             and (cmd(op_brev8_c) = '1') else (others => '0');
+  480 |   res_out(op_clmul_c) <= res_int(op_clmul_c) when EN_ZBKC             and (cmd(op_clmul_c) = '1') else (others => '0');
+  485 |   output_gate: process(rstn_i, clk_i)
+  486 |   begin
+  487 |     if (rstn_i = '0') then
+  488 |       res_o <= (others => '0');
+  489 |     elsif rising_edge(clk_i) then
+  490 |       res_o <= (others => '0');
+  491 |       if (valid = '1') then
+  492 |         res_o <= res_out(op_andn_c) or res_out(op_orn_c)  or res_out(op_xnor_c)  or res_out(op_cz_c)    or
+  493 |                  res_out(op_cpop_c) or res_out(op_max_c)  or res_out(op_sext_c)  or res_out(op_zexth_c) or
+  494 |                  res_out(op_rot_c)  or res_out(op_orcb_c) or res_out(op_rev8_c)  or res_out(op_shadd_c) or
+  495 |                  res_out(op_bclr_c) or res_out(op_bext_c) or res_out(op_binv_c)  or res_out(op_bset_c)  or
+  496 |                  res_out(op_pack_c) or res_out(op_zip_c)  or res_out(op_brev8_c) or res_out(op_clmul_c);
+  497 |       end if;
+  498 |     end if;
+  499 |   end process output_gate;
+  502 |   valid_o <= valid;
+  505 | end neorv32_cpu_cp_bitmanip_rtl;

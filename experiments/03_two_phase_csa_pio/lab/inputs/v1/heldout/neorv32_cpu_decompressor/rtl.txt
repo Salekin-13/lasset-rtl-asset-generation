@@ -1,0 +1,233 @@
+   17 | entity neorv32_cpu_decompressor is
+   18 |   port (
+   19 |     instr_i : in  std_ulogic_vector(15 downto 0);
+   20 |     instr_o : out std_ulogic_vector(31 downto 0)
+   21 |   );
+   22 | end neorv32_cpu_decompressor;
+
+   24 | architecture neorv32_cpu_decompressor_rtl of neorv32_cpu_decompressor is
+   27 |   constant ci_opcode_lsb_c : natural :=  0;
+   28 |   constant ci_opcode_msb_c : natural :=  1;
+   29 |   constant ci_rd_3_lsb_c   : natural :=  2;
+   30 |   constant ci_rd_3_msb_c   : natural :=  4;
+   31 |   constant ci_rd_5_lsb_c   : natural :=  7;
+   32 |   constant ci_rd_5_msb_c   : natural := 11;
+   33 |   constant ci_rs1_3_lsb_c  : natural :=  7;
+   34 |   constant ci_rs1_3_msb_c  : natural :=  9;
+   35 |   constant ci_rs1_5_lsb_c  : natural :=  7;
+   36 |   constant ci_rs1_5_msb_c  : natural := 11;
+   37 |   constant ci_rs2_3_lsb_c  : natural :=  2;
+   38 |   constant ci_rs2_3_msb_c  : natural :=  4;
+   39 |   constant ci_rs2_5_lsb_c  : natural :=  2;
+   40 |   constant ci_rs2_5_msb_c  : natural :=  6;
+   41 |   constant ci_funct3_lsb_c : natural := 13;
+   42 |   constant ci_funct3_msb_c : natural := 15;
+   45 |   signal illegal : std_ulogic;
+   46 |   signal decoded : std_ulogic_vector(31 downto 0);
+   48 | begin
+   52 |   decompressor: process(instr_i)
+   53 |     variable imm20_v : std_ulogic_vector(20 downto 0);
+   54 |     variable imm12_v : std_ulogic_vector(12 downto 0);
+   55 |   begin
+   57 |     imm20_v := replicate_f(instr_i(12),10) & instr_i(8) & instr_i(10 downto 9) & instr_i(6) & instr_i(7) & instr_i(2) & instr_i(11) & instr_i(5 downto 3) & '0';
+   58 |     imm12_v := replicate_f(instr_i(12),5) & instr_i(6 downto 5) & instr_i(2) & instr_i(11 downto 10) & instr_i(4 downto 3) & '0';
+   61 |     illegal <= '0';
+   62 |     decoded <= x"00000003";
+   65 |     case instr_i(ci_opcode_msb_c downto ci_opcode_lsb_c) is
+   67 |       when "00" =>
+   68 |         case instr_i(ci_funct3_msb_c downto ci_funct3_lsb_c) is
+   70 |           when "000" =>
+   72 |             decoded(instr_opcode_msb_c downto instr_opcode_lsb_c) <= opcode_alui_c;
+   73 |             decoded(instr_rs1_msb_c downto instr_rs1_lsb_c)       <= "00010";
+   74 |             decoded(instr_rd_msb_c downto instr_rd_lsb_c)         <= "01" & instr_i(ci_rd_3_msb_c downto ci_rd_3_lsb_c);
+   75 |             decoded(instr_funct3_msb_c downto instr_funct3_lsb_c) <= funct3_sadd_c;
+   76 |             decoded(instr_imm12_msb_c downto instr_imm12_lsb_c)   <= "00" & instr_i(10 downto 7) & instr_i(12 downto 11) & instr_i(5) & instr_i(6) & "00";
+   77 |             if (instr_i(12 downto 5) = "00000000") then
+   78 |               illegal <= '1';
+   79 |             end if;
+   81 |           when "010" =>
+   83 |             decoded(instr_opcode_msb_c downto instr_opcode_lsb_c) <= opcode_load_c;
+   84 |             decoded(instr_imm12_msb_c downto instr_imm12_lsb_c)   <= "00000" & instr_i(5) & instr_i(12 downto 10) & instr_i(6) & "00";
+   85 |             decoded(instr_funct3_msb_c downto instr_funct3_lsb_c) <= funct3_lw_c;
+   86 |             decoded(instr_rs1_msb_c downto instr_rs1_lsb_c)       <= "01" & instr_i(ci_rs1_3_msb_c downto ci_rs1_3_lsb_c);
+   87 |             decoded(instr_rd_msb_c downto instr_rd_lsb_c)         <= "01" & instr_i(ci_rd_3_msb_c downto ci_rd_3_lsb_c);
+   89 |           when "110" =>
+   91 |             decoded(instr_opcode_msb_c downto instr_opcode_lsb_c) <= opcode_store_c;
+   92 |             decoded(instr_funct7_msb_c downto instr_funct7_lsb_c) <= "00000" & instr_i(5) & instr_i(12);
+   93 |             decoded(instr_rd_msb_c downto instr_rd_lsb_c)         <= instr_i(11 downto 10) & instr_i(6) & "00";
+   94 |             decoded(instr_funct3_msb_c downto instr_funct3_lsb_c) <= funct3_sw_c;
+   95 |             decoded(instr_rs1_msb_c downto instr_rs1_lsb_c)       <= "01" & instr_i(ci_rs1_3_msb_c downto ci_rs1_3_lsb_c);
+   96 |             decoded(instr_rs2_msb_c downto instr_rs2_lsb_c)       <= "01" & instr_i(ci_rs2_3_msb_c downto ci_rs2_3_lsb_c);
+   98 |           when others =>
+  100 |             illegal <= '1';
+  102 |         end case;
+  104 |       when "01" =>
+  106 |         case instr_i(ci_funct3_msb_c downto ci_funct3_lsb_c) is
+  108 |           when "101" | "001" =>
+  110 |             if (instr_i(ci_funct3_msb_c) = '1') then
+  111 |               decoded(instr_rd_msb_c downto instr_rd_lsb_c) <= "00000";
+  112 |             else
+  113 |               decoded(instr_rd_msb_c downto instr_rd_lsb_c) <= "00001";
+  114 |             end if;
+  115 |             decoded(instr_opcode_msb_c downto instr_opcode_lsb_c) <= opcode_jal_c;
+  116 |             decoded(instr_imm20_msb_c downto instr_imm20_lsb_c)   <= imm20_v(20) & imm20_v(10 downto 1) & imm20_v(11) & imm20_v(19 downto 12);
+  118 |           when "110" | "111" =>
+  120 |             if (instr_i(ci_funct3_lsb_c) = '0') then
+  121 |               decoded(instr_funct3_msb_c downto instr_funct3_lsb_c) <= funct3_beq_c;
+  122 |             else
+  123 |               decoded(instr_funct3_msb_c downto instr_funct3_lsb_c) <= funct3_bne_c;
+  124 |             end if;
+  125 |             decoded(instr_opcode_msb_c downto instr_opcode_lsb_c) <= opcode_branch_c;
+  126 |             decoded(instr_rs1_msb_c downto instr_rs1_lsb_c)       <= "01" & instr_i(ci_rs1_3_msb_c downto ci_rs1_3_lsb_c);
+  127 |             decoded(instr_rs2_msb_c downto instr_rs2_lsb_c)       <= "00000";
+  128 |             decoded(instr_funct7_msb_c downto instr_funct7_lsb_c) <= imm12_v(12) & imm12_v(10 downto 5);
+  129 |             decoded(instr_rd_msb_c downto instr_rd_lsb_c)         <= imm12_v(4 downto 1) & imm12_v(11);
+  131 |           when "010" =>
+  133 |             decoded(instr_opcode_msb_c downto instr_opcode_lsb_c) <= opcode_alui_c;
+  134 |             decoded(instr_funct3_msb_c downto instr_funct3_lsb_c) <= funct3_sadd_c;
+  135 |             decoded(instr_rs1_msb_c downto instr_rs1_lsb_c)       <= "00000";
+  136 |             decoded(instr_rd_msb_c downto instr_rd_lsb_c)         <= instr_i(ci_rd_5_msb_c downto ci_rd_5_lsb_c);
+  137 |             decoded(instr_imm12_msb_c downto instr_imm12_lsb_c)   <= replicate_f(instr_i(12),6) & instr_i(12) & instr_i(6 downto 2);
+  139 |           when "011" =>
+  141 |             if (instr_i(ci_rd_5_msb_c downto ci_rd_5_lsb_c) = "00010") then
+  142 |               decoded(instr_opcode_msb_c downto instr_opcode_lsb_c) <= opcode_alui_c;
+  143 |               decoded(instr_funct3_msb_c downto instr_funct3_lsb_c) <= funct3_sadd_c;
+  144 |               decoded(instr_rd_msb_c downto instr_rd_lsb_c)         <= instr_i(ci_rd_5_msb_c downto ci_rd_5_lsb_c);
+  145 |               decoded(instr_rs1_msb_c downto instr_rs1_lsb_c)       <= "00010";
+  146 |               decoded(instr_rd_msb_c downto instr_rd_lsb_c)         <= "00010";
+  147 |               decoded(instr_imm12_msb_c downto instr_imm12_lsb_c)   <= replicate_f(instr_i(12),3) & instr_i(4 downto 3) & instr_i(5) & instr_i(2) & instr_i(6) & "0000";
+  148 |             else
+  149 |               decoded(instr_opcode_msb_c downto instr_opcode_lsb_c) <= opcode_lui_c;
+  150 |               decoded(instr_rd_msb_c downto instr_rd_lsb_c)         <= instr_i(ci_rd_5_msb_c downto ci_rd_5_lsb_c);
+  151 |               decoded(instr_imm20_msb_c downto instr_imm20_lsb_c)   <= replicate_f(instr_i(12),15) & instr_i(6 downto 2);
+  152 |             end if;
+  153 |             if (instr_i(6 downto 2) = "00000") and (instr_i(12) = '0') then
+  154 |               illegal <= '1';
+  155 |             end if;
+  157 |           when "000" =>
+  159 |             decoded(instr_opcode_msb_c downto instr_opcode_lsb_c) <= opcode_alui_c;
+  160 |             decoded(instr_funct3_msb_c downto instr_funct3_lsb_c) <= funct3_sadd_c;
+  161 |             decoded(instr_rs1_msb_c downto instr_rs1_lsb_c)       <= instr_i(ci_rs1_5_msb_c downto ci_rs1_5_lsb_c);
+  162 |             decoded(instr_rd_msb_c downto instr_rd_lsb_c)         <= instr_i(ci_rd_5_msb_c downto ci_rd_5_lsb_c);
+  163 |             decoded(instr_imm12_msb_c downto instr_imm12_lsb_c)   <= replicate_f(instr_i(12),7) & instr_i(6 downto 2);
+  165 |           when others =>
+  167 |             decoded(instr_rd_msb_c downto instr_rd_lsb_c)   <= "01" & instr_i(ci_rs1_3_msb_c downto ci_rs1_3_lsb_c);
+  168 |             decoded(instr_rs1_msb_c downto instr_rs1_lsb_c) <= "01" & instr_i(ci_rs1_3_msb_c downto ci_rs1_3_lsb_c);
+  169 |             decoded(instr_rs2_msb_c downto instr_rs2_lsb_c) <= "01" & instr_i(ci_rs2_3_msb_c downto ci_rs2_3_lsb_c);
+  170 |             case instr_i(11 downto 10) is
+  171 |               when "00" | "01" =>
+  172 |                 if (instr_i(10) = '0') then
+  173 |                   decoded(instr_funct7_msb_c downto instr_funct7_lsb_c) <= "0000000";
+  174 |                 else
+  175 |                   decoded(instr_funct7_msb_c downto instr_funct7_lsb_c) <= "0100000";
+  176 |                 end if;
+  177 |                 decoded(instr_opcode_msb_c downto instr_opcode_lsb_c) <= opcode_alui_c;
+  178 |                 decoded(instr_funct3_msb_c downto instr_funct3_lsb_c) <= funct3_sr_c;
+  179 |                 decoded(instr_rs2_msb_c downto instr_rs2_lsb_c)       <= instr_i(6 downto 2);
+  180 |                 if (instr_i(12) = '1') then
+  181 |                   illegal <= '1';
+  182 |                 end if;
+  183 |               when "10" =>
+  184 |                 decoded(instr_opcode_msb_c downto instr_opcode_lsb_c) <= opcode_alui_c;
+  185 |                 decoded(instr_funct3_msb_c downto instr_funct3_lsb_c) <= funct3_and_c;
+  186 |                 decoded(instr_imm12_msb_c downto instr_imm12_lsb_c)   <= replicate_f(instr_i(12),7) & instr_i(6 downto 2);
+  187 |               when others =>
+  188 |                 decoded(instr_opcode_msb_c downto instr_opcode_lsb_c) <= opcode_alu_c;
+  189 |                 case instr_i(6 downto 5) is
+  190 |                   when "00" =>
+  191 |                     decoded(instr_funct3_msb_c downto instr_funct3_lsb_c) <= funct3_sadd_c;
+  192 |                     decoded(instr_funct7_msb_c downto instr_funct7_lsb_c) <= "0100000";
+  193 |                   when "01" =>
+  194 |                     decoded(instr_funct3_msb_c downto instr_funct3_lsb_c) <= funct3_xor_c;
+  195 |                     decoded(instr_funct7_msb_c downto instr_funct7_lsb_c) <= "0000000";
+  196 |                   when "10" =>
+  197 |                     decoded(instr_funct3_msb_c downto instr_funct3_lsb_c) <= funct3_or_c;
+  198 |                     decoded(instr_funct7_msb_c downto instr_funct7_lsb_c) <= "0000000";
+  199 |                   when others =>
+  200 |                     decoded(instr_funct3_msb_c downto instr_funct3_lsb_c) <= funct3_and_c;
+  201 |                     decoded(instr_funct7_msb_c downto instr_funct7_lsb_c) <= "0000000";
+  202 |                 end case;
+  203 |                 if (instr_i(12) = '1') then
+  204 |                   illegal <= '1';
+  205 |                 end if;
+  206 |             end case;
+  208 |         end case;
+  210 |       when others =>
+  211 |         case instr_i(ci_funct3_msb_c downto ci_funct3_lsb_c) is
+  213 |           when "000" =>
+  215 |             decoded(instr_opcode_msb_c downto instr_opcode_lsb_c) <= opcode_alui_c;
+  216 |             decoded(instr_rs1_msb_c downto instr_rs1_lsb_c)       <= instr_i(ci_rs1_5_msb_c downto ci_rs1_5_lsb_c);
+  217 |             decoded(instr_rd_msb_c downto instr_rd_lsb_c)         <= instr_i(ci_rs1_5_msb_c downto ci_rs1_5_lsb_c);
+  218 |             decoded(instr_funct3_msb_c downto instr_funct3_lsb_c) <= funct3_sll_c;
+  219 |             decoded(instr_funct7_msb_c downto instr_funct7_lsb_c) <= "0000000";
+  220 |             decoded(instr_rs2_msb_c downto instr_rs2_lsb_c)       <= instr_i(6 downto 2);
+  221 |             if (instr_i(12) = '1') then
+  222 |               illegal <= '1';
+  223 |             end if;
+  225 |           when "010" | "011" =>
+  227 |             decoded(instr_opcode_msb_c downto instr_opcode_lsb_c) <= opcode_load_c;
+  228 |             decoded(instr_imm12_msb_c downto instr_imm12_lsb_c)   <= "0000" & instr_i(3 downto 2) & instr_i(12) & instr_i(6 downto 4) & "00";
+  229 |             decoded(instr_funct3_msb_c downto instr_funct3_lsb_c) <= funct3_lw_c;
+  230 |             decoded(instr_rs1_msb_c downto instr_rs1_lsb_c)       <= "00010";
+  231 |             decoded(instr_rd_msb_c downto instr_rd_lsb_c)         <= instr_i(ci_rd_5_msb_c downto ci_rd_5_lsb_c);
+  232 |             if (instr_i(ci_funct3_lsb_c) = '1') or
+  233 |                (instr_i(ci_rd_5_msb_c downto ci_rd_5_lsb_c) = "00000") then
+  234 |               illegal <= '1';
+  235 |             end if;
+  237 |           when "110" | "111" =>
+  239 |             decoded(instr_opcode_msb_c downto instr_opcode_lsb_c) <= opcode_store_c;
+  240 |             decoded(instr_funct7_msb_c downto instr_funct7_lsb_c) <= "0000" & instr_i(8 downto 7) & instr_i(12);
+  241 |             decoded(instr_rd_msb_c downto instr_rd_lsb_c)         <= instr_i(11 downto 9) & "00";
+  242 |             decoded(instr_funct3_msb_c downto instr_funct3_lsb_c) <= funct3_sw_c;
+  243 |             decoded(instr_rs1_msb_c downto instr_rs1_lsb_c)       <= "00010";
+  244 |             decoded(instr_rs2_msb_c downto instr_rs2_lsb_c)       <= instr_i(ci_rs2_5_msb_c downto ci_rs2_5_lsb_c);
+  245 |             if (instr_i(ci_funct3_lsb_c) = '1') then
+  246 |               illegal <= '1';
+  247 |             end if;
+  249 |           when "100" =>
+  251 |             if (instr_i(12) = '0') then
+  252 |               if (instr_i(6 downto 2) = "00000") then
+  253 |                 decoded(instr_opcode_msb_c downto instr_opcode_lsb_c) <= opcode_jalr_c;
+  254 |                 decoded(instr_rs1_msb_c downto instr_rs1_lsb_c)       <= instr_i(ci_rs1_5_msb_c downto ci_rs1_5_lsb_c);
+  255 |                 decoded(instr_rd_msb_c downto instr_rd_lsb_c)         <= "00000";
+  256 |                 if (instr_i(ci_rs1_5_msb_c downto ci_rs1_5_lsb_c) = "00000") or
+  257 |                    (instr_i(ci_rs2_5_msb_c downto ci_rs2_5_lsb_c) /= "00000") then
+  258 |                   illegal <= '1';
+  259 |                 end if;
+  260 |               else
+  261 |                 decoded(instr_opcode_msb_c downto instr_opcode_lsb_c) <= opcode_alu_c;
+  262 |                 decoded(instr_funct3_msb_c downto instr_funct3_lsb_c) <= "000";
+  263 |                 decoded(instr_rd_msb_c downto instr_rd_lsb_c)         <= instr_i(ci_rd_5_msb_c downto ci_rd_5_lsb_c);
+  264 |                 decoded(instr_rs1_msb_c downto instr_rs1_lsb_c)       <= "00000";
+  265 |                 decoded(instr_rs2_msb_c downto instr_rs2_lsb_c)       <= instr_i(ci_rs2_5_msb_c downto ci_rs2_5_lsb_c);
+  266 |                 if (instr_i(ci_rs2_5_msb_c downto ci_rs2_5_lsb_c) = "00000") then
+  267 |                   illegal <= '1';
+  268 |                 end if;
+  269 |               end if;
+  270 |             else
+  271 |               if (instr_i(6 downto 2) = "00000") then
+  272 |                 if (instr_i(11 downto 7) = "00000") then
+  273 |                   decoded(instr_opcode_msb_c downto instr_opcode_lsb_c)   <= opcode_system_c;
+  274 |                   decoded(instr_funct12_msb_c downto instr_funct12_lsb_c) <= funct12_ebreak_c;
+  275 |                 else
+  276 |                   decoded(instr_opcode_msb_c downto instr_opcode_lsb_c) <= opcode_jalr_c;
+  277 |                   decoded(instr_rs1_msb_c downto instr_rs1_lsb_c)       <= instr_i(ci_rs1_5_msb_c downto ci_rs1_5_lsb_c);
+  278 |                   decoded(instr_rd_msb_c downto instr_rd_lsb_c)         <= "00001";
+  279 |                 end if;
+  280 |               else
+  281 |                 decoded(instr_opcode_msb_c downto instr_opcode_lsb_c) <= opcode_alu_c;
+  282 |                 decoded(instr_funct3_msb_c downto instr_funct3_lsb_c) <= "000";
+  283 |                 decoded(instr_rd_msb_c downto instr_rd_lsb_c)         <= instr_i(ci_rd_5_msb_c downto ci_rd_5_lsb_c);
+  284 |                 decoded(instr_rs1_msb_c downto instr_rs1_lsb_c)       <= instr_i(ci_rd_5_msb_c downto ci_rd_5_lsb_c);
+  285 |                 decoded(instr_rs2_msb_c downto instr_rs2_lsb_c)       <= instr_i(ci_rs2_5_msb_c downto ci_rs2_5_lsb_c);
+  286 |               end if;
+  287 |             end if;
+  289 |           when others =>
+  291 |             illegal <= '1';
+  293 |         end case;
+  295 |     end case;
+  296 |   end process decompressor;
+  299 |   instr_o(31 downto 2) <= decoded(31 downto 2);
+  300 |   instr_o(1) <= decoded(1) when (illegal = '0') else '0';
+  301 |   instr_o(0) <= decoded(0);
+  304 | end neorv32_cpu_decompressor_rtl;

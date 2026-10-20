@@ -1,0 +1,63 @@
+UNIT neorv32_onewire
+  INPUTS: bus_req_i, clk_i, clkgen_i, onewire_i, rstn_i
+  OUTPUTS: bus_rsp_o, clkgen_en_o, irq_o, onewire_o
+  BLOCKS
+    [inst] rx_fifo_inst (neorv32_fifo, another IP): fifo.rx_avail, fifo.rx_free, fifo.rx_rdata
+    [inst] tx_fifo_inst (neorv32_fifo, another IP): fifo.tx_avail, fifo.tx_free, fifo.tx_rdata
+    [logic] clk_src: clk_src
+    [logic] fifo.rx_clr: fifo.rx_clr
+    [logic] fifo.rx_re: fifo.rx_re
+    [logic] fifo.rx_wdata: fifo.rx_wdata
+    [logic] fifo.rx_we: fifo.rx_we
+    [logic] fifo.tx_clr: fifo.tx_clr
+    [logic] fifo.tx_re: fifo.tx_re
+    [logic] fifo.tx_wdata: fifo.tx_wdata
+    [logic] fifo.tx_we: fifo.tx_we
+    [logic] serial.busy: serial.busy
+    [process] bus_access: ctrl.clear, ctrl.clk_div, ctrl.clk_prsc, ctrl.enable; clocked by clk_i; reset by rstn_i
+    [process] clock_generator: clk_cnt, clk_tick, clk_tick2; clocked by clk_i; reset by rstn_i
+    [process] irq_generator: -; clocked by clk_i; reset by rstn_i
+    [process] serial_engine: serial.bit_cnt, serial.done, serial.presence, serial.sample, serial.sreg, serial.state, serial.tick_cnt, serial.wire_hi, serial.wire_in, serial.wire_lo; clocked by clk_i; reset by rstn_i
+  ARROWS (==> a value moves; --> only decides; [the elements the arrow carries])
+    bus_req_i --> fifo.rx_re   [bus_req_i.{addr,rw,stb}]
+    bus_req_i ==> fifo.tx_wdata   [bus_req_i.data]
+    bus_req_i --> fifo.tx_we   [bus_req_i.{addr,rw,stb}]
+    bus_req_i ==> bus_access   [bus_req_i.{addr,data,rw,stb}]
+    clk_i ==> rx_fifo_inst   [clk_i]
+    clk_i ==> tx_fifo_inst   [clk_i]
+    clkgen_i ==> clk_src   [clkgen_i]
+    onewire_i ==> serial_engine   [onewire_i]
+    rstn_i ==> rx_fifo_inst   [rstn_i]
+    rstn_i ==> tx_fifo_inst   [rstn_i]
+    rx_fifo_inst ==> bus_access   [fifo.{rx_avail,rx_rdata}]
+    tx_fifo_inst ==> bus_access   [fifo.{tx_avail,tx_free}]
+    tx_fifo_inst ==> irq_generator   [fifo.tx_avail]
+    tx_fifo_inst ==> serial_engine   [fifo.{tx_avail,tx_rdata}]
+    clk_src --> clock_generator   [clk_src]
+    fifo.rx_clr ==> rx_fifo_inst   [fifo.rx_clr]
+    fifo.rx_re ==> rx_fifo_inst   [fifo.rx_re]
+    fifo.rx_wdata ==> rx_fifo_inst   [fifo.rx_wdata]
+    fifo.rx_we ==> rx_fifo_inst   [fifo.rx_we]
+    fifo.tx_clr ==> tx_fifo_inst   [fifo.tx_clr]
+    fifo.tx_re ==> tx_fifo_inst   [fifo.tx_re]
+    fifo.tx_wdata ==> tx_fifo_inst   [fifo.tx_wdata]
+    fifo.tx_we ==> tx_fifo_inst   [fifo.tx_we]
+    serial.busy ==> bus_access   [serial.busy]
+    serial.busy ==> irq_generator   [serial.busy]
+    serial.busy --> serial_engine   [serial.busy]
+    bus_access --> fifo.rx_clr   [ctrl.{clear,enable}]
+    bus_access --> fifo.tx_clr   [ctrl.{clear,enable}]
+    bus_access ==> bus_rsp_o
+    bus_access ==> clkgen_en_o   [ctrl.enable]
+    bus_access --> clock_generator   [ctrl.{clk_div,clk_prsc,enable}]
+    bus_access ==> irq_generator   [ctrl.enable]
+    bus_access ==> serial_engine   [ctrl.enable]
+    clock_generator --> fifo.tx_re   [clk_tick]
+    clock_generator --> serial_engine   [clk_tick, clk_tick2]
+    irq_generator ==> irq_o
+    serial_engine ==> fifo.rx_wdata   [serial.{presence,sreg}]
+    serial_engine ==> fifo.rx_we   [serial.done]
+    serial_engine --> fifo.tx_re   [serial.state]
+    serial_engine --> serial.busy   [serial.state]
+    serial_engine ==> onewire_o
+    serial_engine ==> bus_access   [serial.wire_in]

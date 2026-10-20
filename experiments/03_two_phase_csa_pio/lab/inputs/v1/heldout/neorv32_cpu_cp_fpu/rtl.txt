@@ -1,0 +1,1737 @@
+   33 | entity neorv32_cpu_cp_fpu is
+   34 |   generic (
+   36 |     FPU_SUBNORMAL_SUPPORT : boolean := false
+   37 |   );
+   38 |   port (
+   40 |     clk_i       : in  std_ulogic;
+   41 |     rstn_i      : in  std_ulogic;
+   42 |     ctrl_i      : in  ctrl_bus_t;
+   44 |     csr_we_i    : in  std_ulogic;
+   45 |     csr_addr_i  : in  std_ulogic_vector(1 downto 0);
+   46 |     csr_wdata_i : in  std_ulogic_vector(XLEN-1 downto 0);
+   47 |     csr_rdata_o : out std_ulogic_vector(XLEN-1 downto 0);
+   49 |     cmp_i       : in  std_ulogic_vector(1 downto 0);
+   50 |     rs1_i       : in  std_ulogic_vector(XLEN-1 downto 0);
+   51 |     rs2_i       : in  std_ulogic_vector(XLEN-1 downto 0);
+   52 |     rs3_i       : in  std_ulogic_vector(XLEN-1 downto 0);
+   54 |     res_o       : out std_ulogic_vector(XLEN-1 downto 0);
+   55 |     valid_o     : out std_ulogic
+   56 |   );
+   57 | end neorv32_cpu_cp_fpu;
+
+   59 | architecture neorv32_cpu_cp_fpu_rtl of neorv32_cpu_cp_fpu is
+   62 |   constant op_class_c  : std_ulogic_vector(2 downto 0) := "000";
+   63 |   constant op_comp_c   : std_ulogic_vector(2 downto 0) := "001";
+   64 |   constant op_i2f_c    : std_ulogic_vector(2 downto 0) := "010";
+   65 |   constant op_f2i_c    : std_ulogic_vector(2 downto 0) := "011";
+   66 |   constant op_sgnj_c   : std_ulogic_vector(2 downto 0) := "100";
+   67 |   constant op_minmax_c : std_ulogic_vector(2 downto 0) := "101";
+   68 |   constant op_addsub_c : std_ulogic_vector(2 downto 0) := "110";
+   69 |   constant op_mul_c    : std_ulogic_vector(2 downto 0) := "111";
+   72 |   signal csr_frm    : std_ulogic_vector(2 downto 0);
+   73 |   signal csr_fflags : std_ulogic_vector(4 downto 0);
+   74 |   signal fflags     : std_ulogic_vector(4 downto 0);
+   77 |   component neorv32_cpu_cp_fpu_f2i
+   78 |   generic (
+   80 |     FPU_SUBNORMAL_SUPPORT : boolean := false
+   81 |   );
+   82 |   port (
+   84 |     clk_i      : in  std_ulogic;
+   85 |     rstn_i     : in  std_ulogic;
+   86 |     start_i    : in  std_ulogic;
+   87 |     abort_i    : in  std_ulogic;
+   88 |     rmode_i    : in  std_ulogic_vector(2 downto 0);
+   89 |     funct_i    : in  std_ulogic;
+   91 |     sign_i     : in  std_ulogic;
+   92 |     exponent_i : in  std_ulogic_vector(7 downto 0);
+   93 |     mantissa_i : in  std_ulogic_vector(22 downto 0);
+   94 |     class_i    : in  std_ulogic_vector(9 downto 0);
+   96 |     result_o   : out std_ulogic_vector(31 downto 0);
+   97 |     flags_o    : out std_ulogic_vector(4 downto 0);
+   98 |     done_o     : out std_ulogic
+   99 |   );
+  100 |   end component;
+  103 |   component neorv32_cpu_cp_fpu_normalizer
+  104 |   generic (
+  106 |     FPU_SUBNORMAL_SUPPORT : boolean := false
+  107 |   );
+  108 |   port (
+  110 |     clk_i      : in  std_ulogic;
+  111 |     rstn_i     : in  std_ulogic;
+  112 |     start_i    : in  std_ulogic;
+  113 |     abort_i    : in  std_ulogic;
+  114 |     rmode_i    : in  std_ulogic_vector(2 downto 0);
+  115 |     funct_i    : in  std_ulogic;
+  117 |     sign_i     : in  std_ulogic;
+  118 |     exponent_i : in  std_ulogic_vector(8 downto 0);
+  119 |     mantissa_i : in  std_ulogic_vector(47 downto 0);
+  120 |     integer_i  : in  std_ulogic_vector(31 downto 0);
+  121 |     class_i    : in  std_ulogic_vector(9 downto 0);
+  122 |     flags_i    : in  std_ulogic_vector(4 downto 0);
+  124 |     result_o   : out std_ulogic_vector(31 downto 0);
+  125 |     flags_o    : out std_ulogic_vector(4 downto 0);
+  126 |     done_o     : out std_ulogic
+  127 |   );
+  128 |   end component;
+  131 |   type cmd_t is record
+  132 |     instr_class  : std_ulogic;
+  133 |     instr_sgnj   : std_ulogic;
+  134 |     instr_comp   : std_ulogic;
+  135 |     instr_i2f    : std_ulogic;
+  136 |     instr_f2i    : std_ulogic;
+  137 |     instr_minmax : std_ulogic;
+  138 |     instr_addsub : std_ulogic;
+  139 |     instr_mul    : std_ulogic;
+  140 |     funct        : std_ulogic_vector(2 downto 0);
+  141 |     valid        : std_ulogic;
+  142 |   end record;
+  143 |   signal cmd : cmd_t;
+  144 |   signal funct_ff : std_ulogic_vector(2 downto 0);
+  147 |   type ctrl_state_t is (S_IDLE, S_BUSY);
+  148 |   type ctrl_engine_t is record
+  149 |     state : ctrl_state_t;
+  150 |     start : std_ulogic;
+  151 |     valid : std_ulogic;
+  152 |   end record;
+  153 |   signal ctrl_engine : ctrl_engine_t;
+  156 |   type op_data_t  is array (0 to 1) of std_ulogic_vector(31 downto 0);
+  157 |   type op_class_t is array (0 to 1) of std_ulogic_vector(9 downto 0);
+  158 |   type fpu_operands_t is record
+  159 |     rs1       : std_ulogic_vector(31 downto 0);
+  160 |     rs1_class : std_ulogic_vector(9 downto 0);
+  161 |     rs2       : std_ulogic_vector(31 downto 0);
+  162 |     rs2_class : std_ulogic_vector(9 downto 0);
+  163 |     frm       : std_ulogic_vector(2 downto 0);
+  164 |   end record;
+  165 |   signal op_data      : op_data_t;
+  166 |   signal op_class     : op_class_t;
+  167 |   signal fpu_operands : fpu_operands_t;
+  170 |   signal cmp_ff        : std_ulogic_vector(1 downto 0);
+  171 |   signal comp_equal_ff : std_ulogic;
+  172 |   signal comp_less_ff  : std_ulogic;
+  175 |   type fu_interface_t is record
+  176 |     result : std_ulogic_vector(31 downto 0);
+  177 |     flags  : std_ulogic_vector(4 downto 0);
+  178 |     start  : std_ulogic;
+  179 |     done   : std_ulogic;
+  180 |   end record;
+  181 |   signal fu_classify    : fu_interface_t;
+  182 |   signal fu_compare     : fu_interface_t;
+  183 |   signal fu_sign_inject : fu_interface_t;
+  184 |   signal fu_min_max     : fu_interface_t;
+  185 |   signal fu_conv_f2i    : fu_interface_t;
+  186 |   signal fu_addsub      : fu_interface_t;
+  187 |   signal fu_mul         : fu_interface_t;
+  188 |   signal fu_core_done   : std_ulogic;
+  191 |   type fu_i2f_interface_t is record
+  192 |     result : std_ulogic_vector(31 downto 0);
+  193 |     sign   : std_ulogic;
+  194 |     start  : std_ulogic;
+  195 |     done   : std_ulogic;
+  196 |   end record;
+  197 |   signal fu_conv_i2f : fu_i2f_interface_t;
+  200 |   type multiplier_t is record
+  201 |     opa       : unsigned(23 downto 0);
+  202 |     opb       : unsigned(23 downto 0);
+  203 |     buf_ff    : unsigned(47 downto 0);
+  204 |     sign      : std_ulogic;
+  205 |     product   : std_ulogic_vector(47 downto 0);
+  206 |     exp_sum   : std_ulogic_vector(8 downto 0);
+  207 |     exp_res   : std_ulogic_vector(9 downto 0);
+  209 |     res_class : std_ulogic_vector(9 downto 0);
+  210 |     flags     : std_ulogic_vector(4 downto 0);
+  212 |     start     : std_ulogic;
+  213 |     latency   : std_ulogic_vector(2 downto 0);
+  214 |     done      : std_ulogic;
+  215 |   end record;
+  216 |   signal multiplier : multiplier_t;
+  219 |   type addsub_t is record
+  221 |     exp_comp  : std_ulogic_vector(1 downto 0);
+  222 |     small_exp : std_ulogic_vector(7 downto 0);
+  223 |     small_man : std_ulogic_vector(23 downto 0);
+  224 |     large_exp : std_ulogic_vector(7 downto 0);
+  225 |     large_man : std_ulogic_vector(23 downto 0);
+  227 |     man_sreg  : std_ulogic_vector(23 downto 0);
+  228 |     man_g_ext : std_ulogic;
+  229 |     man_r_ext : std_ulogic;
+  230 |     man_s_ext : std_ulogic;
+  231 |     exp_cnt   : std_ulogic_vector(8 downto 0);
+  233 |     man_comp  : std_ulogic;
+  234 |     man_s     : std_ulogic_vector(26 downto 0);
+  235 |     man_l     : std_ulogic_vector(26 downto 0);
+  236 |     add_stage : std_ulogic_vector(27 downto 0);
+  238 |     res_sign  : std_ulogic;
+  239 |     res_sum   : std_ulogic_vector(27 downto 0);
+  240 |     res_class : std_ulogic_vector(9 downto 0);
+  241 |     flags     : std_ulogic_vector(4 downto 0);
+  243 |     start     : std_ulogic;
+  244 |     latency   : std_ulogic_vector(4 downto 0);
+  245 |     done      : std_ulogic;
+  246 |   end record;
+  247 |   signal addsub : addsub_t;
+  250 |   type normalizer_t is record
+  251 |     start     : std_ulogic;
+  252 |     mode      : std_ulogic;
+  253 |     sign      : std_ulogic;
+  254 |     xexp      : std_ulogic_vector(8 downto 0);
+  255 |     xmantissa : std_ulogic_vector(47 downto 0);
+  256 |     result    : std_ulogic_vector(31 downto 0);
+  257 |     class     : std_ulogic_vector(9 downto 0);
+  258 |     flags_in  : std_ulogic_vector(4 downto 0);
+  259 |     flags_out : std_ulogic_vector(4 downto 0);
+  260 |     done      : std_ulogic;
+  261 |   end record;
+  262 |   signal normalizer : normalizer_t;
+  264 | begin
+  274 |   csr_write: process(rstn_i, clk_i)
+  275 |   begin
+  276 |     if (rstn_i = '0') then
+  277 |       csr_frm    <= (others => '0');
+  278 |       csr_fflags <= (others => '0');
+  279 |     elsif rising_edge(clk_i) then
+  280 |       if (csr_we_i = '1') then
+  282 |         if (csr_addr_i = csr_fflags_c(1 downto 0)) then
+  283 |           csr_fflags <= csr_wdata_i(4 downto 0);
+  284 |         end if;
+  286 |         if (csr_addr_i = csr_frm_c(1 downto 0)) then
+  287 |           csr_frm <= csr_wdata_i(2 downto 0);
+  288 |         end if;
+  290 |         if (csr_addr_i = csr_fcsr_c(1 downto 0)) then
+  291 |           csr_frm    <= csr_wdata_i(7 downto 5);
+  292 |           csr_fflags <= csr_wdata_i(4 downto 0);
+  293 |         end if;
+  294 |       else
+  295 |         csr_fflags <= csr_fflags or fflags;
+  296 |       end if;
+  297 |     end if;
+  298 |   end process csr_write;
+  301 |   csr_read: process(csr_addr_i, csr_fflags, csr_frm)
+  302 |   begin
+  303 |     csr_rdata_o <= (others => '0');
+  304 |     case csr_addr_i is
+  305 |       when "01"   => csr_rdata_o(4 downto 0) <= csr_fflags;
+  306 |       when "10"   => csr_rdata_o(2 downto 0) <= csr_frm;
+  307 |       when "11"   => csr_rdata_o(7 downto 0) <= csr_frm & csr_fflags;
+  308 |       when others => NULL;
+  309 |     end case;
+  310 |   end process csr_read;
+  316 |   cmd.instr_class  <= '1' when (ctrl_i.ir_funct12(11 downto 7) = "11100") and (ctrl_i.ir_funct3 = "001")               else '0';
+  317 |   cmd.instr_comp   <= '1' when (ctrl_i.ir_funct12(11 downto 7) = "10100") and (ctrl_i.ir_funct3(2) = '0')              else '0';
+  318 |   cmd.instr_i2f    <= '1' when (ctrl_i.ir_funct12(11 downto 7) = "11010") and (ctrl_i.ir_funct12(4 downto 1) = "0000") else '0';
+  319 |   cmd.instr_f2i    <= '1' when (ctrl_i.ir_funct12(11 downto 7) = "11000") and (ctrl_i.ir_funct12(4 downto 1) = "0000") else '0';
+  320 |   cmd.instr_sgnj   <= '1' when (ctrl_i.ir_funct12(11 downto 7) = "00100") and (ctrl_i.ir_funct3(2) = '0')              else '0';
+  321 |   cmd.instr_minmax <= '1' when (ctrl_i.ir_funct12(11 downto 7) = "00101") and (ctrl_i.ir_funct3(2 downto 1) = "00")    else '0';
+  322 |   cmd.instr_addsub <= '1' when (ctrl_i.ir_funct12(11 downto 8) = "0000")                                               else '0';
+  323 |   cmd.instr_mul    <= '1' when (ctrl_i.ir_funct12(11 downto 7) = "00010")                                              else '0';
+  326 |   cmd.valid <= '1' when (ctrl_i.ir_funct12(6 downto 5) = "00") and
+  327 |                         ((cmd.instr_class  = '1') or (cmd.instr_comp   = '1') or
+  328 |                          (cmd.instr_i2f    = '1') or (cmd.instr_f2i    = '1') or
+  329 |                          (cmd.instr_sgnj   = '1') or (cmd.instr_minmax = '1') or
+  330 |                          (cmd.instr_addsub = '1') or (cmd.instr_mul    = '1')) else '0';
+  333 |   cmd.funct <= op_mul_c    when (cmd.instr_mul    = '1') else
+  334 |                op_addsub_c when (cmd.instr_addsub = '1') else
+  335 |                op_minmax_c when (cmd.instr_minmax = '1') else
+  336 |                op_sgnj_c   when (cmd.instr_sgnj   = '1') else
+  337 |                op_f2i_c    when (cmd.instr_f2i    = '1') else
+  338 |                op_i2f_c    when (cmd.instr_i2f    = '1') else
+  339 |                op_comp_c   when (cmd.instr_comp   = '1') else
+  340 |                op_class_c;
+  347 |   op_data(0)(31)           <= rs1_i(31);
+  348 |   op_data(0)(30 downto 23) <= rs1_i(30 downto 23);
+  349 |   op_data(0)(22 downto 0)  <= (others => '0') when (rs1_i(30 downto 23) = "00000000") else rs1_i(22 downto 0);
+  351 |   op_data(1)(31)           <= rs2_i(31);
+  352 |   op_data(1)(30 downto 23) <= rs2_i(30 downto 23);
+  353 |   op_data(1)(22 downto 0)  <= (others => '0') when (rs2_i(30 downto 23) = "00000000") else rs2_i(22 downto 0);
+  358 |   number_classifier: process(op_data, rs1_i, rs2_i)
+  359 |     variable op_m_all_zero_v, op_e_all_zero_v, op_e_all_one_v       : std_ulogic;
+  360 |     variable op_is_zero_v, op_is_inf_v, op_is_denorm_v, op_is_nan_v : std_ulogic;
+  361 |   begin
+  362 |     for i in 0 to 1 loop
+  364 |       op_m_all_zero_v := not or_reduce_f(op_data(i)(22 downto 0));
+  365 |       op_e_all_zero_v := not or_reduce_f(op_data(i)(30 downto 23));
+  366 |       op_e_all_one_v  :=    and_reduce_f(op_data(i)(30 downto 23));
+  369 |       op_is_zero_v := op_e_all_zero_v and op_m_all_zero_v;
+  370 |       op_is_inf_v  := op_e_all_one_v  and op_m_all_zero_v;
+  373 |       if (i = 0) then
+  374 |         op_is_denorm_v := or_reduce_f(rs1_i(22 downto 0)) and op_e_all_zero_v;
+  375 |       end if;
+  376 |       if (i = 1) then
+  377 |         op_is_denorm_v := or_reduce_f(rs2_i(22 downto 0)) and op_e_all_zero_v;
+  378 |       end if;
+  383 |       op_is_nan_v := op_e_all_one_v and (not op_m_all_zero_v);
+  386 |       op_class(i)(fp_class_neg_inf_c)    <= op_data(i)(31) and op_is_inf_v;
+  387 |       op_class(i)(fp_class_neg_norm_c)   <= op_data(i)(31) and (not op_is_denorm_v) and (not op_is_nan_v) and (not op_is_inf_v) and (not op_is_zero_v);
+  388 |       op_class(i)(fp_class_neg_denorm_c) <= op_data(i)(31) and op_is_denorm_v;
+  389 |       op_class(i)(fp_class_neg_zero_c)   <= op_data(i)(31) and op_is_zero_v and (not op_is_denorm_v);
+  390 |       op_class(i)(fp_class_pos_zero_c)   <= (not op_data(i)(31)) and op_is_zero_v and (not op_is_denorm_v);
+  391 |       op_class(i)(fp_class_pos_denorm_c) <= (not op_data(i)(31)) and op_is_denorm_v;
+  392 |       op_class(i)(fp_class_pos_norm_c)   <= (not op_data(i)(31)) and (not op_is_denorm_v) and (not op_is_nan_v) and (not op_is_inf_v) and (not op_is_zero_v);
+  393 |       op_class(i)(fp_class_pos_inf_c)    <= (not op_data(i)(31)) and op_is_inf_v;
+  394 |       op_class(i)(fp_class_snan_c)       <= op_is_nan_v and (not op_data(i)(22));
+  395 |       op_class(i)(fp_class_qnan_c)       <= op_is_nan_v and (    op_data(i)(22));
+  396 |     end loop;
+  397 |   end process number_classifier;
+  402 |   control_engine_fsm: process(rstn_i, clk_i)
+  403 |   begin
+  404 |     if (rstn_i = '0') then
+  405 |       ctrl_engine.state      <= S_IDLE;
+  406 |       ctrl_engine.valid      <= '0';
+  407 |       ctrl_engine.start      <= '0';
+  408 |       fpu_operands.frm       <= (others => '0');
+  409 |       fpu_operands.rs1       <= (others => '0');
+  410 |       fpu_operands.rs1_class <= (others => '0');
+  411 |       fpu_operands.rs2       <= (others => '0');
+  412 |       fpu_operands.rs2_class <= (others => '0');
+  413 |       funct_ff               <= (others => '0');
+  414 |       cmp_ff                 <= (others => '0');
+  415 |     elsif rising_edge(clk_i) then
+  417 |       ctrl_engine.valid <= '0';
+  418 |       ctrl_engine.start <= '0';
+  421 |       case ctrl_engine.state is
+  423 |         when S_IDLE =>
+  425 |           funct_ff <= cmd.funct;
+  426 |           cmp_ff   <= cmp_i;
+  429 |           if (ctrl_i.ir_funct3 = "111") then
+  430 |             fpu_operands.frm <= csr_frm(2 downto 0);
+  431 |           else
+  432 |             fpu_operands.frm <= ctrl_i.ir_funct3(2 downto 0);
+  433 |           end if;
+  435 |           if (ctrl_i.alu_cp_fpu = '1') and (cmd.valid = '1') then
+  437 |             fpu_operands.rs1       <= op_data(0);
+  438 |             fpu_operands.rs1_class <= op_class(0);
+  439 |             fpu_operands.rs2       <= op_data(1);
+  440 |             fpu_operands.rs2_class <= op_class(1);
+  442 |             ctrl_engine.start <= '1';
+  443 |             ctrl_engine.state <= S_BUSY;
+  444 |           end if;
+  446 |         when S_BUSY =>
+  448 |           if (fu_core_done = '1') or (ctrl_i.cpu_trap = '1') then
+  449 |             ctrl_engine.valid <= '1';
+  450 |             ctrl_engine.state <= S_IDLE;
+  451 |           end if;
+  453 |         when others =>
+  455 |           ctrl_engine.state <= S_IDLE;
+  457 |       end case;
+  458 |     end if;
+  459 |   end process control_engine_fsm;
+  462 |   valid_o <= ctrl_engine.valid;
+  467 |   fu_classify.start    <= ctrl_engine.start and cmd.instr_class;
+  468 |   fu_compare.start     <= ctrl_engine.start and cmd.instr_comp;
+  469 |   fu_sign_inject.start <= ctrl_engine.start and cmd.instr_sgnj;
+  470 |   fu_min_max.start     <= ctrl_engine.start and cmd.instr_minmax;
+  471 |   fu_conv_i2f.start    <= ctrl_engine.start and cmd.instr_i2f;
+  472 |   fu_conv_f2i.start    <= ctrl_engine.start and cmd.instr_f2i;
+  473 |   fu_addsub.start      <= ctrl_engine.start and cmd.instr_addsub;
+  474 |   fu_mul.start         <= ctrl_engine.start and cmd.instr_mul;
+  483 |   fu_classify.flags <= (others => '0');
+  484 |   fu_classify.result(31 downto 10) <= (others => '0');
+  485 |   fu_classify.result(9 downto 0) <= fpu_operands.rs1_class;
+  486 |   fu_classify.done <= fu_classify.start;
+  491 |   float_comparator: process(rstn_i, clk_i)
+  492 |     variable cond_v : std_ulogic_vector(1 downto 0);
+  493 |   begin
+  494 |     if (rstn_i = '0') then
+  495 |       comp_equal_ff   <= '0';
+  496 |       comp_less_ff    <= '0';
+  497 |       fu_compare.done <= '0';
+  498 |       fu_min_max.done <= '0';
+  499 |     elsif rising_edge(clk_i) then
+  502 |       if (not FPU_SUBNORMAL_SUPPORT) then
+  503 |         if ((fpu_operands.rs1_class(fp_class_pos_inf_c)     = '1') and (fpu_operands.rs2_class(fp_class_pos_inf_c)   = '1')) or
+  504 |            ((fpu_operands.rs1_class(fp_class_neg_inf_c)     = '1') and (fpu_operands.rs2_class(fp_class_neg_inf_c)   = '1')) or
+  505 |            (((fpu_operands.rs1_class(fp_class_pos_zero_c)   = '1') or (fpu_operands.rs1_class(fp_class_neg_zero_c)   = '1'))  and
+  506 |             ((fpu_operands.rs2_class(fp_class_pos_zero_c)   = '1') or (fpu_operands.rs2_class(fp_class_neg_zero_c)   = '1')))  or
+  507 |            (((fpu_operands.rs1_class(fp_class_pos_denorm_c) = '1') or (fpu_operands.rs1_class(fp_class_neg_denorm_c) = '1'))  and
+  508 |             ((fpu_operands.rs2_class(fp_class_pos_zero_c)   = '1') or (fpu_operands.rs2_class(fp_class_neg_zero_c)   = '1'))) or
+  509 |            (((fpu_operands.rs1_class(fp_class_pos_denorm_c) = '1') or (fpu_operands.rs1_class(fp_class_neg_denorm_c) = '1'))  and
+  510 |             ((fpu_operands.rs2_class(fp_class_pos_denorm_c) = '1') or (fpu_operands.rs2_class(fp_class_neg_denorm_c) = '1'))) or
+  511 |            (((fpu_operands.rs1_class(fp_class_pos_zero_c)   = '1') or (fpu_operands.rs1_class(fp_class_neg_zero_c)   = '1'))  and
+  512 |             ((fpu_operands.rs2_class(fp_class_pos_denorm_c) = '1') or (fpu_operands.rs2_class(fp_class_neg_denorm_c) = '1'))) or
+  513 |            (cmp_ff(cmp_equal_c) = '1') then
+  514 |           comp_equal_ff <= '1';
+  515 |         else
+  516 |           comp_equal_ff <= '0';
+  517 |         end if;
+  518 |       else
+  519 |         if ((fpu_operands.rs1_class(fp_class_pos_inf_c)   = '1') and (fpu_operands.rs2_class(fp_class_pos_inf_c) = '1')) or
+  520 |            ((fpu_operands.rs1_class(fp_class_neg_inf_c)   = '1') and (fpu_operands.rs2_class(fp_class_neg_inf_c) = '1')) or
+  521 |            (((fpu_operands.rs1_class(fp_class_pos_zero_c) = '1') or (fpu_operands.rs1_class(fp_class_neg_zero_c) = '1')) and
+  522 |             ((fpu_operands.rs2_class(fp_class_pos_zero_c) = '1') or (fpu_operands.rs2_class(fp_class_neg_zero_c) = '1'))) or
+  523 |            (cmp_ff(cmp_equal_c) = '1') then
+  524 |           comp_equal_ff <= '1';
+  525 |         else
+  526 |           comp_equal_ff <= '0';
+  527 |         end if;
+  528 |       end if;
+  532 |       if (not FPU_SUBNORMAL_SUPPORT) then
+  533 |         if ((fpu_operands.rs1_class(fp_class_pos_inf_c)     = '1') and (fpu_operands.rs2_class(fp_class_pos_inf_c)   = '1'))  or
+  534 |            ((fpu_operands.rs1_class(fp_class_neg_inf_c)     = '1') and (fpu_operands.rs2_class(fp_class_neg_inf_c)   = '1'))  or
+  535 |            (((fpu_operands.rs1_class(fp_class_pos_zero_c)   = '1') or (fpu_operands.rs1_class(fp_class_neg_zero_c)   = '1'))  and
+  536 |             ((fpu_operands.rs2_class(fp_class_pos_zero_c)   = '1') or (fpu_operands.rs2_class(fp_class_neg_zero_c)   = '1'))) or
+  537 |            (((fpu_operands.rs1_class(fp_class_pos_denorm_c) = '1') or (fpu_operands.rs1_class(fp_class_neg_denorm_c) = '1'))  and
+  538 |             ((fpu_operands.rs2_class(fp_class_pos_zero_c)   = '1') or (fpu_operands.rs2_class(fp_class_neg_zero_c)   = '1'))) or
+  539 |            (((fpu_operands.rs1_class(fp_class_pos_denorm_c) = '1') or (fpu_operands.rs1_class(fp_class_neg_denorm_c) = '1'))  and
+  540 |             ((fpu_operands.rs2_class(fp_class_pos_denorm_c) = '1') or (fpu_operands.rs2_class(fp_class_neg_denorm_c) = '1'))) or
+  541 |            (((fpu_operands.rs1_class(fp_class_pos_zero_c)   = '1') or (fpu_operands.rs1_class(fp_class_neg_zero_c)   = '1'))  and
+  542 |             ((fpu_operands.rs2_class(fp_class_pos_denorm_c) = '1') or (fpu_operands.rs2_class(fp_class_neg_denorm_c) = '1'))) then
+  543 |           comp_less_ff <= '0';
+  544 |         else
+  545 |           cond_v := fpu_operands.rs1(31) & fpu_operands.rs2(31);
+  546 |           case cond_v is
+  547 |             when "10"   => comp_less_ff <= '1';
+  548 |             when "01"   => comp_less_ff <= '0';
+  549 |             when "00"   => comp_less_ff <= cmp_ff(cmp_less_c);
+  552 |             when "11"   => comp_less_ff <= (not cmp_ff(cmp_less_c)) and (not cmp_ff(cmp_equal_c));
+  553 |             when others => comp_less_ff <= '0';
+  554 |           end case;
+  555 |         end if;
+  556 |       else
+  557 |         if ((fpu_operands.rs1_class(fp_class_pos_inf_c)  = '1') and (fpu_operands.rs2_class(fp_class_pos_inf_c) = '1')) or
+  558 |            ((fpu_operands.rs1_class(fp_class_neg_inf_c)  = '1') and (fpu_operands.rs2_class(fp_class_neg_inf_c) = '1')) or
+  559 |            (((fpu_operands.rs1_class(fp_class_pos_zero_c) = '1') or (fpu_operands.rs1_class(fp_class_neg_zero_c) = '1')) and
+  560 |             ((fpu_operands.rs2_class(fp_class_pos_zero_c) = '1') or (fpu_operands.rs2_class(fp_class_neg_zero_c) = '1'))) then
+  561 |           comp_less_ff <= '0';
+  562 |         else
+  563 |           cond_v := fpu_operands.rs1(31) & fpu_operands.rs2(31);
+  564 |           case cond_v is
+  565 |             when "10"   => comp_less_ff <= '1';
+  566 |             when "01"   => comp_less_ff <= '0';
+  567 |             when "00"   => comp_less_ff <= cmp_ff(cmp_less_c);
+  570 |             when "11"   => comp_less_ff <= not cmp_ff(cmp_less_c) and (not cmp_ff(cmp_equal_c));
+  571 |             when others => comp_less_ff <= '0';
+  572 |           end case;
+  573 |         end if;
+  574 |       end if;
+  577 |       fu_compare.done <= fu_compare.start;
+  578 |       fu_min_max.done <= fu_min_max.start;
+  579 |     end if;
+  580 |   end process float_comparator;
+  585 |   float_comparison: process(fpu_operands, ctrl_i, comp_equal_ff, comp_less_ff)
+  586 |     variable snan_v : std_ulogic;
+  587 |     variable qnan_v : std_ulogic;
+  588 |   begin
+  590 |     snan_v := fpu_operands.rs1_class(fp_class_snan_c) or fpu_operands.rs2_class(fp_class_snan_c);
+  591 |     qnan_v := fpu_operands.rs1_class(fp_class_qnan_c) or fpu_operands.rs2_class(fp_class_qnan_c);
+  595 |     fu_compare.flags <= (others => '0');
+  597 |     fu_compare.result <= (others => '0');
+  598 |     case ctrl_i.ir_funct3(1 downto 0) is
+  599 |       when "00" =>
+  600 |         fu_compare.result(0) <= (comp_less_ff or comp_equal_ff) and (not (snan_v or qnan_v));
+  602 |         if ((snan_v or qnan_v) = '1') then
+  603 |           fu_compare.flags(fp_exc_nv_c) <= '1';
+  604 |         end if;
+  605 |       when "01" =>
+  606 |         fu_compare.result(0) <= comp_less_ff and (not (snan_v or qnan_v));
+  608 |         if ((snan_v or qnan_v) = '1') then
+  609 |           fu_compare.flags(fp_exc_nv_c) <= '1';
+  610 |         end if;
+  611 |       when "10" =>
+  612 |         fu_compare.result(0) <= comp_equal_ff and (not (snan_v or qnan_v));
+  615 |         if ((snan_v) = '1') then
+  616 |           fu_compare.flags(fp_exc_nv_c) <= '1';
+  617 |         end if;
+  618 |       when others =>
+  619 |         fu_compare.result(0) <= '0';
+  620 |     end case;
+  621 |   end process float_comparison;
+  630 |   min_max_select: process(fpu_operands, comp_less_ff, ctrl_i)
+  631 |     variable cond_v : std_ulogic_vector(2 downto 0);
+  632 |   begin
+  635 |     if (not FPU_SUBNORMAL_SUPPORT) then
+  636 |       if (((fpu_operands.rs1_class(fp_class_neg_zero_c)   = '1') and (fpu_operands.rs2_class(fp_class_pos_denorm_c) = '1')) or
+  637 |           ((fpu_operands.rs1_class(fp_class_neg_denorm_c) = '1') and (fpu_operands.rs2_class(fp_class_pos_zero_c)   = '1')) or
+  638 |           ((fpu_operands.rs1_class(fp_class_neg_denorm_c) = '1') and (fpu_operands.rs2_class(fp_class_pos_denorm_c) = '1')) or
+  639 |           ((fpu_operands.rs1_class(fp_class_neg_zero_c)   = '1') and (fpu_operands.rs2_class(fp_class_pos_zero_c)   = '1'))) then
+  640 |         cond_v(0) := ctrl_i.ir_funct3(0);
+  641 |       elsif (((fpu_operands.rs1_class(fp_class_pos_zero_c)   = '1') and (fpu_operands.rs2_class(fp_class_neg_denorm_c) = '1')) or
+  642 |              ((fpu_operands.rs1_class(fp_class_pos_denorm_c) = '1') and (fpu_operands.rs2_class(fp_class_neg_zero_c)   = '1')) or
+  643 |              ((fpu_operands.rs1_class(fp_class_pos_denorm_c) = '1') and (fpu_operands.rs2_class(fp_class_neg_denorm_c) = '1')) or
+  644 |              ((fpu_operands.rs1_class(fp_class_pos_zero_c)   = '1') and (fpu_operands.rs2_class(fp_class_neg_zero_c)   = '1'))) then
+  645 |         cond_v(0) := not ctrl_i.ir_funct3(0);
+  646 |       else
+  647 |         cond_v(0) := not (comp_less_ff xor ctrl_i.ir_funct3(0));
+  648 |       end if;
+  649 |     else
+  650 |       if ((fpu_operands.rs1_class(fp_class_neg_zero_c) = '1') and (fpu_operands.rs2_class(fp_class_pos_zero_c) = '1')) then
+  651 |         cond_v(0) := ctrl_i.ir_funct3(0);
+  652 |       elsif ((fpu_operands.rs1_class(fp_class_pos_zero_c) = '1') and (fpu_operands.rs2_class(fp_class_neg_zero_c) = '1')) then
+  653 |         cond_v(0) := not ctrl_i.ir_funct3(0);
+  654 |       else
+  655 |         cond_v(0) := not (comp_less_ff xor ctrl_i.ir_funct3(0));
+  656 |       end if;
+  657 |     end if;
+  660 |     cond_v(2) := fpu_operands.rs1_class(fp_class_snan_c) or fpu_operands.rs1_class(fp_class_qnan_c);
+  661 |     cond_v(1) := fpu_operands.rs2_class(fp_class_snan_c) or fpu_operands.rs2_class(fp_class_qnan_c);
+  665 |     fu_min_max.flags <= (others => '0');
+  667 |     if ((fpu_operands.rs1_class(fp_class_snan_c) or fpu_operands.rs2_class(fp_class_snan_c)) = '1') then
+  668 |       fu_min_max.flags(fp_exc_nv_c) <= '1';
+  669 |     end if;
+  672 |     case cond_v is
+  673 |       when "000"         => fu_min_max.result <= fpu_operands.rs1;
+  674 |       when "001"         => fu_min_max.result <= fpu_operands.rs2;
+  675 |       when "010" | "011" => fu_min_max.result <= fpu_operands.rs1;
+  676 |       when "100" | "101" => fu_min_max.result <= fpu_operands.rs2;
+  677 |       when others        => fu_min_max.result <= fp_single_qnan_c;
+  678 |     end case;
+  679 |   end process min_max_select;
+  686 |   neorv32_cpu_cp_fpu_f2i_inst: neorv32_cpu_cp_fpu_f2i
+  687 |   generic map (
+  689 |     FPU_SUBNORMAL_SUPPORT => FPU_SUBNORMAL_SUPPORT
+  690 |   )
+  691 |   port map (
+  693 |     clk_i      => clk_i,
+  694 |     rstn_i     => rstn_i,
+  695 |     start_i    => fu_conv_f2i.start,
+  696 |     abort_i    => ctrl_i.cpu_trap,
+  697 |     rmode_i    => fpu_operands.frm,
+  698 |     funct_i    => ctrl_i.ir_funct12(0),
+  700 |     sign_i     => fpu_operands.rs1(31),
+  701 |     exponent_i => fpu_operands.rs1(30 downto 23),
+  702 |     mantissa_i => fpu_operands.rs1(22 downto 0),
+  703 |     class_i    => fpu_operands.rs1_class,
+  705 |     result_o   => fu_conv_f2i.result,
+  706 |     flags_o    => fu_conv_f2i.flags,
+  707 |     done_o     => fu_conv_f2i.done
+  708 |   );
+  713 |   sign_injector: process(ctrl_i, fpu_operands, rs1_i)
+  714 |   begin
+  715 |     case ctrl_i.ir_funct3(1 downto 0) is
+  716 |       when "00"   => fu_sign_inject.result(31) <= fpu_operands.rs2(31);
+  717 |       when "01"   => fu_sign_inject.result(31) <= not fpu_operands.rs2(31);
+  718 |       when "10"   => fu_sign_inject.result(31) <= fpu_operands.rs1(31) xor fpu_operands.rs2(31);
+  719 |       when others => fu_sign_inject.result(31) <= fpu_operands.rs2(31);
+  720 |     end case;
+  723 |     if (not FPU_SUBNORMAL_SUPPORT) then
+  724 |       fu_sign_inject.result(30 downto 0) <= rs1_i(30 downto 0);
+  725 |     else
+  726 |       fu_sign_inject.result(30 downto 0) <= fpu_operands.rs1(30 downto 0);
+  727 |     end if;
+  728 |     fu_sign_inject.flags <= (others => '0');
+  729 |   end process sign_injector;
+  732 |   fu_sign_inject.done <= fu_sign_inject.start;
+  737 |   convert_i2f: process(rstn_i, clk_i)
+  738 |   begin
+  741 |     if (rstn_i = '0') then
+  742 |       fu_conv_i2f.result <= (others => '0');
+  743 |       fu_conv_i2f.sign   <= '0';
+  744 |       fu_conv_i2f.done   <= '0';
+  745 |     elsif rising_edge(clk_i) then
+  746 |       if (ctrl_i.ir_funct12(0) = '0') and (rs1_i(31) = '1') then
+  747 |         fu_conv_i2f.result <= std_ulogic_vector(0 - unsigned(rs1_i));
+  748 |         fu_conv_i2f.sign   <= rs1_i(31);
+  749 |       else
+  750 |         fu_conv_i2f.result <= rs1_i;
+  751 |         fu_conv_i2f.sign   <= '0';
+  752 |       end if;
+  753 |       fu_conv_i2f.done <= fu_conv_i2f.start;
+  754 |     end if;
+  755 |   end process convert_i2f;
+  760 |   multiplier_core: process(rstn_i, clk_i)
+  761 |   begin
+  762 |     if (rstn_i = '0') then
+  763 |       multiplier.opa     <= (others => '0');
+  764 |       multiplier.opb     <= (others => '0');
+  765 |       multiplier.buf_ff  <= (others => '0');
+  766 |       multiplier.product <= (others => '0');
+  767 |       multiplier.sign    <= '0';
+  768 |       multiplier.exp_res <= (others => '0');
+  769 |       multiplier.flags   <= (others => '0');
+  770 |       multiplier.latency <= (others => '0');
+  771 |     elsif rising_edge(clk_i) then
+  774 |       if ((fpu_operands.rs1_class(fp_class_pos_zero_c)   or fpu_operands.rs1_class(fp_class_neg_zero_c)   or
+  775 |            fpu_operands.rs2_class(fp_class_pos_zero_c)   or fpu_operands.rs2_class(fp_class_neg_zero_c)   or
+  776 |            fpu_operands.rs1_class(fp_class_pos_denorm_c) or fpu_operands.rs1_class(fp_class_neg_denorm_c) or
+  777 |            fpu_operands.rs2_class(fp_class_pos_denorm_c) or fpu_operands.rs2_class(fp_class_neg_denorm_c)) = '1') then
+  778 |         if (multiplier.start = '1') then
+  780 |           multiplier.product <= (others => '0');
+  781 |           multiplier.exp_res <= (others => '0');
+  782 |         end if;
+  783 |       else
+  784 |         if (multiplier.start = '1') then
+  785 |           multiplier.opa <= unsigned('1' & fpu_operands.rs1(22 downto 0));
+  786 |           multiplier.opb <= unsigned('1' & fpu_operands.rs2(22 downto 0));
+  787 |         end if;
+  788 |         multiplier.buf_ff  <= multiplier.opa * multiplier.opb;
+  789 |         multiplier.product <= std_ulogic_vector(multiplier.buf_ff(47 downto 0));
+  790 |         multiplier.exp_res <= std_ulogic_vector(unsigned('0' & multiplier.exp_sum) - 127);
+  791 |       end if;
+  792 |       multiplier.sign <= fpu_operands.rs1(31) xor fpu_operands.rs2(31);
+  796 |       multiplier.flags(fp_exc_of_c) <= '0';
+  797 |       multiplier.flags(fp_exc_uf_c) <= '0';
+  798 |       multiplier.flags(fp_exc_nx_c) <= '0';
+  802 |       if ((fpu_operands.rs1_class(fp_class_pos_inf_c) or fpu_operands.rs2_class(fp_class_pos_inf_c) or
+  803 |            fpu_operands.rs1_class(fp_class_neg_inf_c) or fpu_operands.rs2_class(fp_class_neg_inf_c) or
+  804 |            fpu_operands.rs1_class(fp_class_snan_c)    or fpu_operands.rs2_class(fp_class_snan_c)    or
+  805 |            fpu_operands.rs1_class(fp_class_qnan_c)    or fpu_operands.rs2_class(fp_class_qnan_c)) = '0') then
+  806 |         if (multiplier.exp_res(multiplier.exp_res'left) = '1') then
+  807 |           multiplier.flags(fp_exc_of_c) <= '0';
+  808 |           multiplier.flags(fp_exc_uf_c) <= '1';
+  810 |           multiplier.flags(fp_exc_nx_c) <= '1';
+  811 |         elsif (multiplier.exp_res(multiplier.exp_res'left-1) = '1') then
+  812 |           multiplier.flags(fp_exc_of_c) <= '1';
+  813 |           multiplier.flags(fp_exc_uf_c) <= '0';
+  815 |           multiplier.flags(fp_exc_nx_c) <= '1';
+  816 |         end if;
+  817 |       end if;
+  823 |       if (not FPU_SUBNORMAL_SUPPORT) then
+  824 |         multiplier.flags(fp_exc_nv_c) <=
+  825 |           ((fpu_operands.rs1_class(fp_class_snan_c)       or fpu_operands.rs2_class(fp_class_snan_c))) or
+  826 |           ((fpu_operands.rs1_class(fp_class_pos_denorm_c) or fpu_operands.rs1_class(fp_class_neg_denorm_c)) and
+  827 |            (fpu_operands.rs2_class(fp_class_pos_inf_c)    or fpu_operands.rs2_class(fp_class_neg_inf_c))) or
+  828 |           ((fpu_operands.rs1_class(fp_class_pos_inf_c)    or fpu_operands.rs1_class(fp_class_neg_inf_c)) and
+  829 |            (fpu_operands.rs2_class(fp_class_pos_denorm_c) or fpu_operands.rs2_class(fp_class_neg_denorm_c))) or
+  830 |           ((fpu_operands.rs1_class(fp_class_pos_zero_c)   or fpu_operands.rs1_class(fp_class_neg_zero_c)) and
+  831 |            (fpu_operands.rs2_class(fp_class_pos_inf_c)    or fpu_operands.rs2_class(fp_class_neg_inf_c))) or
+  832 |           ((fpu_operands.rs1_class(fp_class_pos_inf_c)    or fpu_operands.rs1_class(fp_class_neg_inf_c)) and
+  833 |            (fpu_operands.rs2_class(fp_class_pos_zero_c)   or fpu_operands.rs2_class(fp_class_neg_zero_c)));
+  834 |       else
+  835 |         multiplier.flags(fp_exc_nv_c) <=
+  836 |           ((fpu_operands.rs1_class(fp_class_pos_zero_c) or fpu_operands.rs1_class(fp_class_neg_zero_c)) and
+  837 |            (fpu_operands.rs2_class(fp_class_pos_inf_c)  or fpu_operands.rs2_class(fp_class_neg_inf_c))) or
+  838 |           ((fpu_operands.rs1_class(fp_class_pos_inf_c)  or fpu_operands.rs1_class(fp_class_neg_inf_c)) and
+  839 |            (fpu_operands.rs2_class(fp_class_pos_zero_c) or fpu_operands.rs2_class(fp_class_neg_zero_c)));
+  840 |       end if;
+  843 |       multiplier.flags(fp_exc_dz_c) <= '0';
+  846 |       multiplier.latency <= multiplier.latency(multiplier.latency'left-1 downto 0) & multiplier.start;
+  847 |     end if;
+  848 |   end process multiplier_core;
+  851 |   multiplier.exp_sum <= std_ulogic_vector(unsigned('0' & fpu_operands.rs1(30 downto 23)) + unsigned('0' & fpu_operands.rs2(30 downto 23)));
+  854 |   multiplier.start <= fu_mul.start;
+  855 |   multiplier.done  <= multiplier.latency(multiplier.latency'left);
+  856 |   fu_mul.done      <= multiplier.done;
+  860 |   multiplier_class_core: process(rstn_i, clk_i)
+  861 |     variable a_pos_norm_v, a_neg_norm_v, b_pos_norm_v, b_neg_norm_v : std_ulogic;
+  862 |     variable a_pos_subn_v, a_neg_subn_v, b_pos_subn_v, b_neg_subn_v : std_ulogic;
+  863 |     variable a_pos_zero_v, a_neg_zero_v, b_pos_zero_v, b_neg_zero_v : std_ulogic;
+  864 |     variable a_pos_inf_v,  a_neg_inf_v,  b_pos_inf_v,  b_neg_inf_v  : std_ulogic;
+  865 |     variable a_snan_v,     a_qnan_v,     b_snan_v,     b_qnan_v     : std_ulogic;
+  866 |   begin
+  867 |     if (rstn_i = '0') then
+  868 |       multiplier.res_class <= (others => '0');
+  869 |     elsif rising_edge(clk_i) then
+  871 |       a_pos_norm_v := fpu_operands.rs1_class(fp_class_pos_norm_c);   b_pos_norm_v := fpu_operands.rs2_class(fp_class_pos_norm_c);
+  872 |       a_neg_norm_v := fpu_operands.rs1_class(fp_class_neg_norm_c);   b_neg_norm_v := fpu_operands.rs2_class(fp_class_neg_norm_c);
+  873 |       a_pos_subn_v := fpu_operands.rs1_class(fp_class_pos_denorm_c); b_pos_subn_v := fpu_operands.rs2_class(fp_class_pos_denorm_c);
+  874 |       a_neg_subn_v := fpu_operands.rs1_class(fp_class_neg_denorm_c); b_neg_subn_v := fpu_operands.rs2_class(fp_class_neg_denorm_c);
+  875 |       a_pos_zero_v := fpu_operands.rs1_class(fp_class_pos_zero_c);   b_pos_zero_v := fpu_operands.rs2_class(fp_class_pos_zero_c);
+  876 |       a_neg_zero_v := fpu_operands.rs1_class(fp_class_neg_zero_c);   b_neg_zero_v := fpu_operands.rs2_class(fp_class_neg_zero_c);
+  877 |       a_pos_inf_v  := fpu_operands.rs1_class(fp_class_pos_inf_c);    b_pos_inf_v  := fpu_operands.rs2_class(fp_class_pos_inf_c);
+  878 |       a_neg_inf_v  := fpu_operands.rs1_class(fp_class_neg_inf_c);    b_neg_inf_v  := fpu_operands.rs2_class(fp_class_neg_inf_c);
+  879 |       a_snan_v     := fpu_operands.rs1_class(fp_class_snan_c);       b_snan_v     := fpu_operands.rs2_class(fp_class_snan_c);
+  880 |       a_qnan_v     := fpu_operands.rs1_class(fp_class_qnan_c);       b_qnan_v     := fpu_operands.rs2_class(fp_class_qnan_c);
+  883 |       multiplier.res_class(fp_class_pos_norm_c) <=
+  884 |         (a_pos_norm_v and b_pos_norm_v) or
+  885 |         (a_neg_norm_v and b_neg_norm_v);
+  887 |       multiplier.res_class(fp_class_neg_norm_c) <=
+  888 |         (a_pos_norm_v and b_neg_norm_v) or
+  889 |         (a_neg_norm_v and b_pos_norm_v);
+  893 |       if (not FPU_SUBNORMAL_SUPPORT) then
+  894 |         multiplier.res_class(fp_class_pos_inf_c) <=
+  895 |           (a_pos_inf_v  and b_pos_inf_v)  or
+  896 |           (a_neg_inf_v  and b_neg_inf_v)  or
+  897 |           (a_pos_norm_v and b_pos_inf_v)  or
+  898 |           (a_pos_inf_v  and b_pos_norm_v) or
+  899 |           (a_neg_norm_v and b_neg_inf_v)  or
+  900 |           (a_neg_inf_v  and b_neg_norm_v);
+  901 |       else
+  902 |         multiplier.res_class(fp_class_pos_inf_c) <=
+  903 |           (a_pos_inf_v  and b_pos_inf_v)  or
+  904 |           (a_neg_inf_v  and b_neg_inf_v)  or
+  905 |           (a_pos_norm_v and b_pos_inf_v)  or
+  906 |           (a_pos_inf_v  and b_pos_norm_v) or
+  907 |           (a_neg_norm_v and b_neg_inf_v)  or
+  908 |           (a_neg_inf_v  and b_neg_norm_v) or
+  909 |           (a_neg_subn_v and b_neg_inf_v)  or
+  910 |           (a_neg_inf_v  and b_neg_subn_v);
+  911 |       end if;
+  914 |       if (not FPU_SUBNORMAL_SUPPORT) then
+  915 |         multiplier.res_class(fp_class_neg_inf_c) <=
+  916 |           (a_pos_inf_v  and b_neg_inf_v)  or
+  917 |           (a_neg_inf_v  and b_pos_inf_v)  or
+  918 |           (a_pos_norm_v and b_neg_inf_v)  or
+  919 |           (a_neg_inf_v  and b_pos_norm_v) or
+  920 |           (a_neg_norm_v and b_pos_inf_v)  or
+  921 |           (a_pos_inf_v  and b_neg_norm_v);
+  922 |       else
+  923 |         multiplier.res_class(fp_class_neg_inf_c) <=
+  924 |           (a_pos_inf_v  and b_neg_inf_v)  or
+  925 |           (a_neg_inf_v  and b_pos_inf_v)  or
+  926 |           (a_pos_norm_v and b_neg_inf_v)  or
+  927 |           (a_neg_inf_v  and b_pos_norm_v) or
+  928 |           (a_neg_norm_v and b_pos_inf_v)  or
+  929 |           (a_pos_inf_v  and b_neg_norm_v) or
+  930 |           (a_pos_subn_v and b_neg_inf_v)  or
+  931 |           (a_neg_inf_v  and b_pos_subn_v) or
+  932 |           (a_neg_subn_v and b_pos_inf_v)  or
+  933 |           (a_pos_inf_v  and b_neg_subn_v);
+  934 |       end if;
+  938 |       if (not FPU_SUBNORMAL_SUPPORT) then
+  939 |         multiplier.res_class(fp_class_pos_zero_c) <=
+  940 |           (a_pos_zero_v and b_pos_zero_v) or
+  941 |           (a_pos_zero_v and b_pos_norm_v) or
+  942 |           (a_pos_subn_v and b_pos_norm_v) or
+  943 |           (a_pos_zero_v and b_pos_subn_v) or
+  944 |           (a_neg_zero_v and b_neg_zero_v) or
+  945 |           (a_neg_zero_v and b_neg_norm_v) or
+  946 |           (a_neg_subn_v and b_neg_norm_v) or
+  947 |           (a_neg_zero_v and b_neg_subn_v) or
+  948 |           (a_pos_norm_v and b_pos_zero_v) or
+  949 |           (a_pos_norm_v and b_pos_subn_v) or
+  950 |           (a_pos_subn_v and b_pos_zero_v) or
+  951 |           (a_neg_norm_v and b_neg_zero_v) or
+  952 |           (a_neg_norm_v and b_neg_subn_v) or
+  953 |           (a_neg_subn_v and b_neg_zero_v);
+  954 |       else
+  955 |         multiplier.res_class(fp_class_pos_zero_c) <=
+  956 |           (a_pos_zero_v and b_pos_zero_v) or
+  957 |           (a_pos_zero_v and b_pos_norm_v) or
+  958 |           (a_pos_zero_v and b_pos_subn_v) or
+  959 |           (a_neg_zero_v and b_neg_zero_v) or
+  960 |           (a_neg_zero_v and b_neg_norm_v) or
+  961 |           (a_neg_zero_v and b_neg_subn_v) or
+  962 |           (a_pos_norm_v and b_pos_zero_v) or
+  963 |           (a_pos_subn_v and b_pos_zero_v) or
+  964 |           (a_neg_norm_v and b_neg_zero_v) or
+  965 |           (a_neg_subn_v and b_neg_zero_v);
+  966 |       end if;
+  970 |       if (not FPU_SUBNORMAL_SUPPORT) then
+  971 |         multiplier.res_class(fp_class_neg_zero_c) <=
+  972 |           (a_pos_zero_v and b_neg_zero_v) or
+  973 |           (a_pos_zero_v and b_neg_norm_v) or
+  974 |           (a_pos_subn_v and b_neg_norm_v) or
+  975 |           (a_pos_zero_v and b_neg_subn_v) or
+  976 |           (a_neg_zero_v and b_pos_zero_v) or
+  977 |           (a_neg_zero_v and b_pos_norm_v) or
+  978 |           (a_neg_subn_v and b_pos_norm_v) or
+  979 |           (a_neg_zero_v and b_pos_subn_v) or
+  980 |           (a_neg_norm_v and b_pos_zero_v) or
+  981 |           (a_neg_norm_v and b_pos_subn_v) or
+  982 |           (a_neg_subn_v and b_pos_zero_v) or
+  983 |           (a_pos_norm_v and b_neg_zero_v) or
+  984 |           (a_pos_norm_v and b_neg_subn_v) or
+  985 |           (a_pos_subn_v and b_neg_zero_v);
+  986 |       else
+  987 |         multiplier.res_class(fp_class_neg_zero_c) <=
+  988 |           (a_pos_zero_v and b_neg_zero_v) or
+  989 |           (a_pos_zero_v and b_neg_norm_v) or
+  990 |           (a_pos_zero_v and b_neg_subn_v) or
+  991 |           (a_neg_zero_v and b_pos_zero_v) or
+  992 |           (a_neg_zero_v and b_pos_norm_v) or
+  993 |           (a_neg_zero_v and b_pos_subn_v) or
+  994 |           (a_neg_norm_v and b_pos_zero_v) or
+  995 |           (a_neg_subn_v and b_pos_zero_v) or
+  996 |           (a_pos_norm_v and b_neg_zero_v) or
+  997 |           (a_pos_subn_v and b_neg_zero_v);
+  998 |       end if;
+ 1001 |       multiplier.res_class(fp_class_snan_c) <= (a_snan_v or b_snan_v);
+ 1004 |       if (not FPU_SUBNORMAL_SUPPORT) then
+ 1005 |         multiplier.res_class(fp_class_qnan_c) <=
+ 1006 |           (a_snan_v or b_snan_v) or
+ 1007 |           (a_qnan_v or b_qnan_v) or
+ 1008 |           ((a_pos_inf_v  or a_neg_inf_v)  and (b_pos_zero_v or b_neg_zero_v)) or
+ 1009 |           ((a_pos_zero_v or a_neg_zero_v) and (b_pos_inf_v  or b_neg_inf_v))  or
+ 1010 |           ((a_pos_inf_v  or a_neg_inf_v)  and (b_pos_subn_v or b_neg_subn_v)) or
+ 1011 |           ((a_pos_subn_v or a_neg_subn_v) and (b_pos_inf_v  or b_neg_inf_v));
+ 1012 |       else
+ 1013 |         multiplier.res_class(fp_class_qnan_c) <=
+ 1014 |           (a_snan_v or b_snan_v) or
+ 1015 |           (a_qnan_v or b_qnan_v) or
+ 1016 |           ((a_pos_inf_v  or a_neg_inf_v)  and (b_pos_zero_v or b_neg_zero_v)) or
+ 1017 |           ((a_pos_zero_v or a_neg_zero_v) and (b_pos_inf_v  or b_neg_inf_v));
+ 1018 |       end if;
+ 1021 |       multiplier.res_class(fp_class_pos_denorm_c) <= '0';
+ 1022 |       multiplier.res_class(fp_class_neg_denorm_c) <= '0';
+ 1023 |     end if;
+ 1024 |   end process multiplier_class_core;
+ 1027 |   fu_mul.result <= (others => '0');
+ 1028 |   fu_mul.flags  <= (others => '0');
+ 1033 |   adder_subtractor_core: process(rstn_i, clk_i)
+ 1034 |   begin
+ 1035 |     if (rstn_i = '0') then
+ 1036 |       addsub.latency            <= (others => '0');
+ 1037 |       addsub.exp_comp           <= (others => '0');
+ 1038 |       addsub.man_sreg           <= (others => '0');
+ 1039 |       addsub.exp_cnt            <= (others => '0');
+ 1040 |       addsub.man_g_ext          <= '0';
+ 1041 |       addsub.man_r_ext          <= '0';
+ 1042 |       addsub.man_s_ext          <= '0';
+ 1043 |       addsub.man_comp           <= '0';
+ 1044 |       addsub.add_stage          <= (others => '0');
+ 1045 |       addsub.res_sign           <= '0';
+ 1046 |       addsub.flags(fp_exc_nv_c) <= '0';
+ 1047 |     elsif rising_edge(clk_i) then
+ 1049 |       if (ctrl_engine.state = S_IDLE) then
+ 1050 |         addsub.latency <= (others => '0');
+ 1051 |       else
+ 1052 |         addsub.latency(0) <= addsub.start;
+ 1053 |         if (addsub.latency(0) = '1') then
+ 1054 |           addsub.latency(1) <= '1';
+ 1055 |           addsub.latency(2) <= '0';
+ 1056 |         elsif (addsub.exp_cnt(7 downto 0) = addsub.large_exp) then
+ 1057 |           addsub.latency(1) <= '0';
+ 1058 |           addsub.latency(2) <= addsub.latency(1) and (not addsub.latency(0));
+ 1059 |         end if;
+ 1060 |         addsub.latency(3) <= addsub.latency(2);
+ 1061 |         addsub.latency(4) <= addsub.latency(3);
+ 1062 |       end if;
+ 1065 |       if (unsigned(fpu_operands.rs1(30 downto 23)) < unsigned(fpu_operands.rs2(30 downto 23))) then
+ 1066 |         addsub.exp_comp(0) <= '1';
+ 1067 |       else
+ 1068 |         addsub.exp_comp(0) <= '0';
+ 1069 |       end if;
+ 1070 |       if (unsigned(fpu_operands.rs1(30 downto 23)) = unsigned(fpu_operands.rs2(30 downto 23))) then
+ 1071 |         addsub.exp_comp(1) <= '1';
+ 1072 |       else
+ 1073 |         addsub.exp_comp(1) <= '0';
+ 1074 |       end if;
+ 1077 |       if (addsub.latency(0) = '1') then
+ 1079 |         if (FPU_SUBNORMAL_SUPPORT) then
+ 1080 |           if ((fpu_operands.rs1_class(fp_class_pos_zero_c) or fpu_operands.rs2_class(fp_class_pos_zero_c) or
+ 1081 |                fpu_operands.rs1_class(fp_class_neg_zero_c) or fpu_operands.rs2_class(fp_class_neg_zero_c)) = '0') then
+ 1082 |             addsub.man_sreg <= addsub.small_man;
+ 1083 |           else
+ 1084 |             addsub.man_sreg <= (others => '0');
+ 1085 |           end if;
+ 1086 |         else
+ 1088 |           if ((fpu_operands.rs1_class(fp_class_pos_zero_c)   or fpu_operands.rs2_class(fp_class_pos_zero_c)   or
+ 1089 |                fpu_operands.rs1_class(fp_class_neg_zero_c)   or fpu_operands.rs2_class(fp_class_neg_zero_c)   or
+ 1090 |                fpu_operands.rs1_class(fp_class_pos_denorm_c) or fpu_operands.rs2_class(fp_class_pos_denorm_c) or
+ 1091 |                fpu_operands.rs1_class(fp_class_neg_denorm_c) or fpu_operands.rs2_class(fp_class_neg_denorm_c)) = '0') then
+ 1092 |             addsub.man_sreg <= addsub.small_man;
+ 1093 |           else
+ 1094 |             addsub.man_sreg <= (others => '0');
+ 1095 |           end if;
+ 1096 |         end if;
+ 1097 |         addsub.exp_cnt   <= '0' & addsub.small_exp;
+ 1098 |         addsub.man_g_ext <= '0';
+ 1099 |         addsub.man_r_ext <= '0';
+ 1100 |         addsub.man_s_ext <= '0';
+ 1101 |       elsif (addsub.exp_cnt(7 downto 0) /= addsub.large_exp) then
+ 1108 |         if (unsigned(addsub.large_exp(7 downto 0)) - unsigned(addsub.small_exp(7 downto 0))) > 27 then
+ 1109 |           addsub.man_sreg  <= (others => '0');
+ 1110 |           addsub.man_g_ext <= '0';
+ 1111 |           addsub.man_r_ext <= '0';
+ 1113 |           addsub.man_s_ext <= '1';
+ 1115 |           if (to_integer(unsigned(addsub.man_sreg)) = 0) then
+ 1116 |             addsub.man_s_ext <= '0';
+ 1117 |           end if;
+ 1118 |           addsub.exp_cnt(7 downto 0) <= addsub.large_exp(7 downto 0);
+ 1119 |         else
+ 1120 |           addsub.man_sreg  <= '0' & addsub.man_sreg(addsub.man_sreg'left downto 1);
+ 1121 |           addsub.man_g_ext <= addsub.man_sreg(0);
+ 1122 |           addsub.man_r_ext <= addsub.man_g_ext;
+ 1123 |           addsub.man_s_ext <= addsub.man_s_ext or addsub.man_r_ext;
+ 1124 |           addsub.exp_cnt   <= std_ulogic_vector(unsigned(addsub.exp_cnt) + 1);
+ 1125 |         end if;
+ 1126 |       end if;
+ 1129 |       if (unsigned(addsub.man_sreg) <= unsigned(addsub.large_man)) then
+ 1130 |         addsub.man_comp <= '1';
+ 1131 |       else
+ 1132 |         addsub.man_comp <= '0';
+ 1133 |       end if;
+ 1136 |       if ((ctrl_i.ir_funct12(7) xor (fpu_operands.rs1(31) xor fpu_operands.rs2(31))) = '0') then
+ 1137 |         addsub.add_stage <= std_ulogic_vector(unsigned('0' & addsub.man_l) + unsigned('0' & addsub.man_s));
+ 1138 |       else
+ 1139 |         addsub.add_stage <= std_ulogic_vector(unsigned('0' & addsub.man_l) - unsigned('0' & addsub.man_s));
+ 1140 |       end if;
+ 1143 |       if (ctrl_i.ir_funct12(7) = '0') then
+ 1144 |         if (fpu_operands.rs1(31) = fpu_operands.rs2(31)) then
+ 1145 |           addsub.res_sign <= fpu_operands.rs1(31);
+ 1146 |         else
+ 1148 |           if ((to_integer(unsigned(addsub.add_stage))) /= 0 ) then
+ 1149 |             if (addsub.exp_comp(1) = '1') then
+ 1150 |               addsub.res_sign <= fpu_operands.rs1(31) xor (not addsub.man_comp);
+ 1151 |             else
+ 1152 |               addsub.res_sign <= fpu_operands.rs1(31) xor addsub.exp_comp(0);
+ 1153 |             end if;
+ 1154 |           else
+ 1156 |             if (fpu_operands.frm = "010") then
+ 1157 |               addsub.res_sign <= '1';
+ 1158 |             else
+ 1159 |               addsub.res_sign <= '0';
+ 1160 |             end if;
+ 1161 |           end if;
+ 1162 |         end if;
+ 1163 |       else
+ 1166 |         if (fpu_operands.rs1(31) = fpu_operands.rs2(31)) then
+ 1167 |           if ((to_integer(unsigned(addsub.add_stage))) /= 0 ) then
+ 1168 |             if (addsub.exp_comp(1) = '1') then
+ 1169 |               addsub.res_sign <= fpu_operands.rs1(31) xor (not addsub.man_comp);
+ 1170 |             else
+ 1171 |               addsub.res_sign <= fpu_operands.rs1(31) xor addsub.exp_comp(0);
+ 1172 |             end if;
+ 1173 |           else
+ 1175 |             if (fpu_operands.frm = "010") then
+ 1176 |               addsub.res_sign <= '1';
+ 1177 |             else
+ 1178 |               addsub.res_sign <= '0';
+ 1179 |             end if;
+ 1180 |           end if;
+ 1181 |         else
+ 1182 |           addsub.res_sign <= fpu_operands.rs1(31);
+ 1183 |         end if;
+ 1184 |       end if;
+ 1209 |       addsub.flags(fp_exc_nv_c) <= '0';
+ 1210 |       if (ctrl_i.ir_funct12(7) = '0') then
+ 1212 |         if (((fpu_operands.rs1_class(fp_class_pos_inf_c) and fpu_operands.rs2_class(fp_class_neg_inf_c)) or
+ 1213 |              (fpu_operands.rs1_class(fp_class_neg_inf_c) and fpu_operands.rs2_class(fp_class_pos_inf_c))) = '1') then
+ 1214 |           addsub.flags(fp_exc_nv_c) <= '1';
+ 1215 |         end if;
+ 1216 |       else
+ 1218 |         if (((fpu_operands.rs1_class(fp_class_pos_inf_c) and fpu_operands.rs2_class(fp_class_pos_inf_c)) or
+ 1219 |              (fpu_operands.rs1_class(fp_class_neg_inf_c) and fpu_operands.rs2_class(fp_class_neg_inf_c))) = '1') then
+ 1220 |           addsub.flags(fp_exc_nv_c) <= '1';
+ 1221 |         end if;
+ 1222 |       end if;
+ 1223 |     end if;
+ 1224 |   end process adder_subtractor_core;
+ 1227 |   addsub.flags(fp_exc_dz_c) <= '0';
+ 1228 |   addsub.flags(fp_exc_of_c) <= '0';
+ 1229 |   addsub.flags(fp_exc_uf_c) <= '0';
+ 1230 |   addsub.flags(fp_exc_nx_c) <= '0';
+ 1233 |   addsub.small_exp <=        fpu_operands.rs1(30 downto 23)  when (addsub.exp_comp(0) = '1') else        fpu_operands.rs2(30 downto 23);
+ 1234 |   addsub.large_exp <=        fpu_operands.rs2(30 downto 23)  when (addsub.exp_comp(0) = '1') else        fpu_operands.rs1(30 downto 23);
+ 1235 |   addsub.small_man <= ('1' & fpu_operands.rs1(22 downto 0))  when (addsub.exp_comp(0) = '1') else ('1' & fpu_operands.rs2(22 downto 0));
+ 1236 |   addsub.large_man <= ('1' & fpu_operands.rs2(22 downto 0))  when (addsub.exp_comp(0) = '1') else ('1' & fpu_operands.rs1(22 downto 0));
+ 1239 |   addsub.man_s <= (addsub.man_sreg & addsub.man_g_ext & addsub.man_r_ext & addsub.man_s_ext) when (addsub.man_comp = '1') else (addsub.large_man & "000");
+ 1240 |   addsub.man_l <= (addsub.large_man & "000") when (addsub.man_comp = '1') else (addsub.man_sreg & addsub.man_g_ext & addsub.man_r_ext & addsub.man_s_ext);
+ 1243 |   addsub.start   <= fu_addsub.start;
+ 1244 |   addsub.done    <= addsub.latency(addsub.latency'left);
+ 1245 |   fu_addsub.done <= addsub.done;
+ 1248 |   addsub.res_sum <= addsub.add_stage(27 downto 0);
+ 1252 |   adder_subtractor_class_core: process(rstn_i, clk_i)
+ 1253 |     variable a_pos_norm_v, a_neg_norm_v, b_pos_norm_v, b_neg_norm_v : std_ulogic;
+ 1254 |     variable a_pos_subn_v, a_neg_subn_v, b_pos_subn_v, b_neg_subn_v : std_ulogic;
+ 1255 |     variable a_pos_zero_v, a_neg_zero_v, b_pos_zero_v, b_neg_zero_v : std_ulogic;
+ 1256 |     variable a_pos_inf_v,  a_neg_inf_v,  b_pos_inf_v,  b_neg_inf_v  : std_ulogic;
+ 1257 |     variable a_snan_v,     a_qnan_v,     b_snan_v,     b_qnan_v     : std_ulogic;
+ 1258 |   begin
+ 1259 |     if (rstn_i = '0') then
+ 1260 |       addsub.res_class <= (others => '0');
+ 1261 |     elsif rising_edge(clk_i) then
+ 1263 |       a_pos_norm_v := fpu_operands.rs1_class(fp_class_pos_norm_c); b_pos_norm_v := fpu_operands.rs2_class(fp_class_pos_norm_c);
+ 1264 |       a_neg_norm_v := fpu_operands.rs1_class(fp_class_neg_norm_c); b_neg_norm_v := fpu_operands.rs2_class(fp_class_neg_norm_c);
+ 1267 |       if (FPU_SUBNORMAL_SUPPORT) then
+ 1268 |         a_pos_subn_v := fpu_operands.rs1_class(fp_class_pos_denorm_c); b_pos_subn_v := fpu_operands.rs2_class(fp_class_pos_denorm_c);
+ 1269 |         a_neg_subn_v := fpu_operands.rs1_class(fp_class_neg_denorm_c); b_neg_subn_v := fpu_operands.rs2_class(fp_class_neg_denorm_c);
+ 1270 |       else
+ 1271 |         a_pos_subn_v := '0'; b_pos_subn_v := '0';
+ 1272 |         a_neg_subn_v := '0'; b_neg_subn_v := '0';
+ 1273 |       end if;
+ 1274 |       if (FPU_SUBNORMAL_SUPPORT) then
+ 1275 |         a_pos_zero_v := fpu_operands.rs1_class(fp_class_pos_zero_c); b_pos_zero_v := fpu_operands.rs2_class(fp_class_pos_zero_c);
+ 1276 |         a_neg_zero_v := fpu_operands.rs1_class(fp_class_neg_zero_c); b_neg_zero_v := fpu_operands.rs2_class(fp_class_neg_zero_c);
+ 1277 |       else
+ 1278 |         a_pos_zero_v := fpu_operands.rs1_class(fp_class_pos_zero_c) or fpu_operands.rs1_class(fp_class_pos_denorm_c);
+ 1279 |         b_pos_zero_v := fpu_operands.rs2_class(fp_class_pos_zero_c) or fpu_operands.rs2_class(fp_class_pos_denorm_c);
+ 1280 |         a_neg_zero_v := fpu_operands.rs1_class(fp_class_neg_zero_c) or fpu_operands.rs1_class(fp_class_neg_denorm_c);
+ 1281 |         b_neg_zero_v := fpu_operands.rs2_class(fp_class_neg_zero_c) or fpu_operands.rs2_class(fp_class_neg_denorm_c);
+ 1282 |       end if;
+ 1283 |       a_pos_inf_v := fpu_operands.rs1_class(fp_class_pos_inf_c); b_pos_inf_v := fpu_operands.rs2_class(fp_class_pos_inf_c);
+ 1284 |       a_neg_inf_v := fpu_operands.rs1_class(fp_class_neg_inf_c); b_neg_inf_v := fpu_operands.rs2_class(fp_class_neg_inf_c);
+ 1285 |       a_snan_v    := fpu_operands.rs1_class(fp_class_snan_c);    b_snan_v    := fpu_operands.rs2_class(fp_class_snan_c);
+ 1286 |       a_qnan_v    := fpu_operands.rs1_class(fp_class_qnan_c);    b_qnan_v    := fpu_operands.rs2_class(fp_class_qnan_c);
+ 1288 |       if (ctrl_i.ir_funct12(7) = '0') then
+ 1290 |         addsub.res_class(fp_class_pos_inf_c) <=
+ 1291 |           (a_pos_inf_v  and b_pos_inf_v)  or
+ 1292 |           (a_pos_inf_v  and b_pos_zero_v) or
+ 1293 |           (a_pos_zero_v and b_pos_inf_v)  or
+ 1294 |           (a_pos_inf_v  and b_neg_zero_v) or
+ 1295 |           (a_neg_zero_v and b_pos_inf_v)  or
+ 1297 |           (a_pos_inf_v  and b_pos_norm_v) or
+ 1298 |           (a_pos_norm_v and b_pos_inf_v)  or
+ 1299 |           (a_pos_inf_v  and b_pos_subn_v) or
+ 1300 |           (a_pos_subn_v and b_pos_inf_v)  or
+ 1302 |           (a_pos_inf_v  and b_neg_norm_v) or
+ 1303 |           (a_neg_norm_v and b_pos_inf_v)  or
+ 1304 |           (a_pos_inf_v  and b_neg_subn_v) or
+ 1305 |           (a_neg_subn_v and b_pos_inf_v);
+ 1307 |         addsub.res_class(fp_class_neg_inf_c) <=
+ 1308 |           (a_neg_inf_v  and b_neg_inf_v)  or
+ 1309 |           (a_neg_inf_v  and b_pos_zero_v) or
+ 1310 |           (a_pos_zero_v and b_neg_inf_v)  or
+ 1311 |           (a_neg_inf_v  and b_neg_zero_v) or
+ 1312 |           (a_neg_zero_v and b_neg_inf_v)  or
+ 1314 |           (a_neg_inf_v  and b_pos_norm_v) or
+ 1315 |           (a_pos_norm_v and b_neg_inf_v)  or
+ 1316 |           (a_neg_inf_v  and b_neg_norm_v) or
+ 1317 |           (a_neg_norm_v and b_neg_inf_v)  or
+ 1319 |           (a_neg_inf_v  and b_pos_subn_v) or
+ 1320 |           (a_pos_subn_v and b_neg_inf_v)  or
+ 1321 |           (a_neg_inf_v  and b_neg_subn_v) or
+ 1322 |           (a_neg_subn_v and b_neg_inf_v);
+ 1325 |         addsub.res_class(fp_class_pos_zero_c) <=
+ 1326 |           (a_pos_zero_v and b_pos_zero_v) or
+ 1327 |           (a_pos_zero_v and b_neg_zero_v) or
+ 1328 |           (a_neg_zero_v and b_pos_zero_v);
+ 1330 |         addsub.res_class(fp_class_neg_zero_c) <=
+ 1331 |           (a_neg_zero_v and b_neg_zero_v);
+ 1334 |         addsub.res_class(fp_class_qnan_c) <=
+ 1335 |           (a_snan_v    or  b_snan_v)    or
+ 1336 |           (a_qnan_v    or  b_qnan_v)    or
+ 1337 |           (a_pos_inf_v and b_neg_inf_v) or
+ 1338 |           (a_neg_inf_v and b_pos_inf_v);
+ 1340 |       else
+ 1342 |         addsub.res_class(fp_class_pos_inf_c) <=
+ 1343 |           (a_pos_inf_v  and b_neg_inf_v)  or
+ 1344 |           (a_pos_inf_v  and b_pos_zero_v) or
+ 1345 |           (a_pos_inf_v  and b_neg_zero_v) or
+ 1346 |           (a_pos_inf_v  and b_pos_norm_v) or
+ 1347 |           (a_pos_inf_v  and b_pos_subn_v) or
+ 1348 |           (a_pos_inf_v  and b_neg_norm_v) or
+ 1349 |           (a_pos_inf_v  and b_neg_subn_v) or
+ 1351 |           (a_pos_zero_v and b_neg_inf_v)  or
+ 1352 |           (a_neg_zero_v and b_neg_inf_v)  or
+ 1354 |           (a_pos_norm_v and b_neg_inf_v)  or
+ 1355 |           (a_pos_subn_v and b_neg_inf_v)  or
+ 1356 |           (a_neg_norm_v and b_neg_inf_v)  or
+ 1357 |           (a_neg_subn_v and b_neg_inf_v);
+ 1359 |         addsub.res_class(fp_class_neg_inf_c) <=
+ 1360 |           (a_neg_inf_v  and b_pos_inf_v)  or
+ 1361 |           (a_neg_inf_v  and b_pos_zero_v) or
+ 1362 |           (a_neg_inf_v  and b_neg_zero_v) or
+ 1363 |           (a_neg_inf_v  and b_pos_norm_v) or
+ 1364 |           (a_neg_inf_v  and b_pos_subn_v) or
+ 1365 |           (a_neg_inf_v  and b_neg_norm_v) or
+ 1366 |           (a_neg_inf_v  and b_neg_subn_v) or
+ 1368 |           (a_pos_zero_v and b_pos_inf_v)  or
+ 1369 |           (a_neg_zero_v and b_pos_inf_v)  or
+ 1371 |           (a_pos_norm_v and b_pos_inf_v)  or
+ 1372 |           (a_pos_subn_v and b_pos_inf_v)  or
+ 1373 |           (a_neg_norm_v and b_pos_inf_v)  or
+ 1374 |           (a_neg_subn_v and b_pos_inf_v);
+ 1377 |         addsub.res_class(fp_class_pos_zero_c) <=
+ 1378 |           (a_pos_zero_v and b_pos_zero_v) or
+ 1379 |           (a_pos_zero_v and b_neg_zero_v) or
+ 1380 |           (a_neg_zero_v and b_neg_zero_v);
+ 1382 |         addsub.res_class(fp_class_neg_zero_c) <=
+ 1383 |           (a_neg_zero_v and b_pos_zero_v);
+ 1386 |         addsub.res_class(fp_class_qnan_c) <=
+ 1387 |           (a_snan_v    or  b_snan_v)    or
+ 1388 |           (a_qnan_v    or  b_qnan_v)    or
+ 1389 |           (a_pos_inf_v and b_pos_inf_v) or
+ 1390 |           (a_neg_inf_v and b_neg_inf_v);
+ 1391 |       end if;
+ 1394 |       addsub.res_class(fp_class_pos_norm_c) <= (a_pos_norm_v or a_neg_norm_v) and (b_pos_norm_v or b_neg_norm_v);
+ 1395 |       addsub.res_class(fp_class_neg_norm_c) <= (a_pos_norm_v or a_neg_norm_v) and (b_pos_norm_v or b_neg_norm_v);
+ 1398 |       addsub.res_class(fp_class_snan_c) <= (a_snan_v or b_snan_v);
+ 1401 |       addsub.res_class(fp_class_pos_denorm_c) <= '0';
+ 1402 |       addsub.res_class(fp_class_neg_denorm_c) <= '0';
+ 1403 |     end if;
+ 1404 |   end process adder_subtractor_class_core;
+ 1407 |   fu_addsub.result <= (others => '0');
+ 1408 |   fu_addsub.flags  <= (others => '0');
+ 1417 |   normalizer_input_select: process(funct_ff, addsub, multiplier, fu_conv_i2f)
+ 1418 |   begin
+ 1419 |     case funct_ff is
+ 1420 |       when op_addsub_c =>
+ 1421 |         normalizer.mode      <= '0';
+ 1422 |         normalizer.sign      <= addsub.res_sign;
+ 1423 |         normalizer.xexp      <= addsub.exp_cnt;
+ 1424 |         normalizer.xmantissa(47 downto 23) <= addsub.res_sum(27 downto 3);
+ 1425 |         normalizer.xmantissa(22) <= addsub.res_sum(2);
+ 1426 |         normalizer.xmantissa(21) <= addsub.res_sum(1);
+ 1427 |         normalizer.xmantissa(20 downto 1) <= (others => '0');
+ 1428 |         normalizer.xmantissa(0) <= addsub.res_sum(0);
+ 1429 |         normalizer.class     <= addsub.res_class;
+ 1430 |         normalizer.flags_in  <= addsub.flags;
+ 1431 |         normalizer.start     <= addsub.done;
+ 1432 |       when op_mul_c =>
+ 1433 |         normalizer.mode      <= '0';
+ 1434 |         normalizer.sign      <= multiplier.sign;
+ 1435 |         normalizer.xexp      <= '0' & multiplier.exp_res(7 downto 0);
+ 1436 |         normalizer.xmantissa <= multiplier.product;
+ 1437 |         normalizer.class     <= multiplier.res_class;
+ 1438 |         normalizer.flags_in  <= multiplier.flags;
+ 1439 |         normalizer.start     <= multiplier.done;
+ 1440 |       when others =>
+ 1441 |         normalizer.mode      <= '1';
+ 1442 |         normalizer.sign      <= fu_conv_i2f.sign;
+ 1443 |         normalizer.xexp      <= "001111111";
+ 1444 |         normalizer.xmantissa <= (others => '0');
+ 1445 |         normalizer.class     <= (others => '0');
+ 1446 |         normalizer.flags_in  <= (others => '0');
+ 1447 |         normalizer.start     <= fu_conv_i2f.done;
+ 1448 |     end case;
+ 1449 |   end process normalizer_input_select;
+ 1454 |   neorv32_cpu_cp_fpu_normalizer_inst: neorv32_cpu_cp_fpu_normalizer
+ 1455 |   generic map (
+ 1457 |     FPU_SUBNORMAL_SUPPORT => FPU_SUBNORMAL_SUPPORT
+ 1458 |   )
+ 1459 |   port map (
+ 1461 |     clk_i      => clk_i,
+ 1462 |     rstn_i     => rstn_i,
+ 1463 |     start_i    => normalizer.start,
+ 1464 |     abort_i    => ctrl_i.cpu_trap,
+ 1465 |     rmode_i    => fpu_operands.frm,
+ 1466 |     funct_i    => normalizer.mode,
+ 1468 |     sign_i     => normalizer.sign,
+ 1469 |     exponent_i => normalizer.xexp,
+ 1470 |     mantissa_i => normalizer.xmantissa,
+ 1471 |     integer_i  => fu_conv_i2f.result,
+ 1472 |     class_i    => normalizer.class,
+ 1473 |     flags_i    => normalizer.flags_in,
+ 1475 |     result_o   => normalizer.result,
+ 1476 |     flags_o    => normalizer.flags_out,
+ 1477 |     done_o     => normalizer.done
+ 1478 |   );
+ 1487 |   output_gate: process(rstn_i, clk_i)
+ 1488 |   begin
+ 1489 |     if (rstn_i = '0') then
+ 1490 |       res_o  <= (others => '0');
+ 1491 |       fflags <= (others => '0');
+ 1492 |     elsif rising_edge(clk_i) then
+ 1493 |       res_o  <= (others => '0');
+ 1494 |       fflags <= (others => '0');
+ 1495 |       if (ctrl_engine.valid = '1') then
+ 1496 |         case funct_ff is
+ 1497 |           when op_class_c =>
+ 1498 |             res_o  <= fu_classify.result;
+ 1499 |             fflags <= fu_classify.flags;
+ 1500 |           when op_comp_c =>
+ 1501 |             res_o  <= fu_compare.result;
+ 1502 |             fflags <= fu_compare.flags;
+ 1503 |           when op_f2i_c =>
+ 1504 |             res_o  <= fu_conv_f2i.result;
+ 1505 |             fflags <= fu_conv_f2i.flags;
+ 1506 |           when op_sgnj_c =>
+ 1507 |             res_o  <= fu_sign_inject.result;
+ 1508 |             fflags <= fu_sign_inject.flags;
+ 1509 |           when op_minmax_c =>
+ 1510 |             res_o  <= fu_min_max.result;
+ 1511 |             fflags <= fu_min_max.flags;
+ 1512 |           when others =>
+ 1513 |             res_o  <= normalizer.result;
+ 1514 |             fflags <= normalizer.flags_out;
+ 1515 |         end case;
+ 1516 |       end if;
+ 1517 |     end if;
+ 1518 |   end process output_gate;
+ 1521 |   fu_core_done <= fu_compare.done or fu_classify.done or fu_sign_inject.done or fu_min_max.done or normalizer.done or fu_conv_f2i.done;
+ 1524 | end neorv32_cpu_cp_fpu_rtl;
+ 1539 | library ieee;
+ 1540 | use ieee.std_logic_1164.all;
+ 1541 | use ieee.numeric_std.all;
+ 1543 | library neorv32;
+ 1544 | use neorv32.neorv32_package.all;
+
+ 1546 | entity neorv32_cpu_cp_fpu_normalizer is
+ 1547 |   generic (
+ 1549 |     FPU_SUBNORMAL_SUPPORT : boolean := false
+ 1550 |   );
+ 1551 |   port (
+ 1553 |     clk_i      : in  std_ulogic;
+ 1554 |     rstn_i     : in  std_ulogic;
+ 1555 |     start_i    : in  std_ulogic;
+ 1556 |     abort_i    : in  std_ulogic;
+ 1557 |     rmode_i    : in  std_ulogic_vector(2 downto 0);
+ 1558 |     funct_i    : in  std_ulogic;
+ 1560 |     sign_i     : in  std_ulogic;
+ 1561 |     exponent_i : in  std_ulogic_vector(8 downto 0);
+ 1562 |     mantissa_i : in  std_ulogic_vector(47 downto 0);
+ 1563 |     integer_i  : in  std_ulogic_vector(31 downto 0);
+ 1564 |     class_i    : in  std_ulogic_vector(9 downto 0);
+ 1565 |     flags_i    : in  std_ulogic_vector(4 downto 0);
+ 1567 |     result_o   : out std_ulogic_vector(31 downto 0);
+ 1568 |     flags_o    : out std_ulogic_vector(4 downto 0);
+ 1569 |     done_o     : out std_ulogic
+ 1570 |   );
+ 1571 | end neorv32_cpu_cp_fpu_normalizer;
+
+ 1573 | architecture neorv32_cpu_cp_fpu_normalizer_rtl of neorv32_cpu_cp_fpu_normalizer is
+ 1576 |   type ctrl_engine_state_t is (S_IDLE, S_PREPARE_I2F, S_CHECK_I2F, S_PREPARE_NORM, S_PREPARE_SHIFT, S_NORMALIZE_BUSY, S_ROUND, S_CHECK, S_FINALIZE);
+ 1577 |   type ctrl_t is record
+ 1578 |     state   : ctrl_engine_state_t;
+ 1579 |     norm_r  : std_ulogic;
+ 1580 |     cnt     : std_ulogic_vector(8 downto 0);
+ 1581 |     cnt_pre : std_ulogic_vector(8 downto 0);
+ 1582 |     cnt_of  : std_ulogic;
+ 1583 |     cnt_uf  : std_ulogic;
+ 1584 |     rounded : std_ulogic;
+ 1585 |     res_sgn : std_ulogic;
+ 1586 |     res_exp : std_ulogic_vector(7 downto 0);
+ 1587 |     res_man : std_ulogic_vector(22 downto 0);
+ 1588 |     class   : std_ulogic_vector(9 downto 0);
+ 1589 |     flags   : std_ulogic_vector(4 downto 0);
+ 1590 |   end record;
+ 1591 |   signal ctrl : ctrl_t;
+ 1594 |   type sreg_t is record
+ 1595 |     done  : std_ulogic;
+ 1596 |     dir   : std_ulogic;
+ 1597 |     zero  : std_ulogic;
+ 1598 |     upper : std_ulogic_vector(31 downto 0);
+ 1599 |     lower : std_ulogic_vector(22 downto 0);
+ 1600 |     ext_g : std_ulogic;
+ 1601 |     ext_r : std_ulogic;
+ 1602 |     ext_s : std_ulogic;
+ 1603 |   end record;
+ 1604 |   signal sreg : sreg_t;
+ 1607 |   type round_t is record
+ 1608 |     en     : std_ulogic;
+ 1609 |     sub    : std_ulogic;
+ 1610 |     output : std_ulogic_vector(24 downto 0);
+ 1611 |   end record;
+ 1612 |   signal round : round_t;
+ 1614 | begin
+ 1618 |   ctrl_engine: process(rstn_i, clk_i)
+ 1619 |   begin
+ 1620 |     if (rstn_i = '0') then
+ 1621 |       ctrl.state   <= S_IDLE;
+ 1622 |       ctrl.norm_r  <= '0';
+ 1623 |       ctrl.cnt     <= (others => '0');
+ 1624 |       ctrl.cnt_pre <= (others => '0');
+ 1625 |       ctrl.cnt_of  <= '0';
+ 1626 |       ctrl.cnt_uf  <= '0';
+ 1627 |       ctrl.rounded <= '0';
+ 1628 |       ctrl.res_exp <= (others => '0');
+ 1629 |       ctrl.res_man <= (others => '0');
+ 1630 |       ctrl.res_sgn <= '0';
+ 1631 |       ctrl.class   <= (others => '0');
+ 1632 |       ctrl.flags   <= (others => '0');
+ 1634 |       sreg.upper   <= (others => '0');
+ 1635 |       sreg.lower   <= (others => '0');
+ 1636 |       sreg.dir     <= '0';
+ 1637 |       sreg.ext_g   <= '0';
+ 1638 |       sreg.ext_r   <= '0';
+ 1639 |       sreg.ext_s   <= '0';
+ 1641 |       done_o       <= '0';
+ 1642 |     elsif rising_edge(clk_i) then
+ 1644 |       ctrl.cnt_pre <= ctrl.cnt;
+ 1645 |       done_o       <= '0';
+ 1648 |       if ((ctrl.cnt_pre(8 downto 7) = "01") and (ctrl.cnt(8 downto 7) = "10")) then
+ 1649 |         ctrl.cnt_of <= '1';
+ 1650 |       elsif (ctrl.cnt_pre(8 downto 7) = "00") and (ctrl.cnt(8 downto 7) = "11") then
+ 1651 |         ctrl.cnt_uf <= '1';
+ 1652 |       end if;
+ 1655 |       case ctrl.state is
+ 1657 |         when S_IDLE =>
+ 1659 |           ctrl.norm_r  <= '0';
+ 1660 |           ctrl.rounded <= '0';
+ 1661 |           ctrl.cnt_of  <= '0';
+ 1662 |           ctrl.cnt_uf  <= '0';
+ 1664 |           if (start_i = '1') then
+ 1665 |             ctrl.cnt     <= exponent_i;
+ 1666 |             ctrl.res_sgn <= sign_i;
+ 1667 |             ctrl.class   <= class_i;
+ 1669 |             if (not FPU_SUBNORMAL_SUPPORT) then
+ 1670 |               if (class_i(fp_class_neg_denorm_c) = '1') then
+ 1671 |                 ctrl.class(fp_class_neg_denorm_c)  <= '0';
+ 1672 |                 ctrl.class(fp_class_neg_zero_c)    <= '1';
+ 1673 |               end if;
+ 1674 |               if (class_i(fp_class_pos_denorm_c) = '1') then
+ 1675 |                 ctrl.class(fp_class_pos_denorm_c)  <= '0';
+ 1676 |                 ctrl.class(fp_class_pos_zero_c)    <= '1';
+ 1677 |               end if;
+ 1678 |             end if;
+ 1679 |             ctrl.flags   <= flags_i;
+ 1680 |             if (funct_i = '0') then
+ 1681 |               ctrl.state <= S_PREPARE_NORM;
+ 1682 |             else
+ 1683 |               ctrl.state <= S_PREPARE_I2F;
+ 1684 |             end if;
+ 1685 |           end if;
+ 1687 |         when S_PREPARE_I2F =>
+ 1689 |           sreg.upper <= integer_i;
+ 1690 |           sreg.lower <= (others => '0');
+ 1691 |           sreg.ext_g <= '0';
+ 1692 |           sreg.ext_r <= '0';
+ 1693 |           sreg.ext_s <= '0';
+ 1694 |           sreg.dir   <= '0';
+ 1695 |           ctrl.state <= S_CHECK_I2F;
+ 1697 |         when S_CHECK_I2F =>
+ 1699 |           if (sreg.zero = '1') then
+ 1700 |             ctrl.class(fp_class_pos_zero_c) <= '1';
+ 1701 |             ctrl.state <= S_FINALIZE;
+ 1702 |           else
+ 1703 |             ctrl.state <= S_NORMALIZE_BUSY;
+ 1704 |           end if;
+ 1706 |         when S_PREPARE_NORM =>
+ 1708 |           sreg.upper(31 downto 2) <= (others => '0');
+ 1709 |           sreg.upper(1 downto 0)  <= mantissa_i(47 downto 46);
+ 1710 |           sreg.lower <= mantissa_i(45 downto 23);
+ 1711 |           sreg.ext_g <= mantissa_i(22);
+ 1712 |           sreg.ext_r <= mantissa_i(21);
+ 1713 |           if (or_reduce_f(mantissa_i(20 downto 0)) = '1') then
+ 1714 |             sreg.ext_s <= '1';
+ 1715 |           else
+ 1716 |             sreg.ext_s <= '0';
+ 1717 |           end if;
+ 1719 |           if ((ctrl.class(fp_class_snan_c)       or ctrl.class(fp_class_qnan_c)       or
+ 1720 |                ctrl.class(fp_class_neg_zero_c)   or ctrl.class(fp_class_pos_zero_c)   or
+ 1721 |                ctrl.class(fp_class_neg_denorm_c) or ctrl.class(fp_class_pos_denorm_c) or
+ 1722 |                ctrl.class(fp_class_neg_inf_c)    or ctrl.class(fp_class_pos_inf_c)    or
+ 1723 |                ctrl.flags(fp_exc_uf_c) or
+ 1724 |                ctrl.flags(fp_exc_of_c) or
+ 1725 |                ctrl.flags(fp_exc_nv_c)) = '1') then
+ 1726 |             ctrl.state <= S_FINALIZE;
+ 1732 |           elsif (unsigned(mantissa_i(47 downto 0)) = 0) then
+ 1733 |             ctrl.cnt <= (others => '0');
+ 1734 |             ctrl.state <= S_FINALIZE;
+ 1735 |           else
+ 1736 |             ctrl.state <= S_PREPARE_SHIFT;
+ 1737 |           end if;
+ 1739 |         when S_PREPARE_SHIFT =>
+ 1741 |           if (sreg.zero = '0') then
+ 1742 |             sreg.dir <= '0';
+ 1743 |           else
+ 1744 |             sreg.dir <= '1';
+ 1745 |           end if;
+ 1746 |           ctrl.state <= S_NORMALIZE_BUSY;
+ 1748 |         when S_NORMALIZE_BUSY =>
+ 1751 |           if (sreg.done = '1') or (ctrl.cnt_uf = '1') or (ctrl.cnt_of = '1') then
+ 1753 |             ctrl.norm_r <= '1';
+ 1754 |             if (ctrl.norm_r = '0') then
+ 1755 |               ctrl.state <= S_ROUND;
+ 1756 |             else
+ 1757 |               ctrl.state <= S_CHECK;
+ 1758 |             end if;
+ 1759 |           else
+ 1760 |             if (sreg.dir = '0') then
+ 1761 |               ctrl.cnt   <= std_ulogic_vector(unsigned(ctrl.cnt) + 1);
+ 1762 |               sreg.upper <= '0' & sreg.upper(sreg.upper'left downto 1);
+ 1763 |               sreg.lower <= sreg.upper(0) & sreg.lower(sreg.lower'left downto 1);
+ 1764 |               sreg.ext_g <= sreg.lower(0);
+ 1765 |               sreg.ext_r <= sreg.ext_g;
+ 1766 |               sreg.ext_s <= sreg.ext_r or sreg.ext_s;
+ 1767 |             else
+ 1768 |               ctrl.cnt   <= std_ulogic_vector(unsigned(ctrl.cnt) - 1);
+ 1769 |               sreg.upper <= sreg.upper(sreg.upper'left-1 downto 0) & sreg.lower(sreg.lower'left);
+ 1770 |               sreg.lower <= sreg.lower(sreg.lower'left-1 downto 0) & sreg.ext_g;
+ 1771 |               sreg.ext_g <= sreg.ext_r;
+ 1772 |               sreg.ext_r <= sreg.ext_s;
+ 1773 |               sreg.ext_s <= sreg.ext_s;
+ 1774 |             end if;
+ 1775 |           end if;
+ 1777 |         when S_ROUND =>
+ 1779 |           ctrl.rounded <= ctrl.rounded or round.en;
+ 1780 |           sreg.upper(31 downto 2) <= (others => '0');
+ 1781 |           sreg.upper(1 downto 0)  <= round.output(24 downto 23);
+ 1782 |           sreg.lower <= round.output(22 downto 0);
+ 1785 |           ctrl.flags(fp_exc_nx_c) <= sreg.ext_g or sreg.ext_r or sreg.ext_s;
+ 1786 |           sreg.ext_g <= '0';
+ 1787 |           sreg.ext_r <= '0';
+ 1788 |           sreg.ext_s <= '0';
+ 1789 |           ctrl.state <= S_PREPARE_SHIFT;
+ 1791 |         when S_CHECK =>
+ 1793 |           if (ctrl.cnt_uf = '1') then
+ 1794 |             ctrl.flags(fp_exc_uf_c) <= '1';
+ 1798 |             ctrl.flags(fp_exc_nx_c) <= '1';
+ 1799 |           elsif (ctrl.cnt_of = '1') then
+ 1800 |             ctrl.flags(fp_exc_of_c) <= '1';
+ 1804 |             ctrl.flags(fp_exc_nx_c) <= '1';
+ 1805 |           elsif (ctrl.cnt(7 downto 0) = x"00") then
+ 1806 |             ctrl.flags(fp_exc_uf_c) <= '1';
+ 1810 |             ctrl.flags(fp_exc_nx_c) <= '1';
+ 1811 |           elsif (ctrl.cnt(7 downto 0) = x"FF") then
+ 1812 |             ctrl.flags(fp_exc_of_c) <= '1';
+ 1816 |             ctrl.flags(fp_exc_nx_c) <= '1';
+ 1817 |           end if;
+ 1818 |           ctrl.state <= S_FINALIZE;
+ 1820 |         when S_FINALIZE =>
+ 1823 |           if (ctrl.class(fp_class_snan_c) = '1') or (ctrl.class(fp_class_qnan_c) = '1') then
+ 1824 |             ctrl.res_sgn <= fp_single_qnan_c(31);
+ 1825 |             ctrl.res_exp <= fp_single_qnan_c(30 downto 23);
+ 1826 |             ctrl.res_man <= fp_single_qnan_c(22 downto 0);
+ 1827 |           elsif (ctrl.class(fp_class_neg_inf_c) = '1') or (ctrl.class(fp_class_pos_inf_c) = '1') or
+ 1828 |                 (ctrl.flags(fp_exc_of_c) = '1') then
+ 1830 |             if ((rmode_i = "001") and (ctrl.flags(fp_exc_of_c) = '1')) then
+ 1831 |               ctrl.res_exp <= fp_single_pos_max_c(30 downto 23);
+ 1832 |               ctrl.res_man <= fp_single_pos_max_c(22 downto 0);
+ 1834 |             elsif ((rmode_i = "010") and (ctrl.flags(fp_exc_of_c) = '1') and (sign_i = '0')) then
+ 1835 |               ctrl.res_exp <= fp_single_pos_max_c(30 downto 23);
+ 1836 |               ctrl.res_man <= fp_single_pos_max_c(22 downto 0);
+ 1838 |             elsif ((rmode_i = "011") and (ctrl.flags(fp_exc_of_c) = '1') and (sign_i = '1')) then
+ 1839 |               ctrl.res_exp <= fp_single_neg_max_c(30 downto 23);
+ 1840 |               ctrl.res_man <= fp_single_neg_max_c(22 downto 0);
+ 1841 |             else
+ 1842 |               ctrl.res_exp <= fp_single_pos_inf_c(30 downto 23);
+ 1843 |               ctrl.res_man <= fp_single_pos_inf_c(22 downto 0);
+ 1844 |             end if;
+ 1845 |           elsif (ctrl.class(fp_class_neg_zero_c) = '1') or (ctrl.class(fp_class_pos_zero_c) = '1') then
+ 1846 |             ctrl.res_sgn <= ctrl.class(fp_class_neg_zero_c);
+ 1847 |             ctrl.res_exp <= fp_single_pos_zero_c(30 downto 23);
+ 1848 |             ctrl.res_man <= fp_single_pos_zero_c(22 downto 0);
+ 1849 |           elsif (ctrl.flags(fp_exc_uf_c) = '1') or
+ 1850 |                 (sreg.zero = '1') or (ctrl.class(fp_class_neg_denorm_c) = '1') or (ctrl.class(fp_class_pos_denorm_c) = '1') then
+ 1851 |             ctrl.res_exp <= fp_single_pos_zero_c(30 downto 23);
+ 1852 |             ctrl.res_man <= fp_single_pos_zero_c(22 downto 0);
+ 1853 |           else
+ 1854 |             ctrl.res_exp <= ctrl.cnt(7 downto 0);
+ 1855 |             ctrl.res_man <= sreg.lower;
+ 1856 |           end if;
+ 1858 |           ctrl.flags(fp_exc_nv_c) <= ctrl.flags(fp_exc_nv_c) or ctrl.class(fp_class_snan_c);
+ 1859 |           ctrl.flags(fp_exc_nx_c) <= ctrl.flags(fp_exc_nx_c) or ctrl.rounded;
+ 1861 |           done_o     <= '1';
+ 1862 |           ctrl.state <= S_IDLE;
+ 1864 |         when others =>
+ 1866 |           ctrl.state <= S_IDLE;
+ 1868 |       end case;
+ 1871 |       if (abort_i = '1') then
+ 1872 |         ctrl.state <= S_IDLE;
+ 1873 |       end if;
+ 1874 |     end if;
+ 1875 |   end process ctrl_engine;
+ 1878 |   sreg.done <= '1' when (or_reduce_f(sreg.upper(sreg.upper'left downto 1)) = '0') and (sreg.upper(0) = '1') else '0';
+ 1881 |   sreg.zero <= '1' when (or_reduce_f(sreg.upper) = '0') else '0';
+ 1884 |   result_o(31)           <= ctrl.res_sgn;
+ 1885 |   result_o(30 downto 23) <= ctrl.res_exp;
+ 1886 |   result_o(22 downto 0)  <= ctrl.res_man;
+ 1889 |   flags_o(fp_exc_nv_c) <= ctrl.flags(fp_exc_nv_c);
+ 1890 |   flags_o(fp_exc_dz_c) <= ctrl.flags(fp_exc_dz_c);
+ 1891 |   flags_o(fp_exc_of_c) <= ctrl.flags(fp_exc_of_c);
+ 1892 |   flags_o(fp_exc_uf_c) <= ctrl.flags(fp_exc_uf_c);
+ 1893 |   flags_o(fp_exc_nx_c) <= ctrl.flags(fp_exc_nx_c);
+ 1898 |   rounding_unit_ctrl: process(rmode_i, sreg, sign_i)
+ 1899 |   begin
+ 1901 |     round.en  <= '0';
+ 1902 |     round.sub <= '0';
+ 1904 |     case rmode_i(2 downto 0) is
+ 1905 |       when "000" =>
+ 1906 |         if (sreg.ext_g = '0') then
+ 1907 |           round.en <= '0';
+ 1908 |         else
+ 1909 |           if (sreg.ext_r = '0') and (sreg.ext_s = '0') then
+ 1910 |             round.en <= sreg.lower(0);
+ 1911 |           else
+ 1912 |             round.en <= '1';
+ 1913 |           end if;
+ 1914 |         end if;
+ 1915 |         round.sub <= '0';
+ 1916 |       when "001" =>
+ 1917 |         round.en <= '0';
+ 1918 |       when "010" =>
+ 1920 |         if (sign_i = '0') then
+ 1921 |           round.en <= '0';
+ 1922 |         else
+ 1923 |           round.en  <= sreg.ext_g or sreg.ext_r or sreg.ext_s;
+ 1924 |           round.sub <= '0';
+ 1925 |         end if;
+ 1926 |       when "011" =>
+ 1928 |         if (sign_i = '1') then
+ 1929 |           round.en <= '0';
+ 1930 |         else
+ 1931 |           round.en  <= sreg.ext_g or sreg.ext_r or sreg.ext_s;
+ 1932 |           round.sub <= '0';
+ 1933 |         end if;
+ 1934 |       when "100" =>
+ 1937 |         if (sreg.ext_g = '0') then
+ 1938 |           round.en <= '0';
+ 1939 |         else
+ 1940 |           round.en <= '1';
+ 1941 |         end if;
+ 1942 |         round.sub <= '0';
+ 1943 |       when others =>
+ 1944 |         round.en <= '0';
+ 1945 |     end case;
+ 1946 |   end process rounding_unit_ctrl;
+ 1950 |   rounding_unit_add: process(round, sreg)
+ 1951 |     variable tmp_v : std_ulogic_vector(24 downto 0);
+ 1952 |   begin
+ 1953 |     tmp_v := '0' & sreg.upper(0) & sreg.lower;
+ 1954 |     if (round.en = '1') then
+ 1955 |       if (round.sub = '0') then
+ 1956 |         round.output <= std_ulogic_vector(unsigned(tmp_v) + 1);
+ 1957 |       else
+ 1958 |         round.output <= std_ulogic_vector(unsigned(tmp_v) - 1);
+ 1959 |       end if;
+ 1960 |     else
+ 1961 |       round.output <= tmp_v;
+ 1962 |     end if;
+ 1963 |   end process rounding_unit_add;
+ 1966 | end neorv32_cpu_cp_fpu_normalizer_rtl;
+ 1979 | library ieee;
+ 1980 | use ieee.std_logic_1164.all;
+ 1981 | use ieee.numeric_std.all;
+ 1983 | library neorv32;
+ 1984 | use neorv32.neorv32_package.all;
+
+ 1986 | entity neorv32_cpu_cp_fpu_f2i is
+ 1987 |   generic (
+ 1989 |     FPU_SUBNORMAL_SUPPORT : boolean := false
+ 1990 |   );
+ 1991 |   port (
+ 1993 |     clk_i      : in  std_ulogic;
+ 1994 |     rstn_i     : in  std_ulogic;
+ 1995 |     start_i    : in  std_ulogic;
+ 1996 |     abort_i    : in  std_ulogic;
+ 1997 |     rmode_i    : in  std_ulogic_vector(2 downto 0);
+ 1998 |     funct_i    : in  std_ulogic;
+ 2000 |     sign_i     : in  std_ulogic;
+ 2001 |     exponent_i : in  std_ulogic_vector(7 downto 0);
+ 2002 |     mantissa_i : in  std_ulogic_vector(22 downto 0);
+ 2003 |     class_i    : in  std_ulogic_vector(9 downto 0);
+ 2005 |     result_o   : out std_ulogic_vector(31 downto 0);
+ 2006 |     flags_o    : out std_ulogic_vector(4 downto 0);
+ 2007 |     done_o     : out std_ulogic
+ 2008 |   );
+ 2009 | end neorv32_cpu_cp_fpu_f2i;
+
+ 2011 | architecture neorv32_cpu_cp_fpu_f2i_rtl of neorv32_cpu_cp_fpu_f2i is
+ 2014 |   type ctrl_engine_state_t is (S_IDLE, S_PREPARE_F2I, S_NORMALIZE_BUSY, S_ROUND, S_FINALIZE);
+ 2015 |   type ctrl_t is record
+ 2016 |     state      : ctrl_engine_state_t;
+ 2017 |     unsign     : std_ulogic;
+ 2018 |     cnt        : std_ulogic_vector(7 downto 0);
+ 2019 |     sign       : std_ulogic;
+ 2020 |     class      : std_ulogic_vector(9 downto 0);
+ 2021 |     rounded    : std_ulogic;
+ 2022 |     over       : std_ulogic;
+ 2023 |     under      : std_ulogic;
+ 2024 |     result_tmp : std_ulogic_vector(31 downto 0);
+ 2025 |     result     : std_ulogic_vector(31 downto 0);
+ 2026 |     flags      : std_ulogic_vector(4 downto 0);
+ 2027 |   end record;
+ 2028 |   signal ctrl : ctrl_t;
+ 2031 |   type sreg_t is record
+ 2032 |     int   : std_ulogic_vector(31 downto 0);
+ 2033 |     mant  : std_ulogic_vector(22 downto 0);
+ 2034 |     ext_g : std_ulogic;
+ 2035 |     ext_r : std_ulogic;
+ 2036 |     ext_s : std_ulogic;
+ 2037 |   end record;
+ 2038 |   signal sreg : sreg_t;
+ 2041 |   type round_t is record
+ 2042 |     en     : std_ulogic;
+ 2043 |     sub    : std_ulogic;
+ 2044 |     output : std_ulogic_vector(32 downto 0);
+ 2045 |   end record;
+ 2046 |   signal round : round_t;
+ 2048 | begin
+ 2052 |   ctrl_engine: process(rstn_i, clk_i)
+ 2053 |   begin
+ 2054 |     if (rstn_i = '0') then
+ 2055 |       ctrl.state      <= S_IDLE;
+ 2056 |       ctrl.cnt        <= (others => '0');
+ 2057 |       ctrl.sign       <= '0';
+ 2058 |       ctrl.class      <= (others => '0');
+ 2059 |       ctrl.rounded    <= '0';
+ 2060 |       ctrl.over       <= '0';
+ 2061 |       ctrl.under      <= '0';
+ 2062 |       ctrl.unsign     <= '0';
+ 2063 |       ctrl.result     <= (others => '0');
+ 2064 |       ctrl.result_tmp <= (others => '0');
+ 2066 |       ctrl.flags      <= (others => '0');
+ 2067 |       sreg.int        <= (others => '0');
+ 2068 |       sreg.mant       <= (others => '0');
+ 2069 |       sreg.ext_g      <= '0';
+ 2070 |       sreg.ext_r      <= '0';
+ 2071 |       sreg.ext_s      <= '0';
+ 2072 |       done_o          <= '0';
+ 2073 |     elsif rising_edge(clk_i) then
+ 2075 |       done_o <= '0';
+ 2078 |       case ctrl.state is
+ 2080 |         when S_IDLE =>
+ 2082 |           ctrl.rounded <= '0';
+ 2083 |           ctrl.over    <= '0';
+ 2084 |           ctrl.under   <= '0';
+ 2085 |           ctrl.unsign  <= funct_i;
+ 2087 |           sreg.ext_g   <= '0';
+ 2088 |           sreg.ext_r   <= '0';
+ 2089 |           sreg.ext_s   <= '0';
+ 2090 |           if (start_i = '1') then
+ 2091 |             ctrl.cnt    <= exponent_i;
+ 2092 |             ctrl.sign   <= sign_i;
+ 2093 |             ctrl.class  <= class_i;
+ 2094 |             sreg.mant   <= mantissa_i;
+ 2095 |             ctrl.state  <= S_PREPARE_F2I;
+ 2097 |             ctrl.flags  <= (others => '0');
+ 2098 |           end if;
+ 2100 |         when S_PREPARE_F2I =>
+ 2103 |           if (unsigned(ctrl.cnt) < 125) then
+ 2104 |             sreg.int    <= (others => '0');
+ 2105 |             sreg.mant   <= "001" & sreg.mant(sreg.mant'left downto 3);
+ 2106 |             ctrl.under  <= '1';
+ 2107 |             ctrl.cnt    <= (others => '0');
+ 2108 |           elsif (unsigned(ctrl.cnt) = 125) then
+ 2109 |             sreg.int    <= (others => '0');
+ 2110 |             sreg.mant   <= "01" & sreg.mant(sreg.mant'left downto 2);
+ 2111 |             ctrl.under  <= '1';
+ 2112 |             ctrl.cnt    <= (others => '0');
+ 2113 |           elsif (unsigned(ctrl.cnt) = 126) then
+ 2114 |             sreg.int    <= (others => '0');
+ 2115 |             sreg.mant   <= '1' & sreg.mant(sreg.mant'left downto 1);
+ 2117 |             ctrl.under  <= '1';
+ 2118 |             ctrl.cnt    <= (others => '0');
+ 2119 |           else
+ 2120 |             sreg.int    <= (others => '0');
+ 2121 |             sreg.int(0) <= '1';
+ 2122 |             ctrl.cnt    <= std_ulogic_vector(unsigned(ctrl.cnt) - 127);
+ 2123 |           end if;
+ 2125 |           if ((ctrl.class(fp_class_neg_inf_c)  or ctrl.class(fp_class_pos_inf_c) or
+ 2126 |                ctrl.class(fp_class_neg_zero_c) or ctrl.class(fp_class_pos_zero_c) or
+ 2127 |                ctrl.class(fp_class_snan_c)     or ctrl.class(fp_class_qnan_c)) = '1') then
+ 2128 |             ctrl.state <= S_FINALIZE;
+ 2130 |           elsif ((not FPU_SUBNORMAL_SUPPORT) and
+ 2131 |                 ((ctrl.class(fp_class_neg_denorm_c) or ctrl.class(fp_class_pos_denorm_c)) = '1')) then
+ 2132 |             ctrl.state <= S_FINALIZE;
+ 2133 |           else
+ 2140 |             if (unsigned(ctrl.cnt) > (127+XLEN+1)) then
+ 2141 |               ctrl.over <= '1';
+ 2142 |               ctrl.state <= S_FINALIZE;
+ 2143 |             else
+ 2144 |               ctrl.state <= S_NORMALIZE_BUSY;
+ 2145 |             end if;
+ 2146 |           end if;
+ 2148 |         when S_NORMALIZE_BUSY =>
+ 2151 |           if (or_reduce_f(ctrl.cnt(ctrl.cnt'left-1 downto 0)) = '0') then
+ 2152 |             sreg.ext_g <= sreg.mant(sreg.mant'left);
+ 2153 |             sreg.ext_r <= sreg.mant(sreg.mant'left-1);
+ 2154 |             if (or_reduce_f(sreg.mant(sreg.mant'left-2 downto 0)) = '1') then
+ 2155 |               sreg.ext_s <= '1';
+ 2156 |             end if;
+ 2157 |             if (ctrl.unsign = '0') then
+ 2158 |               ctrl.over <= ctrl.over or sreg.int(sreg.int'left);
+ 2159 |             end if;
+ 2160 |             ctrl.state <= S_ROUND;
+ 2161 |           else
+ 2162 |             ctrl.cnt  <= std_ulogic_vector(unsigned(ctrl.cnt) - 1);
+ 2163 |             sreg.int  <= sreg.int(sreg.int'left-1 downto 0) & sreg.mant(sreg.mant'left);
+ 2164 |             sreg.mant <= sreg.mant(sreg.mant'left-1 downto 0) & '0';
+ 2165 |             ctrl.over <= ctrl.over or sreg.int(sreg.int'left);
+ 2166 |             sreg.ext_g <= '0';
+ 2167 |             sreg.ext_r <= '0';
+ 2168 |             sreg.ext_s <= '0';
+ 2169 |           end if;
+ 2171 |         when S_ROUND =>
+ 2173 |           ctrl.rounded    <= ctrl.rounded or round.en;
+ 2174 |           ctrl.over       <= ctrl.over or round.output(round.output'left);
+ 2175 |           ctrl.result_tmp <= round.output(round.output'left-1 downto 0);
+ 2176 |           ctrl.state      <= S_FINALIZE;
+ 2179 |           ctrl.flags(fp_exc_nx_c) <= ctrl.flags(fp_exc_nx_c) or sreg.ext_g or sreg.ext_r or sreg.ext_s;
+ 2181 |         when S_FINALIZE =>
+ 2191 |           if (ctrl.unsign = '1') then
+ 2192 |             if (ctrl.class(fp_class_snan_c) = '1') or (ctrl.class(fp_class_qnan_c) = '1') or (ctrl.class(fp_class_pos_inf_c) = '1') or
+ 2193 |                ((ctrl.sign = '0') and (ctrl.over = '1')) then
+ 2194 |               ctrl.result <= x"ffffffff";
+ 2196 |               ctrl.flags(fp_exc_nv_c) <= '1';
+ 2197 |               ctrl.flags(fp_exc_nx_c) <= '0';
+ 2199 |             elsif ((ctrl.class(fp_class_neg_inf_c) = '1')) then
+ 2200 |               ctrl.result <= x"00000000";
+ 2202 |               ctrl.flags(fp_exc_nv_c) <= '1';
+ 2203 |               ctrl.flags(fp_exc_nx_c) <= '0';
+ 2204 |             elsif (ctrl.class(fp_class_neg_zero_c) = '1') or (ctrl.class(fp_class_pos_zero_c) = '1') then
+ 2205 |               ctrl.result <= x"00000000";
+ 2206 |             elsif ((not FPU_SUBNORMAL_SUPPORT) and ((ctrl.class(fp_class_neg_denorm_c) = '1') or (ctrl.class(fp_class_pos_denorm_c) = '1'))) then
+ 2207 |               ctrl.result <= x"00000000";
+ 2208 |             elsif ((ctrl.under = '1') and (ctrl.result_tmp(0) = '0')) then
+ 2209 |               ctrl.result <= x"00000000";
+ 2211 |               ctrl.flags(fp_exc_nx_c) <= '1';
+ 2212 |             elsif ((ctrl.sign = '1')) then
+ 2213 |               ctrl.result <= x"00000000";
+ 2215 |               ctrl.flags(fp_exc_nv_c) <= '1';
+ 2216 |               ctrl.flags(fp_exc_nx_c) <= '0';
+ 2219 |             else
+ 2220 |               ctrl.result <= ctrl.result_tmp;
+ 2221 |             end if;
+ 2223 |           else
+ 2225 |             if (ctrl.class(fp_class_snan_c) = '1') or (ctrl.class(fp_class_qnan_c) = '1') then
+ 2226 |               ctrl.result <= x"7fffffff";
+ 2228 |               ctrl.flags(fp_exc_nv_c) <= '1';
+ 2229 |               ctrl.flags(fp_exc_nx_c) <= '0';
+ 2230 |             elsif (ctrl.class(fp_class_pos_inf_c) = '1') then
+ 2231 |               ctrl.result <= x"7fffffff";
+ 2233 |               ctrl.flags(fp_exc_nv_c) <= '1';
+ 2234 |               ctrl.flags(fp_exc_nx_c) <= '0';
+ 2235 |             elsif ((ctrl.sign = '0') and (ctrl.over = '1')) then
+ 2236 |               ctrl.result <= x"7fffffff";
+ 2238 |               ctrl.flags(fp_exc_nv_c) <= '1';
+ 2239 |               ctrl.flags(fp_exc_nx_c) <= '0';
+ 2241 |             elsif (ctrl.class(fp_class_neg_zero_c) = '1') or (ctrl.class(fp_class_pos_zero_c) = '1') then
+ 2242 |               ctrl.result <= x"00000000";
+ 2244 |             elsif ((not FPU_SUBNORMAL_SUPPORT) and ((ctrl.class(fp_class_neg_denorm_c) = '1') or (ctrl.class(fp_class_pos_denorm_c) = '1'))) then
+ 2245 |               ctrl.result <= x"00000000";
+ 2248 |             elsif ((ctrl.under = '1') and (ctrl.result_tmp(0) = '0')) then
+ 2249 |               ctrl.result <= x"00000000";
+ 2251 |               ctrl.flags(fp_exc_nx_c) <= '1';
+ 2253 |             elsif (ctrl.class(fp_class_neg_inf_c) = '1') then
+ 2254 |               ctrl.result <= x"80000000";
+ 2255 |               ctrl.flags(fp_exc_nv_c) <= '1';
+ 2256 |               ctrl.flags(fp_exc_nx_c) <= '0';
+ 2261 |             elsif ((ctrl.sign = '1') and (ctrl.over = '1') and
+ 2262 |                    (ctrl.result_tmp /= x"80000000") and (mantissa_i /= "00000000000000000000000")) then
+ 2263 |               ctrl.result <= x"80000000";
+ 2265 |               ctrl.flags(fp_exc_nv_c) <= '1';
+ 2266 |               ctrl.flags(fp_exc_nx_c) <= '0';
+ 2267 |             else
+ 2269 |               ctrl.flags(fp_exc_nx_c) <= ctrl.flags(fp_exc_nx_c) or ctrl.rounded;
+ 2270 |               if (ctrl.sign = '1') then
+ 2271 |                 ctrl.result <= std_ulogic_vector(0 - unsigned(ctrl.result_tmp));
+ 2272 |               else
+ 2273 |                 ctrl.result <= ctrl.result_tmp;
+ 2274 |               end if;
+ 2275 |             end if;
+ 2276 |           end if;
+ 2277 |           done_o     <= '1';
+ 2278 |           ctrl.state <= S_IDLE;
+ 2280 |         when others =>
+ 2282 |           ctrl.state <= S_IDLE;
+ 2284 |       end case;
+ 2287 |       if (abort_i = '1') then
+ 2288 |         ctrl.state <= S_IDLE;
+ 2289 |       end if;
+ 2290 |     end if;
+ 2291 |   end process ctrl_engine;
+ 2294 |   result_o <= ctrl.result;
+ 2298 |   flags_o(fp_exc_nv_c) <= ctrl.flags(fp_exc_nv_c);
+ 2299 |   flags_o(fp_exc_dz_c) <= '0';
+ 2300 |   flags_o(fp_exc_of_c) <= '0';
+ 2301 |   flags_o(fp_exc_uf_c) <= '0';
+ 2302 |   flags_o(fp_exc_nx_c) <= ctrl.flags(fp_exc_nx_c);
+ 2306 |   rounding_unit_ctrl: process(rmode_i, sreg, sign_i)
+ 2307 |   begin
+ 2309 |     round.en  <= '0';
+ 2310 |     round.sub <= '0';
+ 2312 |     case rmode_i(2 downto 0) is
+ 2313 |       when "000" =>
+ 2314 |         if (sreg.ext_g = '0') then
+ 2315 |           round.en <= '0';
+ 2316 |         else
+ 2317 |           if (sreg.ext_r = '0') and (sreg.ext_s = '0') then
+ 2318 |             round.en <= sreg.int(0);
+ 2319 |           else
+ 2320 |             round.en <= '1';
+ 2321 |           end if;
+ 2322 |         end if;
+ 2323 |         round.sub <= '0';
+ 2324 |       when "001" =>
+ 2325 |         round.en <= '0';
+ 2326 |       when "010" =>
+ 2328 |         if (sign_i = '0') then
+ 2329 |           round.en <= '0';
+ 2330 |         else
+ 2331 |           round.en  <= sreg.ext_g or sreg.ext_r or sreg.ext_s;
+ 2332 |           round.sub <= '0';
+ 2333 |         end if;
+ 2334 |       when "011" =>
+ 2336 |         if (sign_i = '1') then
+ 2337 |           round.en <= '0';
+ 2338 |         else
+ 2339 |           round.en  <= sreg.ext_g or sreg.ext_r or sreg.ext_s;
+ 2340 |           round.sub <= '0';
+ 2341 |         end if;
+ 2342 |       when "100" =>
+ 2345 |         if (sreg.ext_g = '0') then
+ 2346 |           round.en <= '0';
+ 2347 |         else
+ 2348 |           round.en <= '1';
+ 2349 |         end if;
+ 2350 |         round.sub <= '0';
+ 2351 |       when others =>
+ 2352 |         round.en <= '0';
+ 2353 |     end case;
+ 2354 |   end process rounding_unit_ctrl;
+ 2357 |   rounding_unit_add: process(round, sreg)
+ 2358 |     variable tmp_v : std_ulogic_vector(32 downto 0);
+ 2359 |   begin
+ 2360 |     tmp_v := '0' & sreg.int;
+ 2361 |     if (round.en = '1') then
+ 2362 |       if (round.sub = '0') then
+ 2363 |         round.output <= std_ulogic_vector(unsigned(tmp_v) + 1);
+ 2364 |       else
+ 2365 |         round.output <= std_ulogic_vector(unsigned(tmp_v) - 1);
+ 2366 |       end if;
+ 2367 |     else
+ 2368 |       round.output <= tmp_v;
+ 2369 |     end if;
+ 2370 |   end process rounding_unit_add;
+ 2373 | end neorv32_cpu_cp_fpu_f2i_rtl;

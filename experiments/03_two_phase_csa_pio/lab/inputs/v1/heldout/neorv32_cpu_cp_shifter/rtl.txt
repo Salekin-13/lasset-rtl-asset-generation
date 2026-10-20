@@ -1,0 +1,91 @@
+   21 | entity neorv32_cpu_cp_shifter is
+   22 |   generic (
+   23 |     FAST_SHIFT_EN : boolean
+   24 |   );
+   25 |   port (
+   27 |     clk_i   : in  std_ulogic;
+   28 |     rstn_i  : in  std_ulogic;
+   29 |     ctrl_i  : in  ctrl_bus_t;
+   31 |     rs1_i   : in  std_ulogic_vector(XLEN-1 downto 0);
+   32 |     shamt_i : in  std_ulogic_vector(index_size_f(XLEN)-1 downto 0);
+   34 |     res_o   : out std_ulogic_vector(XLEN-1 downto 0);
+   35 |     valid_o : out std_ulogic
+   36 |   );
+   37 | end neorv32_cpu_cp_shifter;
+
+   39 | architecture neorv32_cpu_cp_shifter_rtl of neorv32_cpu_cp_shifter is
+   42 |   signal valid_cmd : std_ulogic;
+   45 |   type shifter_t is record
+   46 |     busy    : std_ulogic;
+   47 |     run     : std_ulogic;
+   48 |     done    : std_ulogic;
+   49 |     done_ff : std_ulogic;
+   50 |     cnt     : std_ulogic_vector(index_size_f(XLEN)-1 downto 0);
+   51 |     sreg    : std_ulogic_vector(XLEN-1 downto 0);
+   52 |   end record;
+   53 |   signal shifter : shifter_t;
+   56 |   type bs_level_t is array (index_size_f(XLEN) downto 0) of std_ulogic_vector(XLEN-1 downto 0);
+   57 |   signal bs_level  : bs_level_t;
+   58 |   signal bs_sign   : std_ulogic;
+   59 |   signal bs_result : std_ulogic_vector(XLEN-1 downto 0);
+   61 | begin
+   65 |   valid_cmd <= '1' when (ctrl_i.alu_cp_alu = '1') and (
+   66 |                          ((ctrl_i.ir_funct3 = funct3_sll_c) and (ctrl_i.ir_funct12(11 downto 5) = "0000000")) or
+   67 |                          ((ctrl_i.ir_funct3 = funct3_sr_c)  and (ctrl_i.ir_funct12(11 downto 5) = "0000000")) or
+   68 |                          ((ctrl_i.ir_funct3 = funct3_sr_c)  and (ctrl_i.ir_funct12(11 downto 5) = "0100000"))
+   69 |                         ) else '0';
+   74 |   serial_shifter:
+   75 |   if not FAST_SHIFT_EN generate
+   77 |     serial_shifter_core: process(rstn_i, clk_i)
+   78 |     begin
+   79 |       if (rstn_i = '0') then
+   80 |         shifter.busy    <= '0';
+   81 |         shifter.done_ff <= '0';
+   82 |         shifter.cnt     <= (others => '0');
+   83 |         shifter.sreg    <= (others => '0');
+   84 |       elsif rising_edge(clk_i) then
+   86 |         shifter.done_ff <= shifter.busy and shifter.done;
+   87 |         if (valid_cmd = '1') then
+   88 |           shifter.busy <= '1';
+   89 |         elsif (shifter.done = '1') or (ctrl_i.cpu_trap = '1') then
+   90 |           shifter.busy <= '0';
+   91 |         end if;
+   93 |         if (valid_cmd = '1') then
+   94 |           shifter.cnt  <= shamt_i;
+   95 |           shifter.sreg <= rs1_i;
+   96 |         elsif (shifter.run = '1') then
+   97 |           shifter.cnt <= std_ulogic_vector(unsigned(shifter.cnt) - 1);
+   98 |           if (ctrl_i.ir_funct3(2) = '0') then
+   99 |             shifter.sreg <= shifter.sreg(shifter.sreg'left-1 downto 0) & '0';
+  100 |           else
+  101 |             shifter.sreg <= (shifter.sreg(shifter.sreg'left) and ctrl_i.ir_funct12(10)) & shifter.sreg(shifter.sreg'left downto 1);
+  102 |           end if;
+  103 |         end if;
+  104 |       end if;
+  105 |     end process serial_shifter_core;
+  108 |     shifter.run  <= or_reduce_f(shifter.cnt);
+  109 |     shifter.done <= not or_reduce_f(shifter.cnt(shifter.cnt'left downto 1));
+  110 |     valid_o      <= shifter.busy and shifter.done;
+  111 |     res_o        <= shifter.sreg when (shifter.done_ff = '1') else (others => '0');
+  113 |   end generate;
+  118 |   barrel_shifter:
+  119 |   if FAST_SHIFT_EN generate
+  122 |     bs_level(0) <= (others => '0') when (valid_cmd = '0') else bit_rev_f(rs1_i) when (ctrl_i.ir_funct3(2) = '0') else rs1_i;
+  123 |     bs_sign <= rs1_i(XLEN-1) and ctrl_i.ir_funct12(10) and valid_cmd;
+  126 |     barrel_shifter_core:
+  127 |     for i in 0 to index_size_f(XLEN)-1 generate
+  128 |       bs_level(i+1)(XLEN-1 downto XLEN-(2**i)) <= (others => bs_sign)             when (shamt_i(i) = '1') else bs_level(i)(XLEN-1 downto XLEN-(2**i));
+  129 |       bs_level(i+1)((XLEN-(2**i))-1 downto 0)  <= bs_level(i)(XLEN-1 downto 2**i) when (shamt_i(i) = '1') else bs_level(i)((XLEN-(2**i))-1 downto 0);
+  130 |     end generate;
+  133 |     barrel_shifter_buf: process(rstn_i, clk_i)
+  134 |     begin
+  135 |       if (rstn_i = '0') then
+  136 |         bs_result <= (others => '0');
+  137 |       elsif rising_edge(clk_i) then
+  138 |         bs_result <= bs_level(bs_level'left);
+  139 |       end if;
+  140 |     end process barrel_shifter_buf;
+  143 |     res_o   <= bit_rev_f(bs_result) when (ctrl_i.ir_funct3(2) = '0') else bs_result;
+  144 |     valid_o <= valid_cmd;
+  146 |   end generate;
+  149 | end neorv32_cpu_cp_shifter_rtl;

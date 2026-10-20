@@ -1,0 +1,112 @@
+   19 | entity neorv32_cpu_cp_cfu is
+   20 |   port (
+   22 |     clk_i       : in  std_ulogic;
+   23 |     rstn_i      : in  std_ulogic;
+   25 |     start_i     : in  std_ulogic;
+   26 |     active_i    : in  std_ulogic;
+   28 |     csr_we_i    : in  std_ulogic;
+   29 |     csr_addr_i  : in  std_ulogic_vector(1 downto 0);
+   30 |     csr_wdata_i : in  std_ulogic_vector(31 downto 0);
+   31 |     csr_rdata_o : out std_ulogic_vector(31 downto 0);
+   33 |     rtype_i     : in  std_ulogic;
+   34 |     funct3_i    : in  std_ulogic_vector(2 downto 0);
+   35 |     funct7_i    : in  std_ulogic_vector(6 downto 0);
+   36 |     rs1_i       : in  std_ulogic_vector(31 downto 0);
+   37 |     rs2_i       : in  std_ulogic_vector(31 downto 0);
+   38 |     rs3_i       : in  std_ulogic_vector(31 downto 0);
+   40 |     result_o    : out std_ulogic_vector(31 downto 0);
+   41 |     valid_o     : out std_ulogic
+   42 |   );
+   43 | end neorv32_cpu_cp_cfu;
+
+  135 | architecture neorv32_cpu_cp_cfu_rtl of neorv32_cpu_cp_cfu is
+  138 |   constant r3type_c : std_ulogic := '0';
+  139 |   constant r4type_c : std_ulogic := '1';
+  142 |   constant xtea_enc_v0_c : std_ulogic_vector(2 downto 0) := "000";
+  143 |   constant xtea_enc_v1_c : std_ulogic_vector(2 downto 0) := "001";
+  144 |   constant xtea_dec_v0_c : std_ulogic_vector(2 downto 0) := "010";
+  145 |   constant xtea_dec_v1_c : std_ulogic_vector(2 downto 0) := "011";
+  146 |   constant xtea_init_c   : std_ulogic_vector(2 downto 0) := "100";
+  149 |   constant xtea_delta_c : std_ulogic_vector(31 downto 0) := x"9e3779b9";
+  152 |   type key_mem_t is array (0 to 3) of std_ulogic_vector(31 downto 0);
+  153 |   signal key_mem : key_mem_t;
+  156 |   type xtea_t is record
+  157 |     done : std_ulogic_vector(1 downto 0);
+  158 |     opa  : std_ulogic_vector(31 downto 0);
+  159 |     opb  : std_ulogic_vector(31 downto 0);
+  160 |     sum  : std_ulogic_vector(31 downto 0);
+  161 |     res  : std_ulogic_vector(31 downto 0);
+  162 |   end record;
+  163 |   signal xtea : xtea_t;
+  166 |   signal tmp_a, tmp_b, tmp_x, tmp_y, tmp_z, tmp_r : std_ulogic_vector(31 downto 0);
+  168 | begin
+  173 |   csr_write_access: process(rstn_i, clk_i)
+  174 |   begin
+  175 |     if (rstn_i = '0') then
+  176 |       key_mem <= (others => (others => '0'));
+  177 |     elsif rising_edge(clk_i) then
+  178 |       if (csr_we_i = '1') then
+  179 |         key_mem(to_integer(unsigned(csr_addr_i))) <= csr_wdata_i;
+  180 |       end if;
+  181 |     end if;
+  182 |   end process csr_write_access;
+  185 |   csr_rdata_o <= key_mem(to_integer(unsigned(csr_addr_i)));
+  190 |   xtea_core: process(rstn_i, clk_i)
+  191 |   begin
+  192 |     if (rstn_i = '0') then
+  193 |       xtea.done <= (others => '0');
+  194 |       xtea.opa  <= (others => '0');
+  195 |       xtea.opb  <= (others => '0');
+  196 |       xtea.sum  <= (others => '0');
+  197 |       xtea.res  <= (others => '0');
+  198 |     elsif rising_edge(clk_i) then
+  200 |       xtea.done(0) <= '0';
+  201 |       xtea.done(1) <= xtea.done(0);
+  204 |       if (start_i = '1') and (rtype_i = r3type_c) then
+  205 |         xtea.opa     <= rs1_i;
+  206 |         xtea.opb     <= rs2_i;
+  207 |         xtea.done(0) <= '1';
+  208 |       end if;
+  211 |       if (xtea.done(0) = '1') then
+  213 |         if (funct3_i(2) = '1') then
+  214 |           xtea.sum <= xtea.opa;
+  215 |         elsif (funct3_i(1 downto 0) = xtea_enc_v0_c(1 downto 0)) then
+  216 |           xtea.sum <= std_ulogic_vector(unsigned(xtea.sum) + unsigned(xtea_delta_c));
+  217 |         elsif (funct3_i(1 downto 0) = xtea_dec_v1_c(1 downto 0)) then
+  218 |           xtea.sum <= std_ulogic_vector(unsigned(xtea.sum) - unsigned(xtea_delta_c));
+  219 |         end if;
+  221 |         if (funct3_i(1) = '0') then
+  222 |           xtea.res <= std_ulogic_vector(unsigned(tmp_b) + unsigned(tmp_r));
+  223 |         else
+  224 |           xtea.res <= std_ulogic_vector(unsigned(tmp_b) - unsigned(tmp_r));
+  225 |         end if;
+  226 |       end if;
+  228 |     end if;
+  229 |   end process xtea_core;
+  232 |   tmp_a <= xtea.opb when (funct3_i(0) = '0') else xtea.opa;
+  233 |   tmp_b <= xtea.opa when (funct3_i(0) = '0') else xtea.opb;
+  234 |   tmp_x <= xtea.opb(27 downto 0) & "0000"  when (funct3_i(0) = '0') else xtea.opa(27 downto 0) & "0000";
+  235 |   tmp_y <= "00000" & xtea.opb(31 downto 5) when (funct3_i(0) = '0') else "00000" & xtea.opa(31 downto 5);
+  236 |   tmp_z <= key_mem(to_integer(unsigned(xtea.sum(1 downto 0)))) when (funct3_i(0) = '0') else
+  237 |            key_mem(to_integer(unsigned(xtea.sum(12 downto 11))));
+  238 |   tmp_r <= std_ulogic_vector(unsigned(tmp_x xor tmp_y) + unsigned(tmp_a)) xor std_ulogic_vector(unsigned(xtea.sum) + unsigned(tmp_z));
+  243 |   result_select: process(rtype_i, funct3_i, xtea)
+  244 |   begin
+  245 |     if (rtype_i = r3type_c) then
+  247 |       case funct3_i is
+  248 |         when xtea_enc_v0_c | xtea_enc_v1_c | xtea_dec_v0_c | xtea_dec_v1_c =>
+  249 |           result_o <= xtea.res;
+  250 |           valid_o  <= xtea.done(1);
+  251 |         when xtea_init_c =>
+  252 |           result_o <= (others => '0');
+  253 |           valid_o  <= '1';
+  254 |         when others =>
+  255 |           result_o <= (others => '0');
+  256 |           valid_o  <= '0';
+  257 |       end case;
+  259 |     else
+  261 |       result_o <= (others => '0');
+  262 |       valid_o  <= '0';
+  264 |     end if;
+  265 |   end process result_select;
+  268 | end neorv32_cpu_cp_cfu_rtl;

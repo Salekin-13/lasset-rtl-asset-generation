@@ -1,0 +1,235 @@
+   22 | entity neorv32_slink is
+   23 |   generic (
+   24 |     SLINK_RX_FIFO : natural range 1 to 2**15;
+   25 |     SLINK_TX_FIFO : natural range 1 to 2**15
+   26 |   );
+   27 |   port (
+   29 |     clk_i            : in  std_ulogic;
+   30 |     rstn_i           : in  std_ulogic;
+   31 |     bus_req_i        : in  bus_req_t;
+   32 |     bus_rsp_o        : out bus_rsp_t;
+   33 |     rx_irq_o         : out std_ulogic;
+   34 |     tx_irq_o         : out std_ulogic;
+   36 |     slink_rx_data_i  : in  std_ulogic_vector(31 downto 0);
+   37 |     slink_rx_src_i   : in  std_ulogic_vector(3 downto 0);
+   38 |     slink_rx_valid_i : in  std_ulogic;
+   39 |     slink_rx_last_i  : in  std_ulogic;
+   40 |     slink_rx_ready_o : out std_ulogic;
+   42 |     slink_tx_data_o  : out std_ulogic_vector(31 downto 0);
+   43 |     slink_tx_dst_o   : out std_ulogic_vector(3 downto 0);
+   44 |     slink_tx_valid_o : out std_ulogic;
+   45 |     slink_tx_last_o  : out std_ulogic;
+   46 |     slink_tx_ready_i : in  std_ulogic
+   47 |   );
+   48 | end neorv32_slink;
+
+   50 | architecture neorv32_slink_rtl of neorv32_slink is
+   53 |   constant ctrl_en_c            : natural :=  0;
+   54 |   constant ctrl_rx_clr_c        : natural :=  1;
+   55 |   constant ctrl_tx_clr_c        : natural :=  2;
+   57 |   constant ctrl_rx_last_c       : natural :=  4;
+   59 |   constant ctrl_rx_empty_c      : natural :=  8;
+   60 |   constant ctrl_rx_half_c       : natural :=  9;
+   61 |   constant ctrl_rx_full_c       : natural := 10;
+   62 |   constant ctrl_tx_empty_c      : natural := 11;
+   63 |   constant ctrl_tx_half_c       : natural := 12;
+   64 |   constant ctrl_tx_full_c       : natural := 13;
+   66 |   constant ctrl_irq_rx_nempty_c : natural := 16;
+   67 |   constant ctrl_irq_rx_half_c   : natural := 17;
+   68 |   constant ctrl_irq_rx_full_c   : natural := 18;
+   69 |   constant ctrl_irq_tx_empty_c  : natural := 19;
+   70 |   constant ctrl_irq_tx_nhalf_c  : natural := 20;
+   71 |   constant ctrl_irq_tx_nfull_c  : natural := 21;
+   73 |   constant ctrl_rx_fifo_size0_c : natural := 24;
+   74 |   constant ctrl_rx_fifo_size1_c : natural := 25;
+   75 |   constant ctrl_rx_fifo_size2_c : natural := 26;
+   76 |   constant ctrl_rx_fifo_size3_c : natural := 27;
+   77 |   constant ctrl_tx_fifo_size0_c : natural := 28;
+   78 |   constant ctrl_tx_fifo_size1_c : natural := 29;
+   79 |   constant ctrl_tx_fifo_size2_c : natural := 30;
+   80 |   constant ctrl_tx_fifo_size3_c : natural := 31;
+   83 |   constant log2_rx_fifo_c : natural := index_size_f(SLINK_RX_FIFO);
+   84 |   constant log2_tx_fifo_c : natural := index_size_f(SLINK_TX_FIFO);
+   87 |   type ctrl_t is record
+   88 |     enable                      : std_ulogic;
+   89 |     rx_clr,        tx_clr       : std_ulogic;
+   90 |     irq_rx_nempty, irq_tx_empty : std_ulogic;
+   91 |     irq_rx_half,   irq_tx_nhalf : std_ulogic;
+   92 |     irq_rx_full,   irq_tx_nfull : std_ulogic;
+   93 |   end record;
+   94 |   signal ctrl : ctrl_t;
+   97 |   signal route_dst, route_src : std_ulogic_vector(3 downto 0);
+  100 |   signal rx_last : std_ulogic;
+  103 |   type fifo_t is record
+  104 |     we    : std_ulogic;
+  105 |     re    : std_ulogic;
+  106 |     clear : std_ulogic;
+  107 |     wdata : std_ulogic_vector((1+4+32)-1 downto 0);
+  108 |     rdata : std_ulogic_vector((1+4+32)-1 downto 0);
+  109 |     avail : std_ulogic;
+  110 |     free  : std_ulogic;
+  111 |     half  : std_ulogic;
+  112 |   end record;
+  113 |   signal tx_fifo, rx_fifo : fifo_t;
+  115 | begin
+  119 |   bus_access: process(rstn_i, clk_i)
+  120 |   begin
+  121 |     if (rstn_i = '0') then
+  122 |       bus_rsp_o          <= rsp_terminate_c;
+  123 |       ctrl.enable        <= '0';
+  124 |       ctrl.rx_clr        <= '0';
+  125 |       ctrl.tx_clr        <= '0';
+  126 |       ctrl.irq_rx_nempty <= '0';
+  127 |       ctrl.irq_rx_half   <= '0';
+  128 |       ctrl.irq_rx_full   <= '0';
+  129 |       ctrl.irq_tx_empty  <= '0';
+  130 |       ctrl.irq_tx_nhalf  <= '0';
+  131 |       ctrl.irq_tx_nfull  <= '0';
+  132 |       route_dst          <= (others => '0');
+  133 |     elsif rising_edge(clk_i) then
+  135 |       bus_rsp_o.ack  <= bus_req_i.stb;
+  136 |       bus_rsp_o.err  <= '0';
+  137 |       bus_rsp_o.data <= (others => '0');
+  140 |       ctrl.rx_clr <= '0';
+  141 |       ctrl.tx_clr <= '0';
+  143 |       if (bus_req_i.stb = '1') then
+  145 |         if (bus_req_i.rw = '1') then
+  147 |           if (bus_req_i.addr(3 downto 2) = "00") then
+  148 |             ctrl.enable <= bus_req_i.data(ctrl_en_c);
+  149 |             ctrl.rx_clr <= bus_req_i.data(ctrl_rx_clr_c);
+  150 |             ctrl.tx_clr <= bus_req_i.data(ctrl_tx_clr_c);
+  152 |             ctrl.irq_rx_nempty <= bus_req_i.data(ctrl_irq_rx_nempty_c);
+  153 |             ctrl.irq_rx_half   <= bus_req_i.data(ctrl_irq_rx_half_c);
+  154 |             ctrl.irq_rx_full   <= bus_req_i.data(ctrl_irq_rx_full_c);
+  155 |             ctrl.irq_tx_empty  <= bus_req_i.data(ctrl_irq_tx_empty_c);
+  156 |             ctrl.irq_tx_nhalf  <= bus_req_i.data(ctrl_irq_tx_nhalf_c);
+  157 |             ctrl.irq_tx_nfull  <= bus_req_i.data(ctrl_irq_tx_nfull_c);
+  158 |           end if;
+  160 |           if (bus_req_i.addr(3 downto 2) = "01") then
+  161 |             route_dst <= bus_req_i.data(3 downto 0);
+  162 |           end if;
+  164 |         else
+  165 |           case bus_req_i.addr(3 downto 2) is
+  166 |             when "00" =>
+  167 |               bus_rsp_o.data(ctrl_en_c) <= ctrl.enable;
+  169 |               bus_rsp_o.data(ctrl_rx_last_c) <= rx_last;
+  171 |               bus_rsp_o.data(ctrl_rx_empty_c) <= not rx_fifo.avail;
+  172 |               bus_rsp_o.data(ctrl_rx_half_c)  <= rx_fifo.half;
+  173 |               bus_rsp_o.data(ctrl_rx_full_c)  <= not rx_fifo.free;
+  174 |               bus_rsp_o.data(ctrl_tx_empty_c) <= not tx_fifo.avail;
+  175 |               bus_rsp_o.data(ctrl_tx_half_c)  <= tx_fifo.half;
+  176 |               bus_rsp_o.data(ctrl_tx_full_c)  <= not tx_fifo.free;
+  178 |               bus_rsp_o.data(ctrl_irq_rx_nempty_c) <= ctrl.irq_rx_nempty;
+  179 |               bus_rsp_o.data(ctrl_irq_rx_half_c)   <= ctrl.irq_rx_half;
+  180 |               bus_rsp_o.data(ctrl_irq_rx_full_c)   <= ctrl.irq_rx_full;
+  181 |               bus_rsp_o.data(ctrl_irq_tx_empty_c)  <= ctrl.irq_tx_empty;
+  182 |               bus_rsp_o.data(ctrl_irq_tx_nhalf_c)  <= ctrl.irq_tx_nhalf;
+  183 |               bus_rsp_o.data(ctrl_irq_tx_nfull_c)  <= ctrl.irq_tx_nfull;
+  185 |               bus_rsp_o.data(ctrl_rx_fifo_size3_c downto ctrl_rx_fifo_size0_c) <= std_ulogic_vector(to_unsigned(log2_rx_fifo_c, 4));
+  186 |               bus_rsp_o.data(ctrl_tx_fifo_size3_c downto ctrl_tx_fifo_size0_c) <= std_ulogic_vector(to_unsigned(log2_tx_fifo_c, 4));
+  187 |             when "01" =>
+  188 |               bus_rsp_o.data(3 downto 0) <= route_dst;
+  189 |               bus_rsp_o.data(7 downto 4) <= route_src;
+  190 |             when others =>
+  191 |               bus_rsp_o.data <= rx_fifo.rdata(31 downto 0);
+  192 |           end case;
+  193 |         end if;
+  194 |       end if;
+  195 |     end if;
+  196 |   end process bus_access;
+  201 |   rx_fifo_inst: entity neorv32.neorv32_fifo
+  202 |   generic map (
+  203 |     FIFO_DEPTH => SLINK_RX_FIFO,
+  204 |     FIFO_WIDTH => 1+4+32,
+  205 |     FIFO_RSYNC => false,
+  206 |     FIFO_SAFE  => true,
+  207 |     FULL_RESET => false
+  208 |   )
+  209 |   port map (
+  211 |     clk_i   => clk_i,
+  212 |     rstn_i  => rstn_i,
+  213 |     clear_i => rx_fifo.clear,
+  214 |     half_o  => rx_fifo.half,
+  215 |     level_o => open,
+  217 |     wdata_i => rx_fifo.wdata,
+  218 |     we_i    => rx_fifo.we,
+  219 |     free_o  => rx_fifo.free,
+  221 |     re_i    => rx_fifo.re,
+  222 |     rdata_o => rx_fifo.rdata,
+  223 |     avail_o => rx_fifo.avail
+  224 |   );
+  226 |   rx_fifo.clear <= (not ctrl.enable) or ctrl.rx_clr;
+  227 |   rx_fifo.re    <= '1' when (bus_req_i.stb = '1') and (bus_req_i.rw = '0') and (bus_req_i.addr(3) = '1') else '0';
+  229 |   rx_fifo.we                  <= slink_rx_valid_i;
+  230 |   rx_fifo.wdata(31 downto 0)  <= slink_rx_data_i;
+  231 |   rx_fifo.wdata(35 downto 32) <= slink_rx_src_i;
+  232 |   rx_fifo.wdata(36)           <= slink_rx_last_i;
+  233 |   slink_rx_ready_o            <= rx_fifo.free;
+  236 |   rx_attributes: process(rstn_i, clk_i)
+  237 |   begin
+  238 |     if (rstn_i = '0') then
+  239 |       rx_last   <= '0';
+  240 |       route_src <= (others => '0');
+  241 |     elsif rising_edge(clk_i) then
+  242 |       if (rx_fifo.clear = '1') then
+  243 |         rx_last <= '0';
+  244 |       elsif (rx_fifo.re = '1') then
+  245 |         rx_last <= rx_fifo.rdata(36);
+  246 |       end if;
+  247 |       if (rx_fifo.re = '1') then
+  248 |         route_src <= rx_fifo.rdata(35 downto 32);
+  249 |       end if;
+  250 |     end if;
+  251 |   end process rx_attributes;
+  254 |   rx_interrupt: process(rstn_i, clk_i)
+  255 |   begin
+  256 |     if (rstn_i = '0') then
+  257 |       rx_irq_o <= '0';
+  258 |     elsif rising_edge(clk_i) then
+  259 |       rx_irq_o <= ctrl.enable and (
+  260 |                   (ctrl.irq_rx_nempty and (    rx_fifo.avail)) or
+  261 |                   (ctrl.irq_rx_half   and (    rx_fifo.half))  or
+  262 |                   (ctrl.irq_rx_full   and (not rx_fifo.free)));
+  263 |     end if;
+  264 |   end process rx_interrupt;
+  269 |   tx_fifo_inst: entity neorv32.neorv32_fifo
+  270 |   generic map (
+  271 |     FIFO_DEPTH => SLINK_TX_FIFO,
+  272 |     FIFO_WIDTH => 1+4+32,
+  273 |     FIFO_RSYNC => false,
+  274 |     FIFO_SAFE  => true,
+  275 |     FULL_RESET => false
+  276 |   )
+  277 |   port map (
+  279 |     clk_i   => clk_i,
+  280 |     rstn_i  => rstn_i,
+  281 |     clear_i => tx_fifo.clear,
+  282 |     half_o  => tx_fifo.half,
+  283 |     level_o => open,
+  285 |     wdata_i => tx_fifo.wdata,
+  286 |     we_i    => tx_fifo.we,
+  287 |     free_o  => tx_fifo.free,
+  289 |     re_i    => tx_fifo.re,
+  290 |     rdata_o => tx_fifo.rdata,
+  291 |     avail_o => tx_fifo.avail
+  292 |   );
+  294 |   tx_fifo.clear <= (not ctrl.enable) or ctrl.tx_clr;
+  295 |   tx_fifo.we    <= '1' when (bus_req_i.stb = '1') and (bus_req_i.rw = '1') and (bus_req_i.addr(3) = '1') else '0';
+  296 |   tx_fifo.wdata <= bus_req_i.addr(2) & route_dst & bus_req_i.data;
+  298 |   tx_fifo.re       <= slink_tx_ready_i;
+  299 |   slink_tx_data_o  <= tx_fifo.rdata(31 downto 0);
+  300 |   slink_tx_dst_o   <= tx_fifo.rdata(35 downto 32);
+  301 |   slink_tx_last_o  <= tx_fifo.rdata(36);
+  302 |   slink_tx_valid_o <= tx_fifo.avail;
+  305 |   tx_interrupt: process(rstn_i, clk_i)
+  306 |   begin
+  307 |     if (rstn_i = '0') then
+  308 |       tx_irq_o <= '0';
+  309 |     elsif rising_edge(clk_i) then
+  310 |       tx_irq_o <= ctrl.enable and (
+  311 |                   (ctrl.irq_tx_empty  and (not tx_fifo.avail)) or
+  312 |                   (ctrl.irq_tx_nhalf  and (not tx_fifo.half))  or
+  313 |                   (ctrl.irq_tx_nfull  and (    tx_fifo.free)));
+  314 |     end if;
+  315 |   end process tx_interrupt;
+  318 | end neorv32_slink_rtl;

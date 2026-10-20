@@ -1,0 +1,298 @@
+   18 | entity neorv32_twi is
+   19 |   generic (
+   20 |     IO_TWI_FIFO : natural range 1 to 2**15
+   21 |   );
+   22 |   port (
+   23 |     clk_i       : in  std_ulogic;
+   24 |     rstn_i      : in  std_ulogic;
+   25 |     bus_req_i   : in  bus_req_t;
+   26 |     bus_rsp_o   : out bus_rsp_t;
+   27 |     clkgen_en_o : out std_ulogic;
+   28 |     clkgen_i    : in  std_ulogic_vector(7 downto 0);
+   29 |     twi_sda_i   : in  std_ulogic;
+   30 |     twi_sda_o   : out std_ulogic;
+   31 |     twi_scl_i   : in  std_ulogic;
+   32 |     twi_scl_o   : out std_ulogic;
+   33 |     irq_o       : out std_ulogic
+   34 |   );
+   35 | end neorv32_twi;
+
+   37 | architecture neorv32_twi_rtl of neorv32_twi is
+   40 |   constant ctrl_en_c         : natural :=  0;
+   41 |   constant ctrl_prsc0_c      : natural :=  1;
+   42 |   constant ctrl_prsc2_c      : natural :=  3;
+   43 |   constant ctrl_cdiv0_c      : natural :=  4;
+   44 |   constant ctrl_cdiv3_c      : natural :=  7;
+   45 |   constant ctrl_clkstr_en_c  : natural :=  8;
+   47 |   constant ctrl_fifo_size0_c : natural := 15;
+   48 |   constant ctrl_fifo_size3_c : natural := 18;
+   50 |   constant ctrl_sense_scl_c  : natural := 27;
+   51 |   constant ctrl_sense_sda_c  : natural := 28;
+   52 |   constant ctrl_tx_full_c    : natural := 29;
+   53 |   constant ctrl_rx_avail_c   : natural := 30;
+   54 |   constant ctrl_busy_c       : natural := 31;
+   57 |   constant dcmd_lsb_c    : natural :=  0;
+   58 |   constant dcmd_msb_c    : natural :=  7;
+   59 |   constant dcmd_ack_c    : natural :=  8;
+   60 |   constant dcmd_cmd_lo_c : natural :=  9;
+   61 |   constant dcmd_cmd_hi_c : natural := 10;
+   64 |   constant log2_fifo_size_c : natural := index_size_f(IO_TWI_FIFO);
+   67 |   type ctrl_t is record
+   68 |     enable : std_ulogic;
+   69 |     prsc   : std_ulogic_vector(2 downto 0);
+   70 |     cdiv   : std_ulogic_vector(3 downto 0);
+   71 |     clkstr : std_ulogic;
+   72 |   end record;
+   73 |   signal ctrl : ctrl_t;
+   76 |   type fifo_t is record
+   77 |     clear              : std_ulogic;
+   78 |     rx_we,    tx_we    : std_ulogic;
+   79 |     rx_re,    tx_re    : std_ulogic;
+   80 |     rx_wdata, rx_rdata : std_ulogic_vector(8 downto 0);
+   81 |     tx_wdata, tx_rdata : std_ulogic_vector(10 downto 0);
+   82 |     rx_avail, tx_avail : std_ulogic;
+   83 |     rx_free,  tx_free  : std_ulogic;
+   84 |   end record;
+   85 |   signal fifo : fifo_t;
+   88 |   type clk_gen_t is record
+   89 |     cnt          : std_ulogic_vector(3 downto 0);
+   90 |     tick         : std_ulogic;
+   91 |     halt         : std_ulogic;
+   92 |     phase_gen    : std_ulogic_vector(3 downto 0);
+   93 |     phase_gen_ff : std_ulogic_vector(3 downto 0);
+   94 |     phase        : std_ulogic_vector(3 downto 0);
+   95 |   end record;
+   96 |   signal clk_gen : clk_gen_t;
+   99 |   type engine_t is record
+  100 |     state  : std_ulogic_vector(2 downto 0);
+  101 |     bitcnt : std_ulogic_vector(3 downto 0);
+  102 |     sreg   : std_ulogic_vector(8 downto 0);
+  103 |     done   : std_ulogic;
+  104 |     busy   : std_ulogic;
+  105 |   end record;
+  106 |   signal engine : engine_t;
+  109 |   type io_con_t is record
+  110 |     sda_in_ff, scl_in_ff : std_ulogic_vector(1 downto 0);
+  111 |     sda_in,    scl_in    : std_ulogic;
+  112 |     sda_out,   scl_out   : std_ulogic;
+  113 |   end record;
+  114 |   signal io_con : io_con_t;
+  116 | begin
+  120 |   bus_access: process(rstn_i, clk_i)
+  121 |   begin
+  122 |     if (rstn_i = '0') then
+  123 |       bus_rsp_o   <= rsp_terminate_c;
+  124 |       ctrl.enable <= '0';
+  125 |       ctrl.prsc   <= (others => '0');
+  126 |       ctrl.cdiv   <= (others => '0');
+  127 |     elsif rising_edge(clk_i) then
+  129 |       bus_rsp_o.ack  <= bus_req_i.stb;
+  130 |       bus_rsp_o.err  <= '0';
+  131 |       bus_rsp_o.data <= (others => '0');
+  133 |       if (bus_req_i.stb = '1') then
+  134 |         if (bus_req_i.rw = '1') then
+  135 |           if (bus_req_i.addr(2) = '0') then
+  136 |             ctrl.enable <= bus_req_i.data(ctrl_en_c);
+  137 |             ctrl.prsc   <= bus_req_i.data(ctrl_prsc2_c downto ctrl_prsc0_c);
+  138 |             ctrl.cdiv   <= bus_req_i.data(ctrl_cdiv3_c downto ctrl_cdiv0_c);
+  139 |             ctrl.clkstr <= bus_req_i.data(ctrl_clkstr_en_c);
+  140 |           end if;
+  141 |         else
+  142 |           if (bus_req_i.addr(2) = '0') then
+  143 |             bus_rsp_o.data(ctrl_en_c)                        <= ctrl.enable;
+  144 |             bus_rsp_o.data(ctrl_prsc2_c downto ctrl_prsc0_c) <= ctrl.prsc;
+  145 |             bus_rsp_o.data(ctrl_cdiv3_c downto ctrl_cdiv0_c) <= ctrl.cdiv;
+  146 |             bus_rsp_o.data(ctrl_clkstr_en_c)                 <= ctrl.clkstr;
+  148 |             bus_rsp_o.data(ctrl_fifo_size3_c downto ctrl_fifo_size0_c) <= std_ulogic_vector(to_unsigned(log2_fifo_size_c, 4));
+  150 |             bus_rsp_o.data(ctrl_sense_scl_c) <= io_con.scl_in_ff(1);
+  151 |             bus_rsp_o.data(ctrl_sense_sda_c) <= io_con.sda_in_ff(1);
+  152 |             bus_rsp_o.data(ctrl_tx_full_c)   <= not fifo.tx_free;
+  153 |             bus_rsp_o.data(ctrl_rx_avail_c)  <= fifo.rx_avail;
+  154 |             bus_rsp_o.data(ctrl_busy_c)      <= engine.busy or fifo.tx_avail;
+  155 |           else
+  156 |             bus_rsp_o.data(8 downto 0) <= fifo.rx_rdata;
+  157 |           end if;
+  158 |         end if;
+  159 |       end if;
+  160 |     end if;
+  161 |   end process bus_access;
+  168 |   fifo.clear <= not ctrl.enable;
+  172 |   tx_fifo_inst: entity neorv32.neorv32_fifo
+  173 |   generic map (
+  174 |     FIFO_DEPTH => IO_TWI_FIFO,
+  175 |     FIFO_WIDTH => 11,
+  176 |     FIFO_RSYNC => true,
+  177 |     FIFO_SAFE  => true,
+  178 |     FULL_RESET => false
+  179 |   )
+  180 |   port map (
+  182 |     clk_i   => clk_i,
+  183 |     rstn_i  => rstn_i,
+  184 |     clear_i => fifo.clear,
+  185 |     half_o  => open,
+  186 |     level_o => open,
+  188 |     wdata_i => fifo.tx_wdata,
+  189 |     we_i    => fifo.tx_we,
+  190 |     free_o  => fifo.tx_free,
+  192 |     re_i    => fifo.tx_re,
+  193 |     rdata_o => fifo.tx_rdata,
+  194 |     avail_o => fifo.tx_avail
+  195 |   );
+  197 |   fifo.tx_we    <= '1' when (bus_req_i.stb = '1') and (bus_req_i.rw = '1') and (bus_req_i.addr(2) = '1') else '0';
+  198 |   fifo.tx_wdata <= bus_req_i.data(dcmd_cmd_hi_c downto dcmd_lsb_c);
+  199 |   fifo.tx_re    <= '1' when (engine.busy = '0') and (fifo.tx_avail = '1') and (clk_gen.tick = '1') else '0';
+  203 |   rx_fifo_inst: entity neorv32.neorv32_fifo
+  204 |   generic map (
+  205 |     FIFO_DEPTH => IO_TWI_FIFO,
+  206 |     FIFO_WIDTH => 9,
+  207 |     FIFO_RSYNC => true,
+  208 |     FIFO_SAFE  => true,
+  209 |     FULL_RESET => false
+  210 |   )
+  211 |   port map (
+  213 |     clk_i   => clk_i,
+  214 |     rstn_i  => rstn_i,
+  215 |     clear_i => fifo.clear,
+  216 |     half_o  => open,
+  217 |     level_o => open,
+  219 |     wdata_i => fifo.rx_wdata,
+  220 |     we_i    => fifo.rx_we,
+  221 |     free_o  => fifo.rx_free,
+  223 |     re_i    => fifo.rx_re,
+  224 |     rdata_o => fifo.rx_rdata,
+  225 |     avail_o => fifo.rx_avail
+  226 |   );
+  228 |   fifo.rx_wdata <= engine.sreg(0) & engine.sreg(8 downto 1);
+  229 |   fifo.rx_we    <= engine.done;
+  230 |   fifo.rx_re    <= '1' when (bus_req_i.stb = '1') and (bus_req_i.rw = '0') and (bus_req_i.addr(2) = '1') else '0';
+  234 |   irq_generator: process(rstn_i, clk_i)
+  235 |   begin
+  236 |     if (rstn_i = '0') then
+  237 |       irq_o <= '0';
+  238 |     elsif rising_edge(clk_i) then
+  239 |       irq_o <= ctrl.enable and (not fifo.tx_avail) and (not engine.busy);
+  240 |     end if;
+  241 |   end process irq_generator;
+  246 |   clock_generator: process(rstn_i, clk_i)
+  247 |   begin
+  248 |     if (rstn_i = '0') then
+  249 |       clk_gen.tick <= '0';
+  250 |       clk_gen.cnt  <= (others => '0');
+  251 |     elsif rising_edge(clk_i) then
+  252 |       if (ctrl.enable = '0') then
+  253 |         clk_gen.tick <= '0';
+  254 |         clk_gen.cnt  <= (others => '0');
+  255 |       else
+  256 |         clk_gen.tick <= '0';
+  257 |         if (clkgen_i(to_integer(unsigned(ctrl.prsc))) = '1') then
+  258 |           if (clk_gen.cnt = ctrl.cdiv) then
+  259 |             clk_gen.tick <= '1';
+  260 |             clk_gen.cnt  <= (others => '0');
+  261 |           else
+  262 |             clk_gen.cnt <= std_ulogic_vector(unsigned(clk_gen.cnt) + 1);
+  263 |           end if;
+  264 |         end if;
+  265 |       end if;
+  266 |     end if;
+  267 |   end process clock_generator;
+  270 |   clkgen_en_o <= ctrl.enable;
+  273 |   phase_generator: process(rstn_i, clk_i)
+  274 |   begin
+  275 |     if (rstn_i = '0') then
+  276 |       clk_gen.phase_gen    <= (others => '0');
+  277 |       clk_gen.phase_gen_ff <= (others => '0');
+  278 |     elsif rising_edge(clk_i) then
+  279 |       clk_gen.phase_gen_ff <= clk_gen.phase_gen;
+  280 |       if (ctrl.enable = '0') or (engine.busy = '0') then
+  281 |         clk_gen.phase_gen <= "0001";
+  282 |       elsif (clk_gen.tick = '1') and (clk_gen.halt = '0') then
+  283 |         clk_gen.phase_gen <= clk_gen.phase_gen(2 downto 0) & clk_gen.phase_gen(3);
+  284 |       end if;
+  285 |     end if;
+  286 |   end process phase_generator;
+  289 |   clk_gen.phase(0) <= clk_gen.phase_gen_ff(0) and (not clk_gen.phase_gen(0));
+  290 |   clk_gen.phase(1) <= clk_gen.phase_gen_ff(1) and (not clk_gen.phase_gen(1));
+  291 |   clk_gen.phase(2) <= clk_gen.phase_gen_ff(2) and (not clk_gen.phase_gen(2));
+  292 |   clk_gen.phase(3) <= clk_gen.phase_gen_ff(3) and (not clk_gen.phase_gen(3));
+  296 |   clk_gen.halt <= '1' when (io_con.scl_out = '1') and (io_con.scl_in_ff(1) = '0') and (ctrl.clkstr = '1') else '0';
+  301 |   twi_engine: process(rstn_i, clk_i)
+  302 |   begin
+  303 |     if (rstn_i = '0') then
+  304 |       io_con.sda_in_ff <= (others => '0');
+  305 |       io_con.scl_in_ff <= (others => '0');
+  306 |       io_con.sda_out   <= '1';
+  307 |       io_con.scl_out   <= '1';
+  308 |       engine.state     <= (others => '0');
+  309 |       engine.bitcnt    <= (others => '0');
+  310 |       engine.sreg      <= (others => '0');
+  311 |       engine.done      <= '0';
+  312 |     elsif rising_edge(clk_i) then
+  314 |       io_con.sda_in_ff <= io_con.sda_in_ff(0) & io_con.sda_in;
+  315 |       io_con.scl_in_ff <= io_con.scl_in_ff(0) & io_con.scl_in;
+  318 |       engine.done <= '0';
+  321 |       engine.state(2) <= ctrl.enable;
+  322 |       case engine.state is
+  324 |         when "100" =>
+  326 |           engine.bitcnt <= (others => '0');
+  327 |           engine.sreg   <= fifo.tx_rdata(dcmd_msb_c downto dcmd_lsb_c) & (not fifo.tx_rdata(dcmd_ack_c));
+  328 |           if (fifo.tx_avail = '1') and (clk_gen.tick = '1') then
+  329 |             engine.state(1 downto 0) <= fifo.tx_rdata(dcmd_cmd_hi_c downto dcmd_cmd_lo_c);
+  330 |           end if;
+  332 |         when "101" =>
+  334 |           if (clk_gen.phase(0) = '1') then
+  335 |             io_con.sda_out <= '1';
+  336 |           elsif (clk_gen.phase(2) = '1') then
+  337 |             io_con.sda_out <= '0';
+  338 |           end if;
+  340 |           if (clk_gen.phase(0) = '1') then
+  341 |             io_con.scl_out <= '1';
+  342 |           elsif (clk_gen.phase(3) = '1') then
+  343 |             io_con.scl_out <= '0';
+  344 |             engine.state(1 downto 0) <= "00";
+  345 |           end if;
+  347 |         when "110" =>
+  349 |           if (clk_gen.phase(0) = '1') then
+  350 |             io_con.sda_out <= '0';
+  351 |           elsif (clk_gen.phase(3) = '1') then
+  352 |             io_con.sda_out <= '1';
+  353 |             engine.state(1 downto 0) <= "00";
+  354 |           end if;
+  356 |           if (clk_gen.phase(0) = '1') then
+  357 |             io_con.scl_out <= '0';
+  358 |           elsif (clk_gen.phase(1) = '1') then
+  359 |             io_con.scl_out <= '1';
+  360 |           end if;
+  362 |         when "111" =>
+  365 |           if (clk_gen.phase(0) = '1') or (clk_gen.phase(3) = '1') then
+  366 |             io_con.scl_out <= '0';
+  367 |           elsif (clk_gen.phase(1) = '1') then
+  368 |             io_con.scl_out <= '1';
+  369 |           end if;
+  371 |           if (engine.bitcnt = "1001") and (clk_gen.phase(0) = '1') then
+  372 |             io_con.sda_out <= '0';
+  373 |           elsif (clk_gen.phase(0) = '1') then
+  374 |             io_con.sda_out <= engine.sreg(8);
+  375 |           end if;
+  377 |           if (clk_gen.phase(2) = '1') then
+  378 |             engine.sreg <= engine.sreg(7 downto 0) & io_con.sda_in_ff(1);
+  379 |           end if;
+  381 |           if (clk_gen.phase(3) = '1') then
+  382 |             engine.bitcnt <= std_ulogic_vector(unsigned(engine.bitcnt) + 1);
+  383 |           end if;
+  385 |           if (engine.bitcnt = "1001") and (clk_gen.phase(0) = '1') then
+  386 |             engine.done              <= '1';
+  387 |             engine.state(1 downto 0) <= "00";
+  388 |           end if;
+  390 |         when others =>
+  392 |           io_con.scl_out           <= '1';
+  393 |           io_con.sda_out           <= '1';
+  394 |           engine.state(1 downto 0) <= "00";
+  396 |       end case;
+  397 |     end if;
+  398 |   end process twi_engine;
+  401 |   engine.busy <= '1' when (engine.state(2) = '1') and (engine.state(1 downto 0) /= "00") else '0';
+  406 |   twi_sda_o     <= io_con.sda_out;
+  407 |   twi_scl_o     <= io_con.scl_out;
+  408 |   io_con.sda_in <= to_stdulogic(to_bit(twi_sda_i));
+  409 |   io_con.scl_in <= to_stdulogic(to_bit(twi_scl_i));
+  412 | end neorv32_twi_rtl;

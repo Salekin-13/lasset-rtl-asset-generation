@@ -1,0 +1,549 @@
+   21 | entity neorv32_debug_dm is
+   22 |   generic (
+   23 |     NUM_HARTS     : natural range 1 to 4 := 1;
+   24 |     AUTHENTICATOR : boolean := false
+   25 |   );
+   26 |   port (
+   28 |     clk_i      : in  std_ulogic;
+   29 |     rstn_i     : in  std_ulogic;
+   31 |     dmi_req_i  : in  dmi_req_t;
+   32 |     dmi_rsp_o  : out dmi_rsp_t;
+   34 |     bus_req_i  : in  bus_req_t;
+   35 |     bus_rsp_o  : out bus_rsp_t;
+   37 |     ndmrstn_o  : out std_ulogic;
+   38 |     halt_req_o : out std_ulogic_vector(NUM_HARTS-1 downto 0)
+   39 |   );
+   40 | end neorv32_debug_dm;
+
+   42 | architecture neorv32_debug_dm_rtl of neorv32_debug_dm is
+   45 |   constant dm_code_base_c : std_ulogic_vector(31 downto 0) := x"fffffe00";
+   46 |   constant dm_pbuf_base_c : std_ulogic_vector(31 downto 0) := x"fffffe80";
+   47 |   constant dm_data_base_c : std_ulogic_vector(31 downto 0) := x"ffffff00";
+   48 |   constant dm_sreg_base_c : std_ulogic_vector(31 downto 0) := x"ffffff80";
+   51 |   constant instr_nop_c    : std_ulogic_vector(31 downto 0) := x"00000013";
+   52 |   constant instr_lw_c     : std_ulogic_vector(31 downto 0) := x"00002003";
+   53 |   constant instr_sw_c     : std_ulogic_vector(31 downto 0) := x"00002023";
+   54 |   constant instr_ebreak_c : std_ulogic_vector(31 downto 0) := x"00100073";
+   61 |   constant addr_data0_c        : std_ulogic_vector(6 downto 0) := "0000100";
+   62 |   constant addr_dmcontrol_c    : std_ulogic_vector(6 downto 0) := "0010000";
+   63 |   constant addr_dmstatus_c     : std_ulogic_vector(6 downto 0) := "0010001";
+   64 |   constant addr_hartinfo_c     : std_ulogic_vector(6 downto 0) := "0010010";
+   65 |   constant addr_abstractcs_c   : std_ulogic_vector(6 downto 0) := "0010110";
+   66 |   constant addr_command_c      : std_ulogic_vector(6 downto 0) := "0010111";
+   67 |   constant addr_abstractauto_c : std_ulogic_vector(6 downto 0) := "0011000";
+   69 |   constant addr_progbuf0_c     : std_ulogic_vector(6 downto 0) := "0100000";
+   70 |   constant addr_progbuf1_c     : std_ulogic_vector(6 downto 0) := "0100001";
+   71 |   constant addr_authdata_c     : std_ulogic_vector(6 downto 0) := "0110000";
+   73 |   constant addr_haltsum0_c     : std_ulogic_vector(6 downto 0) := "1000000";
+   76 |   signal dmi_wren, dmi_wren_auth, dmi_rden, dmi_rden_auth : std_ulogic;
+   79 |   type progbuf_t is array (0 to 1) of std_ulogic_vector(31 downto 0);
+   80 |   type dm_reg_t is record
+   81 |     dmcontrol_ndmreset           : std_ulogic;
+   82 |     dmcontrol_dmactive           : std_ulogic;
+   83 |     abstractauto_autoexecdata    : std_ulogic;
+   84 |     abstractauto_autoexecprogbuf : std_ulogic_vector(1 downto 0);
+   85 |     progbuf                      : progbuf_t;
+   86 |     command                      : std_ulogic_vector(31 downto 0);
+   88 |     halt_req    : std_ulogic;
+   89 |     req_res     : std_ulogic;
+   90 |     reset_ack   : std_ulogic;
+   91 |     hartsel     : std_ulogic_vector(1+1 downto 0);
+   92 |     hartsel_dec : std_ulogic_vector(NUM_HARTS-1 downto 0);
+   93 |     hartsel_inv : std_ulogic;
+   94 |     wr_acc_err  : std_ulogic;
+   95 |     rd_acc_err  : std_ulogic;
+   96 |     clr_acc_err : std_ulogic;
+   97 |     autoexec_wr : std_ulogic;
+   98 |     autoexec_rd : std_ulogic;
+   99 |   end record;
+  100 |   signal dm_reg : dm_reg_t;
+  103 |   type cpu_progbuf_t is array (0 to 3) of std_ulogic_vector(31 downto 0);
+  104 |   signal cpu_progbuf : cpu_progbuf_t;
+  111 |   constant dataaddr_c : std_ulogic_vector(11 downto 0) := dm_data_base_c(11 downto 0);
+  114 |   type dm_ctrl_state_t is (CMD_IDLE, CMD_CHECK, CMD_PREPARE, CMD_TRIGGER, CMD_BUSY, CMD_ERROR);
+  115 |   type dm_ctrl_t is record
+  117 |     state           : dm_ctrl_state_t;
+  118 |     busy            : std_ulogic;
+  119 |     ldsw_progbuf    : std_ulogic_vector(31 downto 0);
+  120 |     pbuf_en         : std_ulogic;
+  122 |     illegal_state   : std_ulogic;
+  123 |     illegal_cmd     : std_ulogic;
+  124 |     cmderr          : std_ulogic_vector(2 downto 0);
+  126 |     hart_halted     : std_ulogic_vector(NUM_HARTS-1 downto 0);
+  127 |     hart_resume_req : std_ulogic_vector(NUM_HARTS-1 downto 0);
+  128 |     hart_resume_ack : std_ulogic_vector(NUM_HARTS-1 downto 0);
+  129 |     hart_reset      : std_ulogic_vector(NUM_HARTS-1 downto 0);
+  130 |   end record;
+  131 |   signal dm_ctrl : dm_ctrl_t;
+  134 |   type auth_t is record
+  135 |     busy  : std_ulogic;
+  136 |     valid : std_ulogic;
+  137 |     re    : std_ulogic;
+  138 |     we    : std_ulogic;
+  139 |     rdata : std_ulogic_vector(31 downto 0);
+  140 |   end record;
+  141 |   signal auth : auth_t;
+  149 |   type code_rom_t is array (0 to 31) of std_ulogic_vector(31 downto 0);
+  150 |   constant code_rom_c : code_rom_t := (
+  151 |     00 => x"f8002623",
+  152 |     01 => x"7b241073",
+  153 |     02 => x"f1402473",
+  154 |     03 => x"f8802023",
+  155 |     04 => x"f1402473",
+  156 |     05 => x"f8044403",
+  157 |     06 => x"00247413",
+  158 |     07 => x"02041663",
+  159 |     08 => x"f1402473",
+  160 |     09 => x"f8044403",
+  161 |     10 => x"00147413",
+  162 |     11 => x"fe0402e3",
+  163 |     12 => x"f1402473",
+  164 |     13 => x"f8802223",
+  165 |     14 => x"7b202473",
+  166 |     15 => x"0ff0000f",
+  167 |     16 => x"0000100f",
+  168 |     17 => x"7b200073",
+  169 |     18 => x"f1402473",
+  170 |     19 => x"f8802423",
+  171 |     20 => x"7b202473",
+  172 |     21 => x"e8000067",
+  173 |     22 => x"00000073",
+  174 |     23 => x"00000073",
+  175 |     24 => x"00000073",
+  176 |     25 => x"00000073",
+  177 |     26 => x"00000073",
+  178 |     27 => x"00000073",
+  179 |     28 => x"00000073",
+  180 |     29 => x"00000073",
+  181 |     30 => x"00000073",
+  182 |     31 => x"00000073"
+  183 |   );
+  186 |   signal accen, rden, wren : std_ulogic;
+  189 |   signal cpu_rsp_dec : std_ulogic_vector(NUM_HARTS-1 downto 0);
+  192 |   type dci_t is record
+  193 |     ack_hlt     : std_ulogic_vector(NUM_HARTS-1 downto 0);
+  194 |     req_res     : std_ulogic_vector(NUM_HARTS-1 downto 0);
+  195 |     ack_res     : std_ulogic_vector(NUM_HARTS-1 downto 0);
+  196 |     req_exe     : std_ulogic_vector(NUM_HARTS-1 downto 0);
+  197 |     ack_exe     : std_ulogic_vector(NUM_HARTS-1 downto 0);
+  198 |     ack_exc     : std_ulogic;
+  199 |     data_reg_we : std_ulogic;
+  200 |     data_reg    : std_ulogic_vector(31 downto 0);
+  201 |   end record;
+  202 |   signal dci : dci_t;
+  204 | begin
+  209 |   dmi_wren <= '1' when (dmi_req_i.op = dmi_req_wr_c) else '0';
+  210 |   dmi_rden <= '1' when (dmi_req_i.op = dmi_req_rd_c) else '0';
+  212 |   dmi_wren_auth <= dmi_wren when (not AUTHENTICATOR) or (auth.valid = '1') else '0';
+  213 |   dmi_rden_auth <= dmi_rden when (not AUTHENTICATOR) or (auth.valid = '1') else '0';
+  218 |   dm_controller: process(rstn_i, clk_i)
+  219 |   begin
+  220 |     if (rstn_i = '0') then
+  221 |       dm_ctrl.state         <= CMD_IDLE;
+  222 |       dm_ctrl.ldsw_progbuf  <= (others => '0');
+  223 |       dci.req_exe           <= (others => '0');
+  224 |       dm_ctrl.pbuf_en       <= '0';
+  225 |       dm_ctrl.illegal_cmd   <= '0';
+  226 |       dm_ctrl.illegal_state <= '0';
+  227 |       dm_ctrl.cmderr        <= (others => '0');
+  228 |     elsif rising_edge(clk_i) then
+  229 |       if (dm_reg.dmcontrol_dmactive = '0') then
+  230 |         dm_ctrl.state         <= CMD_IDLE;
+  231 |         dm_ctrl.ldsw_progbuf  <= instr_sw_c;
+  232 |         dci.req_exe           <= (others => '0');
+  233 |         dm_ctrl.pbuf_en       <= '0';
+  234 |         dm_ctrl.illegal_cmd   <= '0';
+  235 |         dm_ctrl.illegal_state <= '0';
+  236 |         dm_ctrl.cmderr        <= (others => '0');
+  237 |       else
+  240 |         dci.req_exe           <= (others => '0');
+  241 |         dm_ctrl.illegal_cmd   <= '0';
+  242 |         dm_ctrl.illegal_state <= '0';
+  245 |         case dm_ctrl.state is
+  247 |           when CMD_IDLE =>
+  249 |             if (dmi_wren_auth = '1') then
+  250 |               if (dmi_req_i.addr = addr_command_c) then
+  251 |                 if (dm_ctrl.cmderr = "000") then
+  252 |                   dm_ctrl.state <= CMD_CHECK;
+  253 |                 end if;
+  254 |               end if;
+  255 |             elsif (dm_reg.autoexec_rd = '1') or (dm_reg.autoexec_wr = '1') then
+  256 |               dm_ctrl.state <= CMD_CHECK;
+  257 |             end if;
+  259 |           when CMD_CHECK =>
+  261 |             if (dm_reg.command(31 downto 24) = x"00") and
+  262 |                (dm_reg.command(23) = '0') and
+  263 |                (dm_reg.command(22 downto 20) = "010") and
+  264 |                (dm_reg.command(19) = '0') and
+  265 |                ((dm_reg.command(17) = '0') or (dm_reg.command(15 downto 5) = "00010000000")) then
+  266 |               if (or_reduce_f(dm_ctrl.hart_halted and dm_reg.hartsel_dec) = '1') then
+  267 |                 dm_ctrl.state <= CMD_PREPARE;
+  268 |               else
+  269 |                 dm_ctrl.illegal_state <= '1';
+  270 |                 dm_ctrl.state         <= CMD_ERROR;
+  271 |               end if;
+  272 |             else
+  273 |               dm_ctrl.illegal_cmd <= '1';
+  274 |               dm_ctrl.state       <= CMD_ERROR;
+  275 |             end if;
+  277 |           when CMD_PREPARE =>
+  279 |             if (dm_reg.command(17) = '1') then
+  280 |               if (dm_reg.command(16) = '0') then
+  281 |                 dm_ctrl.ldsw_progbuf <= instr_sw_c;
+  282 |                 dm_ctrl.ldsw_progbuf(31 downto 25) <= dataaddr_c(11 downto 5);
+  283 |                 dm_ctrl.ldsw_progbuf(24 downto 20) <= dm_reg.command(4 downto 0);
+  284 |                 dm_ctrl.ldsw_progbuf(11 downto 07) <= dataaddr_c(4 downto 0);
+  285 |               else
+  286 |                 dm_ctrl.ldsw_progbuf <= instr_lw_c;
+  287 |                 dm_ctrl.ldsw_progbuf(31 downto 20) <= dataaddr_c(11 downto 0);
+  288 |                 dm_ctrl.ldsw_progbuf(11 downto 07) <= dm_reg.command(4 downto 0);
+  289 |               end if;
+  290 |             else
+  291 |               dm_ctrl.ldsw_progbuf <= instr_nop_c;
+  292 |             end if;
+  293 |             dm_ctrl.pbuf_en <= dm_reg.command(18);
+  294 |             dm_ctrl.state   <= CMD_TRIGGER;
+  296 |           when CMD_TRIGGER =>
+  298 |             dci.req_exe <= dm_reg.hartsel_dec;
+  299 |             if (or_reduce_f(dci.ack_exe and dm_reg.hartsel_dec) = '1') then
+  300 |               dm_ctrl.state <= CMD_BUSY;
+  301 |             end if;
+  303 |           when CMD_BUSY =>
+  305 |             if (or_reduce_f(dci.ack_hlt and dm_reg.hartsel_dec) = '1') then
+  306 |               dm_ctrl.state <= CMD_IDLE;
+  307 |             end if;
+  309 |           when CMD_ERROR =>
+  311 |             dm_ctrl.state <= CMD_IDLE;
+  313 |           when others =>
+  315 |             dm_ctrl.state <= CMD_IDLE;
+  317 |         end case;
+  320 |         if (dm_ctrl.cmderr = "000") then
+  321 |           if (dm_ctrl.illegal_state = '1') then
+  322 |             dm_ctrl.cmderr <= "100";
+  323 |           elsif (dci.ack_exc = '1') then
+  324 |             dm_ctrl.cmderr <= "011";
+  325 |           elsif (dm_ctrl.illegal_cmd = '1') then
+  326 |             dm_ctrl.cmderr <= "010";
+  327 |           elsif (dm_reg.rd_acc_err = '1') or (dm_reg.wr_acc_err = '1') then
+  328 |             dm_ctrl.cmderr <= "001";
+  329 |           end if;
+  330 |         elsif (dm_reg.clr_acc_err = '1') then
+  331 |           dm_ctrl.cmderr <= "000";
+  332 |         end if;
+  334 |       end if;
+  335 |     end if;
+  336 |   end process dm_controller;
+  339 |   dm_ctrl.busy <= '0' when (dm_ctrl.state = CMD_IDLE) else '1';
+  344 |   hart_status: process(rstn_i, clk_i)
+  345 |   begin
+  346 |     if (rstn_i = '0') then
+  347 |       dm_ctrl.hart_halted     <= (others => '0');
+  348 |       dm_ctrl.hart_resume_req <= (others => '0');
+  349 |       dm_ctrl.hart_resume_ack <= (others => '0');
+  350 |       dm_ctrl.hart_reset      <= (others => '0');
+  351 |     elsif rising_edge(clk_i) then
+  352 |       for i in 0 to NUM_HARTS-1 loop
+  355 |         if (dm_reg.dmcontrol_ndmreset = '1') then
+  356 |           dm_ctrl.hart_halted(i) <= '0';
+  357 |         elsif (dci.ack_hlt(i) = '1') then
+  358 |           dm_ctrl.hart_halted(i) <= '1';
+  359 |         elsif (dci.ack_res(i) = '1') then
+  360 |           dm_ctrl.hart_halted(i) <= '0';
+  361 |         end if;
+  364 |         if (dm_reg.dmcontrol_ndmreset = '1') then
+  365 |           dm_ctrl.hart_resume_req(i) <= '0';
+  366 |         elsif (dm_reg.req_res = '1') and (dm_reg.hartsel_dec(i) = '1') then
+  367 |           dm_ctrl.hart_resume_req(i) <= '1';
+  368 |         elsif (dci.ack_res(i) = '1') then
+  369 |           dm_ctrl.hart_resume_req(i) <= '0';
+  370 |         end if;
+  373 |         if (dm_reg.dmcontrol_ndmreset = '1') then
+  374 |           dm_ctrl.hart_resume_ack(i) <= '0';
+  375 |         elsif (dci.ack_res(i) = '1') then
+  376 |           dm_ctrl.hart_resume_ack(i) <= '1';
+  377 |         elsif (dm_reg.req_res = '1') and (dm_reg.hartsel_dec(i) = '1') then
+  378 |           dm_ctrl.hart_resume_ack(i) <= '0';
+  379 |         end if;
+  382 |         if (dm_reg.dmcontrol_ndmreset = '1') then
+  383 |           dm_ctrl.hart_reset(i) <= '1';
+  384 |         elsif (dm_reg.reset_ack = '1') and (dm_reg.hartsel_dec(i) = '1') then
+  385 |           dm_ctrl.hart_reset(i) <= '0';
+  386 |         end if;
+  388 |       end loop;
+  389 |     end if;
+  390 |   end process hart_status;
+  395 |   dmi_write_access: process(rstn_i, clk_i)
+  396 |   begin
+  397 |     if (rstn_i = '0') then
+  398 |       dm_reg.dmcontrol_ndmreset <= '0';
+  399 |       dm_reg.dmcontrol_dmactive <= '0';
+  401 |       dm_reg.abstractauto_autoexecdata    <= '0';
+  402 |       dm_reg.abstractauto_autoexecprogbuf <= "00";
+  404 |       dm_reg.command <= (others => '0');
+  405 |       dm_reg.progbuf <= (others => instr_nop_c);
+  407 |       dm_reg.halt_req    <= '0';
+  408 |       dm_reg.req_res     <= '0';
+  409 |       dm_reg.reset_ack   <= '0';
+  410 |       dm_reg.hartsel     <= (others => '0');
+  411 |       dm_reg.wr_acc_err  <= '0';
+  412 |       dm_reg.clr_acc_err <= '0';
+  413 |       dm_reg.autoexec_wr <= '0';
+  414 |     elsif rising_edge(clk_i) then
+  417 |       dm_reg.req_res     <= '0';
+  418 |       dm_reg.reset_ack   <= '0';
+  419 |       dm_reg.wr_acc_err  <= '0';
+  420 |       dm_reg.clr_acc_err <= '0';
+  421 |       dm_reg.autoexec_wr <= '0';
+  424 |       if (dmi_req_i.addr = addr_dmcontrol_c) then
+  425 |         if (dmi_wren_auth = '1') then
+  426 |           dm_reg.halt_req           <= dmi_req_i.data(31);
+  427 |           dm_reg.req_res            <= dmi_req_i.data(30);
+  428 |           dm_reg.reset_ack          <= dmi_req_i.data(28);
+  429 |           dm_reg.hartsel            <= dmi_req_i.data(18 downto 16);
+  430 |           dm_reg.dmcontrol_ndmreset <= dmi_req_i.data(1);
+  431 |         end if;
+  432 |         if (dmi_wren = '1') then
+  433 |           dm_reg.dmcontrol_dmactive <= dmi_req_i.data(0);
+  434 |         end if;
+  435 |       end if;
+  438 |       if (dmi_req_i.addr = addr_command_c) and (dmi_wren_auth = '1') and (dm_ctrl.busy = '0') and (dm_ctrl.cmderr = "000") then
+  439 |         dm_reg.command <= dmi_req_i.data;
+  440 |       end if;
+  443 |       if (dmi_req_i.addr = addr_abstractauto_c) and (dmi_wren_auth = '1') and (dm_ctrl.busy = '0') then
+  444 |         dm_reg.abstractauto_autoexecdata       <= dmi_req_i.data(0);
+  445 |         dm_reg.abstractauto_autoexecprogbuf(0) <= dmi_req_i.data(16);
+  446 |         dm_reg.abstractauto_autoexecprogbuf(1) <= dmi_req_i.data(17);
+  447 |       end if;
+  450 |       if ((dmi_req_i.addr = addr_data0_c)    and (dm_reg.abstractauto_autoexecdata = '1')) or
+  451 |          ((dmi_req_i.addr = addr_progbuf0_c) and (dm_reg.abstractauto_autoexecprogbuf(0) = '1')) or
+  452 |          ((dmi_req_i.addr = addr_progbuf1_c) and (dm_reg.abstractauto_autoexecprogbuf(1) = '1')) then
+  453 |         if (dmi_wren_auth = '1') then
+  454 |           dm_reg.autoexec_wr <= '1';
+  455 |         end if;
+  456 |       end if;
+  459 |       if (dmi_req_i.addr = addr_abstractcs_c) and (dmi_wren_auth = '1') and (dmi_req_i.data(10 downto 8) = "111") then
+  460 |         dm_reg.clr_acc_err <= '1';
+  461 |       end if;
+  464 |       if (dmi_req_i.addr = addr_progbuf0_c) and (dmi_wren_auth = '1') and (dm_ctrl.busy = '0') then
+  465 |         dm_reg.progbuf(0) <= dmi_req_i.data;
+  466 |       end if;
+  469 |       if (dmi_req_i.addr = addr_progbuf1_c) and (dmi_wren_auth = '1') and (dm_ctrl.busy = '0') then
+  470 |         dm_reg.progbuf(1) <= dmi_req_i.data;
+  471 |       end if;
+  474 |       if (dmi_wren_auth = '1') and (dm_ctrl.busy = '1') and
+  475 |          ((dmi_req_i.addr = addr_abstractcs_c)   or (dmi_req_i.addr = addr_command_c)  or
+  476 |           (dmi_req_i.addr = addr_abstractauto_c) or (dmi_req_i.addr = addr_data0_c)    or
+  477 |           (dmi_req_i.addr = addr_progbuf0_c)     or (dmi_req_i.addr = addr_progbuf1_c)) then
+  478 |         dm_reg.wr_acc_err <= '1';
+  479 |       end if;
+  481 |     end if;
+  482 |   end process dmi_write_access;
+  485 |   hartsel_decode:
+  486 |   for i in 0 to NUM_HARTS-1 generate
+  487 |     dm_reg.hartsel_dec(i) <= '1' when (dm_reg.hartsel(2) = '0') and (dm_reg.hartsel(1 downto 0) = std_ulogic_vector(to_unsigned(i, 2))) else '0';
+  488 |   end generate;
+  489 |   dm_reg.hartsel_inv <= '0' when (unsigned(dm_reg.hartsel) < NUM_HARTS) else '1';
+  495 |   dci.data_reg_we <= '1' when (dmi_wren_auth = '1') and (dmi_req_i.addr = addr_data0_c) and (dm_ctrl.busy = '0') else '0';
+  498 |   request_gen:
+  499 |   for i in 0 to NUM_HARTS-1 generate
+  500 |     halt_req_o(i)  <= dm_reg.halt_req and dm_reg.hartsel_dec(i) and dm_reg.dmcontrol_dmactive when ((not AUTHENTICATOR) or (auth.valid = '1')) else '0';
+  501 |     dci.req_res(i) <= dm_ctrl.hart_resume_req(i);
+  502 |   end generate;
+  505 |   ndmrstn_o <= '0' when (dm_reg.dmcontrol_ndmreset = '1') and (dm_reg.dmcontrol_dmactive = '1') and ((not AUTHENTICATOR) or (auth.valid = '1')) else '1';
+  508 |   cpu_progbuf(0) <= dm_ctrl.ldsw_progbuf;
+  509 |   cpu_progbuf(1) <= instr_nop_c when (dm_ctrl.pbuf_en = '0') else dm_reg.progbuf(0);
+  510 |   cpu_progbuf(2) <= instr_nop_c when (dm_ctrl.pbuf_en = '0') else dm_reg.progbuf(1);
+  511 |   cpu_progbuf(3) <= instr_ebreak_c;
+  516 |   dmi_read_access: process(rstn_i, clk_i)
+  517 |   begin
+  518 |     if (rstn_i = '0') then
+  519 |       dmi_rsp_o.ack      <= '0';
+  520 |       dmi_rsp_o.data     <= (others => '0');
+  521 |       dm_reg.rd_acc_err  <= '0';
+  522 |       dm_reg.autoexec_rd <= '0';
+  523 |     elsif rising_edge(clk_i) then
+  524 |       dmi_rsp_o.ack  <= dmi_wren or dmi_rden;
+  525 |       dmi_rsp_o.data <= (others => '0');
+  526 |       case dmi_req_i.addr is
+  529 |         when addr_dmstatus_c =>
+  530 |           if (not AUTHENTICATOR) or (auth.valid = '1') then
+  531 |             dmi_rsp_o.data(31 downto 23) <= (others => '0');
+  532 |             dmi_rsp_o.data(22)           <= '1';
+  533 |             dmi_rsp_o.data(21 downto 20) <= (others => '0');
+  534 |             dmi_rsp_o.data(19)           <= or_reduce_f(dm_ctrl.hart_reset and dm_reg.hartsel_dec);
+  535 |             dmi_rsp_o.data(18)           <= or_reduce_f(dm_ctrl.hart_reset and dm_reg.hartsel_dec);
+  536 |             dmi_rsp_o.data(17)           <= or_reduce_f(dm_ctrl.hart_resume_ack and dm_reg.hartsel_dec);
+  537 |             dmi_rsp_o.data(16)           <= or_reduce_f(dm_ctrl.hart_resume_ack and dm_reg.hartsel_dec);
+  538 |             dmi_rsp_o.data(15)           <= dm_reg.hartsel_inv;
+  539 |             dmi_rsp_o.data(14)           <= dm_reg.hartsel_inv;
+  540 |             dmi_rsp_o.data(13)           <= dm_reg.dmcontrol_ndmreset;
+  541 |             dmi_rsp_o.data(12)           <= dm_reg.dmcontrol_ndmreset;
+  542 |             dmi_rsp_o.data(11)           <= not or_reduce_f(dm_ctrl.hart_halted and dm_reg.hartsel_dec);
+  543 |             dmi_rsp_o.data(10)           <= not or_reduce_f(dm_ctrl.hart_halted and dm_reg.hartsel_dec);
+  544 |             dmi_rsp_o.data(9)            <= or_reduce_f(dm_ctrl.hart_halted and dm_reg.hartsel_dec);
+  545 |             dmi_rsp_o.data(8)            <= or_reduce_f(dm_ctrl.hart_halted and dm_reg.hartsel_dec);
+  546 |             dmi_rsp_o.data(5)            <= '0';
+  547 |             dmi_rsp_o.data(4)            <= '0';
+  548 |           end if;
+  549 |          dmi_rsp_o.data(7)          <= auth.valid;
+  550 |          dmi_rsp_o.data(6)          <= auth.busy;
+  551 |          dmi_rsp_o.data(3 downto 0) <= "0011";
+  554 |         when addr_dmcontrol_c =>
+  555 |           if (not AUTHENTICATOR) or (auth.valid = '1') then
+  556 |             dmi_rsp_o.data(31)           <= '0';
+  557 |             dmi_rsp_o.data(30)           <= '0';
+  558 |             dmi_rsp_o.data(29)           <= '0';
+  559 |             dmi_rsp_o.data(28)           <= '0';
+  560 |             dmi_rsp_o.data(27)           <= '0';
+  561 |             dmi_rsp_o.data(26)           <= '0';
+  562 |             dmi_rsp_o.data(25 downto 16) <= "0000000" & dm_reg.hartsel;
+  563 |             dmi_rsp_o.data(15 downto 6)  <= (others => '0');
+  564 |             dmi_rsp_o.data(5 downto 4)   <= (others => '0');
+  565 |             dmi_rsp_o.data(3)            <= '0';
+  566 |             dmi_rsp_o.data(2)            <= '0';
+  567 |             dmi_rsp_o.data(1)            <= dm_reg.dmcontrol_ndmreset;
+  568 |           end if;
+  569 |           dmi_rsp_o.data(0) <= dm_reg.dmcontrol_dmactive;
+  572 |         when addr_hartinfo_c =>
+  573 |           if (not AUTHENTICATOR) or (auth.valid = '1') then
+  574 |             dmi_rsp_o.data(31 downto 24) <= (others => '0');
+  575 |             dmi_rsp_o.data(23 downto 20) <= "0001";
+  576 |             dmi_rsp_o.data(19 downto 17) <= (others => '0');
+  577 |             dmi_rsp_o.data(16)           <= '1';
+  578 |             dmi_rsp_o.data(15 downto 12) <= "0001";
+  579 |             dmi_rsp_o.data(11 downto 0)  <= dataaddr_c(11 downto 0);
+  580 |           end if;
+  583 |         when addr_abstractcs_c =>
+  584 |           if (not AUTHENTICATOR) or (auth.valid = '1') then
+  585 |             dmi_rsp_o.data(31 downto 24) <= (others => '0');
+  586 |             dmi_rsp_o.data(28 downto 24) <= "00010";
+  587 |             dmi_rsp_o.data(12)           <= dm_ctrl.busy;
+  588 |             dmi_rsp_o.data(11)           <= '1';
+  589 |             dmi_rsp_o.data(10 downto 8)  <= dm_ctrl.cmderr;
+  590 |             dmi_rsp_o.data(7 downto 4)   <= (others => '0');
+  591 |             dmi_rsp_o.data(3 downto 0)   <= "0001";
+  592 |           end if;
+  595 |         when addr_abstractauto_c =>
+  596 |           if (not AUTHENTICATOR) or (auth.valid = '1') then
+  597 |             dmi_rsp_o.data(0)  <= dm_reg.abstractauto_autoexecdata;
+  598 |             dmi_rsp_o.data(16) <= dm_reg.abstractauto_autoexecprogbuf(0);
+  599 |             dmi_rsp_o.data(17) <= dm_reg.abstractauto_autoexecprogbuf(1);
+  600 |           end if;
+  603 |         when addr_data0_c =>
+  604 |           if (not AUTHENTICATOR) or (auth.valid = '1') then
+  605 |             dmi_rsp_o.data <= dci.data_reg;
+  606 |           end if;
+  609 |         when addr_authdata_c =>
+  610 |           dmi_rsp_o.data <= auth.rdata;
+  613 |         when addr_haltsum0_c =>
+  614 |           if (not AUTHENTICATOR) or (auth.valid = '1') then
+  615 |             dmi_rsp_o.data(NUM_HARTS-1 downto 0) <= dm_ctrl.hart_halted(NUM_HARTS-1 downto 0);
+  616 |           end if;
+  619 |         when others =>
+  620 |           dmi_rsp_o.data <= (others => '0');
+  622 |       end case;
+  626 |       if (dmi_rden_auth = '1') and (dm_ctrl.busy = '1') and
+  627 |          ((dmi_req_i.addr = addr_data0_c) or (dmi_req_i.addr = addr_progbuf0_c) or (dmi_req_i.addr = addr_progbuf1_c)) then
+  628 |         dm_reg.rd_acc_err <= '1';
+  629 |       else
+  630 |         dm_reg.rd_acc_err <= '0';
+  631 |       end if;
+  635 |       if (dmi_rden_auth = '1') and
+  636 |          (((dmi_req_i.addr = addr_data0_c)    and (dm_reg.abstractauto_autoexecdata       = '1')) or
+  637 |           ((dmi_req_i.addr = addr_progbuf0_c) and (dm_reg.abstractauto_autoexecprogbuf(0) = '1')) or
+  638 |           ((dmi_req_i.addr = addr_progbuf1_c) and (dm_reg.abstractauto_autoexecprogbuf(1) = '1'))) then
+  639 |         dm_reg.autoexec_rd <= '1';
+  640 |       else
+  641 |         dm_reg.autoexec_rd <= '0';
+  642 |       end if;
+  644 |     end if;
+  645 |   end process dmi_read_access;
+  650 |   bus_access: process(rstn_i, clk_i)
+  651 |   begin
+  652 |     if (rstn_i = '0') then
+  653 |       bus_rsp_o    <= rsp_terminate_c;
+  654 |       dci.data_reg <= (others => '0');
+  655 |       dci.ack_hlt  <= (others => '0');
+  656 |       dci.ack_res  <= (others => '0');
+  657 |       dci.ack_exe  <= (others => '0');
+  658 |       dci.ack_exc  <= '0';
+  659 |     elsif rising_edge(clk_i) then
+  661 |       bus_rsp_o.ack <= accen;
+  662 |       bus_rsp_o.err <= '0';
+  665 |       if (dci.data_reg_we = '1') then
+  666 |         dci.data_reg <= dmi_req_i.data;
+  667 |       elsif (wren = '1') and (bus_req_i.addr(8 downto 7) = dm_data_base_c(8 downto 7)) then
+  668 |         dci.data_reg <= bus_req_i.data;
+  669 |       end if;
+  672 |       dci.ack_hlt <= (others => '0');
+  673 |       dci.ack_res <= (others => '0');
+  674 |       dci.ack_exe <= (others => '0');
+  675 |       dci.ack_exc <= '0';
+  676 |       if (wren = '1') and (bus_req_i.addr(8 downto 7) = dm_sreg_base_c(8 downto 7)) then
+  677 |         for i in 0 to NUM_HARTS-1 loop
+  678 |           case bus_req_i.addr(3 downto 2) is
+  679 |             when "00"   => dci.ack_hlt(i) <= cpu_rsp_dec(i);
+  680 |             when "01"   => dci.ack_res(i) <= cpu_rsp_dec(i);
+  681 |             when "10"   => dci.ack_exe(i) <= cpu_rsp_dec(i);
+  682 |             when others => dci.ack_exc    <= '1';
+  683 |           end case;
+  684 |         end loop;
+  685 |       end if;
+  688 |       bus_rsp_o.data <= (others => '0');
+  689 |       if (rden = '1') then
+  690 |         case bus_req_i.addr(8 downto 7) is
+  691 |           when "00" =>
+  692 |             bus_rsp_o.data <= code_rom_c(to_integer(unsigned(bus_req_i.addr(6 downto 2))));
+  693 |           when "01" =>
+  694 |             bus_rsp_o.data <= cpu_progbuf(to_integer(unsigned(bus_req_i.addr(3 downto 2))));
+  695 |           when "10" =>
+  696 |             bus_rsp_o.data <= dci.data_reg;
+  697 |           when others =>
+  698 |             for i in 0 to NUM_HARTS-1 loop
+  699 |               bus_rsp_o.data(i*8+0) <= dci.req_res(i);
+  700 |               bus_rsp_o.data(i*8+1) <= dci.req_exe(i);
+  701 |             end loop;
+  702 |         end case;
+  703 |       end if;
+  704 |     end if;
+  705 |   end process bus_access;
+  708 |   accen <= bus_req_i.debug and bus_req_i.stb;
+  709 |   rden  <= accen and (not bus_req_i.rw);
+  710 |   wren  <= accen and (    bus_req_i.rw) and and_reduce_f(bus_req_i.ben);
+  713 |   hart_id_decode_single:
+  714 |   if NUM_HARTS = 1 generate
+  715 |     cpu_rsp_dec <= (others => '1');
+  716 |   end generate;
+  719 |   hart_id_decode_multiple:
+  720 |   if NUM_HARTS > 1 generate
+  721 |     hart_id_decode_gen:
+  722 |     for i in 0 to NUM_HARTS-1 generate
+  723 |       cpu_rsp_dec(i) <= '1' when (bus_req_i.data(1 downto 0) = std_ulogic_vector(to_unsigned(i, 2))) else '0';
+  724 |     end generate;
+  725 |   end generate;
+  730 |   authenticator_enabled:
+  731 |   if AUTHENTICATOR generate
+  732 |     neorv32_debug_auth_inst: entity neorv32.neorv32_debug_auth
+  733 |     port map (
+  735 |       clk_i    => clk_i,
+  736 |       rstn_i   => rstn_i,
+  738 |       we_i     => auth.we,
+  739 |       re_i     => auth.re,
+  740 |       wdata_i  => dmi_req_i.data,
+  741 |       rdata_o  => auth.rdata,
+  743 |       enable_i => dm_reg.dmcontrol_dmactive,
+  744 |       busy_o   => auth.busy,
+  745 |       valid_o  => auth.valid
+  746 |     );
+  747 |     auth.re <= '1' when (dmi_rden = '1') and (dmi_req_i.addr = addr_authdata_c) else '0';
+  748 |     auth.we <= '1' when (dmi_wren = '1') and (dmi_req_i.addr = addr_authdata_c) else '0';
+  749 |   end generate;
+  751 |   authenticator_disabled:
+  752 |   if not AUTHENTICATOR generate
+  753 |     auth.busy  <= '0';
+  754 |     auth.valid <= '1';
+  755 |     auth.re    <= '0';
+  756 |     auth.we    <= '0';
+  757 |     auth.rdata <= (others => '0');
+  758 |   end generate;
+  761 | end neorv32_debug_dm_rtl;

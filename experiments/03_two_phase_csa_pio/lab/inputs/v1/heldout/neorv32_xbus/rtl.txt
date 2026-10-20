@@ -1,0 +1,108 @@
+   21 | entity neorv32_xbus is
+   22 |   generic (
+   23 |     TIMEOUT_VAL : natural;
+   24 |     REGSTAGE_EN : boolean
+   25 |   );
+   26 |   port (
+   27 |     clk_i      : in  std_ulogic;
+   28 |     rstn_i     : in  std_ulogic;
+   29 |     bus_req_i  : in  bus_req_t;
+   30 |     bus_rsp_o  : out bus_rsp_t;
+   31 |     xbus_adr_o : out std_ulogic_vector(31 downto 0);
+   32 |     xbus_dat_i : in  std_ulogic_vector(31 downto 0);
+   33 |     xbus_dat_o : out std_ulogic_vector(31 downto 0);
+   34 |     xbus_tag_o : out std_ulogic_vector(2 downto 0);
+   35 |     xbus_we_o  : out std_ulogic;
+   36 |     xbus_sel_o : out std_ulogic_vector(3 downto 0);
+   37 |     xbus_stb_o : out std_ulogic;
+   38 |     xbus_cyc_o : out std_ulogic;
+   39 |     xbus_ack_i : in  std_ulogic;
+   40 |     xbus_err_i : in  std_ulogic
+   41 |   );
+   42 | end neorv32_xbus;
+
+   44 | architecture neorv32_xbus_rtl of neorv32_xbus is
+   47 |   signal bus_req : bus_req_t;
+   48 |   signal bus_rsp : bus_rsp_t;
+   51 |   signal pending : std_ulogic;
+   52 |   signal locked  : std_ulogic;
+   55 |   signal timeout : std_ulogic;
+   56 |   signal timecnt : std_ulogic_vector(index_size_f(TIMEOUT_VAL)-1 downto 0);
+   57 |   constant timeout_c : std_ulogic_vector(index_size_f(TIMEOUT_VAL)-1 downto 0) :=
+   58 |                        std_ulogic_vector(to_unsigned(TIMEOUT_VAL-1, index_size_f(TIMEOUT_VAL)));
+   60 | begin
+   64 |   reg_stage_inst: entity neorv32.neorv32_bus_reg
+   65 |   generic map (
+   66 |     REQ_REG_EN => REGSTAGE_EN,
+   67 |     RSP_REG_EN => REGSTAGE_EN
+   68 |   )
+   69 |   port map (
+   70 |     clk_i        => clk_i,
+   71 |     rstn_i       => rstn_i,
+   72 |     host_req_i   => bus_req_i,
+   73 |     host_rsp_o   => bus_rsp_o,
+   74 |     device_req_o => bus_req,
+   75 |     device_rsp_i => bus_rsp
+   76 |   );
+   81 |   arbiter: process(rstn_i, clk_i)
+   82 |   begin
+   83 |     if (rstn_i = '0') then
+   84 |       locked  <= '0';
+   85 |       pending <= '0';
+   86 |     elsif rising_edge(clk_i) then
+   87 |       if (pending = '0') then
+   88 |         locked  <= bus_req.stb and bus_req.lock;
+   89 |         pending <= bus_req.stb;
+   90 |       else
+   91 |         if (locked = '0') then
+   92 |           if (timeout = '1') or (xbus_err_i = '1') or (xbus_ack_i = '1') then
+   93 |             pending <= '0';
+   94 |           end if;
+   95 |         else
+   96 |           if (timeout = '1') or (bus_req.lock = '0') then
+   97 |             pending <= '0';
+   98 |           end if;
+   99 |         end if;
+  100 |       end if;
+  101 |     end if;
+  102 |   end process arbiter;
+  107 |   timeout_enabled:
+  108 |   if TIMEOUT_VAL /= 0 generate
+  109 |     timeout_counter: process(rstn_i, clk_i)
+  110 |     begin
+  111 |       if (rstn_i = '0') then
+  112 |         timecnt <= (others => '0');
+  113 |         timeout <= '0';
+  114 |       elsif rising_edge(clk_i) then
+  115 |         if (pending = '0') then
+  116 |           timecnt <= timeout_c;
+  117 |           timeout <= '0';
+  118 |         else
+  119 |           if (or_reduce_f(timecnt) = '1') then
+  120 |             timecnt <= std_ulogic_vector(unsigned(timecnt) - 1);
+  121 |           else
+  122 |             timeout <= '1';
+  123 |           end if;
+  124 |         end if;
+  125 |       end if;
+  126 |     end process timeout_counter;
+  127 |   end generate;
+  129 |   timeout_disabled:
+  130 |   if TIMEOUT_VAL = 0 generate
+  131 |     timecnt <= (others => '0');
+  132 |     timeout <= '0';
+  133 |   end generate;
+  136 |   assert not (TIMEOUT_VAL = 0) report "[NEORV32] XBUS: no bus-timeout configured!" severity warning;
+  141 |   xbus_adr_o <= bus_req.addr;
+  142 |   xbus_dat_o <= bus_req.data;
+  143 |   xbus_we_o  <= bus_req.rw;
+  144 |   xbus_sel_o <= bus_req.ben;
+  145 |   xbus_stb_o <= bus_req.stb;
+  146 |   xbus_cyc_o <= bus_req.stb or pending;
+  149 |   xbus_tag_o(2) <= bus_req.src;
+  150 |   xbus_tag_o(1) <= '0';
+  151 |   xbus_tag_o(0) <= bus_req.priv or bus_req.debug;
+  154 |   bus_rsp.data <= xbus_dat_i when (pending = '1') else (others => '0');
+  155 |   bus_rsp.ack  <= pending and (timeout or xbus_err_i or xbus_ack_i);
+  156 |   bus_rsp.err  <= pending and (timeout or xbus_err_i);
+  159 | end neorv32_xbus_rtl;

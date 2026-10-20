@@ -1,0 +1,411 @@
+   26 | entity neorv32_cpu_cp_crypto is
+   27 |   generic (
+   28 |     EN_ZBKX  : boolean;
+   29 |     EN_ZKNH  : boolean;
+   30 |     EN_ZKNE  : boolean;
+   31 |     EN_ZKND  : boolean;
+   32 |     EN_ZKSED : boolean;
+   33 |     EN_ZKSH  : boolean
+   34 |   );
+   35 |   port (
+   37 |     clk_i   : in  std_ulogic;
+   38 |     rstn_i  : in  std_ulogic;
+   39 |     ctrl_i  : in  ctrl_bus_t;
+   41 |     rs1_i   : in  std_ulogic_vector(XLEN-1 downto 0);
+   42 |     rs2_i   : in  std_ulogic_vector(XLEN-1 downto 0);
+   44 |     res_o   : out std_ulogic_vector(XLEN-1 downto 0);
+   45 |     valid_o : out std_ulogic
+   46 |   );
+   47 | end neorv32_cpu_cp_crypto;
+
+   49 | architecture neorv32_cpu_cp_crypto_rtl of neorv32_cpu_cp_crypto is
+   55 |   type rom512x8_t is array (0 to 511) of std_ulogic_vector(7 downto 0);
+   56 |   type rom256x8_t is array (0 to 255) of std_ulogic_vector(7 downto 0);
+   59 |   constant aes_sbox_c : rom512x8_t := (
+   61 |     x"63", x"7C", x"77", x"7B", x"F2", x"6B", x"6F", x"C5", x"30", x"01", x"67", x"2B", x"FE", x"D7", x"AB", x"76",
+   62 |     x"CA", x"82", x"C9", x"7D", x"FA", x"59", x"47", x"F0", x"AD", x"D4", x"A2", x"AF", x"9C", x"A4", x"72", x"C0",
+   63 |     x"B7", x"FD", x"93", x"26", x"36", x"3F", x"F7", x"CC", x"34", x"A5", x"E5", x"F1", x"71", x"D8", x"31", x"15",
+   64 |     x"04", x"C7", x"23", x"C3", x"18", x"96", x"05", x"9A", x"07", x"12", x"80", x"E2", x"EB", x"27", x"B2", x"75",
+   65 |     x"09", x"83", x"2C", x"1A", x"1B", x"6E", x"5A", x"A0", x"52", x"3B", x"D6", x"B3", x"29", x"E3", x"2F", x"84",
+   66 |     x"53", x"D1", x"00", x"ED", x"20", x"FC", x"B1", x"5B", x"6A", x"CB", x"BE", x"39", x"4A", x"4C", x"58", x"CF",
+   67 |     x"D0", x"EF", x"AA", x"FB", x"43", x"4D", x"33", x"85", x"45", x"F9", x"02", x"7F", x"50", x"3C", x"9F", x"A8",
+   68 |     x"51", x"A3", x"40", x"8F", x"92", x"9D", x"38", x"F5", x"BC", x"B6", x"DA", x"21", x"10", x"FF", x"F3", x"D2",
+   69 |     x"CD", x"0C", x"13", x"EC", x"5F", x"97", x"44", x"17", x"C4", x"A7", x"7E", x"3D", x"64", x"5D", x"19", x"73",
+   70 |     x"60", x"81", x"4F", x"DC", x"22", x"2A", x"90", x"88", x"46", x"EE", x"B8", x"14", x"DE", x"5E", x"0B", x"DB",
+   71 |     x"E0", x"32", x"3A", x"0A", x"49", x"06", x"24", x"5C", x"C2", x"D3", x"AC", x"62", x"91", x"95", x"E4", x"79",
+   72 |     x"E7", x"C8", x"37", x"6D", x"8D", x"D5", x"4E", x"A9", x"6C", x"56", x"F4", x"EA", x"65", x"7A", x"AE", x"08",
+   73 |     x"BA", x"78", x"25", x"2E", x"1C", x"A6", x"B4", x"C6", x"E8", x"DD", x"74", x"1F", x"4B", x"BD", x"8B", x"8A",
+   74 |     x"70", x"3E", x"B5", x"66", x"48", x"03", x"F6", x"0E", x"61", x"35", x"57", x"B9", x"86", x"C1", x"1D", x"9E",
+   75 |     x"E1", x"F8", x"98", x"11", x"69", x"D9", x"8E", x"94", x"9B", x"1E", x"87", x"E9", x"CE", x"55", x"28", x"DF",
+   76 |     x"8C", x"A1", x"89", x"0D", x"BF", x"E6", x"42", x"68", x"41", x"99", x"2D", x"0F", x"B0", x"54", x"BB", x"16",
+   78 |     x"52", x"09", x"6A", x"D5", x"30", x"36", x"A5", x"38", x"BF", x"40", x"A3", x"9E", x"81", x"F3", x"D7", x"FB",
+   79 |     x"7C", x"E3", x"39", x"82", x"9B", x"2F", x"FF", x"87", x"34", x"8E", x"43", x"44", x"C4", x"DE", x"E9", x"CB",
+   80 |     x"54", x"7B", x"94", x"32", x"A6", x"C2", x"23", x"3D", x"EE", x"4C", x"95", x"0B", x"42", x"FA", x"C3", x"4E",
+   81 |     x"08", x"2E", x"A1", x"66", x"28", x"D9", x"24", x"B2", x"76", x"5B", x"A2", x"49", x"6D", x"8B", x"D1", x"25",
+   82 |     x"72", x"F8", x"F6", x"64", x"86", x"68", x"98", x"16", x"D4", x"A4", x"5C", x"CC", x"5D", x"65", x"B6", x"92",
+   83 |     x"6C", x"70", x"48", x"50", x"FD", x"ED", x"B9", x"DA", x"5E", x"15", x"46", x"57", x"A7", x"8D", x"9D", x"84",
+   84 |     x"90", x"D8", x"AB", x"00", x"8C", x"BC", x"D3", x"0A", x"F7", x"E4", x"58", x"05", x"B8", x"B3", x"45", x"06",
+   85 |     x"D0", x"2C", x"1E", x"8F", x"CA", x"3F", x"0F", x"02", x"C1", x"AF", x"BD", x"03", x"01", x"13", x"8A", x"6B",
+   86 |     x"3A", x"91", x"11", x"41", x"4F", x"67", x"DC", x"EA", x"97", x"F2", x"CF", x"CE", x"F0", x"B4", x"E6", x"73",
+   87 |     x"96", x"AC", x"74", x"22", x"E7", x"AD", x"35", x"85", x"E2", x"F9", x"37", x"E8", x"1C", x"75", x"DF", x"6E",
+   88 |     x"47", x"F1", x"1A", x"71", x"1D", x"29", x"C5", x"89", x"6F", x"B7", x"62", x"0E", x"AA", x"18", x"BE", x"1B",
+   89 |     x"FC", x"56", x"3E", x"4B", x"C6", x"D2", x"79", x"20", x"9A", x"DB", x"C0", x"FE", x"78", x"CD", x"5A", x"F4",
+   90 |     x"1F", x"DD", x"A8", x"33", x"88", x"07", x"C7", x"31", x"B1", x"12", x"10", x"59", x"27", x"80", x"EC", x"5F",
+   91 |     x"60", x"51", x"7F", x"A9", x"19", x"B5", x"4A", x"0D", x"2D", x"E5", x"7A", x"9F", x"93", x"C9", x"9C", x"EF",
+   92 |     x"A0", x"E0", x"3B", x"4D", x"AE", x"2A", x"F5", x"B0", x"C8", x"EB", x"BB", x"3C", x"83", x"53", x"99", x"61",
+   93 |     x"17", x"2B", x"04", x"7E", x"BA", x"77", x"D6", x"26", x"E1", x"69", x"14", x"63", x"55", x"21", x"0C", x"7D"
+   94 |   );
+   97 |   constant sm4_sbox_c : rom256x8_t := (
+   98 |     x"D6", x"90", x"E9", x"FE", x"CC", x"E1", x"3D", x"B7", x"16", x"B6", x"14", x"C2", x"28", x"FB", x"2C", x"05",
+   99 |     x"2B", x"67", x"9A", x"76", x"2A", x"BE", x"04", x"C3", x"AA", x"44", x"13", x"26", x"49", x"86", x"06", x"99",
+  100 |     x"9C", x"42", x"50", x"F4", x"91", x"EF", x"98", x"7A", x"33", x"54", x"0B", x"43", x"ED", x"CF", x"AC", x"62",
+  101 |     x"E4", x"B3", x"1C", x"A9", x"C9", x"08", x"E8", x"95", x"80", x"DF", x"94", x"FA", x"75", x"8F", x"3F", x"A6",
+  102 |     x"47", x"07", x"A7", x"FC", x"F3", x"73", x"17", x"BA", x"83", x"59", x"3C", x"19", x"E6", x"85", x"4F", x"A8",
+  103 |     x"68", x"6B", x"81", x"B2", x"71", x"64", x"DA", x"8B", x"F8", x"EB", x"0F", x"4B", x"70", x"56", x"9D", x"35",
+  104 |     x"1E", x"24", x"0E", x"5E", x"63", x"58", x"D1", x"A2", x"25", x"22", x"7C", x"3B", x"01", x"21", x"78", x"87",
+  105 |     x"D4", x"00", x"46", x"57", x"9F", x"D3", x"27", x"52", x"4C", x"36", x"02", x"E7", x"A0", x"C4", x"C8", x"9E",
+  106 |     x"EA", x"BF", x"8A", x"D2", x"40", x"C7", x"38", x"B5", x"A3", x"F7", x"F2", x"CE", x"F9", x"61", x"15", x"A1",
+  107 |     x"E0", x"AE", x"5D", x"A4", x"9B", x"34", x"1A", x"55", x"AD", x"93", x"32", x"30", x"F5", x"8C", x"B1", x"E3",
+  108 |     x"1D", x"F6", x"E2", x"2E", x"82", x"66", x"CA", x"60", x"C0", x"29", x"23", x"AB", x"0D", x"53", x"4E", x"6F",
+  109 |     x"D5", x"DB", x"37", x"45", x"DE", x"FD", x"8E", x"2F", x"03", x"FF", x"6A", x"72", x"6D", x"6C", x"5B", x"51",
+  110 |     x"8D", x"1B", x"AF", x"92", x"BB", x"DD", x"BC", x"7F", x"11", x"D9", x"5C", x"41", x"1F", x"10", x"5A", x"D8",
+  111 |     x"0A", x"C1", x"31", x"88", x"A5", x"CD", x"7B", x"BD", x"2D", x"74", x"D0", x"12", x"B8", x"E5", x"B4", x"B0",
+  112 |     x"89", x"69", x"97", x"4A", x"0C", x"96", x"77", x"7E", x"65", x"B9", x"F1", x"09", x"C5", x"6E", x"C6", x"84",
+  113 |     x"18", x"F0", x"7D", x"EC", x"3A", x"DC", x"4D", x"20", x"79", x"EE", x"5F", x"3E", x"D7", x"CB", x"39", x"48"
+  114 |   );
+  121 |   function xperm8_f(vec : std_ulogic_vector(31 downto 0); sel : std_ulogic_vector(7 downto 0)) return std_ulogic_vector is
+  122 |     variable res_v : std_ulogic_vector(7 downto 0);
+  123 |   begin
+  124 |     if (sel(7 downto 2) /= "000000") then
+  125 |       res_v := (others => '0');
+  126 |     else
+  127 |       case sel(1 downto 0) is
+  128 |         when "00"   => res_v := vec(7 downto 0);
+  129 |         when "01"   => res_v := vec(15 downto 8);
+  130 |         when "10"   => res_v := vec(23 downto 16);
+  131 |         when others => res_v := vec(31 downto 24);
+  132 |       end case;
+  133 |     end if;
+  134 |     return res_v;
+  135 |   end function xperm8_f;
+  138 |   function xperm4_f(vec : std_ulogic_vector(31 downto 0); sel : std_ulogic_vector(3 downto 0)) return std_ulogic_vector is
+  139 |     variable res_v : std_ulogic_vector(3 downto 0);
+  140 |   begin
+  141 |     if (sel(3) /= '0') then
+  142 |       res_v := (others => '0');
+  143 |     else
+  144 |       case sel(2 downto 0) is
+  145 |         when "000"  => res_v := vec(3 downto 0);
+  146 |         when "001"  => res_v := vec(7 downto 4);
+  147 |         when "010"  => res_v := vec(11 downto 8);
+  148 |         when "011"  => res_v := vec(15 downto 12);
+  149 |         when "100"  => res_v := vec(19 downto 16);
+  150 |         when "101"  => res_v := vec(23 downto 20);
+  151 |         when "110"  => res_v := vec(27 downto 24);
+  152 |         when others => res_v := vec(31 downto 28);
+  153 |       end case;
+  154 |     end if;
+  155 |     return res_v;
+  156 |   end function xperm4_f;
+  159 |   function lsl_f(data : std_ulogic_vector(31 downto 0); shamt : natural range 0 to 31) return std_ulogic_vector is
+  160 |     variable res_v : std_ulogic_vector(31 downto 0);
+  161 |   begin
+  162 |     res_v := std_ulogic_vector(shift_left(unsigned(data), shamt));
+  163 |     return res_v;
+  164 |   end function lsl_f;
+  167 |   function lsr_f(data : std_ulogic_vector(31 downto 0); shamt : natural range 0 to 31) return std_ulogic_vector is
+  168 |     variable res_v : std_ulogic_vector(31 downto 0);
+  169 |   begin
+  170 |     res_v := std_ulogic_vector(shift_right(unsigned(data), shamt));
+  171 |     return res_v;
+  172 |   end function lsr_f;
+  175 |   function ror_f(data : std_ulogic_vector(31 downto 0); shamt : natural range 0 to 31) return std_ulogic_vector is
+  176 |     variable res_v : std_ulogic_vector(31 downto 0);
+  177 |   begin
+  178 |     res_v := std_ulogic_vector(rotate_right(unsigned(data), shamt));
+  179 |     return res_v;
+  180 |   end function ror_f;
+  183 |   function rol_f(data : std_ulogic_vector(31 downto 0); shamt : natural range 0 to 31) return std_ulogic_vector is
+  184 |     variable res_v : std_ulogic_vector(31 downto 0);
+  185 |   begin
+  186 |     res_v := std_ulogic_vector(rotate_left(unsigned(data), shamt));
+  187 |     return res_v;
+  188 |   end function rol_f;
+  191 |   function xt2_f(a : std_ulogic_vector(7 downto 0)) return std_ulogic_vector is
+  192 |     variable res_v : std_ulogic_vector(7 downto 0);
+  193 |   begin
+  194 |     res_v := (a(6 downto 0) & '0') xor ("000" & a(7) & a(7) & '0' & a(7) & a(7));
+  195 |     return res_v;
+  196 |   end function xt2_f;
+  199 |   function gfmul_f(x : std_ulogic_vector(7 downto 0); y : std_ulogic_vector(3 downto 0)) return std_ulogic_vector is
+  200 |     variable res_v : std_ulogic_vector(7 downto 0);
+  201 |   begin
+  202 |     res_v := (others => '0');
+  203 |     if (y(0) = '1') then
+  204 |       res_v := res_v xor x;
+  205 |     end if;
+  206 |     if (y(1) = '1') then
+  207 |       res_v := res_v xor xt2_f(x);
+  208 |     end if;
+  209 |     if (y(2) = '1') then
+  210 |       res_v := res_v xor xt2_f(xt2_f(x));
+  211 |     end if;
+  212 |     if (y(3) = '1') then
+  213 |       res_v := res_v xor xt2_f(xt2_f(xt2_f(x)));
+  214 |     end if;
+  215 |     return res_v;
+  216 |   end function gfmul_f;
+  223 |   constant cmd_xperm_c  : natural := 0;
+  224 |   constant cmd_sha256_c : natural := 1;
+  225 |   constant cmd_sha512_c : natural := 2;
+  226 |   constant cmd_aesenc_c : natural := 3;
+  227 |   constant cmd_aesdec_c : natural := 4;
+  228 |   constant cmd_sm3_c    : natural := 5;
+  229 |   constant cmd_sm4_c    : natural := 6;
+  231 |   signal cmd       : std_ulogic_vector(6 downto 0);
+  232 |   signal cmd_valid : std_ulogic;
+  235 |   type state_t is (S_IDLE, S_BUSY, S_DONE);
+  236 |   signal state   : state_t;
+  237 |   signal done    : std_ulogic;
+  238 |   signal rs1     : std_ulogic_vector(31 downto 0);
+  239 |   signal rs2     : std_ulogic_vector(31 downto 0);
+  240 |   signal funct12 : std_ulogic_vector(11 downto 0);
+  241 |   signal funct3  : std_ulogic_vector(2 downto 0);
+  242 |   signal out_sel : std_ulogic_vector(2 downto 0);
+  245 |   signal rs2_sel : std_ulogic_vector(7 downto 0);
+  246 |   signal rol_in  : std_ulogic_vector(31 downto 0);
+  247 |   signal rol_res : std_ulogic_vector(31 downto 0);
+  248 |   signal blk_res : std_ulogic_vector(31 downto 0);
+  251 |   type aes_t is record
+  252 |     dec  : std_ulogic;
+  253 |     so   : std_ulogic_vector(7 downto 0);
+  254 |     mix1 : std_ulogic_vector(31 downto 0);
+  255 |     mix2 : std_ulogic_vector(31 downto 0);
+  256 |   end record;
+  257 |   signal aes : aes_t;
+  260 |   signal xperm_res, xperm4_res, xperm8_res, sha_res, sm3_res : std_ulogic_vector(31 downto 0);
+  263 |   type sm4_t is record
+  264 |     so1 : std_ulogic_vector(7 downto 0);
+  265 |     so2 : std_ulogic_vector(31 downto 0);
+  266 |     rnd : std_ulogic_vector(31 downto 0);
+  267 |   end record;
+  268 |   signal sm4 : sm4_t;
+  270 | begin
+  274 |   cmd(cmd_xperm_c)  <= '1' when EN_ZBKX and (ctrl_i.ir_opcode(5) = '1') and (ctrl_i.ir_funct12(11 downto 5) = "0010100") and
+  275 |                                 ((ctrl_i.ir_funct3 = "100") or (ctrl_i.ir_funct3 = "010")) else '0';
+  277 |   cmd(cmd_sha256_c) <= '1' when EN_ZKNH and (ctrl_i.ir_opcode(5) = '0') and (ctrl_i.ir_funct12(11 downto 2) = "0001000000") and
+  278 |                                 (ctrl_i.ir_funct3 = "001") else '0';
+  280 |   cmd(cmd_sha512_c) <= '1' when EN_ZKNH and (ctrl_i.ir_opcode(5) = '1') and (ctrl_i.ir_funct12(11 downto 8) = "0101") and
+  281 |                                 (ctrl_i.ir_funct12(7 downto 6) /= "10") and (ctrl_i.ir_funct3 = "000") else '0';
+  283 |   cmd(cmd_aesenc_c) <= '1' when EN_ZKNE and (ctrl_i.ir_opcode(5) = '1') and (ctrl_i.ir_funct3 = "000") and
+  284 |                                 (ctrl_i.ir_funct12(9 downto 7) = "100") and (ctrl_i.ir_funct12(5) = '1') else '0';
+  286 |   cmd(cmd_aesdec_c) <= '1' when EN_ZKND and (ctrl_i.ir_opcode(5) = '1') and (ctrl_i.ir_funct3 = "000") and
+  287 |                                 (ctrl_i.ir_funct12(9 downto 7) = "101") and (ctrl_i.ir_funct12(5) = '1') else '0';
+  289 |   cmd(cmd_sm3_c)    <= '1' when EN_ZKSH and (ctrl_i.ir_opcode(5) = '0') and (ctrl_i.ir_funct3 = "001") and
+  290 |                                 (ctrl_i.ir_funct12(11 downto 1) = "00010000100") else '0';
+  292 |   cmd(cmd_sm4_c)    <= '1' when EN_ZKSED and (ctrl_i.ir_opcode(5) = '1') and (ctrl_i.ir_funct3 = "000") and
+  293 |                                 (ctrl_i.ir_funct12(9 downto 7) = "110") and (ctrl_i.ir_funct12(5) = '0') else '0';
+  296 |   cmd_valid <= '1' when (ctrl_i.alu_cp_alu = '1') and (or_reduce_f(cmd) = '1') else '0';
+  301 |   control: process(rstn_i, clk_i)
+  302 |   begin
+  303 |     if (rstn_i = '0') then
+  304 |       rs1     <= (others => '0');
+  305 |       rs2     <= (others => '0');
+  306 |       funct3  <= (others => '0');
+  307 |       funct12 <= (others => '0');
+  308 |       done    <= '0';
+  309 |       state   <= S_IDLE;
+  310 |     elsif rising_edge(clk_i) then
+  312 |       if (cmd_valid = '1') then
+  313 |         rs1     <= rs1_i;
+  314 |         rs2     <= rs2_i;
+  315 |         funct3  <= ctrl_i.ir_funct3;
+  316 |         funct12 <= ctrl_i.ir_funct12;
+  317 |       end if;
+  319 |       done <= '0';
+  320 |       case state is
+  322 |         when S_IDLE =>
+  323 |           if (cmd_valid = '1') then
+  324 |             if (cmd(cmd_aesenc_c) = '1') or (cmd(cmd_aesdec_c) = '1') or (cmd(cmd_sm3_c) = '1') or (cmd(cmd_sm4_c) = '1') then
+  325 |               state <= S_BUSY;
+  326 |             else
+  327 |               done  <= '1';
+  328 |               state <= S_IDLE;
+  329 |             end if;
+  330 |           end if;
+  332 |         when S_BUSY =>
+  333 |           state <= S_DONE;
+  335 |         when others =>
+  336 |           done  <= '1';
+  337 |           state <= S_IDLE;
+  338 |       end case;
+  339 |     end if;
+  340 |   end process control;
+  343 |   valid_o <= done;
+  348 |   result: process(rstn_i, clk_i)
+  349 |   begin
+  350 |     if (rstn_i = '0') then
+  351 |       res_o <= (others => '0');
+  352 |     elsif rising_edge(clk_i) then
+  353 |       res_o <= (others => '0');
+  354 |       if (done = '1') then
+  355 |         case out_sel is
+  356 |           when "100" =>
+  357 |             res_o <= xperm_res;
+  358 |           when "101" | "110" =>
+  359 |             res_o <= blk_res;
+  360 |           when others =>
+  361 |             if EN_ZKSH and (ctrl_i.ir_opcode(5) = '0') and (funct12(3) = '1') then
+  362 |               res_o <= sm3_res;
+  363 |             else
+  364 |               res_o <= sha_res;
+  365 |             end if;
+  366 |         end case;
+  367 |       end if;
+  368 |     end if;
+  369 |   end process result;
+  372 |   out_sel <= funct12(9 downto 8) & funct12(5);
+  377 |   xperm_enabled:
+  378 |   if EN_ZBKX generate
+  381 |     xperm8_gen:
+  382 |     for i in 0 to 3 generate
+  383 |       xperm8_res(8*i+7 downto 8*i+0) <= xperm8_f(rs1, rs2(8*i+7 downto 8*i+0));
+  384 |     end generate;
+  387 |     xperm4_gen:
+  388 |     for i in 0 to 7 generate
+  389 |       xperm4_res(4*i+3 downto 4*i+0) <= xperm4_f(rs1, rs2(4*i+3 downto 4*i+0));
+  390 |     end generate;
+  393 |     xperm_res <= xperm8_res when (funct3(2) = '1') else xperm4_res;
+  395 |   end generate;
+  397 |   xperm_disabled:
+  398 |   if not EN_ZBKX generate
+  399 |     xperm8_res <= (others => '0');
+  400 |     xperm4_res <= (others => '0');
+  401 |     xperm_res  <= (others => '0');
+  402 |   end generate;
+  407 |   sha_enabled:
+  408 |   if EN_ZKNH generate
+  409 |     sha_core: process(funct12, rs1, rs2)
+  410 |     begin
+  411 |       if (funct12(10) = '0') then
+  412 |         case funct12(1 downto 0) is
+  413 |           when "00"   => sha_res <= ror_f(rs1,  2) xor ror_f(rs1, 13) xor ror_f(rs1, 22);
+  414 |           when "01"   => sha_res <= ror_f(rs1,  6) xor ror_f(rs1, 11) xor ror_f(rs1, 25);
+  415 |           when "10"   => sha_res <= ror_f(rs1,  7) xor ror_f(rs1, 18) xor lsr_f(rs1,  3);
+  416 |           when others => sha_res <= ror_f(rs1, 17) xor ror_f(rs1, 19) xor lsr_f(rs1, 10);
+  417 |         end case;
+  418 |       else
+  419 |         case funct12(7 downto 5) is
+  420 |           when "000"  => sha_res <= lsl_f(rs1, 25) xor lsl_f(rs1, 30) xor lsr_f(rs1, 28) xor lsr_f(rs2,  7) xor lsr_f(rs2,  2) xor lsl_f(rs2,  4);
+  421 |           when "001"  => sha_res <= lsl_f(rs1, 23) xor lsr_f(rs1, 14) xor lsr_f(rs1, 18) xor lsr_f(rs2,  9) xor lsl_f(rs2, 18) xor lsl_f(rs2, 14);
+  422 |           when "010"  => sha_res <= lsr_f(rs1,  1) xor lsr_f(rs1,  7) xor lsr_f(rs1,  8) xor lsl_f(rs2, 31) xor lsl_f(rs2, 25) xor lsl_f(rs2, 24);
+  423 |           when "011"  => sha_res <= lsl_f(rs1,  3) xor lsr_f(rs1,  6) xor lsr_f(rs1, 19) xor lsr_f(rs2, 29) xor lsl_f(rs2, 26) xor lsl_f(rs2, 13);
+  424 |           when "110"  => sha_res <= lsr_f(rs1,  1) xor lsr_f(rs1,  7) xor lsr_f(rs1,  8) xor lsl_f(rs2, 31) xor lsl_f(rs2, 24);
+  425 |           when others => sha_res <= lsl_f(rs1,  3) xor lsr_f(rs1,  6) xor lsr_f(rs1, 19) xor lsr_f(rs2, 29) xor lsl_f(rs2, 13);
+  426 |         end case;
+  427 |       end if;
+  428 |     end process sha_core;
+  429 |   end generate;
+  431 |   sha_disabled:
+  432 |   if not EN_ZKNH generate
+  433 |     sha_res <= (others => '0');
+  434 |   end generate;
+  439 |   sm3_enabled:
+  440 |   if EN_ZKSH generate
+  441 |     sm3_res <= (rs1 xor rol_f(rs1, 9) xor rol_f(rs1, 17)) when (funct12(0) = '0') else (rs1 xor rol_f(rs1, 15) xor rol_f(rs1, 23));
+  442 |   end generate;
+  444 |   sm3_disabled:
+  445 |   if not EN_ZKSH generate
+  446 |     sm3_res <= (others => '0');
+  447 |   end generate;
+  452 |   block_cyphers_enabled:
+  453 |   if EN_ZKNE or EN_ZKND or EN_ZKSED generate
+  456 |     with funct12(11 downto 10) select rs2_sel <=
+  457 |       rs2(07 downto 00) when "00",
+  458 |       rs2(15 downto 08) when "01",
+  459 |       rs2(23 downto 16) when "10",
+  460 |       rs2(31 downto 24) when others;
+  463 |     rol_in <= aes.mix2 when (not EN_ZKSED) else
+  464 |               sm4.rnd  when (not EN_ZKNE) and (not EN_ZKND) else
+  465 |               aes.mix2 when (funct12(8) = '0') else sm4.rnd;
+  468 |     with funct12(11 downto 10) select rol_res <=
+  469 |       rol_in(31 downto 0)                        when "00",
+  470 |       rol_in(23 downto 0) & rol_in(31 downto 24) when "01",
+  471 |       rol_in(15 downto 0) & rol_in(31 downto 16) when "10",
+  472 |       rol_in(07 downto 0) & rol_in(31 downto 08) when others;
+  475 |     blk_res <= rs1 xor rol_res;
+  477 |   end generate;
+  479 |   block_cyphers_disabled:
+  480 |   if not (EN_ZKNE or EN_ZKND or EN_ZKSED) generate
+  481 |     rs2_sel <= (others => '0');
+  482 |     rol_in  <= (others => '0');
+  483 |     rol_res <= (others => '0');
+  484 |     blk_res <= (others => '0');
+  485 |   end generate;
+  490 |   aes_enabled:
+  491 |   if EN_ZKNE or EN_ZKND generate
+  494 |     aes.dec <= '1' when (not EN_ZKNE) else '0' when (not EN_ZKND) else funct12(7);
+  497 |     aes_sbox_lookup: process(clk_i)
+  498 |     begin
+  499 |       if rising_edge(clk_i) then
+  500 |         aes.so <= aes_sbox_c(to_integer(unsigned(aes.dec & rs2_sel)));
+  501 |       end if;
+  502 |     end process aes_sbox_lookup;
+  505 |     aes_mix_columns: process(rstn_i, clk_i)
+  506 |     begin
+  507 |       if (rstn_i = '0') then
+  508 |         aes.mix1 <= (others => '0');
+  509 |       elsif rising_edge(clk_i) then
+  510 |         if (aes.dec = '1') then
+  511 |           aes.mix1(31 downto 24) <= gfmul_f(aes.so, x"b");
+  512 |           aes.mix1(23 downto 16) <= gfmul_f(aes.so, x"d");
+  513 |           aes.mix1(15 downto 08) <= gfmul_f(aes.so, x"9");
+  514 |           aes.mix1(07 downto 00) <= gfmul_f(aes.so, x"e");
+  515 |         else
+  516 |           aes.mix1(31 downto 24) <= gfmul_f(aes.so, x"3");
+  517 |           aes.mix1(23 downto 16) <= aes.so;
+  518 |           aes.mix1(15 downto 08) <= aes.so;
+  519 |           aes.mix1(07 downto 00) <= gfmul_f(aes.so, x"2");
+  520 |         end if;
+  521 |       end if;
+  522 |     end process aes_mix_columns;
+  525 |     aes.mix2 <= aes.mix1 when (funct12(6) = '1') else x"000000" & aes.so;
+  527 |   end generate;
+  529 |   aes_disabled:
+  530 |   if (not EN_ZKNE) and (not EN_ZKND) generate
+  531 |     aes.dec  <= '0';
+  532 |     aes.so   <= (others => '0');
+  533 |     aes.mix1 <= (others => '0');
+  534 |     aes.mix2 <= (others => '0');
+  535 |   end generate;
+  540 |   sm4_enabled:
+  541 |   if EN_ZKSED generate
+  544 |     sm4_sbox_lookup: process(clk_i)
+  545 |     begin
+  546 |       if rising_edge(clk_i) then
+  547 |         sm4.so1 <= sm4_sbox_c(to_integer(unsigned(rs2_sel)));
+  548 |       end if;
+  549 |     end process sm4_sbox_lookup;
+  552 |     sm4.so2 <= x"000000" & sm4.so1;
+  555 |     sm4_round: process(rstn_i, clk_i)
+  556 |     begin
+  557 |       if (rstn_i = '0') then
+  558 |         sm4.rnd <= (others => '0');
+  559 |       elsif rising_edge(clk_i) then
+  560 |         if (funct12(6) = '0') then
+  561 |           sm4.rnd <= sm4.so2 xor lsl_f(sm4.so2, 8) xor lsl_f(sm4.so2, 2) xor lsl_f(sm4.so2, 18) xor
+  562 |                                  lsl_f((sm4.so2 and x"0000003F"), 26) xor lsl_f((sm4.so2 and x"000000C0"), 10);
+  563 |         else
+  564 |           sm4.rnd <= sm4.so2 xor lsl_f((sm4.so2 and x"00000007"), 29) xor lsl_f((sm4.so2 and x"000000FE"),  7) xor
+  565 |                                  lsl_f((sm4.so2 and x"00000001"), 23) xor lsl_f((sm4.so2 and x"000000F8"), 13);
+  566 |         end if;
+  567 |       end if;
+  568 |     end process sm4_round;
+  570 |   end generate;
+  572 |   sm4_disabled:
+  573 |   if not EN_ZKSED generate
+  574 |     sm4.so1 <= (others => '0');
+  575 |     sm4.so2 <= (others => '0');
+  576 |     sm4.rnd <= (others => '0');
+  577 |   end generate;
+  580 | end neorv32_cpu_cp_crypto_rtl;

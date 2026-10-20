@@ -1,0 +1,64 @@
+UNIT neorv32_spi
+  INPUTS: bus_req_i, clk_i, clkgen_i, rstn_i, spi_dat_i
+  OUTPUTS: bus_rsp_o, clkgen_en_o, irq_o, spi_clk_o, spi_csn_o, spi_dat_o
+  BLOCKS
+    [inst] rx_fifo_inst (neorv32_fifo, another IP): rx_fifo.avail, rx_fifo.free, rx_fifo.half, rx_fifo.rdata
+    [inst] tx_fifo_inst (neorv32_fifo, another IP): tx_fifo.avail, tx_fifo.free, tx_fifo.half, tx_fifo.rdata
+    [logic] rtx_engine.busy: rtx_engine.busy
+    [logic] rx_fifo.clear: rx_fifo.clear
+    [logic] rx_fifo.re: rx_fifo.re
+    [logic] rx_fifo.wdata: rx_fifo.wdata
+    [logic] rx_fifo.we: rx_fifo.we
+    [logic] tx_fifo.clear: tx_fifo.clear
+    [logic] tx_fifo.re: tx_fifo.re
+    [logic] tx_fifo.wdata: tx_fifo.wdata
+    [logic] tx_fifo.we: tx_fifo.we
+    [process] bus_access: ctrl.cdiv, ctrl.cpha, ctrl.cpol, ctrl.enable, ctrl.highspeed, ctrl.irq_idle, ctrl.irq_rx_avail, ctrl.irq_tx_empty, ctrl.irq_tx_nhalf, ctrl.prsc; clocked by clk_i; reset by rstn_i
+    [process] chip_select: -; clocked by clk_i; reset by rstn_i
+    [process] clock_generator: cdiv_cnt, spi_clk_en; clocked by clk_i; reset by rstn_i
+    [process] irq_generator: -; clocked by clk_i; reset by rstn_i
+    [process] transceiver: rtx_engine.bitcnt, rtx_engine.cs_ctrl, rtx_engine.done, rtx_engine.sck, rtx_engine.sdi_sync, rtx_engine.sreg, rtx_engine.state; clocked by clk_i; reset by rstn_i
+  ARROWS (==> a value moves; --> only decides; [the elements the arrow carries])
+    bus_req_i --> rx_fifo.re   [bus_req_i.{addr,rw,stb}]
+    bus_req_i ==> tx_fifo.wdata   [bus_req_i.data]
+    bus_req_i --> tx_fifo.we   [bus_req_i.{addr,rw,stb}]
+    bus_req_i ==> bus_access   [bus_req_i.{addr,data,rw,stb}]
+    clk_i ==> rx_fifo_inst   [clk_i]
+    clk_i ==> tx_fifo_inst   [clk_i]
+    clkgen_i --> clock_generator   [clkgen_i]
+    rstn_i ==> rx_fifo_inst   [rstn_i]
+    rstn_i ==> tx_fifo_inst   [rstn_i]
+    spi_dat_i ==> transceiver   [spi_dat_i]
+    rx_fifo_inst ==> bus_access   [rx_fifo.{avail,rdata}]
+    rx_fifo_inst ==> irq_generator   [rx_fifo.avail]
+    tx_fifo_inst ==> bus_access   [tx_fifo.{avail,free,half}]
+    tx_fifo_inst ==> irq_generator   [tx_fifo.{avail,half}]
+    tx_fifo_inst ==> transceiver   [tx_fifo.{avail,rdata}]
+    rtx_engine.busy ==> bus_access   [rtx_engine.busy]
+    rtx_engine.busy ==> irq_generator   [rtx_engine.busy]
+    rx_fifo.clear ==> rx_fifo_inst   [rx_fifo.clear]
+    rx_fifo.re ==> rx_fifo_inst   [rx_fifo.re]
+    rx_fifo.wdata ==> rx_fifo_inst   [rx_fifo.wdata]
+    rx_fifo.we ==> rx_fifo_inst   [rx_fifo.we]
+    tx_fifo.clear ==> tx_fifo_inst   [tx_fifo.clear]
+    tx_fifo.re ==> tx_fifo_inst   [tx_fifo.re]
+    tx_fifo.wdata ==> tx_fifo_inst   [tx_fifo.wdata]
+    tx_fifo.we ==> tx_fifo_inst   [tx_fifo.we]
+    bus_access ==> rx_fifo.clear   [ctrl.enable]
+    bus_access ==> tx_fifo.clear   [ctrl.enable]
+    bus_access ==> bus_rsp_o
+    bus_access ==> clkgen_en_o   [ctrl.enable]
+    bus_access --> clock_generator   [ctrl.{cdiv,enable,highspeed,prsc}]
+    bus_access ==> irq_generator   [ctrl.{enable,irq_idle,irq_rx_avail,irq_tx_empty,irq_tx_nhalf}]
+    bus_access ==> transceiver   [ctrl.{cpha,cpol,enable}]
+    chip_select ==> spi_csn_o
+    clock_generator --> transceiver   [spi_clk_en]
+    irq_generator ==> irq_o
+    transceiver --> rtx_engine.busy   [rtx_engine.state]
+    transceiver ==> rx_fifo.wdata   [rtx_engine.sreg]
+    transceiver ==> rx_fifo.we   [rtx_engine.done]
+    transceiver --> tx_fifo.re   [rtx_engine.state]
+    transceiver ==> spi_clk_o   [rtx_engine.sck]
+    transceiver ==> spi_dat_o   [rtx_engine.sreg]
+    transceiver ==> bus_access   [rtx_engine.cs_ctrl]
+    transceiver --> chip_select   [rtx_engine.cs_ctrl]

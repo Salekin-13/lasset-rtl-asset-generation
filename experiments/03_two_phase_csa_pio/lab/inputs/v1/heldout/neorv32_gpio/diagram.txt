@@ -1,0 +1,22 @@
+UNIT neorv32_gpio
+  INPUTS: bus_req_i, clk_i, gpio_i, rstn_i
+  OUTPUTS: bus_rsp_o, cpu_irq_o, gpio_o
+  BLOCKS
+    [process] bus_access: irq_clrn, irq_en, irq_pol, irq_typ, port_out; clocked by clk_i; reset by rstn_i
+    [process] input_stage: port_in, port_in2; clocked by clk_i; reset by rstn_i
+    [process] irq_buffer: irq_pend; clocked by clk_i; reset by rstn_i
+    [process] irq_trigger: irq_trig
+    [process] output_stage: -
+  ARROWS (==> a value moves; --> only decides; [the elements the arrow carries])
+    bus_req_i ==> bus_access   [bus_req_i.{addr,data,rw,stb}]
+    gpio_i ==> input_stage   [gpio_i]
+    bus_access ==> bus_rsp_o
+    bus_access ==> irq_buffer   [irq_clrn, irq_en]
+    bus_access --> irq_trigger   [irq_pol, irq_typ]
+    bus_access ==> output_stage   [port_out]
+    input_stage ==> bus_access   [port_in]
+    input_stage ==> irq_trigger   [port_in, port_in2]
+    irq_buffer ==> cpu_irq_o
+    irq_buffer ==> bus_access   [irq_pend]
+    irq_trigger ==> irq_buffer   [irq_trig]
+    output_stage ==> gpio_o

@@ -1,0 +1,240 @@
+   22 | entity neorv32_cpu_counters is
+   23 |   generic (
+   24 |     ZICNTR_EN : boolean;
+   25 |     ZIHPM_EN  : boolean;
+   26 |     HPM_NUM   : natural range 0 to 13;
+   27 |     HPM_WIDTH : natural range 0 to 64
+   28 |   );
+   29 |   port (
+   31 |     clk_i   : in  std_ulogic;
+   32 |     rstn_i  : in  std_ulogic;
+   33 |     ctrl_i  : in  ctrl_bus_t;
+   35 |     rdata_o : out std_ulogic_vector(XLEN-1 downto 0)
+   36 |   );
+   37 | end neorv32_cpu_counters;
+
+   39 | architecture neorv32_cpu_counters_rtl of neorv32_cpu_counters is
+   42 |   component neorv32_cpu_counters_cnt
+   43 |   generic (
+   44 |     CNT_WIDTH : natural range 0 to 64
+   45 |   );
+   46 |   port (
+   48 |     clk_i   : in  std_ulogic;
+   49 |     rstn_i  : in  std_ulogic;
+   50 |     inc_i   : in  std_ulogic;
+   52 |     sel_i   : in  std_ulogic;
+   53 |     we_i    : in  std_ulogic;
+   54 |     re_i    : in  std_ulogic;
+   55 |     wdata_i : in  std_ulogic_vector(XLEN-1 downto 0);
+   56 |     rdata_o : out std_ulogic_vector(XLEN-1 downto 0)
+   57 |   );
+   58 |   end component;
+   61 |   signal cnt_acc, cfg_acc : std_ulogic;
+   62 |   signal sel, cnt_we, cnt_re, cfg_we, cfg_re : std_ulogic_vector(15 downto 0);
+   65 |   signal cnt_en : std_ulogic_vector(15 downto 0);
+   68 |   type hpmevent_t is array (3 to 15) of std_ulogic_vector(11 downto 0);
+   69 |   type hpmcnt_t   is array (3 to 15) of std_ulogic_vector(XLEN-1 downto 0);
+   70 |   signal hpmevent : hpmevent_t;
+   71 |   signal hpmcnt   : hpmcnt_t;
+   74 |   signal cycle_rd, time_rd, instret_rd, hpm_rd : std_ulogic_vector(XLEN-1 downto 0);
+   76 | begin
+   80 |   acc_gen:
+   81 |   for i in 0 to 15 generate
+   82 |     sel(i)    <= '1' when (ctrl_i.csr_addr(3 downto 0) = std_ulogic_vector(to_unsigned(i, 4))) else '0';
+   83 |     cnt_we(i) <= cnt_acc and sel(i) and ctrl_i.csr_we;
+   84 |     cnt_re(i) <= cnt_acc and sel(i) and ctrl_i.csr_re;
+   85 |     cfg_we(i) <= cfg_acc and sel(i) and ctrl_i.csr_we;
+   86 |     cfg_re(i) <= cfg_acc and sel(i) and ctrl_i.csr_re;
+   87 |   end generate;
+   90 |   cnt_acc <= '1' when ZICNTR_EN and ((ctrl_i.csr_addr(11 downto 5) = csr_cycle_c(11 downto 5)) or
+   91 |                                      (ctrl_i.csr_addr(11 downto 5) = csr_mcycle_c(11 downto 5)) or
+   92 |                                      (ctrl_i.csr_addr(11 downto 5) = csr_cycleh_c(11 downto 5)) or
+   93 |                                      (ctrl_i.csr_addr(11 downto 5) = csr_mcycleh_c(11 downto 5))) else '0';
+   94 |   cfg_acc <= '1' when ZIHPM_EN and (ctrl_i.csr_addr(11 downto 5) = csr_mhpmevent3_c(11 downto 5)) else '0';
+   97 |   rdata_o <= cycle_rd or time_rd or instret_rd or hpm_rd;
+  102 |   cnt_control: process(rstn_i, clk_i)
+  103 |   begin
+  104 |     if (rstn_i = '0') then
+  105 |       cnt_en <= (others => '0');
+  106 |     elsif rising_edge(clk_i) then
+  108 |       cnt_en(0) <= ctrl_i.cnt_event(cnt_event_cy_c) and (not ctrl_i.cpu_debug) and (not ctrl_i.cnt_halt(0));
+  109 |       cnt_en(1) <= '0';
+  110 |       cnt_en(2) <= ctrl_i.cnt_event(cnt_event_ir_c) and (not ctrl_i.cpu_debug) and (not ctrl_i.cnt_halt(2));
+  111 |       for i in 3 to 15 loop
+  112 |         cnt_en(i) <= or_reduce_f(ctrl_i.cnt_event and hpmevent(i)) and (not ctrl_i.cpu_debug) and (not ctrl_i.cnt_halt(i));
+  113 |       end loop;
+  114 |     end if;
+  115 |   end process cnt_control;
+  120 |   base_enabled:
+  121 |   if ZICNTR_EN generate
+  124 |     cycle_inst: neorv32_cpu_counters_cnt
+  125 |     generic map (
+  126 |       CNT_WIDTH => 2*XLEN
+  127 |     )
+  128 |     port map (
+  129 |       clk_i   => clk_i,
+  130 |       rstn_i  => rstn_i,
+  131 |       inc_i   => cnt_en(0),
+  132 |       sel_i   => ctrl_i.csr_addr(7),
+  133 |       we_i    => cnt_we(0),
+  134 |       re_i    => cnt_re(0),
+  135 |       wdata_i => ctrl_i.csr_wdata,
+  136 |       rdata_o => cycle_rd
+  137 |     );
+  140 |     time_rd <= (others => '0');
+  143 |     instret_inst: neorv32_cpu_counters_cnt
+  144 |     generic map (
+  145 |       CNT_WIDTH => 2*XLEN
+  146 |     )
+  147 |     port map (
+  148 |       clk_i   => clk_i,
+  149 |       rstn_i  => rstn_i,
+  150 |       inc_i   => cnt_en(2),
+  151 |       sel_i   => ctrl_i.csr_addr(7),
+  152 |       we_i    => cnt_we(2),
+  153 |       re_i    => cnt_re(2),
+  154 |       wdata_i => ctrl_i.csr_wdata,
+  155 |       rdata_o => instret_rd
+  156 |     );
+  158 |   end generate;
+  161 |   base_disabled:
+  162 |   if not ZICNTR_EN generate
+  163 |     cycle_rd   <= (others => '0');
+  164 |     time_rd    <= (others => '0');
+  165 |     instret_rd <= (others => '0');
+  166 |   end generate;
+  171 |   hpm_enabled:
+  172 |   if ZIHPM_EN and (HPM_NUM > 0) generate
+  174 |     hpm_gen:
+  175 |     for i in 3 to (HPM_NUM+3)-1 generate
+  178 |       hpmcnt_inst: neorv32_cpu_counters_cnt
+  179 |       generic map (
+  180 |         CNT_WIDTH => HPM_WIDTH
+  181 |       )
+  182 |       port map (
+  183 |         clk_i   => clk_i,
+  184 |         rstn_i  => rstn_i,
+  185 |         inc_i   => cnt_en(i),
+  186 |         sel_i   => ctrl_i.csr_addr(7),
+  187 |         we_i    => cnt_we(i),
+  188 |         re_i    => cnt_re(i),
+  189 |         wdata_i => ctrl_i.csr_wdata,
+  190 |         rdata_o => hpmcnt(i)
+  191 |       );
+  194 |       hpmevent_reg: process(rstn_i, clk_i)
+  195 |       begin
+  196 |         if (rstn_i = '0') then
+  197 |           hpmevent(i) <= (others => '0');
+  198 |         elsif rising_edge(clk_i) then
+  199 |           if (cfg_we(i) = '1') then
+  200 |             hpmevent(i) <= ctrl_i.csr_wdata(11 downto 0);
+  201 |           end if;
+  202 |           hpmevent(i)(cnt_event_tm_c) <= '0';
+  203 |         end if;
+  204 |       end process hpmevent_reg;
+  206 |     end generate;
+  209 |     hpm_terminate_gen:
+  210 |     for i in HPM_NUM+3 to 15 generate
+  211 |       hpmcnt(i)   <= (others => '0');
+  212 |       hpmevent(i) <= (others => '0');
+  213 |     end generate;
+  216 |     hpm_read_back: process(hpmcnt, cfg_re, hpmevent)
+  217 |       variable cnt_v, cfg_v : std_ulogic_vector(XLEN-1 downto 0);
+  218 |     begin
+  219 |       cnt_v := (others => '0');
+  220 |       cfg_v := (others => '0');
+  221 |       for i in 3 to 15 loop
+  222 |         cnt_v := cnt_v or hpmcnt(i);
+  223 |         if (cfg_re(i) = '1') then
+  224 |           cfg_v := cfg_v or std_ulogic_vector(resize(unsigned(hpmevent(i)), XLEN));
+  225 |         end if;
+  226 |       end loop;
+  227 |       hpm_rd <= cnt_v or cfg_v;
+  228 |     end process hpm_read_back;
+  230 |   end generate;
+  233 |   hpm_disabled:
+  234 |   if (not ZIHPM_EN) or (HPM_NUM = 0) generate
+  235 |     hpmcnt   <= (others => (others => '0'));
+  236 |     hpmevent <= (others => (others => '0'));
+  237 |     hpm_rd   <= (others => '0');
+  238 |   end generate;
+  240 | end neorv32_cpu_counters_rtl;
+  256 | library ieee;
+  257 | use ieee.std_logic_1164.all;
+  258 | use ieee.numeric_std.all;
+  260 | library neorv32;
+  261 | use neorv32.neorv32_package.all;
+
+  263 | entity neorv32_cpu_counters_cnt is
+  264 |   generic (
+  265 |     CNT_WIDTH : natural range 0 to 64
+  266 |   );
+  267 |   port (
+  269 |     clk_i   : in  std_ulogic;
+  270 |     rstn_i  : in  std_ulogic;
+  271 |     inc_i   : in  std_ulogic;
+  273 |     sel_i   : in  std_ulogic;
+  274 |     we_i    : in  std_ulogic;
+  275 |     re_i    : in  std_ulogic;
+  276 |     wdata_i : in  std_ulogic_vector(XLEN-1 downto 0);
+  277 |     rdata_o : out std_ulogic_vector(XLEN-1 downto 0)
+  278 |   );
+  279 | end neorv32_cpu_counters_cnt;
+
+  281 | architecture neorv32_cpu_counters_cnt_rtl of neorv32_cpu_counters_cnt is
+  284 |   constant lo_width_c : natural := min_natural_f(CNT_WIDTH, 32);
+  285 |   constant hi_width_c : natural := CNT_WIDTH - lo_width_c;
+  288 |   signal lo_q : std_ulogic_vector(lo_width_c-1 downto 0);
+  289 |   signal hi_q : std_ulogic_vector(hi_width_c-1 downto 0);
+  290 |   signal cy_q : std_ulogic_vector(0 downto 0);
+  291 |   signal nxt  : std_ulogic_vector(lo_width_c downto 0);
+  292 |   signal inc  : std_ulogic_vector(0 downto 0);
+  294 | begin
+  297 |   low_reg: process(rstn_i, clk_i)
+  298 |   begin
+  299 |     if (rstn_i = '0') then
+  300 |       lo_q <= (others => '0');
+  301 |     elsif rising_edge(clk_i) then
+  302 |       if (we_i = '1') and (sel_i = '0') then
+  303 |         lo_q <= wdata_i(lo_width_c-1 downto 0);
+  304 |       else
+  305 |         lo_q <= nxt(lo_width_c-1 downto 0);
+  306 |       end if;
+  307 |     end if;
+  308 |   end process low_reg;
+  311 |   inc <= (others => inc_i);
+  312 |   nxt <= std_ulogic_vector(unsigned('0' & lo_q) + unsigned(inc));
+  316 |   high_word_enabled:
+  317 |   if (CNT_WIDTH > 32) generate
+  318 |     high_reg: process(rstn_i, clk_i)
+  319 |     begin
+  320 |       if (rstn_i = '0') then
+  321 |         cy_q <= (others => '0');
+  322 |         hi_q <= (others => '0');
+  323 |       elsif rising_edge(clk_i) then
+  324 |         cy_q <= (others => nxt(lo_width_c));
+  325 |         if (we_i = '1') and (sel_i = '1') then
+  326 |           hi_q <= wdata_i(hi_width_c-1 downto 0);
+  327 |         else
+  328 |           hi_q <= std_ulogic_vector(unsigned(hi_q) + unsigned(cy_q));
+  329 |         end if;
+  330 |       end if;
+  331 |     end process high_reg;
+  332 |   end generate;
+  334 |   high_word_disabled:
+  335 |   if (CNT_WIDTH <= 32) generate
+  336 |     cy_q <= (others => '0');
+  337 |     hi_q <= (others => '0');
+  338 |   end generate;
+  342 |   output_select: process(re_i, sel_i, lo_q, hi_q)
+  343 |   begin
+  344 |     rdata_o <= (others => '0');
+  345 |     if (re_i = '1') and (CNT_WIDTH > 0) then
+  346 |       if (sel_i = '0') or (CNT_WIDTH <= 32) then
+  347 |         rdata_o <= std_ulogic_vector(resize(unsigned(lo_q), XLEN));
+  348 |       else
+  349 |         rdata_o <= std_ulogic_vector(resize(unsigned(hi_q), XLEN));
+  350 |       end if;
+  351 |     end if;
+  352 |   end process output_select;
+  354 | end neorv32_cpu_counters_cnt_rtl;

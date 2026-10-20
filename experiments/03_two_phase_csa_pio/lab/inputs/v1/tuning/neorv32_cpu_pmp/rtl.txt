@@ -1,0 +1,248 @@
+   23 | entity neorv32_cpu_pmp is
+   24 |   generic (
+   25 |     NUM_REGIONS : natural range 0 to 16;
+   26 |     GRANULARITY : natural;
+   27 |     TOR_EN      : boolean;
+   28 |     NAP_EN      : boolean
+   29 |   );
+   30 |   port (
+   32 |     clk_i     : in  std_ulogic;
+   33 |     rstn_i    : in  std_ulogic;
+   34 |     ctrl_i    : in  ctrl_bus_t;
+   36 |     csr_o     : out std_ulogic_vector(XLEN-1 downto 0);
+   38 |     addr_ls_i : in  std_ulogic_vector(XLEN-1 downto 0);
+   40 |     fault_o   : out std_ulogic
+   41 |   );
+   42 | end neorv32_cpu_pmp;
+
+   44 | architecture neorv32_cpu_pmp_rtl of neorv32_cpu_pmp is
+   47 |   constant g_c : natural := cond_sel_natural_f(boolean(GRANULARITY < 4), 4, 2**index_size_f(GRANULARITY));
+   50 |   constant cfg_r_c  : natural := 0;
+   51 |   constant cfg_w_c  : natural := 1;
+   52 |   constant cfg_x_c  : natural := 2;
+   53 |   constant cfg_al_c : natural := 3;
+   54 |   constant cfg_ah_c : natural := 4;
+   55 |   constant cfg_l_c  : natural := 7;
+   58 |   constant mode_off_c   : std_ulogic_vector(1 downto 0) := "00";
+   59 |   constant mode_tor_c   : std_ulogic_vector(1 downto 0) := "01";
+   60 |   constant mode_na4_c   : std_ulogic_vector(1 downto 0) := "10";
+   61 |   constant mode_napot_c : std_ulogic_vector(1 downto 0) := "11";
+   64 |   constant pmp_lsb_c : natural := index_size_f(g_c);
+   67 |   type pmpcfg_t is array (0 to NUM_REGIONS-1) of std_ulogic_vector(7 downto 0);
+   68 |   signal pmpcfg    : pmpcfg_t;
+   69 |   signal pmpcfg_we : std_ulogic_vector(3 downto 0);
+   72 |   type pmpaddr_t is array (0 to NUM_REGIONS-1) of std_ulogic_vector(XLEN-1 downto 0);
+   73 |   signal pmpaddr    : pmpaddr_t;
+   74 |   signal pmpaddr_we : std_ulogic_vector(15 downto 0);
+   77 |   type csr_cfg_rd_t   is array (0 to 15) of std_ulogic_vector(7 downto 0);
+   78 |   type csr_cfg_rd32_t is array (0 to 03) of std_ulogic_vector(XLEN-1 downto 0);
+   79 |   type csr_addr_rd_t  is array (0 to 15) of std_ulogic_vector(XLEN-1 downto 0);
+   80 |   signal cfg_rd   : csr_cfg_rd_t;
+   81 |   signal cfg_rd32 : csr_cfg_rd32_t;
+   82 |   signal addr_rd  : csr_addr_rd_t;
+   85 |   signal acc_addr : std_ulogic_vector(XLEN-1 downto 0);
+   86 |   signal acc_priv : std_ulogic;
+   89 |   type addr_mask_t is array (0 to NUM_REGIONS-1) of std_ulogic_vector(XLEN-1 downto pmp_lsb_c);
+   90 |   signal addr_mask_napot, addr_mask : addr_mask_t;
+   93 |   signal cmp_na, cmp_ge, cmp_lt : std_ulogic_vector(NUM_REGIONS-1 downto 0);
+   96 |   signal match : std_ulogic_vector(NUM_REGIONS-1 downto 0);
+   97 |   signal allow : std_ulogic_vector(NUM_REGIONS-1 downto 0);
+   98 |   signal fail  : std_ulogic_vector(NUM_REGIONS   downto 0);
+  100 | begin
+  104 |   assert (GRANULARITY = g_c) report
+  105 |     "[NEORV32] Auto-adjusting invalid PMP granularity configuration." severity warning;
+  110 |   csr_we_cfg: process(ctrl_i)
+  111 |   begin
+  112 |     pmpcfg_we <= (others => '0');
+  113 |     if (ctrl_i.csr_addr(11 downto 2) = csr_pmpcfg0_c(11 downto 2)) and (ctrl_i.csr_we = '1') then
+  114 |       pmpcfg_we(to_integer(unsigned(ctrl_i.csr_addr(1 downto 0)))) <= '1';
+  115 |     end if;
+  116 |   end process csr_we_cfg;
+  119 |   csr_pmpcfg_gen:
+  120 |   for i in 0 to NUM_REGIONS-1 generate
+  121 |     csr_pmpcfg: process(rstn_i, clk_i)
+  122 |       variable mode_v : std_ulogic_vector(1 downto 0);
+  123 |     begin
+  124 |       if (rstn_i = '0') then
+  125 |         pmpcfg(i) <= (others => '0');
+  126 |       elsif rising_edge(clk_i) then
+  127 |         if (pmpcfg_we(i/4) = '1') and (pmpcfg(i)(cfg_l_c) = '0') then
+  129 |           pmpcfg(i)(cfg_r_c) <= ctrl_i.csr_wdata((i mod 4)*8+cfg_r_c);
+  130 |           pmpcfg(i)(cfg_w_c) <= ctrl_i.csr_wdata((i mod 4)*8+cfg_w_c);
+  131 |           pmpcfg(i)(cfg_x_c) <= ctrl_i.csr_wdata((i mod 4)*8+cfg_x_c);
+  133 |           mode_v := ctrl_i.csr_wdata((i mod 4)*8+cfg_ah_c downto (i mod 4)*8+cfg_al_c);
+  134 |           if ((mode_v = mode_tor_c)   and (not TOR_EN)) or
+  135 |              ((mode_v = mode_na4_c)   and (not NAP_EN)) or
+  136 |              ((mode_v = mode_napot_c) and (not NAP_EN)) or
+  137 |              ((mode_v = mode_na4_c)   and (g_c > 4)) then
+  138 |             pmpcfg(i)(cfg_ah_c downto cfg_al_c) <= mode_off_c;
+  139 |           else
+  140 |             pmpcfg(i)(cfg_ah_c downto cfg_al_c) <= mode_v;
+  141 |           end if;
+  143 |           pmpcfg(i)(6 downto 5) <= (others => '0');
+  145 |           pmpcfg(i)(cfg_l_c)  <= ctrl_i.csr_wdata((i mod 4)*8+cfg_l_c);
+  146 |         end if;
+  147 |       end if;
+  148 |     end process csr_pmpcfg;
+  149 |   end generate;
+  154 |   csr_we_addr: process(ctrl_i)
+  155 |   begin
+  156 |     pmpaddr_we <= (others => '0');
+  157 |     if (ctrl_i.csr_addr(11 downto 4) = csr_pmpaddr0_c(11 downto 4)) and (ctrl_i.csr_we = '1') then
+  158 |       pmpaddr_we(to_integer(unsigned(ctrl_i.csr_addr(3 downto 0)))) <= '1';
+  159 |     end if;
+  160 |   end process csr_we_addr;
+  163 |   csr_pmpaddr_gen:
+  164 |   for i in 0 to NUM_REGIONS-1 generate
+  165 |     csr_pmpaddr: process(rstn_i, clk_i)
+  166 |     begin
+  167 |       if (rstn_i = '0') then
+  168 |         pmpaddr(i) <= (others => '0');
+  169 |       elsif rising_edge(clk_i) then
+  170 |         if (pmpaddr_we(i) = '1') and (pmpcfg(i)(cfg_l_c) = '0') then
+  171 |           if (i < NUM_REGIONS-1) then
+  172 |             if (pmpcfg(i+1)(cfg_l_c) = '0') or (pmpcfg(i+1)(cfg_ah_c downto cfg_al_c) /= mode_tor_c) then
+  173 |               pmpaddr(i) <= "00" & ctrl_i.csr_wdata(XLEN-3 downto 0);
+  174 |             end if;
+  175 |           else
+  176 |             pmpaddr(i) <= "00" & ctrl_i.csr_wdata(XLEN-3 downto 0);
+  177 |           end if;
+  178 |         end if;
+  179 |       end if;
+  180 |     end process csr_pmpaddr;
+  181 |   end generate;
+  186 |   csr_read_access: process(ctrl_i.csr_addr, cfg_rd32, addr_rd)
+  187 |   begin
+  188 |     if (ctrl_i.csr_addr(11 downto 5) = csr_pmpcfg0_c(11 downto 5)) then
+  189 |       if (ctrl_i.csr_addr(4) = '0') then
+  190 |         csr_o <= cfg_rd32(to_integer(unsigned(ctrl_i.csr_addr(1 downto 0))));
+  191 |       else
+  192 |         csr_o <= addr_rd(to_integer(unsigned(ctrl_i.csr_addr(3 downto 0))));
+  193 |       end if;
+  194 |     else
+  195 |       csr_o <= (others => '0');
+  196 |     end if;
+  197 |   end process csr_read_access;
+  200 |   csr_read_back_gen:
+  201 |   for i in 0 to NUM_REGIONS-1 generate
+  203 |     cfg_rd(i) <= pmpcfg(i);
+  205 |     address_read_back: process(pmpaddr, pmpcfg)
+  206 |     begin
+  207 |       addr_rd(i) <= (others => '0');
+  208 |       addr_rd(i)(XLEN-3 downto pmp_lsb_c-2) <= pmpaddr(i)(XLEN-3 downto pmp_lsb_c-2);
+  209 |       if (g_c = 8) and TOR_EN then
+  210 |         if (pmpcfg(i)(cfg_ah_c) = '0') then
+  211 |           addr_rd(i)(pmp_lsb_c) <= '0';
+  212 |         end if;
+  213 |       elsif (g_c > 8) then
+  214 |         if NAP_EN then
+  215 |           addr_rd(i)(pmp_lsb_c-2 downto 0) <= (others => '1');
+  216 |         end if;
+  217 |         if TOR_EN then
+  218 |           if (pmpcfg(i)(cfg_ah_c) = '0') then
+  219 |             addr_rd(i)(pmp_lsb_c-1 downto 0) <= (others => '0');
+  220 |           end if;
+  221 |         end if;
+  222 |       end if;
+  223 |     end process address_read_back;
+  224 |   end generate;
+  227 |   csr_read_back_terminate:
+  228 |   for i in NUM_REGIONS to 15 generate
+  229 |     cfg_rd(i)  <= (others => '0');
+  230 |     addr_rd(i) <= (others => '0');
+  231 |   end generate;
+  234 |   csr_read_back_pack:
+  235 |   for i in 0 to 3 generate
+  236 |     cfg_rd32(i) <= cfg_rd(i*4+3) & cfg_rd(i*4+2) & cfg_rd(i*4+1) & cfg_rd(i*4+0);
+  237 |   end generate;
+  244 |   acc_addr <= ctrl_i.pc_nxt   when (ctrl_i.lsu_mo_we = '0') else addr_ls_i;
+  245 |   acc_priv <= ctrl_i.cpu_priv when (ctrl_i.lsu_mo_we = '0') else ctrl_i.lsu_priv;
+  247 |   region_gen:
+  248 |   for r in 0 to NUM_REGIONS-1 generate
+  251 |     nap_mode_enable:
+  252 |     if NAP_EN generate
+  254 |       addr_mask_napot(r)(pmp_lsb_c) <= '0';
+  255 |       addr_mask_napot_gen:
+  256 |       for i in pmp_lsb_c+1 to XLEN-1 generate
+  257 |         addr_mask_napot(r)(i) <= addr_mask_napot(r)(i-1) or (not pmpaddr(r)(i-3));
+  258 |       end generate;
+  261 |       addr_masking: process(rstn_i, clk_i)
+  262 |       begin
+  263 |         if (rstn_i = '0') then
+  264 |           addr_mask(r) <= (others => '0');
+  265 |         elsif rising_edge(clk_i) then
+  266 |           if (pmpcfg(r)(cfg_al_c) = '1') then
+  267 |             addr_mask(r) <= addr_mask_napot(r);
+  268 |           else
+  269 |             addr_mask(r) <= (others => '1');
+  270 |           end if;
+  271 |         end if;
+  272 |       end process addr_masking;
+  273 |     end generate;
+  276 |     nap_mode_disable:
+  277 |     if not NAP_EN generate
+  278 |       addr_mask_napot(r) <= (others => '0');
+  279 |       addr_mask(r)       <= (others => '0');
+  280 |     end generate;
+  285 |     cmp_na(r) <= '1' when ((acc_addr(XLEN-1 downto pmp_lsb_c) and addr_mask(r)) = (pmpaddr(r)(XLEN-3 downto pmp_lsb_c-2) and addr_mask(r))) and NAP_EN else '0';
+  287 |     addr_match_r0_gen:
+  288 |     if (r = 0) generate
+  289 |       cmp_ge(r) <= '1' when TOR_EN else '0';
+  290 |       cmp_lt(r) <= '0';
+  291 |     end generate;
+  293 |     addr_match_rn_gen:
+  294 |     if (r > 0) generate
+  295 |       cmp_ge(r) <= '1' when (unsigned(acc_addr(XLEN-1 downto pmp_lsb_c)) >= unsigned(pmpaddr(r-1)(XLEN-3 downto pmp_lsb_c-2))) and TOR_EN else '0';
+  296 |       cmp_lt(r) <= '1' when (unsigned(acc_addr(XLEN-1 downto pmp_lsb_c)) <  unsigned(pmpaddr(r  )(XLEN-3 downto pmp_lsb_c-2))) and TOR_EN else '0';
+  297 |     end generate;
+  301 |     match_gen: process(pmpcfg, cmp_ge, cmp_lt, cmp_na)
+  302 |     begin
+  303 |       if (pmpcfg(r)(cfg_ah_c downto cfg_al_c) = mode_tor_c) and TOR_EN then
+  304 |         if (r = (NUM_REGIONS-1)) then
+  305 |           match(r) <= cmp_ge(r) and cmp_lt(r);
+  306 |         else
+  307 |           match(r) <= cmp_ge(r) and (not cmp_ge(r+1));
+  308 |         end if;
+  309 |       elsif (pmpcfg(r)(cfg_ah_c) = mode_napot_c(1)) and NAP_EN then
+  310 |         match(r) <= cmp_na(r);
+  311 |       else
+  312 |         match(r) <= '0';
+  313 |       end if;
+  314 |     end process match_gen;
+  318 |     perm_gen: process(ctrl_i, acc_priv, pmpcfg)
+  319 |     begin
+  321 |       if (ctrl_i.lsu_mo_we = '0') then
+  322 |         if (acc_priv = priv_mode_m_c) then
+  323 |           allow(r) <= pmpcfg(r)(cfg_x_c) or (not pmpcfg(r)(cfg_l_c));
+  324 |         else
+  325 |           allow(r) <= pmpcfg(r)(cfg_x_c);
+  326 |         end if;
+  328 |       elsif (ctrl_i.lsu_rw = '0') then
+  329 |         if (acc_priv = priv_mode_m_c) then
+  330 |           allow(r) <= pmpcfg(r)(cfg_r_c) or (not pmpcfg(r)(cfg_l_c));
+  331 |         else
+  332 |           allow(r) <= pmpcfg(r)(cfg_r_c);
+  333 |         end if;
+  335 |       else
+  336 |         if (acc_priv = priv_mode_m_c) then
+  337 |           allow(r) <= pmpcfg(r)(cfg_w_c) or (not pmpcfg(r)(cfg_l_c));
+  338 |         else
+  339 |           allow(r) <= pmpcfg(r)(cfg_w_c);
+  340 |         end if;
+  341 |       end if;
+  342 |     end process perm_gen;
+  344 |   end generate;
+  351 |   fail(NUM_REGIONS) <= '1' when (acc_priv /= priv_mode_m_c) else '0';
+  352 |   fault_check_gen:
+  353 |   for r in NUM_REGIONS-1 downto 0 generate
+  354 |     fail(r) <= not allow(r) when (match(r) = '1') else fail(r+1);
+  355 |   end generate;
+  358 |   fault_check: process(rstn_i, clk_i)
+  359 |   begin
+  360 |     if (rstn_i = '0') then
+  361 |       fault_o <= '0';
+  362 |     elsif rising_edge(clk_i) then
+  363 |       fault_o <= (not ctrl_i.cpu_debug) and fail(0);
+  364 |     end if;
+  365 |   end process fault_check;
+  368 | end neorv32_cpu_pmp_rtl;

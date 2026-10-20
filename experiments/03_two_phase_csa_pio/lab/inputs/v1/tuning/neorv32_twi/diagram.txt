@@ -1,0 +1,76 @@
+UNIT neorv32_twi
+  INPUTS: bus_req_i, clk_i, clkgen_i, rstn_i, twi_scl_i, twi_sda_i
+  OUTPUTS: bus_rsp_o, clkgen_en_o, irq_o, twi_scl_o, twi_sda_o
+  BLOCKS
+    [inst] rx_fifo_inst (neorv32_fifo, another IP): fifo.rx_avail, fifo.rx_free, fifo.rx_rdata
+    [inst] tx_fifo_inst (neorv32_fifo, another IP): fifo.tx_avail, fifo.tx_free, fifo.tx_rdata
+    [logic] clk_gen.halt: clk_gen.halt
+    [logic] clk_gen.phase: clk_gen.phase
+    [logic] engine.busy: engine.busy
+    [logic] fifo.clear: fifo.clear
+    [logic] fifo.rx_re: fifo.rx_re
+    [logic] fifo.rx_wdata: fifo.rx_wdata
+    [logic] fifo.rx_we: fifo.rx_we
+    [logic] fifo.tx_re: fifo.tx_re
+    [logic] fifo.tx_wdata: fifo.tx_wdata
+    [logic] fifo.tx_we: fifo.tx_we
+    [logic] io_con.scl_in: io_con.scl_in
+    [logic] io_con.sda_in: io_con.sda_in
+    [process] bus_access: ctrl.cdiv, ctrl.clkstr, ctrl.enable, ctrl.prsc; clocked by clk_i; reset by rstn_i
+    [process] clock_generator: clk_gen.cnt, clk_gen.tick; clocked by clk_i; reset by rstn_i
+    [process] irq_generator: -; clocked by clk_i; reset by rstn_i
+    [process] phase_generator: clk_gen.phase_gen, clk_gen.phase_gen_ff; clocked by clk_i; reset by rstn_i
+    [process] twi_engine: engine.bitcnt, engine.done, engine.sreg, engine.state, io_con.scl_in_ff, io_con.scl_out, io_con.sda_in_ff, io_con.sda_out; clocked by clk_i; reset by rstn_i
+  ARROWS (==> a value moves; --> only decides; [the elements the arrow carries])
+    bus_req_i --> fifo.rx_re   [bus_req_i.{addr,rw,stb}]
+    bus_req_i ==> fifo.tx_wdata   [bus_req_i.data]
+    bus_req_i --> fifo.tx_we   [bus_req_i.{addr,rw,stb}]
+    bus_req_i ==> bus_access   [bus_req_i.{addr,data,rw,stb}]
+    clk_i ==> rx_fifo_inst   [clk_i]
+    clk_i ==> tx_fifo_inst   [clk_i]
+    clkgen_i --> clock_generator   [clkgen_i]
+    rstn_i ==> rx_fifo_inst   [rstn_i]
+    rstn_i ==> tx_fifo_inst   [rstn_i]
+    twi_scl_i ==> io_con.scl_in   [twi_scl_i]
+    twi_sda_i ==> io_con.sda_in   [twi_sda_i]
+    rx_fifo_inst ==> bus_access   [fifo.{rx_avail,rx_rdata}]
+    tx_fifo_inst --> fifo.tx_re   [fifo.tx_avail]
+    tx_fifo_inst ==> bus_access   [fifo.{tx_avail,tx_free}]
+    tx_fifo_inst ==> irq_generator   [fifo.tx_avail]
+    tx_fifo_inst ==> twi_engine   [fifo.{tx_avail,tx_rdata}]
+    clk_gen.halt --> phase_generator   [clk_gen.halt]
+    clk_gen.phase --> twi_engine   [clk_gen.phase]
+    engine.busy --> fifo.tx_re   [engine.busy]
+    engine.busy ==> bus_access   [engine.busy]
+    engine.busy ==> irq_generator   [engine.busy]
+    engine.busy --> phase_generator   [engine.busy]
+    fifo.clear ==> rx_fifo_inst   [fifo.clear]
+    fifo.clear ==> tx_fifo_inst   [fifo.clear]
+    fifo.rx_re ==> rx_fifo_inst   [fifo.rx_re]
+    fifo.rx_wdata ==> rx_fifo_inst   [fifo.rx_wdata]
+    fifo.rx_we ==> rx_fifo_inst   [fifo.rx_we]
+    fifo.tx_re ==> tx_fifo_inst   [fifo.tx_re]
+    fifo.tx_wdata ==> tx_fifo_inst   [fifo.tx_wdata]
+    fifo.tx_we ==> tx_fifo_inst   [fifo.tx_we]
+    io_con.scl_in ==> twi_engine   [io_con.scl_in]
+    io_con.sda_in ==> twi_engine   [io_con.sda_in]
+    bus_access --> clk_gen.halt   [ctrl.clkstr]
+    bus_access ==> fifo.clear   [ctrl.enable]
+    bus_access ==> bus_rsp_o
+    bus_access ==> clkgen_en_o   [ctrl.enable]
+    bus_access --> clock_generator   [ctrl.{cdiv,enable,prsc}]
+    bus_access ==> irq_generator   [ctrl.enable]
+    bus_access --> phase_generator   [ctrl.enable]
+    bus_access ==> twi_engine   [ctrl.enable]
+    clock_generator --> fifo.tx_re   [clk_gen.tick]
+    clock_generator --> phase_generator   [clk_gen.tick]
+    clock_generator --> twi_engine   [clk_gen.tick]
+    irq_generator ==> irq_o
+    phase_generator ==> clk_gen.phase   [clk_gen.{phase_gen,phase_gen_ff}]
+    twi_engine --> clk_gen.halt   [io_con.{scl_in_ff,scl_out}]
+    twi_engine --> engine.busy   [engine.state]
+    twi_engine ==> fifo.rx_wdata   [engine.sreg]
+    twi_engine ==> fifo.rx_we   [engine.done]
+    twi_engine ==> twi_scl_o   [io_con.scl_out]
+    twi_engine ==> twi_sda_o   [io_con.sda_out]
+    twi_engine ==> bus_access   [io_con.{scl_in_ff,sda_in_ff}]

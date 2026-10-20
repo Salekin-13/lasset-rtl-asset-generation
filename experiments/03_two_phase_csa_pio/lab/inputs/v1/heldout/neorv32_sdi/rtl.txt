@@ -1,0 +1,252 @@
+   18 | entity neorv32_sdi is
+   19 |   generic (
+   20 |     RTX_FIFO : natural range 1 to 2**15
+   21 |   );
+   22 |   port (
+   23 |     clk_i     : in  std_ulogic;
+   24 |     rstn_i    : in  std_ulogic;
+   25 |     bus_req_i : in  bus_req_t;
+   26 |     bus_rsp_o : out bus_rsp_t;
+   27 |     sdi_csn_i : in  std_ulogic;
+   28 |     sdi_clk_i : in  std_ulogic;
+   29 |     sdi_dat_i : in  std_ulogic;
+   30 |     sdi_dat_o : out std_ulogic;
+   31 |     irq_o     : out std_ulogic
+   32 |   );
+   33 | end neorv32_sdi;
+
+   35 | architecture neorv32_sdi_rtl of neorv32_sdi is
+   38 |   constant ctrl_en_c           : natural :=  0;
+   40 |   constant ctrl_fifo_size0_c   : natural :=  4;
+   41 |   constant ctrl_fifo_size1_c   : natural :=  5;
+   42 |   constant ctrl_fifo_size2_c   : natural :=  6;
+   43 |   constant ctrl_fifo_size3_c   : natural :=  7;
+   45 |   constant ctrl_irq_rx_avail_c : natural := 15;
+   46 |   constant ctrl_irq_rx_half_c  : natural := 16;
+   47 |   constant ctrl_irq_rx_full_c  : natural := 17;
+   48 |   constant ctrl_irq_tx_empty_c : natural := 18;
+   49 |   constant ctrl_irq_tx_nhalf_c : natural := 19;
+   51 |   constant ctrl_rx_avail_c     : natural := 23;
+   52 |   constant ctrl_rx_half_c      : natural := 24;
+   53 |   constant ctrl_rx_full_c      : natural := 25;
+   54 |   constant ctrl_tx_empty_c     : natural := 26;
+   55 |   constant ctrl_tx_nhalf_c     : natural := 27;
+   56 |   constant ctrl_tx_full_c      : natural := 28;
+   58 |   constant ctrl_cs_active_c    : natural := 31;
+   61 |   constant log2_fifo_size_c : natural := index_size_f(RTX_FIFO);
+   64 |   type ctrl_t is record
+   65 |     enable       : std_ulogic;
+   66 |     irq_rx_avail : std_ulogic;
+   67 |     irq_rx_half  : std_ulogic;
+   68 |     irq_rx_full  : std_ulogic;
+   69 |     irq_tx_empty : std_ulogic;
+   70 |     irq_tx_nhalf : std_ulogic;
+   71 |   end record;
+   72 |   signal ctrl : ctrl_t;
+   75 |   type sync_t is record
+   76 |     sck_ff : std_ulogic_vector(2 downto 0);
+   77 |     csn_ff : std_ulogic_vector(1 downto 0);
+   78 |     sdi_ff : std_ulogic_vector(1 downto 0);
+   79 |     sck    : std_ulogic;
+   80 |     csn    : std_ulogic;
+   81 |     sdi    : std_ulogic;
+   82 |   end record;
+   83 |   signal sync : sync_t;
+   86 |   type serial_t is record
+   87 |     state  : std_ulogic_vector(2 downto 0);
+   88 |     cnt    : std_ulogic_vector(3 downto 0);
+   89 |     sreg   : std_ulogic_vector(7 downto 0);
+   90 |     sdi_ff : std_ulogic;
+   91 |     start  : std_ulogic;
+   92 |     done   : std_ulogic;
+   93 |   end record;
+   94 |   signal serial : serial_t;
+   97 |   type fifo_t is record
+   98 |     we    : std_ulogic;
+   99 |     re    : std_ulogic;
+  100 |     clear : std_ulogic;
+  101 |     wdata : std_ulogic_vector(7 downto 0);
+  102 |     rdata : std_ulogic_vector(7 downto 0);
+  103 |     avail : std_ulogic;
+  104 |     free  : std_ulogic;
+  105 |     half  : std_ulogic;
+  106 |   end record;
+  107 |   signal tx_fifo, rx_fifo : fifo_t;
+  109 | begin
+  113 |   bus_access: process(rstn_i, clk_i)
+  114 |   begin
+  115 |     if (rstn_i = '0') then
+  116 |       bus_rsp_o         <= rsp_terminate_c;
+  117 |       ctrl.enable       <= '0';
+  118 |       ctrl.irq_rx_avail <= '0';
+  119 |       ctrl.irq_rx_half  <= '0';
+  120 |       ctrl.irq_rx_full  <= '0';
+  121 |       ctrl.irq_tx_empty <= '0';
+  122 |       ctrl.irq_tx_nhalf <= '0';
+  123 |     elsif rising_edge(clk_i) then
+  125 |       bus_rsp_o.ack  <= bus_req_i.stb;
+  126 |       bus_rsp_o.err  <= '0';
+  127 |       bus_rsp_o.data <= (others => '0');
+  130 |       if (bus_req_i.stb = '1') then
+  131 |         if (bus_req_i.rw = '1') then
+  132 |           if (bus_req_i.addr(2) = '0') then
+  133 |             ctrl.enable <= bus_req_i.data(ctrl_en_c);
+  135 |             ctrl.irq_rx_avail <= bus_req_i.data(ctrl_irq_rx_avail_c);
+  136 |             ctrl.irq_rx_half  <= bus_req_i.data(ctrl_irq_rx_half_c);
+  137 |             ctrl.irq_rx_full  <= bus_req_i.data(ctrl_irq_rx_full_c);
+  138 |             ctrl.irq_tx_empty <= bus_req_i.data(ctrl_irq_tx_empty_c);
+  139 |             ctrl.irq_tx_nhalf <= bus_req_i.data(ctrl_irq_tx_nhalf_c);
+  140 |           end if;
+  141 |         else
+  142 |           if (bus_req_i.addr(2) = '0') then
+  143 |             bus_rsp_o.data(ctrl_en_c) <= ctrl.enable;
+  145 |             bus_rsp_o.data(ctrl_fifo_size3_c downto ctrl_fifo_size0_c) <= std_ulogic_vector(to_unsigned(log2_fifo_size_c, 4));
+  147 |             bus_rsp_o.data(ctrl_irq_rx_avail_c) <= ctrl.irq_rx_avail;
+  148 |             bus_rsp_o.data(ctrl_irq_rx_half_c)  <= ctrl.irq_rx_half;
+  149 |             bus_rsp_o.data(ctrl_irq_rx_full_c)  <= ctrl.irq_rx_full;
+  150 |             bus_rsp_o.data(ctrl_irq_tx_empty_c) <= ctrl.irq_tx_empty;
+  151 |             bus_rsp_o.data(ctrl_irq_tx_nhalf_c) <= ctrl.irq_tx_nhalf;
+  153 |             bus_rsp_o.data(ctrl_rx_avail_c) <= rx_fifo.avail;
+  154 |             bus_rsp_o.data(ctrl_rx_half_c)  <= rx_fifo.half;
+  155 |             bus_rsp_o.data(ctrl_rx_full_c)  <= not rx_fifo.free;
+  156 |             bus_rsp_o.data(ctrl_tx_empty_c) <= not tx_fifo.avail;
+  157 |             bus_rsp_o.data(ctrl_tx_nhalf_c) <= not tx_fifo.half;
+  158 |             bus_rsp_o.data(ctrl_tx_full_c)  <= not tx_fifo.free;
+  160 |             bus_rsp_o.data(ctrl_cs_active_c) <= not sync.csn;
+  161 |           else
+  162 |             bus_rsp_o.data(7 downto 0) <= rx_fifo.rdata;
+  163 |           end if;
+  164 |         end if;
+  165 |       end if;
+  166 |     end if;
+  167 |   end process bus_access;
+  174 |   tx_fifo_inst: entity neorv32.neorv32_fifo
+  175 |   generic map (
+  176 |     FIFO_DEPTH => RTX_FIFO,
+  177 |     FIFO_WIDTH => 8,
+  178 |     FIFO_RSYNC => true,
+  179 |     FIFO_SAFE  => true,
+  180 |     FULL_RESET => false
+  181 |   )
+  182 |   port map (
+  184 |     clk_i   => clk_i,
+  185 |     rstn_i  => rstn_i,
+  186 |     clear_i => tx_fifo.clear,
+  187 |     half_o  => tx_fifo.half,
+  188 |     level_o => open,
+  190 |     wdata_i => tx_fifo.wdata,
+  191 |     we_i    => tx_fifo.we,
+  192 |     free_o  => tx_fifo.free,
+  194 |     re_i    => tx_fifo.re,
+  195 |     rdata_o => tx_fifo.rdata,
+  196 |     avail_o => tx_fifo.avail
+  197 |   );
+  200 |   tx_fifo.clear <= not ctrl.enable;
+  201 |   tx_fifo.wdata <= bus_req_i.data(7 downto 0);
+  202 |   tx_fifo.we    <= '1' when (bus_req_i.stb = '1') and (bus_req_i.rw = '1') and (bus_req_i.addr(2) = '1') else '0';
+  205 |   tx_fifo.re <= serial.start;
+  209 |   rx_fifo_inst: entity neorv32.neorv32_fifo
+  210 |   generic map (
+  211 |     FIFO_DEPTH => RTX_FIFO,
+  212 |     FIFO_WIDTH => 8,
+  213 |     FIFO_RSYNC => true,
+  214 |     FIFO_SAFE  => true,
+  215 |     FULL_RESET => false
+  216 |   )
+  217 |   port map (
+  219 |     clk_i   => clk_i,
+  220 |     rstn_i  => rstn_i,
+  221 |     clear_i => rx_fifo.clear,
+  222 |     half_o  => rx_fifo.half,
+  223 |     level_o => open,
+  225 |     wdata_i => rx_fifo.wdata,
+  226 |     we_i    => rx_fifo.we,
+  227 |     free_o  => rx_fifo.free,
+  229 |     re_i    => rx_fifo.re,
+  230 |     rdata_o => rx_fifo.rdata,
+  231 |     avail_o => rx_fifo.avail
+  232 |   );
+  235 |   rx_fifo.wdata <= serial.sreg;
+  236 |   rx_fifo.we    <= serial.done;
+  239 |   rx_fifo.clear <= not ctrl.enable;
+  240 |   rx_fifo.re    <= '1' when (bus_req_i.stb = '1') and (bus_req_i.rw = '0') and (bus_req_i.addr(2) = '1') else '0';
+  244 |   irq_generator: process(rstn_i, clk_i)
+  245 |   begin
+  246 |     if (rstn_i = '0') then
+  247 |       irq_o <= '0';
+  248 |     elsif rising_edge(clk_i) then
+  249 |       irq_o <= ctrl.enable and (
+  250 |                (ctrl.irq_rx_avail and      rx_fifo.avail)  or
+  251 |                (ctrl.irq_rx_half  and      rx_fifo.half)   or
+  252 |                (ctrl.irq_rx_full  and (not rx_fifo.free))  or
+  253 |                (ctrl.irq_tx_empty and (not tx_fifo.avail)) or
+  254 |                (ctrl.irq_tx_nhalf and (not tx_fifo.half)));
+  255 |     end if;
+  256 |   end process irq_generator;
+  261 |   synchronizer: process(rstn_i, clk_i)
+  262 |   begin
+  263 |     if (rstn_i = '0') then
+  264 |       sync.sck_ff <= (others => '0');
+  265 |       sync.csn_ff <= (others => '0');
+  266 |       sync.sdi_ff <= (others => '0');
+  267 |     elsif rising_edge(clk_i) then
+  268 |       sync.sck_ff <= sync.sck_ff(1 downto 0) & sdi_clk_i;
+  269 |       sync.csn_ff <= sync.csn_ff(0) & sdi_csn_i;
+  270 |       sync.sdi_ff <= sync.sdi_ff(0) & sdi_dat_i;
+  271 |     end if;
+  272 |   end process synchronizer;
+  274 |   sync.sck <= sync.sck_ff(1) xor sync.sck_ff(2);
+  275 |   sync.csn <= sync.csn_ff(1);
+  276 |   sync.sdi <= sync.sdi_ff(1);
+  281 |   serial_engine: process(rstn_i, clk_i)
+  282 |   begin
+  283 |     if (rstn_i = '0') then
+  284 |       serial.start  <= '0';
+  285 |       serial.done   <= '0';
+  286 |       serial.state  <= (others => '0');
+  287 |       serial.cnt    <= (others => '0');
+  288 |       serial.sreg   <= (others => '0');
+  289 |       serial.sdi_ff <= '0';
+  290 |     elsif rising_edge(clk_i) then
+  292 |       serial.start <= '0';
+  293 |       serial.done  <= '0';
+  296 |       serial.state(2) <= ctrl.enable;
+  297 |       case serial.state is
+  299 |         when "100" =>
+  301 |           serial.cnt <= (others => '0');
+  302 |           if (tx_fifo.avail = '0') then
+  303 |             serial.sreg <= (others => '0');
+  304 |           else
+  305 |             serial.sreg <= tx_fifo.rdata;
+  306 |           end if;
+  307 |           if (sync.csn = '0') then
+  308 |             serial.start             <= '1';
+  309 |             serial.state(1 downto 0) <= "10";
+  310 |           end if;
+  312 |         when "110" =>
+  314 |           serial.sdi_ff <= sync.sdi;
+  315 |           if (sync.csn = '1') then
+  316 |             serial.state(1 downto 0) <= "00";
+  317 |           elsif (sync.sck = '1') then
+  318 |             serial.cnt               <= std_ulogic_vector(unsigned(serial.cnt) + 1);
+  319 |             serial.state(1 downto 0) <= "11";
+  320 |           end if;
+  322 |         when "111" =>
+  324 |           if (sync.csn = '1') then
+  325 |             serial.state(1 downto 0) <= "00";
+  326 |           elsif (sync.sck = '1') then
+  327 |             serial.sreg <= serial.sreg(serial.sreg'left-1 downto 0) & serial.sdi_ff;
+  328 |             if (serial.cnt(3) = '1') then
+  329 |               serial.done              <= '1';
+  330 |               serial.state(1 downto 0) <= "00";
+  331 |             else
+  332 |               serial.state(1 downto 0) <= "10";
+  333 |             end if;
+  334 |           end if;
+  336 |         when others =>
+  338 |           serial.state(1 downto 0) <= "00";
+  340 |       end case;
+  341 |     end if;
+  342 |   end process serial_engine;
+  345 |   sdi_dat_o <= serial.sreg(serial.sreg'left);
+  348 | end neorv32_sdi_rtl;

@@ -1,0 +1,86 @@
+UNIT neorv32_fifo
+  INPUTS: clear_i, clk_i, re_i, rstn_i, wdata_i, we_i
+  OUTPUTS: avail_o, free_o, half_o, level_o, rdata_o
+  BLOCKS
+    [generate] check_large: empty, full, half, level, match
+    [generate] check_small: empty, full, half, level, match
+    [generate] fifo_read_async: -
+    [generate] fifo_read_async_large: -
+    [generate] fifo_read_async_small: -
+    [generate] fifo_read_sync_small: -
+    [logic] avail: avail
+    [logic] free: free
+    [logic] r_nxt: r_nxt
+    [logic] re: re
+    [logic] w_nxt: w_nxt
+    [logic] we: we
+    [process] async_r_pnt_reg: r_pnt_ff; clocked by clk_i
+    [process] level_extend: -
+    [process] pointer_reg: r_pnt, w_pnt; clocked by clk_i; reset by rstn_i
+    [process] sync_read_large: -; clocked by clk_i
+    [process] sync_status: -; clocked by clk_i; reset by rstn_i
+    [process] write_large: fifo_mem; clocked by clk_i
+    [process] write_reset_large: fifo_mem; clocked by clk_i; reset by rstn_i
+    [process] write_reset_small: fifo_reg; clocked by clk_i; reset by rstn_i
+    [process] write_small: fifo_reg; clocked by clk_i
+  ARROWS (==> a value moves; --> only decides; [the elements the arrow carries])
+    check_large ==> fifo_read_async   [half]
+    check_large ==> avail   [empty]
+    check_large ==> free   [full]
+    check_large ==> level_extend   [level]
+    check_large ==> sync_status   [half]
+    check_small ==> fifo_read_async   [half]
+    check_small ==> avail   [empty]
+    check_small ==> free   [full]
+    check_small ==> level_extend   [level]
+    check_small ==> sync_status   [half]
+    fifo_read_async ==> avail_o
+    fifo_read_async ==> free_o
+    fifo_read_async ==> half_o
+    fifo_read_async_large ==> rdata_o
+    fifo_read_async_small ==> rdata_o
+    fifo_read_sync_small ==> rdata_o
+    clear_i --> r_nxt   [clear_i]
+    clear_i --> w_nxt   [clear_i]
+    re_i ==> re   [re_i]
+    wdata_i ==> write_large   [wdata_i]
+    wdata_i ==> write_reset_large   [wdata_i]
+    wdata_i ==> write_reset_small   [wdata_i]
+    wdata_i ==> write_small   [wdata_i]
+    we_i ==> we   [we_i]
+    avail ==> fifo_read_async   [avail]
+    avail ==> re   [avail]
+    avail ==> sync_status   [avail]
+    free ==> fifo_read_async   [free]
+    free ==> we   [free]
+    free ==> sync_status   [free]
+    r_nxt ==> async_r_pnt_reg   [r_nxt]
+    r_nxt ==> pointer_reg   [r_nxt]
+    re --> r_nxt   [re]
+    w_nxt ==> pointer_reg   [w_nxt]
+    we --> w_nxt   [we]
+    we --> write_large   [we]
+    we --> write_reset_large   [we]
+    we --> write_reset_small   [we]
+    we --> write_small   [we]
+    async_r_pnt_reg --> fifo_read_async_large   [r_pnt_ff]
+    level_extend ==> level_o
+    pointer_reg ==> check_large   [r_pnt, w_pnt]
+    pointer_reg --> check_small   [r_pnt, w_pnt]
+    pointer_reg ==> r_nxt   [r_pnt]
+    pointer_reg ==> w_nxt   [w_pnt]
+    pointer_reg --> sync_read_large   [r_pnt]
+    pointer_reg --> write_large   [w_pnt]
+    pointer_reg --> write_reset_large   [w_pnt]
+    sync_read_large ==> rdata_o
+    sync_status ==> avail_o
+    sync_status ==> free_o
+    sync_status ==> half_o
+    write_large ==> fifo_read_async_large   [fifo_mem]
+    write_large ==> sync_read_large   [fifo_mem]
+    write_reset_large ==> fifo_read_async_large   [fifo_mem]
+    write_reset_large ==> sync_read_large   [fifo_mem]
+    write_reset_small ==> fifo_read_async_small   [fifo_reg]
+    write_reset_small ==> fifo_read_sync_small   [fifo_reg]
+    write_small ==> fifo_read_async_small   [fifo_reg]
+    write_small ==> fifo_read_sync_small   [fifo_reg]

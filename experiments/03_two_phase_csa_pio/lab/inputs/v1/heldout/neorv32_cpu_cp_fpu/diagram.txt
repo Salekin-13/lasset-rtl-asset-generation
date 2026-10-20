@@ -1,0 +1,214 @@
+UNIT neorv32_cpu_cp_fpu
+  INPUTS: clk_i, cmp_i, csr_addr_i, csr_wdata_i, csr_we_i, ctrl_i, rs1_i, rs2_i, rs3_i, rstn_i
+  OUTPUTS: csr_rdata_o, res_o, valid_o
+  BLOCKS
+    [inst] neorv32_cpu_cp_fpu_f2i_inst (neorv32_cpu_cp_fpu_f2i, this file): ctrl, ctrl.class, ctrl.cnt, ctrl.flags, ctrl.over, ctrl.result, ctrl.result_tmp, ctrl.rounded, ctrl.sign, ctrl.state, ctrl.under, ctrl.unsign, done_o, flags_o, fu_conv_f2i.done, fu_conv_f2i.flags, fu_conv_f2i.result, result_o, round, round.en, round.output, round.sub, sreg, sreg.ext_g, sreg.ext_r, sreg.ext_s, sreg.int, sreg.mant; clocked by clk_i; reset by rstn_i
+    [inst] neorv32_cpu_cp_fpu_normalizer_inst (neorv32_cpu_cp_fpu_normalizer, this file): ctrl, ctrl.class, ctrl.cnt, ctrl.cnt_of, ctrl.cnt_pre, ctrl.cnt_uf, ctrl.flags, ctrl.norm_r, ctrl.res_exp, ctrl.res_man, ctrl.res_sgn, ctrl.rounded, ctrl.state, done_o, flags_o, normalizer.done, normalizer.flags_out, normalizer.result, result_o, round, round.en, round.output, round.sub, sreg, sreg.dir, sreg.done, sreg.ext_g, sreg.ext_r, sreg.ext_s, sreg.lower, sreg.upper, sreg.zero; clocked by clk_i; reset by rstn_i
+    [logic] addsub.done: addsub.done
+    [logic] addsub.flags: addsub.flags
+    [logic] addsub.large_exp: addsub.large_exp
+    [logic] addsub.large_man: addsub.large_man
+    [logic] addsub.man_l: addsub.man_l
+    [logic] addsub.man_s: addsub.man_s
+    [logic] addsub.res_sum: addsub.res_sum
+    [logic] addsub.small_exp: addsub.small_exp
+    [logic] addsub.small_man: addsub.small_man
+    [logic] addsub.start: addsub.start
+    [logic] cmd.funct: cmd.funct
+    [logic] cmd.instr_addsub: cmd.instr_addsub
+    [logic] cmd.instr_class: cmd.instr_class
+    [logic] cmd.instr_comp: cmd.instr_comp
+    [logic] cmd.instr_f2i: cmd.instr_f2i
+    [logic] cmd.instr_i2f: cmd.instr_i2f
+    [logic] cmd.instr_minmax: cmd.instr_minmax
+    [logic] cmd.instr_mul: cmd.instr_mul
+    [logic] cmd.instr_sgnj: cmd.instr_sgnj
+    [logic] cmd.valid: cmd.valid
+    [logic] fu_addsub.done: fu_addsub.done
+    [logic] fu_addsub.flags: fu_addsub.flags
+    [logic] fu_addsub.result: fu_addsub.result
+    [logic] fu_addsub.start: fu_addsub.start
+    [logic] fu_classify.done: fu_classify.done
+    [logic] fu_classify.flags: fu_classify.flags
+    [logic] fu_classify.result: fu_classify.result
+    [logic] fu_classify.start: fu_classify.start
+    [logic] fu_compare.start: fu_compare.start
+    [logic] fu_conv_f2i.start: fu_conv_f2i.start
+    [logic] fu_conv_i2f.start: fu_conv_i2f.start
+    [logic] fu_core_done: fu_core_done
+    [logic] fu_min_max.start: fu_min_max.start
+    [logic] fu_mul.done: fu_mul.done
+    [logic] fu_mul.flags: fu_mul.flags
+    [logic] fu_mul.result: fu_mul.result
+    [logic] fu_mul.start: fu_mul.start
+    [logic] fu_sign_inject.done: fu_sign_inject.done
+    [logic] fu_sign_inject.start: fu_sign_inject.start
+    [logic] multiplier.done: multiplier.done
+    [logic] multiplier.exp_sum: multiplier.exp_sum
+    [logic] multiplier.start: multiplier.start
+    [logic] op_data: op_data
+    [process] adder_subtractor_class_core: addsub.res_class; clocked by clk_i; reset by rstn_i
+    [process] adder_subtractor_core: addsub.add_stage, addsub.exp_cnt, addsub.exp_comp, addsub.flags, addsub.latency, addsub.man_comp, addsub.man_g_ext, addsub.man_r_ext, addsub.man_s_ext, addsub.man_sreg, addsub.res_sign; clocked by clk_i; reset by rstn_i
+    [process] control_engine_fsm: cmp_ff, ctrl_engine.start, ctrl_engine.state, ctrl_engine.valid, fpu_operands.frm, fpu_operands.rs1, fpu_operands.rs1_class, fpu_operands.rs2, fpu_operands.rs2_class, funct_ff; clocked by clk_i; reset by rstn_i
+    [process] convert_i2f: fu_conv_i2f.done, fu_conv_i2f.result, fu_conv_i2f.sign; clocked by clk_i; reset by rstn_i
+    [process] csr_read: -
+    [process] csr_write: csr_fflags, csr_frm; clocked by clk_i; reset by rstn_i
+    [process] float_comparator: comp_equal_ff, comp_less_ff, fu_compare.done, fu_min_max.done; clocked by clk_i; reset by rstn_i
+    [process] float_comparison: fu_compare.flags, fu_compare.result
+    [process] min_max_select: fu_min_max.flags, fu_min_max.result
+    [process] multiplier_class_core: multiplier.res_class; clocked by clk_i; reset by rstn_i
+    [process] multiplier_core: multiplier.buf_ff, multiplier.exp_res, multiplier.flags, multiplier.latency, multiplier.opa, multiplier.opb, multiplier.product, multiplier.sign; clocked by clk_i; reset by rstn_i
+    [process] normalizer_input_select: normalizer.class, normalizer.flags_in, normalizer.mode, normalizer.sign, normalizer.start, normalizer.xexp, normalizer.xmantissa
+    [process] number_classifier: op_class
+    [process] output_gate: fflags; clocked by clk_i; reset by rstn_i
+    [process] sign_injector: fu_sign_inject.flags, fu_sign_inject.result
+  ARROWS (==> a value moves; --> only decides; [the elements the arrow carries])
+    clk_i ==> neorv32_cpu_cp_fpu_f2i_inst   [clk_i]
+    clk_i ==> neorv32_cpu_cp_fpu_normalizer_inst   [clk_i]
+    cmp_i ==> control_engine_fsm   [cmp_i]
+    csr_addr_i --> csr_read   [csr_addr_i]
+    csr_addr_i --> csr_write   [csr_addr_i]
+    csr_wdata_i ==> csr_write   [csr_wdata_i]
+    csr_we_i --> csr_write   [csr_we_i]
+    ctrl_i ==> neorv32_cpu_cp_fpu_f2i_inst   [ctrl_i.{cpu_trap,ir_funct12}]
+    ctrl_i ==> neorv32_cpu_cp_fpu_normalizer_inst   [ctrl_i.cpu_trap]
+    ctrl_i --> cmd.instr_addsub   [ctrl_i.ir_funct12]
+    ctrl_i --> cmd.instr_class   [ctrl_i.{ir_funct12,ir_funct3}]
+    ctrl_i --> cmd.instr_comp   [ctrl_i.{ir_funct12,ir_funct3}]
+    ctrl_i --> cmd.instr_f2i   [ctrl_i.ir_funct12]
+    ctrl_i --> cmd.instr_i2f   [ctrl_i.ir_funct12]
+    ctrl_i --> cmd.instr_minmax   [ctrl_i.{ir_funct12,ir_funct3}]
+    ctrl_i --> cmd.instr_mul   [ctrl_i.ir_funct12]
+    ctrl_i --> cmd.instr_sgnj   [ctrl_i.{ir_funct12,ir_funct3}]
+    ctrl_i --> cmd.valid   [ctrl_i.ir_funct12]
+    ctrl_i --> adder_subtractor_class_core   [ctrl_i.ir_funct12]
+    ctrl_i --> adder_subtractor_core   [ctrl_i.ir_funct12]
+    ctrl_i ==> control_engine_fsm   [ctrl_i.{alu_cp_fpu,cpu_trap,ir_funct3}]
+    ctrl_i --> convert_i2f   [ctrl_i.ir_funct12]
+    ctrl_i --> float_comparison   [ctrl_i.ir_funct3]
+    ctrl_i --> min_max_select   [ctrl_i.ir_funct3]
+    ctrl_i --> sign_injector   [ctrl_i.ir_funct3]
+    rs1_i ==> op_data   [rs1_i]
+    rs1_i ==> convert_i2f   [rs1_i]
+    rs1_i ==> number_classifier   [rs1_i]
+    rs1_i ==> sign_injector   [rs1_i]
+    rs2_i ==> op_data   [rs2_i]
+    rs2_i ==> number_classifier   [rs2_i]
+    rstn_i ==> neorv32_cpu_cp_fpu_f2i_inst   [rstn_i]
+    rstn_i ==> neorv32_cpu_cp_fpu_normalizer_inst   [rstn_i]
+    neorv32_cpu_cp_fpu_f2i_inst ==> fu_core_done   [fu_conv_f2i.done]
+    neorv32_cpu_cp_fpu_f2i_inst ==> output_gate   [fu_conv_f2i.{flags,result}]
+    neorv32_cpu_cp_fpu_normalizer_inst ==> fu_core_done   [normalizer.done]
+    neorv32_cpu_cp_fpu_normalizer_inst ==> output_gate   [normalizer.{flags_out,result}]
+    addsub.done ==> fu_addsub.done   [addsub.done]
+    addsub.done ==> normalizer_input_select   [addsub.done]
+    addsub.flags ==> normalizer_input_select   [addsub.flags]
+    addsub.large_exp ==> adder_subtractor_core   [addsub.large_exp]
+    addsub.large_man ==> addsub.man_l   [addsub.large_man]
+    addsub.large_man ==> addsub.man_s   [addsub.large_man]
+    addsub.large_man --> adder_subtractor_core   [addsub.large_man]
+    addsub.man_l ==> adder_subtractor_core   [addsub.man_l]
+    addsub.man_s ==> adder_subtractor_core   [addsub.man_s]
+    addsub.res_sum ==> normalizer_input_select   [addsub.res_sum]
+    addsub.small_exp ==> adder_subtractor_core   [addsub.small_exp]
+    addsub.small_man ==> adder_subtractor_core   [addsub.small_man]
+    addsub.start ==> adder_subtractor_core   [addsub.start]
+    cmd.funct ==> control_engine_fsm   [cmd.funct]
+    cmd.instr_addsub --> cmd.funct   [cmd.instr_addsub]
+    cmd.instr_addsub --> cmd.valid   [cmd.instr_addsub]
+    cmd.instr_addsub ==> fu_addsub.start   [cmd.instr_addsub]
+    cmd.instr_class --> cmd.valid   [cmd.instr_class]
+    cmd.instr_class ==> fu_classify.start   [cmd.instr_class]
+    cmd.instr_comp --> cmd.funct   [cmd.instr_comp]
+    cmd.instr_comp --> cmd.valid   [cmd.instr_comp]
+    cmd.instr_comp ==> fu_compare.start   [cmd.instr_comp]
+    cmd.instr_f2i --> cmd.funct   [cmd.instr_f2i]
+    cmd.instr_f2i --> cmd.valid   [cmd.instr_f2i]
+    cmd.instr_f2i ==> fu_conv_f2i.start   [cmd.instr_f2i]
+    cmd.instr_i2f --> cmd.funct   [cmd.instr_i2f]
+    cmd.instr_i2f --> cmd.valid   [cmd.instr_i2f]
+    cmd.instr_i2f ==> fu_conv_i2f.start   [cmd.instr_i2f]
+    cmd.instr_minmax --> cmd.funct   [cmd.instr_minmax]
+    cmd.instr_minmax --> cmd.valid   [cmd.instr_minmax]
+    cmd.instr_minmax ==> fu_min_max.start   [cmd.instr_minmax]
+    cmd.instr_mul --> cmd.funct   [cmd.instr_mul]
+    cmd.instr_mul --> cmd.valid   [cmd.instr_mul]
+    cmd.instr_mul ==> fu_mul.start   [cmd.instr_mul]
+    cmd.instr_sgnj --> cmd.funct   [cmd.instr_sgnj]
+    cmd.instr_sgnj --> cmd.valid   [cmd.instr_sgnj]
+    cmd.instr_sgnj ==> fu_sign_inject.start   [cmd.instr_sgnj]
+    cmd.valid --> control_engine_fsm   [cmd.valid]
+    fu_addsub.start ==> addsub.start   [fu_addsub.start]
+    fu_classify.done ==> fu_core_done   [fu_classify.done]
+    fu_classify.flags ==> output_gate   [fu_classify.flags]
+    fu_classify.result ==> output_gate   [fu_classify.result]
+    fu_classify.start ==> fu_classify.done   [fu_classify.start]
+    fu_compare.start ==> float_comparator   [fu_compare.start]
+    fu_conv_f2i.start ==> neorv32_cpu_cp_fpu_f2i_inst   [fu_conv_f2i.start]
+    fu_conv_i2f.start ==> convert_i2f   [fu_conv_i2f.start]
+    fu_core_done --> control_engine_fsm   [fu_core_done]
+    fu_min_max.start ==> float_comparator   [fu_min_max.start]
+    fu_mul.start ==> multiplier.start   [fu_mul.start]
+    fu_sign_inject.done ==> fu_core_done   [fu_sign_inject.done]
+    fu_sign_inject.start ==> fu_sign_inject.done   [fu_sign_inject.start]
+    multiplier.done ==> fu_mul.done   [multiplier.done]
+    multiplier.done ==> normalizer_input_select   [multiplier.done]
+    multiplier.exp_sum ==> multiplier_core   [multiplier.exp_sum]
+    multiplier.start ==> multiplier_core   [multiplier.start]
+    op_data ==> control_engine_fsm   [op_data]
+    op_data ==> number_classifier   [op_data]
+    adder_subtractor_class_core ==> normalizer_input_select   [addsub.res_class]
+    adder_subtractor_core ==> addsub.done   [addsub.latency]
+    adder_subtractor_core --> addsub.large_exp   [addsub.exp_comp]
+    adder_subtractor_core --> addsub.large_man   [addsub.exp_comp]
+    adder_subtractor_core ==> addsub.man_l   [addsub.{man_comp,man_g_ext,man_r_ext,man_s_ext,man_sreg}]
+    adder_subtractor_core ==> addsub.man_s   [addsub.{man_comp,man_g_ext,man_r_ext,man_s_ext,man_sreg}]
+    adder_subtractor_core ==> addsub.res_sum   [addsub.add_stage]
+    adder_subtractor_core --> addsub.small_exp   [addsub.exp_comp]
+    adder_subtractor_core --> addsub.small_man   [addsub.exp_comp]
+    adder_subtractor_core ==> normalizer_input_select   [addsub.{exp_cnt,flags,res_sign}]
+    control_engine_fsm ==> neorv32_cpu_cp_fpu_f2i_inst   [fpu_operands.{frm,rs1,rs1_class}]
+    control_engine_fsm ==> neorv32_cpu_cp_fpu_normalizer_inst   [fpu_operands.frm]
+    control_engine_fsm ==> addsub.large_exp   [fpu_operands.{rs1,rs2}]
+    control_engine_fsm ==> addsub.large_man   [fpu_operands.{rs1,rs2}]
+    control_engine_fsm ==> addsub.small_exp   [fpu_operands.{rs1,rs2}]
+    control_engine_fsm ==> addsub.small_man   [fpu_operands.{rs1,rs2}]
+    control_engine_fsm ==> fu_addsub.start   [ctrl_engine.start]
+    control_engine_fsm ==> fu_classify.result   [fpu_operands.rs1_class]
+    control_engine_fsm ==> fu_classify.start   [ctrl_engine.start]
+    control_engine_fsm ==> fu_compare.start   [ctrl_engine.start]
+    control_engine_fsm ==> fu_conv_f2i.start   [ctrl_engine.start]
+    control_engine_fsm ==> fu_conv_i2f.start   [ctrl_engine.start]
+    control_engine_fsm ==> fu_min_max.start   [ctrl_engine.start]
+    control_engine_fsm ==> fu_mul.start   [ctrl_engine.start]
+    control_engine_fsm ==> fu_sign_inject.start   [ctrl_engine.start]
+    control_engine_fsm ==> multiplier.exp_sum   [fpu_operands.{rs1,rs2}]
+    control_engine_fsm ==> valid_o   [ctrl_engine.valid]
+    control_engine_fsm ==> adder_subtractor_class_core   [fpu_operands.{rs1_class,rs2_class}]
+    control_engine_fsm ==> adder_subtractor_core   [ctrl_engine.state, fpu_operands.{frm,rs1,rs1_class,rs2,rs2_class}]
+    control_engine_fsm ==> float_comparator   [cmp_ff, fpu_operands.{rs1,rs1_class,rs2,rs2_class}]
+    control_engine_fsm ==> float_comparison   [fpu_operands.{rs1_class,rs2_class}]
+    control_engine_fsm ==> min_max_select   [fpu_operands.{rs1,rs1_class,rs2,rs2_class}]
+    control_engine_fsm ==> multiplier_class_core   [fpu_operands.{rs1_class,rs2_class}]
+    control_engine_fsm ==> multiplier_core   [fpu_operands.{rs1,rs1_class,rs2,rs2_class}]
+    control_engine_fsm --> normalizer_input_select   [funct_ff]
+    control_engine_fsm --> output_gate   [ctrl_engine.valid, funct_ff]
+    control_engine_fsm ==> sign_injector   [fpu_operands.{rs1,rs2}]
+    convert_i2f ==> neorv32_cpu_cp_fpu_normalizer_inst   [fu_conv_i2f.result]
+    convert_i2f ==> normalizer_input_select   [fu_conv_i2f.{done,sign}]
+    csr_read ==> csr_rdata_o
+    csr_write ==> control_engine_fsm   [csr_frm]
+    csr_write ==> csr_read   [csr_fflags, csr_frm]
+    float_comparator ==> fu_core_done   [fu_compare.done, fu_min_max.done]
+    float_comparator ==> float_comparison   [comp_equal_ff, comp_less_ff]
+    float_comparator --> min_max_select   [comp_less_ff]
+    float_comparison ==> output_gate   [fu_compare.{flags,result}]
+    min_max_select ==> output_gate   [fu_min_max.{flags,result}]
+    multiplier_class_core ==> normalizer_input_select   [multiplier.res_class]
+    multiplier_core ==> multiplier.done   [multiplier.latency]
+    multiplier_core ==> normalizer_input_select   [multiplier.{exp_res,flags,product,sign}]
+    normalizer_input_select ==> neorv32_cpu_cp_fpu_normalizer_inst   [normalizer.{class,flags_in,mode,sign,start,xexp,xmantissa}]
+    number_classifier ==> control_engine_fsm   [op_class]
+    output_gate ==> res_o
+    output_gate ==> csr_write   [fflags]
+    sign_injector ==> output_gate   [fu_sign_inject.{flags,result}]

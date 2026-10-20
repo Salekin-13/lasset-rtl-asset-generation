@@ -1,0 +1,74 @@
+UNIT neorv32_cpu_pmp
+  INPUTS: addr_ls_i, clk_i, ctrl_i, rstn_i
+  OUTPUTS: csr_o, fault_o
+  BLOCKS
+    [generate] addr_mask_napot_gen: addr_mask_napot
+    [generate] addr_match_r0_gen: cmp_ge, cmp_lt
+    [generate] addr_match_rn_gen: cmp_ge, cmp_lt
+    [generate] csr_read_back_gen: cfg_rd
+    [generate] csr_read_back_pack: cfg_rd32
+    [generate] csr_read_back_terminate: addr_rd, cfg_rd
+    [generate] fault_check_gen: fail
+    [generate] nap_mode_disable: addr_mask, addr_mask_napot
+    [generate] nap_mode_enable: addr_mask_napot
+    [generate] region_gen: cmp_na
+    [logic] acc_addr: acc_addr
+    [logic] acc_priv: acc_priv
+    [logic] fail: fail
+    [process] addr_masking: addr_mask; clocked by clk_i; reset by rstn_i
+    [process] address_read_back: addr_rd
+    [process] csr_pmpaddr: pmpaddr; clocked by clk_i; reset by rstn_i
+    [process] csr_pmpcfg: pmpcfg; clocked by clk_i; reset by rstn_i
+    [process] csr_read_access: -
+    [process] csr_we_addr: pmpaddr_we
+    [process] csr_we_cfg: pmpcfg_we
+    [process] fault_check: -; clocked by clk_i; reset by rstn_i
+    [process] match_gen: match
+    [process] perm_gen: allow
+  ARROWS (==> a value moves; --> only decides; [the elements the arrow carries])
+    addr_mask_napot_gen ==> addr_masking   [addr_mask_napot]
+    addr_match_r0_gen ==> match_gen   [cmp_ge, cmp_lt]
+    addr_match_rn_gen ==> match_gen   [cmp_ge, cmp_lt]
+    csr_read_back_gen ==> csr_read_back_pack   [cfg_rd]
+    csr_read_back_pack ==> csr_read_access   [cfg_rd32]
+    csr_read_back_terminate ==> csr_read_back_pack   [cfg_rd]
+    csr_read_back_terminate ==> csr_read_access   [addr_rd]
+    fault_check_gen ==> fault_check   [fail]
+    nap_mode_disable --> region_gen   [addr_mask]
+    nap_mode_enable ==> addr_mask_napot_gen   [addr_mask_napot]
+    nap_mode_enable ==> addr_masking   [addr_mask_napot]
+    region_gen ==> match_gen   [cmp_na]
+    addr_ls_i ==> acc_addr   [addr_ls_i]
+    ctrl_i ==> acc_addr   [ctrl_i.{lsu_mo_we,pc_nxt}]
+    ctrl_i ==> acc_priv   [ctrl_i.{cpu_priv,lsu_mo_we,lsu_priv}]
+    ctrl_i ==> csr_pmpaddr   [ctrl_i.csr_wdata]
+    ctrl_i ==> csr_pmpcfg   [ctrl_i.csr_wdata]
+    ctrl_i --> csr_read_access   [ctrl_i.csr_addr]
+    ctrl_i --> csr_we_addr   [ctrl_i.{csr_addr,csr_we}]
+    ctrl_i --> csr_we_cfg   [ctrl_i.{csr_addr,csr_we}]
+    ctrl_i ==> fault_check   [ctrl_i.cpu_debug]
+    ctrl_i --> perm_gen   [ctrl_i.{lsu_mo_we,lsu_rw}]
+    acc_addr --> addr_match_rn_gen   [acc_addr]
+    acc_addr --> region_gen   [acc_addr]
+    acc_priv --> fail   [acc_priv]
+    acc_priv --> perm_gen   [acc_priv]
+    fail ==> fault_check_gen   [fail]
+    fail ==> fault_check   [fail]
+    addr_masking --> region_gen   [addr_mask]
+    address_read_back ==> csr_read_access   [addr_rd]
+    csr_pmpaddr ==> addr_mask_napot_gen   [pmpaddr]
+    csr_pmpaddr --> addr_match_rn_gen   [pmpaddr]
+    csr_pmpaddr --> region_gen   [pmpaddr]
+    csr_pmpaddr ==> address_read_back   [pmpaddr]
+    csr_pmpcfg ==> csr_read_back_gen   [pmpcfg]
+    csr_pmpcfg --> addr_masking   [pmpcfg]
+    csr_pmpcfg --> address_read_back   [pmpcfg]
+    csr_pmpcfg --> csr_pmpaddr   [pmpcfg]
+    csr_pmpcfg --> match_gen   [pmpcfg]
+    csr_pmpcfg ==> perm_gen   [pmpcfg]
+    csr_read_access ==> csr_o
+    csr_we_addr --> csr_pmpaddr   [pmpaddr_we]
+    csr_we_cfg --> csr_pmpcfg   [pmpcfg_we]
+    fault_check ==> fault_o
+    match_gen --> fault_check_gen   [match]
+    perm_gen ==> fault_check_gen   [allow]

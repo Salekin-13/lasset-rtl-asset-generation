@@ -1,0 +1,289 @@
+   18 | entity neorv32_onewire is
+   19 |   generic (
+   20 |     ONEWIRE_FIFO : natural range 1 to 2**15
+   21 |   );
+   22 |   port (
+   23 |     clk_i       : in  std_ulogic;
+   24 |     rstn_i      : in  std_ulogic;
+   25 |     bus_req_i   : in  bus_req_t;
+   26 |     bus_rsp_o   : out bus_rsp_t;
+   27 |     clkgen_en_o : out std_ulogic;
+   28 |     clkgen_i    : in  std_ulogic_vector(7 downto 0);
+   29 |     onewire_i   : in  std_ulogic;
+   30 |     onewire_o   : out std_ulogic;
+   31 |     irq_o       : out std_ulogic
+   32 |   );
+   33 | end neorv32_onewire;
+
+   35 | architecture neorv32_onewire_rtl of neorv32_onewire is
+   39 |   constant t_write_one_c       : unsigned(6 downto 0) := to_unsigned( 1, 7);
+   40 |   constant t_read_sample_c     : unsigned(6 downto 0) := to_unsigned( 2, 7);
+   41 |   constant t_slot_end_c        : unsigned(6 downto 0) := to_unsigned( 7, 7);
+   42 |   constant t_pause_end_c       : unsigned(6 downto 0) := to_unsigned( 9, 7);
+   43 |   constant t_reset_end_c       : unsigned(6 downto 0) := to_unsigned(48, 7);
+   44 |   constant t_presence_sample_c : unsigned(6 downto 0) := to_unsigned(55, 7);
+   45 |   constant t_presence_end_c    : unsigned(6 downto 0) := to_unsigned(96, 7);
+   48 |   constant ctrl_en_c         : natural :=  0;
+   49 |   constant ctrl_clear_c      : natural :=  1;
+   50 |   constant ctrl_prsc0_c      : natural :=  2;
+   51 |   constant ctrl_prsc1_c      : natural :=  3;
+   52 |   constant ctrl_clkdiv0_c    : natural :=  4;
+   53 |   constant ctrl_clkdiv7_c    : natural := 11;
+   55 |   constant ctrl_fifo_size0_c : natural := 15;
+   56 |   constant ctrl_fifo_size3_c : natural := 18;
+   58 |   constant ctrl_tx_full_c    : natural := 28;
+   59 |   constant ctrl_rx_avail_c   : natural := 29;
+   60 |   constant ctrl_sense_c      : natural := 30;
+   61 |   constant ctrl_busy_c       : natural := 31;
+   64 |   constant dcmd_lsb_c    : natural :=  0;
+   65 |   constant dcmd_msb_c    : natural :=  7;
+   66 |   constant dcmd_cmd_lo_c : natural :=  8;
+   67 |   constant dcmd_cmd_hi_c : natural :=  9;
+   68 |   constant dcmd_pres_c   : natural := 10;
+   71 |   constant cmd_nop_c : std_ulogic_vector(1 downto 0) := "00";
+   72 |   constant cmd_bit_c : std_ulogic_vector(1 downto 0) := "01";
+   73 |   constant cmd_byt_c : std_ulogic_vector(1 downto 0) := "10";
+   74 |   constant cmd_rst_c : std_ulogic_vector(1 downto 0) := "11";
+   77 |   constant log2_fifo_size_c : natural := index_size_f(ONEWIRE_FIFO);
+   80 |   type ctrl_t is record
+   81 |     enable    : std_ulogic;
+   82 |     clear     : std_ulogic;
+   83 |     clk_prsc  : std_ulogic_vector(1 downto 0);
+   84 |     clk_div   : std_ulogic_vector(7 downto 0);
+   85 |   end record;
+   86 |   signal ctrl : ctrl_t;
+   89 |   type fifo_t is record
+   90 |     rx_clr,   tx_clr   : std_ulogic;
+   91 |     rx_we,    tx_we    : std_ulogic;
+   92 |     rx_re,    tx_re    : std_ulogic;
+   93 |     rx_rdata, rx_wdata : std_ulogic_vector(8 downto 0);
+   94 |     tx_rdata, tx_wdata : std_ulogic_vector(9 downto 0);
+   95 |     rx_avail, tx_avail : std_ulogic;
+   96 |     rx_free,  tx_free  : std_ulogic;
+   97 |   end record;
+   98 |   signal fifo : fifo_t;
+  101 |   signal clk_src   : std_ulogic_vector(3 downto 0);
+  102 |   signal clk_cnt   : unsigned(7 downto 0);
+  103 |   signal clk_tick  : std_ulogic;
+  104 |   signal clk_tick2 : std_ulogic;
+  107 |   type serial_t is record
+  108 |     state    : std_ulogic_vector(2 downto 0);
+  109 |     busy     : std_ulogic;
+  110 |     bit_cnt  : unsigned(2 downto 0);
+  111 |     tick_cnt : unsigned(6 downto 0);
+  112 |     sreg     : std_ulogic_vector(7 downto 0);
+  113 |     wire_in  : std_ulogic_vector(1 downto 0);
+  114 |     wire_lo  : std_ulogic;
+  115 |     wire_hi  : std_ulogic;
+  116 |     sample   : std_ulogic;
+  117 |     presence : std_ulogic;
+  118 |     done     : std_ulogic;
+  119 |   end record;
+  120 |   signal serial : serial_t;
+  122 | begin
+  126 |   bus_access: process(rstn_i, clk_i)
+  127 |   begin
+  128 |     if (rstn_i = '0') then
+  129 |       bus_rsp_o     <= rsp_terminate_c;
+  130 |       ctrl.enable   <= '0';
+  131 |       ctrl.clk_prsc <= (others => '0');
+  132 |       ctrl.clk_div  <= (others => '0');
+  133 |       ctrl.clear    <= '0';
+  134 |     elsif rising_edge(clk_i) then
+  136 |       bus_rsp_o.ack  <= bus_req_i.stb;
+  137 |       bus_rsp_o.err  <= '0';
+  138 |       bus_rsp_o.data <= (others => '0');
+  140 |       ctrl.clear <= '0';
+  141 |       if (bus_req_i.stb = '1') and (bus_req_i.rw = '1') and (bus_req_i.addr(2) = '0') then
+  142 |         ctrl.enable   <= bus_req_i.data(ctrl_en_c);
+  143 |         ctrl.clear    <= bus_req_i.data(ctrl_clear_c);
+  144 |         ctrl.clk_prsc <= bus_req_i.data(ctrl_prsc1_c downto ctrl_prsc0_c);
+  145 |         ctrl.clk_div  <= bus_req_i.data(ctrl_clkdiv7_c downto ctrl_clkdiv0_c);
+  146 |       end if;
+  148 |       if (bus_req_i.stb = '1') and (bus_req_i.rw = '0') then
+  149 |         if (bus_req_i.addr(2) = '0') then
+  150 |           bus_rsp_o.data(ctrl_en_c)                            <= ctrl.enable;
+  151 |           bus_rsp_o.data(ctrl_prsc1_c downto ctrl_prsc0_c)     <= ctrl.clk_prsc;
+  152 |           bus_rsp_o.data(ctrl_clkdiv7_c downto ctrl_clkdiv0_c) <= ctrl.clk_div;
+  154 |           bus_rsp_o.data(ctrl_fifo_size3_c downto ctrl_fifo_size0_c) <= std_ulogic_vector(to_unsigned(log2_fifo_size_c, 4));
+  156 |           bus_rsp_o.data(ctrl_tx_full_c)  <= not fifo.tx_free;
+  157 |           bus_rsp_o.data(ctrl_rx_avail_c) <= fifo.rx_avail;
+  158 |           bus_rsp_o.data(ctrl_sense_c)    <= serial.wire_in(1);
+  159 |           bus_rsp_o.data(ctrl_busy_c)     <= fifo.tx_avail or serial.busy;
+  160 |         else
+  161 |           bus_rsp_o.data(dcmd_msb_c downto dcmd_lsb_c) <= fifo.rx_rdata(7 downto 0);
+  162 |           bus_rsp_o.data(dcmd_pres_c)                  <= fifo.rx_rdata(8);
+  163 |         end if;
+  164 |       end if;
+  166 |     end if;
+  167 |   end process bus_access;
+  174 |   tx_fifo_inst: entity neorv32.neorv32_fifo
+  175 |   generic map (
+  176 |     FIFO_DEPTH => ONEWIRE_FIFO,
+  177 |     FIFO_WIDTH => 10,
+  178 |     FIFO_RSYNC => true,
+  179 |     FIFO_SAFE  => true,
+  180 |     FULL_RESET => false
+  181 |   )
+  182 |   port map (
+  184 |     clk_i   => clk_i,
+  185 |     rstn_i  => rstn_i,
+  186 |     clear_i => fifo.tx_clr,
+  187 |     half_o  => open,
+  188 |     level_o => open,
+  190 |     wdata_i => fifo.tx_wdata,
+  191 |     we_i    => fifo.tx_we,
+  192 |     free_o  => fifo.tx_free,
+  194 |     re_i    => fifo.tx_re,
+  195 |     rdata_o => fifo.tx_rdata,
+  196 |     avail_o => fifo.tx_avail
+  197 |   );
+  199 |   fifo.tx_clr   <= '1' when (ctrl.enable = '0') or (ctrl.clear = '1') else '0';
+  200 |   fifo.tx_we    <= '1' when (bus_req_i.stb = '1') and (bus_req_i.rw = '1') and (bus_req_i.addr(2) = '1') else '0';
+  201 |   fifo.tx_wdata <= bus_req_i.data(dcmd_cmd_hi_c downto dcmd_cmd_lo_c) & bus_req_i.data(dcmd_msb_c downto dcmd_lsb_c);
+  202 |   fifo.tx_re    <= '1' when (serial.state = "101") and (clk_tick = '1') else '0';
+  206 |   rx_fifo_inst: entity neorv32.neorv32_fifo
+  207 |   generic map (
+  208 |     FIFO_DEPTH => ONEWIRE_FIFO,
+  209 |     FIFO_WIDTH => 9,
+  210 |     FIFO_RSYNC => true,
+  211 |     FIFO_SAFE  => true,
+  212 |     FULL_RESET => false
+  213 |   )
+  214 |   port map (
+  216 |     clk_i   => clk_i,
+  217 |     rstn_i  => rstn_i,
+  218 |     clear_i => fifo.rx_clr,
+  219 |     half_o  => open,
+  220 |     level_o => open,
+  222 |     wdata_i => fifo.rx_wdata,
+  223 |     we_i    => fifo.rx_we,
+  224 |     free_o  => fifo.rx_free,
+  226 |     re_i    => fifo.rx_re,
+  227 |     rdata_o => fifo.rx_rdata,
+  228 |     avail_o => fifo.rx_avail
+  229 |   );
+  231 |   fifo.rx_clr   <= '1' when (ctrl.enable = '0') or (ctrl.clear = '1') else '0';
+  232 |   fifo.rx_wdata <= serial.presence & serial.sreg;
+  233 |   fifo.rx_we    <= serial.done;
+  234 |   fifo.rx_re    <= '1' when (bus_req_i.stb = '1') and (bus_req_i.rw = '0') and (bus_req_i.addr(2) = '1') else '0';
+  238 |   irq_generator: process(rstn_i, clk_i)
+  239 |   begin
+  240 |     if (rstn_i = '0') then
+  241 |       irq_o <= '0';
+  242 |     elsif rising_edge(clk_i) then
+  243 |       irq_o <= ctrl.enable and (not fifo.tx_avail) and (not serial.busy);
+  244 |     end if;
+  245 |   end process irq_generator;
+  250 |   clock_generator: process(rstn_i, clk_i)
+  251 |   begin
+  252 |     if (rstn_i = '0') then
+  253 |       clk_cnt   <= (others => '0');
+  254 |       clk_tick  <= '0';
+  255 |       clk_tick2 <= '0';
+  256 |     elsif rising_edge(clk_i) then
+  257 |       clk_tick <= '0';
+  258 |       if (ctrl.enable = '0') then
+  259 |         clk_cnt <= (others => '0');
+  260 |       elsif (clk_src(to_integer(unsigned(ctrl.clk_prsc))) = '1') then
+  261 |         if (clk_cnt = unsigned(ctrl.clk_div)) then
+  262 |           clk_cnt  <= (others => '0');
+  263 |           clk_tick <= '1';
+  264 |         else
+  265 |           clk_cnt <= clk_cnt + 1;
+  266 |         end if;
+  267 |       end if;
+  268 |       clk_tick2 <= clk_tick;
+  269 |     end if;
+  270 |   end process clock_generator;
+  273 |   clkgen_en_o <= ctrl.enable;
+  276 |   clk_src <= clkgen_i(3 downto 0);
+  281 |   serial_engine: process(rstn_i, clk_i)
+  282 |   begin
+  283 |     if (rstn_i = '0') then
+  284 |       serial.wire_in  <= (others => '0');
+  285 |       serial.wire_lo  <= '0';
+  286 |       serial.wire_hi  <= '0';
+  287 |       serial.state    <= (others => '0');
+  288 |       serial.tick_cnt <= (others => '0');
+  289 |       serial.bit_cnt  <= (others => '0');
+  290 |       serial.sreg     <= (others => '0');
+  291 |       serial.sample   <= '0';
+  292 |       serial.done     <= '0';
+  293 |       onewire_o       <= '0';
+  294 |     elsif rising_edge(clk_i) then
+  296 |       serial.wire_in <= serial.wire_in(0) & to_stdulogic(to_bit(onewire_i));
+  299 |       if (serial.busy = '0') or (serial.wire_hi = '1') then
+  300 |         onewire_o <= '1';
+  301 |       elsif (serial.wire_lo = '1') then
+  302 |         onewire_o <= '0';
+  303 |       end if;
+  306 |       serial.wire_lo <= '0';
+  307 |       serial.wire_hi <= '0';
+  308 |       serial.done    <= '0';
+  311 |       serial.state(2) <= ctrl.enable;
+  312 |       case serial.state is
+  314 |         when "100" =>
+  316 |           serial.tick_cnt <= (others => '0');
+  317 |           if (fifo.tx_avail = '1') then
+  318 |             serial.state(1 downto 0) <= "01";
+  319 |           end if;
+  321 |         when "101" =>
+  323 |           if (fifo.tx_rdata(dcmd_cmd_hi_c downto dcmd_cmd_lo_c) = cmd_bit_c) then
+  324 |             serial.bit_cnt <= "000";
+  325 |           else
+  326 |             serial.bit_cnt <= "111";
+  327 |           end if;
+  328 |           serial.sreg <= fifo.tx_rdata(dcmd_msb_c downto dcmd_lsb_c);
+  329 |           if (clk_tick = '1') then
+  330 |             serial.wire_lo <= '1';
+  331 |             case fifo.tx_rdata(dcmd_cmd_hi_c downto dcmd_cmd_lo_c) is
+  332 |               when cmd_bit_c => serial.state(1 downto 0) <= "10";
+  333 |               when cmd_byt_c => serial.state(1 downto 0) <= "10";
+  334 |               when cmd_rst_c => serial.state(1 downto 0) <= "11";
+  335 |               when others    => serial.state(1 downto 0) <= "00";
+  336 |             end case;
+  337 |           end if;
+  339 |         when "110" =>
+  342 |           if ((serial.tick_cnt = t_write_one_c) and (serial.sreg(0) = '1')) or (serial.tick_cnt = t_slot_end_c) then
+  343 |             serial.wire_hi <= '1';
+  344 |           end if;
+  346 |           if (serial.tick_cnt = t_read_sample_c) and (clk_tick2 = '1') then
+  347 |             serial.sample <= serial.wire_in(1);
+  348 |           end if;
+  350 |           if (serial.tick_cnt = t_pause_end_c) then
+  351 |             serial.tick_cnt <= (others => '0');
+  352 |             serial.sreg     <= serial.sample & serial.sreg(7 downto 1);
+  353 |             serial.bit_cnt  <= serial.bit_cnt - 1;
+  354 |             if (serial.bit_cnt = "000") then
+  355 |               serial.done              <= '1';
+  356 |               serial.state(1 downto 0) <= "00";
+  357 |             else
+  358 |               serial.wire_lo <= '1';
+  359 |             end if;
+  360 |           elsif (clk_tick = '1') then
+  361 |             serial.tick_cnt <= serial.tick_cnt + 1;
+  362 |           end if;
+  364 |         when "111" =>
+  366 |           if (clk_tick = '1') then
+  367 |             serial.tick_cnt <= serial.tick_cnt + 1;
+  368 |           end if;
+  370 |           if (serial.tick_cnt = t_reset_end_c) then
+  371 |             serial.wire_hi <= '1';
+  372 |           end if;
+  374 |           if (serial.tick_cnt = t_presence_sample_c) and (clk_tick2 = '1') then
+  375 |             serial.presence <= not serial.wire_in(1);
+  376 |           end if;
+  378 |           if (serial.tick_cnt = t_presence_end_c) then
+  379 |             serial.done              <= '1';
+  380 |             serial.state(1 downto 0) <= "00";
+  381 |           end if;
+  383 |         when others =>
+  385 |           serial.sreg              <= (others => '0');
+  386 |           serial.presence          <= '0';
+  387 |           serial.state(1 downto 0) <= "00";
+  389 |       end case;
+  390 |     end if;
+  391 |   end process serial_engine;
+  394 |   serial.busy <= '0' when (serial.state(1 downto 0) = "00") else '1';
+  397 | end neorv32_onewire_rtl;

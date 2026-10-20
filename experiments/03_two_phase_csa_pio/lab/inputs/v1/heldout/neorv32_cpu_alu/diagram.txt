@@ -1,0 +1,139 @@
+UNIT neorv32_cpu_alu
+  INPUTS: clk_i, ctrl_i, rs1_i, rs2_i, rs3_i, rstn_i
+  OUTPUTS: add_o, cmp_o, csr_o, done_o, res_o
+  BLOCKS
+    [generate] neorv32_cpu_cp_bitmanip_inst_false: cp_result, cp_valid
+    [generate] neorv32_cpu_cp_cfu_inst_false: cfu_active, cfu_busy, cfu_csr_en, cfu_csr_we, cp_result, cp_valid, csr_rdata_cfu
+    [generate] neorv32_cpu_cp_cfu_inst_true: cfu_active, cfu_csr_en, cfu_csr_we, cp_valid, csr_rdata_cfu
+    [generate] neorv32_cpu_cp_cond_inst_false: cp_result, cp_valid
+    [generate] neorv32_cpu_cp_crypto_inst_false: cp_result, cp_valid
+    [generate] neorv32_cpu_cp_fpu_inst_false: cp_result, cp_valid, csr_rdata_fpu, fpu_csr_en, fpu_csr_we
+    [generate] neorv32_cpu_cp_fpu_inst_true: csr_rdata_fpu, fpu_csr_en, fpu_csr_we
+    [generate] neorv32_cpu_cp_muldiv_inst_false: cp_result, cp_valid
+    [inst] neorv32_cpu_cp_bitmanip_inst (neorv32_cpu_cp_bitmanip, another IP): cp_result, cp_valid
+    [inst] neorv32_cpu_cp_cfu_inst (neorv32_cpu_cp_cfu, another IP): cfu_csr_rd, cfu_done, cfu_res
+    [inst] neorv32_cpu_cp_cond_inst (neorv32_cpu_cp_cond, another IP): cp_result, cp_valid
+    [inst] neorv32_cpu_cp_crypto_inst (neorv32_cpu_cp_crypto, another IP): cp_result, cp_valid
+    [inst] neorv32_cpu_cp_fpu_inst (neorv32_cpu_cp_fpu, another IP): cp_result, cp_valid, fpu_csr_rd
+    [inst] neorv32_cpu_cp_muldiv_inst (neorv32_cpu_cp_muldiv, another IP): cp_result, cp_valid
+    [inst] neorv32_cpu_cp_shifter_inst (neorv32_cpu_cp_shifter, another IP): cp_result, cp_valid
+    [logic] addsub_res: addsub_res
+    [logic] cmp: cmp
+    [logic] cmp_rs1: cmp_rs1
+    [logic] cmp_rs2: cmp_rs2
+    [logic] cp_res: cp_res
+    [logic] cp_shamt: cp_shamt
+    [logic] opa: opa
+    [logic] opa_x: opa_x
+    [logic] opb: opb
+    [logic] opb_x: opb_x
+    [process] alu_core: -
+    [process] cfu_arbiter: cfu_busy, cp_result; clocked by clk_i; reset by rstn_i
+  ARROWS (==> a value moves; --> only decides; [the elements the arrow carries])
+    neorv32_cpu_cp_bitmanip_inst_false ==> cp_res   [cp_result]
+    neorv32_cpu_cp_bitmanip_inst_false ==> done_o   [cp_valid]
+    neorv32_cpu_cp_cfu_inst_false ==> cp_res   [cp_result]
+    neorv32_cpu_cp_cfu_inst_false ==> csr_o   [csr_rdata_cfu]
+    neorv32_cpu_cp_cfu_inst_false ==> done_o   [cp_valid]
+    neorv32_cpu_cp_cfu_inst_true ==> neorv32_cpu_cp_cfu_inst   [cfu_active, cfu_csr_we]
+    neorv32_cpu_cp_cfu_inst_true ==> csr_o   [csr_rdata_cfu]
+    neorv32_cpu_cp_cfu_inst_true ==> done_o   [cp_valid]
+    neorv32_cpu_cp_cond_inst_false ==> cp_res   [cp_result]
+    neorv32_cpu_cp_cond_inst_false ==> done_o   [cp_valid]
+    neorv32_cpu_cp_crypto_inst_false ==> cp_res   [cp_result]
+    neorv32_cpu_cp_crypto_inst_false ==> done_o   [cp_valid]
+    neorv32_cpu_cp_fpu_inst_false ==> cp_res   [cp_result]
+    neorv32_cpu_cp_fpu_inst_false ==> csr_o   [csr_rdata_fpu]
+    neorv32_cpu_cp_fpu_inst_false ==> done_o   [cp_valid]
+    neorv32_cpu_cp_fpu_inst_true ==> neorv32_cpu_cp_fpu_inst   [fpu_csr_we]
+    neorv32_cpu_cp_fpu_inst_true ==> csr_o   [csr_rdata_fpu]
+    neorv32_cpu_cp_muldiv_inst_false ==> cp_res   [cp_result]
+    neorv32_cpu_cp_muldiv_inst_false ==> done_o   [cp_valid]
+    clk_i ==> neorv32_cpu_cp_bitmanip_inst   [clk_i]
+    clk_i ==> neorv32_cpu_cp_cfu_inst   [clk_i]
+    clk_i ==> neorv32_cpu_cp_cond_inst   [clk_i]
+    clk_i ==> neorv32_cpu_cp_crypto_inst   [clk_i]
+    clk_i ==> neorv32_cpu_cp_fpu_inst   [clk_i]
+    clk_i ==> neorv32_cpu_cp_muldiv_inst   [clk_i]
+    clk_i ==> neorv32_cpu_cp_shifter_inst   [clk_i]
+    ctrl_i ==> neorv32_cpu_cp_cfu_inst_true   [ctrl_i.{alu_cp_cfu,csr_addr,csr_we}]
+    ctrl_i ==> neorv32_cpu_cp_fpu_inst_true   [ctrl_i.{csr_addr,csr_we}]
+    ctrl_i ==> neorv32_cpu_cp_bitmanip_inst   [ctrl_i.{alu_cp_alu,alu_cp_cfu,alu_cp_fpu,alu_imm,alu_op,alu_opa_mux,alu_opb_mux,alu_sub,alu_unsigned,cnt_event,cnt_halt,cpu_debug,cpu_priv,cpu_sleep,cpu_trap,csr_addr,csr_re,csr_wdata,csr_we,if_ack,if_fence,if_reset,ir_funct12,ir_funct3,ir_opcode,lsu_amo,lsu_fence,lsu_mo_we,lsu_priv,lsu_req,lsu_rw,pc_cur,pc_nxt,pc_ret,rf_rd,rf_rs1,rf_rs2,rf_wb_en,rf_zero_we}]
+    ctrl_i ==> neorv32_cpu_cp_cfu_inst   [ctrl_i.{alu_cp_cfu,csr_addr,csr_wdata,ir_funct12,ir_funct3,ir_opcode}]
+    ctrl_i ==> neorv32_cpu_cp_cond_inst   [ctrl_i.{alu_cp_alu,alu_cp_cfu,alu_cp_fpu,alu_imm,alu_op,alu_opa_mux,alu_opb_mux,alu_sub,alu_unsigned,cnt_event,cnt_halt,cpu_debug,cpu_priv,cpu_sleep,cpu_trap,csr_addr,csr_re,csr_wdata,csr_we,if_ack,if_fence,if_reset,ir_funct12,ir_funct3,ir_opcode,lsu_amo,lsu_fence,lsu_mo_we,lsu_priv,lsu_req,lsu_rw,pc_cur,pc_nxt,pc_ret,rf_rd,rf_rs1,rf_rs2,rf_wb_en,rf_zero_we}]
+    ctrl_i ==> neorv32_cpu_cp_crypto_inst   [ctrl_i.{alu_cp_alu,alu_cp_cfu,alu_cp_fpu,alu_imm,alu_op,alu_opa_mux,alu_opb_mux,alu_sub,alu_unsigned,cnt_event,cnt_halt,cpu_debug,cpu_priv,cpu_sleep,cpu_trap,csr_addr,csr_re,csr_wdata,csr_we,if_ack,if_fence,if_reset,ir_funct12,ir_funct3,ir_opcode,lsu_amo,lsu_fence,lsu_mo_we,lsu_priv,lsu_req,lsu_rw,pc_cur,pc_nxt,pc_ret,rf_rd,rf_rs1,rf_rs2,rf_wb_en,rf_zero_we}]
+    ctrl_i ==> neorv32_cpu_cp_fpu_inst   [ctrl_i.{alu_cp_alu,alu_cp_cfu,alu_cp_fpu,alu_imm,alu_op,alu_opa_mux,alu_opb_mux,alu_sub,alu_unsigned,cnt_event,cnt_halt,cpu_debug,cpu_priv,cpu_sleep,cpu_trap,csr_addr,csr_re,csr_wdata,csr_we,if_ack,if_fence,if_reset,ir_funct12,ir_funct3,ir_opcode,lsu_amo,lsu_fence,lsu_mo_we,lsu_priv,lsu_req,lsu_rw,pc_cur,pc_nxt,pc_ret,rf_rd,rf_rs1,rf_rs2,rf_wb_en,rf_zero_we}]
+    ctrl_i ==> neorv32_cpu_cp_muldiv_inst   [ctrl_i.{alu_cp_alu,alu_cp_cfu,alu_cp_fpu,alu_imm,alu_op,alu_opa_mux,alu_opb_mux,alu_sub,alu_unsigned,cnt_event,cnt_halt,cpu_debug,cpu_priv,cpu_sleep,cpu_trap,csr_addr,csr_re,csr_wdata,csr_we,if_ack,if_fence,if_reset,ir_funct12,ir_funct3,ir_opcode,lsu_amo,lsu_fence,lsu_mo_we,lsu_priv,lsu_req,lsu_rw,pc_cur,pc_nxt,pc_ret,rf_rd,rf_rs1,rf_rs2,rf_wb_en,rf_zero_we}]
+    ctrl_i ==> neorv32_cpu_cp_shifter_inst   [ctrl_i.{alu_cp_alu,alu_cp_cfu,alu_cp_fpu,alu_imm,alu_op,alu_opa_mux,alu_opb_mux,alu_sub,alu_unsigned,cnt_event,cnt_halt,cpu_debug,cpu_priv,cpu_sleep,cpu_trap,csr_addr,csr_re,csr_wdata,csr_we,if_ack,if_fence,if_reset,ir_funct12,ir_funct3,ir_opcode,lsu_amo,lsu_fence,lsu_mo_we,lsu_priv,lsu_req,lsu_rw,pc_cur,pc_nxt,pc_ret,rf_rd,rf_rs1,rf_rs2,rf_wb_en,rf_zero_we}]
+    ctrl_i --> addsub_res   [ctrl_i.alu_sub]
+    ctrl_i ==> cmp_rs1   [ctrl_i.alu_unsigned]
+    ctrl_i ==> cmp_rs2   [ctrl_i.alu_unsigned]
+    ctrl_i ==> opa   [ctrl_i.{alu_opa_mux,pc_cur}]
+    ctrl_i ==> opa_x   [ctrl_i.alu_unsigned]
+    ctrl_i ==> opb   [ctrl_i.{alu_imm,alu_opb_mux}]
+    ctrl_i ==> opb_x   [ctrl_i.alu_unsigned]
+    ctrl_i --> alu_core   [ctrl_i.alu_op]
+    ctrl_i --> cfu_arbiter   [ctrl_i.{alu_cp_cfu,cpu_trap}]
+    rs1_i ==> neorv32_cpu_cp_bitmanip_inst   [rs1_i]
+    rs1_i ==> neorv32_cpu_cp_cfu_inst   [rs1_i]
+    rs1_i ==> neorv32_cpu_cp_cond_inst   [rs1_i]
+    rs1_i ==> neorv32_cpu_cp_crypto_inst   [rs1_i]
+    rs1_i ==> neorv32_cpu_cp_fpu_inst   [rs1_i]
+    rs1_i ==> neorv32_cpu_cp_muldiv_inst   [rs1_i]
+    rs1_i ==> neorv32_cpu_cp_shifter_inst   [rs1_i]
+    rs1_i --> cmp   [rs1_i]
+    rs1_i ==> cmp_rs1   [rs1_i]
+    rs1_i ==> opa   [rs1_i]
+    rs1_i ==> alu_core   [rs1_i]
+    rs2_i ==> neorv32_cpu_cp_bitmanip_inst   [rs2_i]
+    rs2_i ==> neorv32_cpu_cp_cfu_inst   [rs2_i]
+    rs2_i ==> neorv32_cpu_cp_cond_inst   [rs2_i]
+    rs2_i ==> neorv32_cpu_cp_crypto_inst   [rs2_i]
+    rs2_i ==> neorv32_cpu_cp_fpu_inst   [rs2_i]
+    rs2_i ==> neorv32_cpu_cp_muldiv_inst   [rs2_i]
+    rs2_i --> cmp   [rs2_i]
+    rs2_i ==> cmp_rs2   [rs2_i]
+    rs2_i ==> opb   [rs2_i]
+    rs3_i ==> neorv32_cpu_cp_cfu_inst   [rs3_i]
+    rs3_i ==> neorv32_cpu_cp_fpu_inst   [rs3_i]
+    rstn_i ==> neorv32_cpu_cp_bitmanip_inst   [rstn_i]
+    rstn_i ==> neorv32_cpu_cp_cfu_inst   [rstn_i]
+    rstn_i ==> neorv32_cpu_cp_cond_inst   [rstn_i]
+    rstn_i ==> neorv32_cpu_cp_crypto_inst   [rstn_i]
+    rstn_i ==> neorv32_cpu_cp_fpu_inst   [rstn_i]
+    rstn_i ==> neorv32_cpu_cp_muldiv_inst   [rstn_i]
+    rstn_i ==> neorv32_cpu_cp_shifter_inst   [rstn_i]
+    neorv32_cpu_cp_bitmanip_inst ==> cp_res   [cp_result]
+    neorv32_cpu_cp_bitmanip_inst ==> done_o   [cp_valid]
+    neorv32_cpu_cp_cfu_inst ==> neorv32_cpu_cp_cfu_inst_true   [cfu_csr_rd, cfu_done]
+    neorv32_cpu_cp_cfu_inst ==> cfu_arbiter   [cfu_done, cfu_res]
+    neorv32_cpu_cp_cond_inst ==> cp_res   [cp_result]
+    neorv32_cpu_cp_cond_inst ==> done_o   [cp_valid]
+    neorv32_cpu_cp_crypto_inst ==> cp_res   [cp_result]
+    neorv32_cpu_cp_crypto_inst ==> done_o   [cp_valid]
+    neorv32_cpu_cp_fpu_inst ==> neorv32_cpu_cp_fpu_inst_true   [fpu_csr_rd]
+    neorv32_cpu_cp_fpu_inst ==> cp_res   [cp_result]
+    neorv32_cpu_cp_fpu_inst ==> done_o   [cp_valid]
+    neorv32_cpu_cp_muldiv_inst ==> cp_res   [cp_result]
+    neorv32_cpu_cp_muldiv_inst ==> done_o   [cp_valid]
+    neorv32_cpu_cp_shifter_inst ==> cp_res   [cp_result]
+    neorv32_cpu_cp_shifter_inst ==> done_o   [cp_valid]
+    addsub_res ==> add_o   [addsub_res]
+    addsub_res ==> alu_core   [addsub_res]
+    cmp ==> neorv32_cpu_cp_bitmanip_inst   [cmp]
+    cmp ==> neorv32_cpu_cp_fpu_inst   [cmp]
+    cmp ==> cmp_o   [cmp]
+    cmp_rs1 --> cmp   [cmp_rs1]
+    cmp_rs2 --> cmp   [cmp_rs2]
+    cp_res ==> alu_core   [cp_res]
+    cp_shamt ==> neorv32_cpu_cp_bitmanip_inst   [cp_shamt]
+    cp_shamt ==> neorv32_cpu_cp_shifter_inst   [cp_shamt]
+    opa ==> opa_x   [opa]
+    opa_x ==> addsub_res   [opa_x]
+    opb ==> cp_shamt   [opb]
+    opb ==> opb_x   [opb]
+    opb ==> alu_core   [opb]
+    opb_x ==> addsub_res   [opb_x]
+    alu_core ==> res_o
+    cfu_arbiter ==> neorv32_cpu_cp_cfu_inst_true   [cfu_busy]
+    cfu_arbiter ==> cp_res   [cp_result]

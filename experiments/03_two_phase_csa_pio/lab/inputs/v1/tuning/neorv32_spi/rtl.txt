@@ -1,0 +1,293 @@
+   18 | entity neorv32_spi is
+   19 |   generic (
+   20 |     IO_SPI_FIFO : natural range 1 to 2**15
+   21 |   );
+   22 |   port (
+   23 |     clk_i       : in  std_ulogic;
+   24 |     rstn_i      : in  std_ulogic;
+   25 |     bus_req_i   : in  bus_req_t;
+   26 |     bus_rsp_o   : out bus_rsp_t;
+   27 |     clkgen_en_o : out std_ulogic;
+   28 |     clkgen_i    : in  std_ulogic_vector(7 downto 0);
+   29 |     spi_clk_o   : out std_ulogic;
+   30 |     spi_dat_o   : out std_ulogic;
+   31 |     spi_dat_i   : in  std_ulogic;
+   32 |     spi_csn_o   : out std_ulogic_vector(7 downto 0);
+   33 |     irq_o       : out std_ulogic
+   34 |   );
+   35 | end neorv32_spi;
+
+   37 | architecture neorv32_spi_rtl of neorv32_spi is
+   40 |   constant ctrl_en_c           : natural :=  0;
+   41 |   constant ctrl_cpha_c         : natural :=  1;
+   42 |   constant ctrl_cpol_c         : natural :=  2;
+   43 |   constant ctrl_prsc0_c        : natural :=  3;
+   44 |   constant ctrl_prsc1_c        : natural :=  4;
+   45 |   constant ctrl_prsc2_c        : natural :=  5;
+   46 |   constant ctrl_cdiv0_c        : natural :=  6;
+   47 |   constant ctrl_cdiv1_c        : natural :=  7;
+   48 |   constant ctrl_cdiv2_c        : natural :=  8;
+   49 |   constant ctrl_cdiv3_c        : natural :=  9;
+   50 |   constant ctrl_highspeed_c    : natural := 10;
+   52 |   constant ctrl_rx_avail_c     : natural := 16;
+   53 |   constant ctrl_tx_empty_c     : natural := 17;
+   54 |   constant ctrl_tx_nhalf_c     : natural := 18;
+   55 |   constant ctrl_tx_full_c      : natural := 19;
+   56 |   constant ctrl_irq_rx_avail_c : natural := 20;
+   57 |   constant ctrl_irq_tx_empty_c : natural := 21;
+   58 |   constant ctrl_irq_tx_nhalf_c : natural := 22;
+   59 |   constant ctrl_irq_idle_c     : natural := 23;
+   60 |   constant ctrl_fifo_size0_c   : natural := 24;
+   61 |   constant ctrl_fifo_size1_c   : natural := 25;
+   62 |   constant ctrl_fifo_size2_c   : natural := 26;
+   63 |   constant ctrl_fifo_size3_c   : natural := 27;
+   65 |   constant ctrl_cs_active_c    : natural := 30;
+   66 |   constant ctrl_busy_c         : natural := 31;
+   69 |   constant log2_fifo_size_c : natural := index_size_f(IO_SPI_FIFO);
+   72 |   type ctrl_t is record
+   73 |     enable       : std_ulogic;
+   74 |     cpha         : std_ulogic;
+   75 |     cpol         : std_ulogic;
+   76 |     prsc         : std_ulogic_vector(2 downto 0);
+   77 |     cdiv         : std_ulogic_vector(3 downto 0);
+   78 |     highspeed    : std_ulogic;
+   79 |     irq_rx_avail : std_ulogic;
+   80 |     irq_tx_empty : std_ulogic;
+   81 |     irq_tx_nhalf : std_ulogic;
+   82 |     irq_idle     : std_ulogic;
+   83 |   end record;
+   84 |   signal ctrl : ctrl_t;
+   87 |   signal cdiv_cnt   : std_ulogic_vector(3 downto 0);
+   88 |   signal spi_clk_en : std_ulogic;
+   91 |   type rtx_engine_t is record
+   92 |     state    : std_ulogic_vector(2 downto 0);
+   93 |     busy     : std_ulogic;
+   94 |     sreg     : std_ulogic_vector(7 downto 0);
+   95 |     bitcnt   : std_ulogic_vector(3 downto 0);
+   96 |     sdi_sync : std_ulogic;
+   97 |     sck      : std_ulogic;
+   98 |     cs_ctrl  : std_ulogic_vector(3 downto 0);
+   99 |     done     : std_ulogic;
+  100 |   end record;
+  101 |   signal rtx_engine : rtx_engine_t;
+  104 |   type fifo_t is record
+  105 |     we,    re    : std_ulogic;
+  106 |     wdata, rdata : std_ulogic_vector(8 downto 0);
+  107 |     avail, free  : std_ulogic;
+  108 |     clear, half  : std_ulogic;
+  109 |   end record;
+  110 |   signal tx_fifo, rx_fifo : fifo_t;
+  112 | begin
+  116 |   bus_access: process(rstn_i, clk_i)
+  117 |   begin
+  118 |     if (rstn_i = '0') then
+  119 |       bus_rsp_o         <= rsp_terminate_c;
+  120 |       ctrl.enable       <= '0';
+  121 |       ctrl.cpha         <= '0';
+  122 |       ctrl.cpol         <= '0';
+  123 |       ctrl.prsc         <= (others => '0');
+  124 |       ctrl.cdiv         <= (others => '0');
+  125 |       ctrl.highspeed    <= '0';
+  126 |       ctrl.irq_rx_avail <= '0';
+  127 |       ctrl.irq_tx_empty <= '0';
+  128 |       ctrl.irq_tx_nhalf <= '0';
+  129 |       ctrl.irq_idle     <= '0';
+  130 |     elsif rising_edge(clk_i) then
+  132 |       bus_rsp_o.ack  <= bus_req_i.stb;
+  133 |       bus_rsp_o.err  <= '0';
+  134 |       bus_rsp_o.data <= (others => '0');
+  137 |       if (bus_req_i.stb = '1') then
+  138 |         if (bus_req_i.rw = '1') then
+  139 |           if (bus_req_i.addr(2) = '0') then
+  140 |             ctrl.enable       <= bus_req_i.data(ctrl_en_c);
+  141 |             ctrl.cpha         <= bus_req_i.data(ctrl_cpha_c);
+  142 |             ctrl.cpol         <= bus_req_i.data(ctrl_cpol_c);
+  143 |             ctrl.prsc         <= bus_req_i.data(ctrl_prsc2_c downto ctrl_prsc0_c);
+  144 |             ctrl.cdiv         <= bus_req_i.data(ctrl_cdiv3_c downto ctrl_cdiv0_c);
+  145 |             ctrl.highspeed    <= bus_req_i.data(ctrl_highspeed_c);
+  146 |             ctrl.irq_rx_avail <= bus_req_i.data(ctrl_irq_rx_avail_c);
+  147 |             ctrl.irq_tx_empty <= bus_req_i.data(ctrl_irq_tx_empty_c);
+  148 |             ctrl.irq_tx_nhalf <= bus_req_i.data(ctrl_irq_tx_nhalf_c);
+  149 |             ctrl.irq_idle     <= bus_req_i.data(ctrl_irq_idle_c);
+  150 |           end if;
+  151 |         else
+  152 |           if (bus_req_i.addr(2) = '0') then
+  153 |             bus_rsp_o.data(ctrl_en_c)                        <= ctrl.enable;
+  154 |             bus_rsp_o.data(ctrl_cpha_c)                      <= ctrl.cpha;
+  155 |             bus_rsp_o.data(ctrl_cpol_c)                      <= ctrl.cpol;
+  156 |             bus_rsp_o.data(ctrl_prsc2_c downto ctrl_prsc0_c) <= ctrl.prsc;
+  157 |             bus_rsp_o.data(ctrl_cdiv3_c downto ctrl_cdiv0_c) <= ctrl.cdiv;
+  158 |             bus_rsp_o.data(ctrl_highspeed_c)                 <= ctrl.highspeed;
+  160 |             bus_rsp_o.data(ctrl_rx_avail_c)     <= rx_fifo.avail;
+  161 |             bus_rsp_o.data(ctrl_tx_empty_c)     <= not tx_fifo.avail;
+  162 |             bus_rsp_o.data(ctrl_tx_nhalf_c)     <= not tx_fifo.half;
+  163 |             bus_rsp_o.data(ctrl_tx_full_c)      <= not tx_fifo.free;
+  164 |             bus_rsp_o.data(ctrl_irq_rx_avail_c) <= ctrl.irq_rx_avail;
+  165 |             bus_rsp_o.data(ctrl_irq_tx_empty_c) <= ctrl.irq_tx_empty;
+  166 |             bus_rsp_o.data(ctrl_irq_tx_nhalf_c) <= ctrl.irq_tx_nhalf;
+  167 |             bus_rsp_o.data(ctrl_irq_idle_c)     <= ctrl.irq_idle;
+  169 |             bus_rsp_o.data(ctrl_fifo_size3_c downto ctrl_fifo_size0_c) <= std_ulogic_vector(to_unsigned(log2_fifo_size_c, 4));
+  171 |             bus_rsp_o.data(ctrl_cs_active_c) <= rtx_engine.cs_ctrl(3);
+  172 |             bus_rsp_o.data(ctrl_busy_c)      <= rtx_engine.busy or tx_fifo.avail;
+  173 |           else
+  174 |             bus_rsp_o.data(7 downto 0) <= rx_fifo.rdata(7 downto 0);
+  175 |           end if;
+  176 |         end if;
+  177 |       end if;
+  178 |     end if;
+  179 |   end process bus_access;
+  186 |   tx_fifo_inst: entity neorv32.neorv32_fifo
+  187 |   generic map (
+  188 |     FIFO_DEPTH => IO_SPI_FIFO,
+  189 |     FIFO_WIDTH => 9,
+  190 |     FIFO_RSYNC => true,
+  191 |     FIFO_SAFE  => true,
+  192 |     FULL_RESET => false
+  193 |   )
+  194 |   port map (
+  196 |     clk_i   => clk_i,
+  197 |     rstn_i  => rstn_i,
+  198 |     clear_i => tx_fifo.clear,
+  199 |     half_o  => tx_fifo.half,
+  200 |     level_o => open,
+  202 |     wdata_i => tx_fifo.wdata,
+  203 |     we_i    => tx_fifo.we,
+  204 |     free_o  => tx_fifo.free,
+  206 |     re_i    => tx_fifo.re,
+  207 |     rdata_o => tx_fifo.rdata,
+  208 |     avail_o => tx_fifo.avail
+  209 |   );
+  211 |   tx_fifo.clear <= not ctrl.enable;
+  212 |   tx_fifo.we    <= '1' when (bus_req_i.stb = '1') and (bus_req_i.rw = '1') and (bus_req_i.addr(2) = '1') else '0';
+  213 |   tx_fifo.wdata <= bus_req_i.data(31) & bus_req_i.data(7 downto 0);
+  214 |   tx_fifo.re    <= '1' when (rtx_engine.state = "100") else '0';
+  218 |   rx_fifo_inst: entity neorv32.neorv32_fifo
+  219 |   generic map (
+  220 |     FIFO_DEPTH => IO_SPI_FIFO,
+  221 |     FIFO_WIDTH => 9,
+  222 |     FIFO_RSYNC => true,
+  223 |     FIFO_SAFE  => true,
+  224 |     FULL_RESET => false
+  225 |   )
+  226 |   port map (
+  228 |     clk_i   => clk_i,
+  229 |     rstn_i  => rstn_i,
+  230 |     clear_i => rx_fifo.clear,
+  231 |     half_o  => rx_fifo.half,
+  232 |     level_o => open,
+  234 |     wdata_i => rx_fifo.wdata,
+  235 |     we_i    => rx_fifo.we,
+  236 |     free_o  => rx_fifo.free,
+  238 |     re_i    => rx_fifo.re,
+  239 |     rdata_o => rx_fifo.rdata,
+  240 |     avail_o => rx_fifo.avail
+  241 |   );
+  243 |   rx_fifo.clear <= not ctrl.enable;
+  244 |   rx_fifo.wdata <= '0' & rtx_engine.sreg;
+  245 |   rx_fifo.we    <= rtx_engine.done;
+  246 |   rx_fifo.re    <= '1' when (bus_req_i.stb = '1') and (bus_req_i.rw = '0') and (bus_req_i.addr(2) = '1') else '0';
+  250 |   irq_generator: process(rstn_i, clk_i)
+  251 |   begin
+  252 |     if (rstn_i = '0') then
+  253 |       irq_o <= '0';
+  254 |     elsif rising_edge(clk_i) then
+  255 |       irq_o <= ctrl.enable and (
+  256 |                (ctrl.irq_rx_avail and      rx_fifo.avail)  or
+  257 |                (ctrl.irq_tx_empty and (not tx_fifo.avail)) or
+  258 |                (ctrl.irq_tx_nhalf and (not tx_fifo.half))  or
+  259 |                (ctrl.irq_idle     and (not tx_fifo.avail) and (not rtx_engine.busy)));
+  260 |     end if;
+  261 |   end process irq_generator;
+  266 |   transceiver: process(rstn_i, clk_i)
+  267 |   begin
+  268 |     if (rstn_i = '0') then
+  269 |       rtx_engine.done     <= '0';
+  270 |       rtx_engine.state    <= (others => '0');
+  271 |       rtx_engine.bitcnt   <= (others => '0');
+  272 |       rtx_engine.sreg     <= (others => '0');
+  273 |       rtx_engine.sdi_sync <= '0';
+  274 |       rtx_engine.sck      <= '0';
+  275 |       rtx_engine.cs_ctrl  <= (others => '0');
+  276 |     elsif rising_edge(clk_i) then
+  278 |       rtx_engine.done <= '0';
+  281 |       rtx_engine.state(2) <= ctrl.enable;
+  282 |       case rtx_engine.state is
+  284 |         when "100" =>
+  286 |           rtx_engine.sck    <= ctrl.cpol;
+  287 |           rtx_engine.bitcnt <= (others => '0');
+  288 |           if (tx_fifo.avail = '1') then
+  289 |             if (tx_fifo.rdata(8) = '1') then
+  290 |               rtx_engine.cs_ctrl <= tx_fifo.rdata(3 downto 0);
+  291 |             else
+  292 |               rtx_engine.sreg              <= tx_fifo.rdata(7 downto 0);
+  293 |               rtx_engine.state(1 downto 0) <= "01";
+  294 |             end if;
+  295 |           end if;
+  297 |         when "101" =>
+  299 |           if (spi_clk_en = '1') then
+  300 |             if (ctrl.cpha = '1') then
+  301 |               rtx_engine.sck <= not ctrl.cpol;
+  302 |             end if;
+  303 |             rtx_engine.state(1 downto 0) <= "10";
+  304 |           end if;
+  306 |         when "110" =>
+  308 |           if (spi_clk_en = '1') then
+  309 |             rtx_engine.sck               <= not (ctrl.cpha xor ctrl.cpol);
+  310 |             rtx_engine.sdi_sync          <= spi_dat_i;
+  311 |             rtx_engine.bitcnt            <= std_ulogic_vector(unsigned(rtx_engine.bitcnt) + 1);
+  312 |             rtx_engine.state(1 downto 0) <= "11";
+  313 |           end if;
+  315 |         when "111" =>
+  317 |           if (spi_clk_en = '1') then
+  318 |             rtx_engine.sreg <= rtx_engine.sreg(6 downto 0) & rtx_engine.sdi_sync;
+  319 |             if (rtx_engine.bitcnt(3) = '1') then
+  320 |               rtx_engine.sck               <= ctrl.cpol;
+  321 |               rtx_engine.done              <= '1';
+  322 |               rtx_engine.state(1 downto 0) <= "00";
+  323 |             else
+  324 |               rtx_engine.sck               <= ctrl.cpha xor ctrl.cpol;
+  325 |               rtx_engine.state(1 downto 0) <= "10";
+  326 |             end if;
+  327 |           end if;
+  329 |         when others =>
+  331 |           rtx_engine.sck               <= ctrl.cpol;
+  332 |           rtx_engine.cs_ctrl           <= (others => '0');
+  333 |           rtx_engine.state(1 downto 0) <= "00";
+  335 |       end case;
+  336 |     end if;
+  337 |   end process transceiver;
+  340 |   rtx_engine.busy <= '0' when (rtx_engine.state(1 downto 0) = "00") else '1';
+  343 |   spi_dat_o <= rtx_engine.sreg(7);
+  344 |   spi_clk_o <= rtx_engine.sck;
+  347 |   chip_select: process(rstn_i, clk_i)
+  348 |   begin
+  349 |     if (rstn_i = '0') then
+  350 |       spi_csn_o <= (others => '1');
+  351 |     elsif rising_edge(clk_i) then
+  352 |       spi_csn_o <= (others => '1');
+  353 |       if (rtx_engine.cs_ctrl(3) = '1') then
+  354 |         spi_csn_o(to_integer(unsigned(rtx_engine.cs_ctrl(2 downto 0)))) <= '0';
+  355 |       end if;
+  356 |     end if;
+  357 |   end process chip_select;
+  362 |   clock_generator: process(rstn_i, clk_i)
+  363 |   begin
+  364 |     if (rstn_i = '0') then
+  365 |       spi_clk_en <= '0';
+  366 |       cdiv_cnt   <= (others => '0');
+  367 |     elsif rising_edge(clk_i) then
+  368 |       spi_clk_en <= '0';
+  369 |       if (ctrl.enable = '0') then
+  370 |         cdiv_cnt <= (others => '0');
+  371 |       elsif (clkgen_i(to_integer(unsigned(ctrl.prsc))) = '1') or (ctrl.highspeed = '1') then
+  372 |         if (cdiv_cnt = ctrl.cdiv) then
+  373 |           spi_clk_en <= '1';
+  374 |           cdiv_cnt   <= (others => '0');
+  375 |         else
+  376 |           cdiv_cnt <= std_ulogic_vector(unsigned(cdiv_cnt) + 1);
+  377 |         end if;
+  378 |       end if;
+  379 |     end if;
+  380 |   end process clock_generator;
+  383 |   clkgen_en_o <= ctrl.enable;
+  386 | end neorv32_spi_rtl;

@@ -1,0 +1,1200 @@
+   24 | entity neorv32_cpu_control is
+   25 |   generic (
+   27 |     HART_ID           : natural range 0 to 1023;
+   28 |     BOOT_ADDR         : std_ulogic_vector(31 downto 0);
+   29 |     DEBUG_PARK_ADDR   : std_ulogic_vector(31 downto 0);
+   30 |     DEBUG_EXC_ADDR    : std_ulogic_vector(31 downto 0);
+   32 |     RISCV_ISA_A       : boolean;
+   33 |     RISCV_ISA_B       : boolean;
+   34 |     RISCV_ISA_C       : boolean;
+   35 |     RISCV_ISA_E       : boolean;
+   36 |     RISCV_ISA_M       : boolean;
+   37 |     RISCV_ISA_U       : boolean;
+   38 |     RISCV_ISA_Zaamo   : boolean;
+   39 |     RISCV_ISA_Zalrsc  : boolean;
+   40 |     RISCV_ISA_Zba     : boolean;
+   41 |     RISCV_ISA_Zbb     : boolean;
+   42 |     RISCV_ISA_Zbkb    : boolean;
+   43 |     RISCV_ISA_Zbkc    : boolean;
+   44 |     RISCV_ISA_Zbkx    : boolean;
+   45 |     RISCV_ISA_Zbs     : boolean;
+   46 |     RISCV_ISA_Zfinx   : boolean;
+   47 |     RISCV_ISA_Zicntr  : boolean;
+   48 |     RISCV_ISA_Zicond  : boolean;
+   49 |     RISCV_ISA_Zihpm   : boolean;
+   50 |     RISCV_ISA_Zkn     : boolean;
+   51 |     RISCV_ISA_Zknd    : boolean;
+   52 |     RISCV_ISA_Zkne    : boolean;
+   53 |     RISCV_ISA_Zknh    : boolean;
+   54 |     RISCV_ISA_Zks     : boolean;
+   55 |     RISCV_ISA_Zksed   : boolean;
+   56 |     RISCV_ISA_Zksh    : boolean;
+   57 |     RISCV_ISA_Zkt     : boolean;
+   58 |     RISCV_ISA_Zmmul   : boolean;
+   59 |     RISCV_ISA_Zxcfu   : boolean;
+   60 |     RISCV_ISA_Sdext   : boolean;
+   61 |     RISCV_ISA_Sdtrig  : boolean;
+   62 |     RISCV_ISA_Smpmp   : boolean;
+   64 |     CPU_FAST_MUL_EN   : boolean;
+   65 |     CPU_FAST_SHIFT_EN : boolean;
+   66 |     CPU_RF_HW_RST_EN  : boolean
+   67 |   );
+   68 |   port (
+   70 |     clk_i         : in  std_ulogic;
+   71 |     rstn_i        : in  std_ulogic;
+   72 |     ctrl_o        : out ctrl_bus_t;
+   74 |     frontend_i    : in  if_bus_t;
+   76 |     pmp_fault_i   : in  std_ulogic;
+   78 |     alu_cp_done_i : in  std_ulogic;
+   79 |     alu_cmp_i     : in  std_ulogic_vector(1 downto 0);
+   80 |     alu_add_i     : in  std_ulogic_vector(XLEN-1 downto 0);
+   81 |     rf_rs1_i      : in  std_ulogic_vector(XLEN-1 downto 0);
+   82 |     csr_rdata_o   : out std_ulogic_vector(XLEN-1 downto 0);
+   83 |     xcsr_rdata_i  : in  std_ulogic_vector(XLEN-1 downto 0);
+   85 |     irq_dbg_i     : in  std_ulogic;
+   86 |     irq_machine_i : in  std_ulogic_vector(2 downto 0);
+   87 |     irq_fast_i    : in  std_ulogic_vector(15 downto 0);
+   89 |     lsu_wait_i    : in  std_ulogic;
+   90 |     lsu_mar_i     : in  std_ulogic_vector(XLEN-1 downto 0);
+   91 |     lsu_err_i     : in  std_ulogic_vector(3 downto 0)
+   92 |   );
+   93 | end neorv32_cpu_control;
+
+   95 | architecture neorv32_cpu_control_rtl of neorv32_cpu_control is
+   98 |   type exe_engine_state_t is (EX_DISPATCH, EX_TRAP_ENTER, EX_TRAP_EXIT, EX_RESTART, EX_SLEEP, EX_EXECUTE,
+   99 |                               EX_ALU_WAIT, EX_BRANCH, EX_BRANCHED, EX_SYSTEM, EX_MEM_REQ, EX_MEM_RSP);
+  100 |   type exe_engine_t is record
+  101 |     state : exe_engine_state_t;
+  102 |     ir    : std_ulogic_vector(31 downto 0);
+  103 |     ci    : std_ulogic;
+  104 |     pc    : std_ulogic_vector(XLEN-1 downto 0);
+  105 |     pc2   : std_ulogic_vector(XLEN-1 downto 0);
+  106 |     ra    : std_ulogic_vector(XLEN-1 downto 0);
+  107 |   end record;
+  108 |   signal exe_engine, exe_engine_nxt : exe_engine_t;
+  111 |   type trap_ctrl_t is record
+  112 |     exc_buf     : std_ulogic_vector(exc_width_c-1 downto 0);
+  113 |     exc_fire    : std_ulogic;
+  114 |     irq_pnd     : std_ulogic_vector(irq_width_c-1 downto 0);
+  115 |     irq_buf     : std_ulogic_vector(irq_width_c-1 downto 0);
+  116 |     irq_fire    : std_ulogic_vector(2 downto 0);
+  117 |     cause       : std_ulogic_vector(6 downto 0);
+  118 |     epc         : std_ulogic_vector(XLEN-1 downto 0);
+  120 |     env_pending : std_ulogic;
+  121 |     env_enter   : std_ulogic;
+  122 |     env_entered : std_ulogic;
+  123 |     env_exit    : std_ulogic;
+  124 |     wakeup      : std_ulogic;
+  126 |     instr_be    : std_ulogic;
+  127 |     instr_ma    : std_ulogic;
+  128 |     instr_il    : std_ulogic;
+  129 |     ecall       : std_ulogic;
+  130 |     ebreak      : std_ulogic;
+  131 |   end record;
+  132 |   signal trap_ctrl : trap_ctrl_t;
+  135 |   signal ctrl, ctrl_nxt : ctrl_bus_t;
+  138 |   type csr_t is record
+  139 |     addr           : std_ulogic_vector(11 downto 0);
+  140 |     we, we_nxt     : std_ulogic;
+  141 |     re, re_nxt     : std_ulogic;
+  142 |     operand        : std_ulogic_vector(XLEN-1 downto 0);
+  143 |     wdata          : std_ulogic_vector(XLEN-1 downto 0);
+  144 |     rdata          : std_ulogic_vector(XLEN-1 downto 0);
+  146 |     mstatus_mie    : std_ulogic;
+  147 |     mstatus_mpie   : std_ulogic;
+  148 |     mstatus_mpp    : std_ulogic;
+  149 |     mstatus_mprv   : std_ulogic;
+  150 |     mstatus_tw     : std_ulogic;
+  152 |     mie_msi        : std_ulogic;
+  153 |     mie_mei        : std_ulogic;
+  154 |     mie_mti        : std_ulogic;
+  155 |     mie_firq       : std_ulogic_vector(15 downto 0);
+  157 |     prv_level      : std_ulogic;
+  158 |     prv_level_eff  : std_ulogic;
+  160 |     mepc           : std_ulogic_vector(XLEN-1 downto 0);
+  161 |     mcause         : std_ulogic_vector(5 downto 0);
+  162 |     mtvec          : std_ulogic_vector(XLEN-1 downto 0);
+  163 |     mtval          : std_ulogic_vector(XLEN-1 downto 0);
+  164 |     mtinst         : std_ulogic_vector(XLEN-1 downto 0);
+  165 |     mscratch       : std_ulogic_vector(XLEN-1 downto 0);
+  166 |     mcounteren_cy  : std_ulogic;
+  167 |     mcounteren_ir  : std_ulogic;
+  168 |     mcountinhibit  : std_ulogic_vector(15 downto 0);
+  170 |     dcsr_ebreakm   : std_ulogic;
+  171 |     dcsr_ebreaku   : std_ulogic;
+  172 |     dcsr_step      : std_ulogic;
+  173 |     dcsr_prv       : std_ulogic;
+  174 |     dcsr_cause     : std_ulogic_vector(2 downto 0);
+  175 |     dcsr_rd        : std_ulogic_vector(XLEN-1 downto 0);
+  176 |     dpc            : std_ulogic_vector(XLEN-1 downto 0);
+  177 |     dscratch0      : std_ulogic_vector(XLEN-1 downto 0);
+  179 |     tdata1_execute : std_ulogic;
+  180 |     tdata1_rd      : std_ulogic_vector(XLEN-1 downto 0);
+  181 |     tdata2         : std_ulogic_vector(XLEN-1 downto 0);
+  182 |   end record;
+  183 |   signal csr : csr_t;
+  186 |   type debug_ctrl_t is record
+  187 |     run, trig_hw, trig_break, trig_halt, trig_step : std_ulogic;
+  188 |   end record;
+  189 |   signal debug_ctrl : debug_ctrl_t;
+  192 |   signal if_ack       : std_ulogic;
+  193 |   signal if_reset     : std_ulogic;
+  194 |   signal branch_taken : std_ulogic;
+  195 |   signal monitor_cnt  : std_ulogic_vector(monitor_mc_tmo_c downto 0);
+  196 |   signal monitor_exc  : std_ulogic;
+  197 |   signal opcode       : std_ulogic_vector(6 downto 0);
+  198 |   signal immediate    : std_ulogic_vector(XLEN-1 downto 0);
+  199 |   signal illegal_cmd  : std_ulogic;
+  200 |   signal sleep_mode   : std_ulogic;
+  201 |   signal csr_valid    : std_ulogic_vector(2 downto 0);
+  202 |   signal cnt_event    : std_ulogic_vector(11 downto 0);
+  203 |   signal hwtrig_match : std_ulogic;
+  204 |   signal hwtrig_fired : std_ulogic;
+  205 |   signal hwtrig_start : std_ulogic;
+  207 | begin
+  215 |   imm_gen: process(rstn_i, clk_i)
+  216 |   begin
+  217 |     if (rstn_i = '0') then
+  218 |       immediate <= (others => '0');
+  219 |     elsif rising_edge(clk_i) then
+  220 |       if (exe_engine.state = EX_DISPATCH) then
+  221 |         if RISCV_ISA_C and (frontend_i.compr = '1') then
+  222 |           immediate <= x"00000002";
+  223 |         else
+  224 |           immediate <= x"00000004";
+  225 |         end if;
+  226 |       else
+  227 |         case opcode is
+  228 |           when opcode_store_c =>
+  229 |             immediate <= replicate_f(exe_engine.ir(31), 21) & exe_engine.ir(30 downto 25) & exe_engine.ir(11 downto 7);
+  230 |           when opcode_branch_c =>
+  231 |             immediate <= replicate_f(exe_engine.ir(31), 20) & exe_engine.ir(7) & exe_engine.ir(30 downto 25) & exe_engine.ir(11 downto 8) & '0';
+  232 |           when opcode_lui_c | opcode_auipc_c =>
+  233 |             immediate <= exe_engine.ir(31 downto 12) & x"000";
+  234 |           when opcode_jal_c =>
+  235 |             immediate <= replicate_f(exe_engine.ir(31), 12) & exe_engine.ir(19 downto 12) & exe_engine.ir(20) & exe_engine.ir(30 downto 21) & '0';
+  236 |           when opcode_amo_c =>
+  237 |             immediate <= (others => '0');
+  238 |           when others =>
+  239 |             immediate <= replicate_f(exe_engine.ir(31), 21) & exe_engine.ir(30 downto 21) & exe_engine.ir(20);
+  240 |         end case;
+  241 |       end if;
+  242 |     end if;
+  243 |   end process imm_gen;
+  248 |   branch_check: process(exe_engine.ir, alu_cmp_i)
+  249 |   begin
+  250 |     if (exe_engine.ir(instr_opcode_lsb_c+2) = '0') then
+  251 |       if (exe_engine.ir(instr_funct3_msb_c) = '0') then
+  252 |         branch_taken <= alu_cmp_i(cmp_equal_c) xor exe_engine.ir(instr_funct3_lsb_c);
+  253 |       else
+  254 |         branch_taken <= alu_cmp_i(cmp_less_c) xor exe_engine.ir(instr_funct3_lsb_c);
+  255 |       end if;
+  256 |     else
+  257 |       branch_taken <= '1';
+  258 |     end if;
+  259 |   end process branch_check;
+  264 |   execute_engine_fsm_sync: process(rstn_i, clk_i)
+  265 |   begin
+  266 |     if (rstn_i = '0') then
+  267 |       ctrl             <= ctrl_bus_zero_c;
+  268 |       exe_engine.state <= EX_RESTART;
+  269 |       exe_engine.ir    <= (others => '0');
+  270 |       exe_engine.ci    <= '0';
+  271 |       exe_engine.pc    <= BOOT_ADDR(XLEN-1 downto 2) & "00";
+  272 |       exe_engine.pc2   <= BOOT_ADDR(XLEN-1 downto 2) & "00";
+  273 |       exe_engine.ra    <= (others => '0');
+  274 |     elsif rising_edge(clk_i) then
+  275 |       ctrl       <= ctrl_nxt;
+  276 |       exe_engine <= exe_engine_nxt;
+  277 |     end if;
+  278 |   end process execute_engine_fsm_sync;
+  281 |   opcode <= exe_engine.ir(instr_opcode_msb_c downto instr_opcode_lsb_c+2) & "11";
+  286 |   execute_engine_fsm_comb: process(exe_engine, debug_ctrl, trap_ctrl, hwtrig_match, opcode, frontend_i, csr,
+  287 |                                    ctrl, alu_cp_done_i, lsu_wait_i, alu_add_i, branch_taken, pmp_fault_i)
+  288 |     variable funct3_v : std_ulogic_vector(2 downto 0);
+  289 |     variable funct7_v : std_ulogic_vector(6 downto 0);
+  290 |   begin
+  292 |     funct3_v := exe_engine.ir(instr_funct3_msb_c downto instr_funct3_lsb_c);
+  293 |     funct7_v := exe_engine.ir(instr_funct7_msb_c downto instr_funct7_lsb_c);
+  296 |     exe_engine_nxt.state <= exe_engine.state;
+  297 |     exe_engine_nxt.ir    <= exe_engine.ir;
+  298 |     exe_engine_nxt.ci    <= exe_engine.ci;
+  299 |     exe_engine_nxt.pc    <= exe_engine.pc;
+  300 |     exe_engine_nxt.pc2   <= exe_engine.pc2;
+  301 |     exe_engine_nxt.ra    <= (others => '0');
+  302 |     if_ack               <= '0';
+  303 |     if_reset             <= '0';
+  304 |     trap_ctrl.env_enter  <= '0';
+  305 |     trap_ctrl.env_exit   <= '0';
+  306 |     trap_ctrl.instr_be   <= '0';
+  307 |     trap_ctrl.instr_ma   <= '0';
+  308 |     trap_ctrl.ecall      <= '0';
+  309 |     trap_ctrl.ebreak     <= '0';
+  310 |     csr.we_nxt           <= '0';
+  311 |     csr.re_nxt           <= '0';
+  312 |     ctrl_nxt             <= ctrl_bus_zero_c;
+  313 |     hwtrig_start         <= '0';
+  316 |     if (opcode(4) = '1') then
+  317 |       ctrl_nxt.alu_unsigned <= funct3_v(0);
+  318 |     else
+  319 |       ctrl_nxt.alu_unsigned <= funct3_v(1);
+  320 |     end if;
+  323 |     case opcode is
+  324 |       when opcode_auipc_c | opcode_jal_c | opcode_branch_c =>
+  325 |         ctrl_nxt.alu_opa_mux <= '1';
+  326 |       when others =>
+  327 |         ctrl_nxt.alu_opa_mux <= '0';
+  328 |     end case;
+  331 |     case opcode is
+  332 |       when opcode_alui_c | opcode_lui_c | opcode_auipc_c | opcode_load_c | opcode_store_c | opcode_amo_c | opcode_branch_c | opcode_jal_c | opcode_jalr_c =>
+  333 |         ctrl_nxt.alu_opb_mux <= '1';
+  334 |       when others =>
+  335 |         ctrl_nxt.alu_opb_mux <= '0';
+  336 |     end case;
+  339 |     if RISCV_ISA_Zaamo and (opcode(2) = opcode_amo_c(2)) and (exe_engine.ir(instr_funct5_lsb_c+1) = '0') then
+  340 |       ctrl_nxt.lsu_amo <= '1';
+  341 |       ctrl_nxt.lsu_rw  <= '0';
+  342 |     elsif RISCV_ISA_Zalrsc and (opcode(2) = opcode_amo_c(2)) and (exe_engine.ir(instr_funct5_lsb_c+1) = '1') then
+  343 |       ctrl_nxt.lsu_amo <= '1';
+  344 |       ctrl_nxt.lsu_rw  <= exe_engine.ir(instr_funct5_lsb_c);
+  345 |     else
+  346 |       ctrl_nxt.lsu_amo <= '0';
+  347 |       ctrl_nxt.lsu_rw  <= exe_engine.ir(instr_opcode_lsb_c+5);
+  348 |     end if;
+  351 |     case exe_engine.state is
+  353 |       when EX_DISPATCH =>
+  355 |         ctrl_nxt.alu_opa_mux <= '1';
+  356 |         ctrl_nxt.alu_opb_mux <= '1';
+  358 |         if (trap_ctrl.env_pending = '1') or (trap_ctrl.exc_fire = '1') then
+  359 |           exe_engine_nxt.state <= EX_TRAP_ENTER;
+  360 |         elsif RISCV_ISA_Sdtrig and (hwtrig_match = '1') then
+  361 |           exe_engine_nxt.pc    <= exe_engine.pc2(XLEN-1 downto 1) & '0';
+  362 |           hwtrig_start         <= '1';
+  363 |           exe_engine_nxt.state <= EX_DISPATCH;
+  364 |         elsif (frontend_i.valid = '1') then
+  365 |           if_ack               <= '1';
+  366 |           trap_ctrl.instr_be   <= frontend_i.fault;
+  367 |           exe_engine_nxt.ci    <= frontend_i.compr;
+  368 |           exe_engine_nxt.ir    <= frontend_i.instr;
+  369 |           exe_engine_nxt.pc    <= exe_engine.pc2(XLEN-1 downto 1) & '0';
+  370 |           exe_engine_nxt.state <= EX_EXECUTE;
+  371 |         end if;
+  373 |       when EX_TRAP_ENTER =>
+  375 |         if (trap_ctrl.cause(5) = '1') and RISCV_ISA_Sdext then
+  376 |           exe_engine_nxt.pc2 <= DEBUG_PARK_ADDR(XLEN-1 downto 2) & "00";
+  377 |         elsif (debug_ctrl.run = '1') and RISCV_ISA_Sdext then
+  378 |           exe_engine_nxt.pc2 <= DEBUG_EXC_ADDR(XLEN-1 downto 2) & "00";
+  379 |         else
+  380 |           if (csr.mtvec(0) = '1') and (trap_ctrl.cause(6) = '1') then
+  381 |             exe_engine_nxt.pc2 <= csr.mtvec(XLEN-1 downto 7) & trap_ctrl.cause(4 downto 0) & "00";
+  382 |           else
+  383 |             exe_engine_nxt.pc2 <= csr.mtvec(XLEN-1 downto 2) & "00";
+  384 |           end if;
+  385 |         end if;
+  387 |         if (trap_ctrl.env_pending = '1') then
+  388 |           trap_ctrl.env_enter  <= '1';
+  389 |           exe_engine_nxt.state <= EX_RESTART;
+  390 |         end if;
+  392 |       when EX_TRAP_EXIT =>
+  394 |         if (debug_ctrl.run = '1') and RISCV_ISA_Sdext then
+  395 |           exe_engine_nxt.pc2 <= csr.dpc(XLEN-1 downto 1) & '0';
+  396 |         else
+  397 |           exe_engine_nxt.pc2 <= csr.mepc(XLEN-1 downto 1) & '0';
+  398 |         end if;
+  399 |         trap_ctrl.env_exit   <= '1';
+  400 |         exe_engine_nxt.state <= EX_RESTART;
+  402 |       when EX_RESTART =>
+  404 |         ctrl_nxt.rf_zero_we  <= not bool_to_ulogic_f(CPU_RF_HW_RST_EN);
+  405 |         if_reset             <= '1';
+  406 |         exe_engine_nxt.state <= EX_BRANCHED;
+  408 |       when EX_EXECUTE =>
+  410 |         exe_engine_nxt.pc2 <= alu_add_i(XLEN-1 downto 1) & '0';
+  411 |         trap_ctrl.instr_be <= pmp_fault_i;
+  414 |         case opcode is
+  417 |           when opcode_alu_c | opcode_alui_c =>
+  420 |             case funct3_v is
+  421 |               when funct3_sadd_c => ctrl_nxt.alu_op <= alu_op_add_c;
+  422 |               when funct3_slt_c  => ctrl_nxt.alu_op <= alu_op_slt_c;
+  423 |               when funct3_sltu_c => ctrl_nxt.alu_op <= alu_op_slt_c;
+  424 |               when funct3_xor_c  => ctrl_nxt.alu_op <= alu_op_xor_c;
+  425 |               when funct3_or_c   => ctrl_nxt.alu_op <= alu_op_or_c;
+  426 |               when funct3_and_c  => ctrl_nxt.alu_op <= alu_op_and_c;
+  427 |               when others        => ctrl_nxt.alu_op <= alu_op_zero_c;
+  428 |             end case;
+  431 |             if (funct3_v(2 downto 1) = funct3_slt_c(2 downto 1)) or
+  432 |                ((funct3_v = funct3_sadd_c) and (opcode(5) = '1') and (exe_engine.ir(instr_funct7_msb_c-1) = '1')) then
+  433 |               ctrl_nxt.alu_sub <= '1';
+  434 |             end if;
+  437 |             if ((opcode(5) = '0') and (funct3_v /= funct3_sll_c) and (funct3_v /= funct3_sr_c)) or
+  438 |                ((opcode(5) = '1') and (((funct3_v = funct3_sadd_c) and (funct7_v = "0000000")) or ((funct3_v = funct3_sadd_c) and (funct7_v = "0100000")) or
+  439 |                                        ((funct3_v = funct3_slt_c)  and (funct7_v = "0000000")) or ((funct3_v = funct3_sltu_c) and (funct7_v = "0000000")) or
+  440 |                                        ((funct3_v = funct3_xor_c)  and (funct7_v = "0000000")) or ((funct3_v = funct3_or_c)   and (funct7_v = "0000000")) or
+  441 |                                        ((funct3_v = funct3_and_c)  and (funct7_v = "0000000")))) then
+  442 |               ctrl_nxt.rf_wb_en    <= '1';
+  443 |               exe_engine_nxt.state <= EX_DISPATCH;
+  444 |             else
+  445 |               ctrl_nxt.alu_cp_alu  <= '1';
+  446 |               exe_engine_nxt.state <= EX_ALU_WAIT;
+  447 |             end if;
+  450 |           when opcode_lui_c =>
+  451 |             ctrl_nxt.alu_op      <= alu_op_movb_c;
+  452 |             ctrl_nxt.rf_wb_en    <= '1';
+  453 |             exe_engine_nxt.state <= EX_DISPATCH;
+  456 |           when opcode_auipc_c =>
+  457 |             ctrl_nxt.alu_op      <= alu_op_add_c;
+  458 |             ctrl_nxt.rf_wb_en    <= '1';
+  459 |             exe_engine_nxt.state <= EX_DISPATCH;
+  462 |           when opcode_load_c | opcode_store_c | opcode_amo_c =>
+  463 |             exe_engine_nxt.state <= EX_MEM_REQ;
+  466 |           when opcode_branch_c | opcode_jal_c | opcode_jalr_c =>
+  467 |             exe_engine_nxt.state <= EX_BRANCH;
+  470 |           when opcode_fence_c =>
+  471 |             if (exe_engine.ir(instr_funct3_msb_c downto instr_funct3_lsb_c) = funct3_fencei_c) then
+  472 |               ctrl_nxt.if_fence    <= '1';
+  473 |               exe_engine_nxt.state <= EX_RESTART;
+  474 |             elsif (exe_engine.ir(instr_funct3_msb_c downto instr_funct3_lsb_c) = funct3_fence_c) then
+  475 |               ctrl_nxt.lsu_fence   <= '1';
+  476 |               exe_engine_nxt.state <= EX_DISPATCH;
+  477 |             else
+  478 |               exe_engine_nxt.state <= EX_DISPATCH;
+  479 |             end if;
+  482 |           when opcode_fop_c =>
+  483 |             ctrl_nxt.alu_cp_fpu  <= '1';
+  484 |             exe_engine_nxt.state <= EX_ALU_WAIT;
+  487 |           when opcode_cust0_c | opcode_cust1_c =>
+  488 |             ctrl_nxt.alu_cp_cfu  <= '1';
+  489 |             exe_engine_nxt.state <= EX_ALU_WAIT;
+  492 |           when others =>
+  493 |             if ((funct3_v = funct3_csrrw_c) or (funct3_v = funct3_csrrwi_c)) and (exe_engine.ir(instr_rd_msb_c downto instr_rd_lsb_c) = "00000") then
+  494 |               csr.re_nxt <= '0';
+  495 |             else
+  496 |               csr.re_nxt <= '1';
+  497 |             end if;
+  498 |             exe_engine_nxt.state <= EX_SYSTEM;
+  500 |         end case;
+  502 |       when EX_ALU_WAIT =>
+  504 |         ctrl_nxt.alu_op <= alu_op_cp_c;
+  505 |         if (alu_cp_done_i = '1') or (trap_ctrl.exc_buf(exc_illegal_c) = '1') then
+  506 |           ctrl_nxt.rf_wb_en    <= '1';
+  507 |           exe_engine_nxt.state <= EX_DISPATCH;
+  508 |         end if;
+  510 |       when EX_BRANCH =>
+  512 |         exe_engine_nxt.ra  <= exe_engine.pc2(XLEN-1 downto 1) & '0';
+  513 |         ctrl_nxt.rf_wb_en  <= opcode(2);
+  514 |         trap_ctrl.instr_ma <= alu_add_i(1) and branch_taken and bool_to_ulogic_f(not RISCV_ISA_C);
+  515 |         if (trap_ctrl.exc_buf(exc_illegal_c) = '0') and (branch_taken = '1') then
+  516 |           if_reset             <= '1';
+  517 |           exe_engine_nxt.pc2   <= alu_add_i(XLEN-1 downto 1) & '0';
+  518 |           exe_engine_nxt.state <= EX_BRANCHED;
+  519 |         else
+  520 |           exe_engine_nxt.state <= EX_DISPATCH;
+  521 |         end if;
+  523 |       when EX_BRANCHED =>
+  525 |         exe_engine_nxt.state <= EX_DISPATCH;
+  527 |       when EX_MEM_REQ =>
+  529 |         if (trap_ctrl.exc_buf(exc_illegal_c) = '0') then
+  530 |           ctrl_nxt.lsu_req <= '1';
+  531 |         end if;
+  532 |         exe_engine_nxt.state <= EX_MEM_RSP;
+  534 |       when EX_MEM_RSP =>
+  536 |         if (lsu_wait_i = '0') or
+  537 |            (trap_ctrl.exc_buf(exc_saccess_c) = '1') or (trap_ctrl.exc_buf(exc_laccess_c) = '1') or
+  538 |            (trap_ctrl.exc_buf(exc_salign_c)  = '1') or (trap_ctrl.exc_buf(exc_lalign_c)  = '1') or
+  539 |            (trap_ctrl.exc_buf(exc_illegal_c) = '1') then
+  540 |           ctrl_nxt.rf_wb_en    <= (not ctrl.lsu_rw) or ctrl.lsu_amo;
+  541 |           exe_engine_nxt.state <= EX_DISPATCH;
+  542 |         end if;
+  544 |       when EX_SLEEP =>
+  546 |         if (trap_ctrl.wakeup = '1') then
+  547 |           exe_engine_nxt.state <= EX_DISPATCH;
+  548 |         end if;
+  550 |       when others =>
+  552 |         exe_engine_nxt.state <= EX_DISPATCH;
+  553 |         if (funct3_v = funct3_env_c) and (trap_ctrl.exc_buf(exc_illegal_c) = '0') then
+  554 |           case exe_engine.ir(instr_funct12_lsb_c+2 downto instr_funct12_lsb_c) is
+  555 |             when "000"  => trap_ctrl.ecall      <= '1';
+  556 |             when "001"  => trap_ctrl.ebreak     <= '1';
+  557 |             when "010"  => exe_engine_nxt.state <= EX_TRAP_EXIT;
+  558 |             when "101"  => exe_engine_nxt.state <= EX_SLEEP;
+  559 |             when others => exe_engine_nxt.state <= EX_DISPATCH;
+  560 |           end case;
+  561 |         end if;
+  563 |         if (funct3_v = funct3_csrrw_c) or (funct3_v = funct3_csrrwi_c) or (exe_engine.ir(instr_rs1_msb_c downto instr_rs1_lsb_c) /= "00000") then
+  564 |           csr.we_nxt <= '1';
+  565 |         end if;
+  567 |         ctrl_nxt.rf_wb_en <= '1';
+  569 |     end case;
+  570 |   end process execute_engine_fsm_comb;
+  577 |   ctrl_o.if_fence     <= ctrl.if_fence;
+  578 |   ctrl_o.if_reset     <= if_reset;
+  579 |   ctrl_o.if_ack       <= if_ack;
+  581 |   ctrl_o.pc_cur       <= exe_engine.pc(XLEN-1 downto 1) & '0';
+  582 |   ctrl_o.pc_nxt       <= exe_engine.pc2(XLEN-1 downto 1) & '0';
+  583 |   ctrl_o.pc_ret       <= exe_engine.ra(XLEN-1 downto 1) & '0';
+  585 |   ctrl_o.rf_wb_en     <= ctrl.rf_wb_en and (not trap_ctrl.exc_fire);
+  586 |   ctrl_o.rf_rs1       <= exe_engine.ir(instr_rs1_msb_c downto instr_rs1_lsb_c);
+  587 |   ctrl_o.rf_rs2       <= exe_engine.ir(instr_rs2_msb_c downto instr_rs2_lsb_c);
+  588 |   ctrl_o.rf_rd        <= exe_engine.ir(instr_rd_msb_c downto instr_rd_lsb_c);
+  589 |   ctrl_o.rf_zero_we   <= ctrl.rf_zero_we;
+  591 |   ctrl_o.alu_op       <= ctrl.alu_op;
+  592 |   ctrl_o.alu_sub      <= ctrl.alu_sub;
+  593 |   ctrl_o.alu_opa_mux  <= ctrl.alu_opa_mux;
+  594 |   ctrl_o.alu_opb_mux  <= ctrl.alu_opb_mux;
+  595 |   ctrl_o.alu_unsigned <= ctrl.alu_unsigned;
+  596 |   ctrl_o.alu_imm      <= immediate;
+  597 |   ctrl_o.alu_cp_alu   <= ctrl.alu_cp_alu;
+  598 |   ctrl_o.alu_cp_cfu   <= ctrl.alu_cp_cfu;
+  599 |   ctrl_o.alu_cp_fpu   <= ctrl.alu_cp_fpu;
+  601 |   ctrl_o.lsu_req      <= ctrl.lsu_req;
+  602 |   ctrl_o.lsu_rw       <= ctrl.lsu_rw;
+  603 |   ctrl_o.lsu_amo      <= ctrl.lsu_amo;
+  604 |   ctrl_o.lsu_mo_we    <= '1' when (exe_engine.state = EX_MEM_REQ) else '0';
+  605 |   ctrl_o.lsu_fence    <= ctrl.lsu_fence;
+  606 |   ctrl_o.lsu_priv     <= csr.mstatus_mpp when (csr.mstatus_mprv = '1') else csr.prv_level_eff;
+  608 |   ctrl_o.csr_we       <= csr.we;
+  609 |   ctrl_o.csr_re       <= csr.re;
+  610 |   ctrl_o.csr_addr     <= csr.addr;
+  611 |   ctrl_o.csr_wdata    <= csr.wdata;
+  612 |   ctrl_o.cnt_halt     <= csr.mcountinhibit;
+  613 |   ctrl_o.cnt_event    <= cnt_event;
+  615 |   ctrl_o.ir_funct3    <= exe_engine.ir(instr_funct3_msb_c downto instr_funct3_lsb_c);
+  616 |   ctrl_o.ir_funct12   <= exe_engine.ir(instr_funct12_msb_c downto instr_funct12_lsb_c);
+  617 |   ctrl_o.ir_opcode    <= opcode;
+  619 |   ctrl_o.cpu_priv     <= csr.prv_level_eff;
+  620 |   ctrl_o.cpu_sleep    <= sleep_mode;
+  621 |   ctrl_o.cpu_trap     <= trap_ctrl.env_enter;
+  622 |   ctrl_o.cpu_debug    <= debug_ctrl.run;
+  631 |   multi_cycle_monitor: process(rstn_i, clk_i)
+  632 |   begin
+  633 |     if (rstn_i = '0') then
+  634 |       monitor_cnt <= (others => '0');
+  635 |     elsif rising_edge(clk_i) then
+  636 |       if (exe_engine.state = EX_ALU_WAIT) then
+  637 |         monitor_cnt <= std_ulogic_vector(unsigned(monitor_cnt) + 1);
+  638 |       else
+  639 |         monitor_cnt <= (others => '0');
+  640 |       end if;
+  641 |     end if;
+  642 |   end process multi_cycle_monitor;
+  645 |   monitor_exc <= monitor_cnt(monitor_cnt'left);
+  650 |   csr_check: process(exe_engine.ir, debug_ctrl.run, csr)
+  651 |     variable csr_addr_v : std_ulogic_vector(11 downto 0);
+  652 |   begin
+  654 |     csr_addr_v := exe_engine.ir(instr_imm12_msb_c downto instr_imm12_lsb_c);
+  659 |     case csr_addr_v is
+  662 |       when csr_cfureg0_c | csr_cfureg1_c | csr_cfureg2_c | csr_cfureg3_c =>
+  663 |         csr_valid(2) <= bool_to_ulogic_f(RISCV_ISA_Zxcfu);
+  666 |       when csr_fflags_c | csr_frm_c | csr_fcsr_c =>
+  667 |         csr_valid(2) <= bool_to_ulogic_f(RISCV_ISA_Zfinx);
+  670 |       when csr_mstatus_c  | csr_mstatush_c      | csr_misa_c      | csr_mie_c       | csr_mtvec_c  |
+  671 |            csr_mscratch_c | csr_mepc_c          | csr_mcause_c    | csr_mip_c       | csr_mtval_c  |
+  672 |            csr_mtinst_c   | csr_mcountinhibit_c | csr_mvendorid_c | csr_marchid_c   | csr_mimpid_c |
+  673 |            csr_mhartid_c  | csr_mconfigptr_c    | csr_mxisa_c     | csr_mxiccsreg_c | csr_mxiccdata_c =>
+  674 |         csr_valid(2) <= '1';
+  677 |       when csr_mcounteren_c | csr_menvcfg_c | csr_menvcfgh_c =>
+  678 |         csr_valid(2) <= bool_to_ulogic_f(RISCV_ISA_U);
+  681 |       when csr_pmpcfg0_c   | csr_pmpcfg1_c   | csr_pmpcfg2_c   | csr_pmpcfg3_c   |
+  682 |            csr_pmpaddr0_c  | csr_pmpaddr1_c  | csr_pmpaddr2_c  | csr_pmpaddr3_c  |
+  683 |            csr_pmpaddr4_c  | csr_pmpaddr5_c  | csr_pmpaddr6_c  | csr_pmpaddr7_c  |
+  684 |            csr_pmpaddr8_c  | csr_pmpaddr9_c  | csr_pmpaddr10_c | csr_pmpaddr11_c |
+  685 |            csr_pmpaddr12_c | csr_pmpaddr13_c | csr_pmpaddr14_c | csr_pmpaddr15_c =>
+  686 |         csr_valid(2) <= bool_to_ulogic_f(RISCV_ISA_Smpmp);
+  689 |       when csr_mhpmcounter3_c   | csr_mhpmcounter4_c   | csr_mhpmcounter5_c   | csr_mhpmcounter6_c   | csr_mhpmcounter7_c   |
+  690 |            csr_mhpmcounter8_c   | csr_mhpmcounter9_c   | csr_mhpmcounter10_c  | csr_mhpmcounter11_c  | csr_mhpmcounter12_c  |
+  691 |            csr_mhpmcounter13_c  | csr_mhpmcounter14_c  | csr_mhpmcounter15_c  |
+  692 |            csr_mhpmcounter3h_c  | csr_mhpmcounter4h_c  | csr_mhpmcounter5h_c  | csr_mhpmcounter6h_c  | csr_mhpmcounter7h_c  |
+  693 |            csr_mhpmcounter8h_c  | csr_mhpmcounter9h_c  | csr_mhpmcounter10h_c | csr_mhpmcounter11h_c | csr_mhpmcounter12h_c |
+  694 |            csr_mhpmcounter13h_c | csr_mhpmcounter14h_c | csr_mhpmcounter15h_c |
+  695 |            csr_mhpmevent3_c     | csr_mhpmevent4_c     | csr_mhpmevent5_c     | csr_mhpmevent6_c     | csr_mhpmevent7_c     |
+  696 |            csr_mhpmevent8_c     | csr_mhpmevent9_c     | csr_mhpmevent10_c    | csr_mhpmevent11_c    | csr_mhpmevent12_c    |
+  697 |            csr_mhpmevent13_c    | csr_mhpmevent14_c    | csr_mhpmevent15_c =>
+  698 |         csr_valid(2) <= bool_to_ulogic_f(RISCV_ISA_Zihpm);
+  701 |       when csr_cycle_c | csr_mcycle_c | csr_instret_c | csr_minstret_c | csr_cycleh_c | csr_mcycleh_c | csr_instreth_c | csr_minstreth_c =>
+  702 |         csr_valid(2) <= bool_to_ulogic_f(RISCV_ISA_Zicntr);
+  705 |       when csr_dcsr_c | csr_dpc_c | csr_dscratch0_c =>
+  706 |         csr_valid(2) <= bool_to_ulogic_f(RISCV_ISA_Sdext);
+  709 |       when csr_tselect_c | csr_tdata1_c | csr_tdata2_c | csr_tinfo_c =>
+  710 |         csr_valid(2) <= bool_to_ulogic_f(RISCV_ISA_Sdtrig);
+  713 |       when others =>
+  714 |         csr_valid(2) <= '0';
+  716 |     end case;
+  721 |     if (csr_addr_v(11 downto 10) = "11") and
+  722 |        ((exe_engine.ir(instr_funct3_msb_c downto instr_funct3_lsb_c) = funct3_csrrw_c)  or
+  723 |         (exe_engine.ir(instr_funct3_msb_c downto instr_funct3_lsb_c) = funct3_csrrwi_c) or
+  724 |         (exe_engine.ir(instr_rs1_msb_c downto instr_rs1_lsb_c) /= "00000")) then
+  725 |       csr_valid(1) <= '0';
+  726 |     else
+  727 |       csr_valid(1) <= '1';
+  728 |     end if;
+  733 |     if (csr_addr_v(11 downto 4) = csr_dcsr_c(11 downto 4)) and
+  734 |        RISCV_ISA_Sdext and (debug_ctrl.run = '0') then
+  735 |       csr_valid(0) <= '0';
+  736 |     elsif RISCV_ISA_Zicntr and RISCV_ISA_U and (csr.prv_level_eff = '0') and
+  737 |           (csr_addr_v(11 downto 8) = csr_cycle_c(11 downto 8)) and
+  738 |           (((csr_addr_v(1 downto 0) = csr_cycle_c(1 downto 0)) and (csr.mcounteren_cy = '0')) or
+  739 |            ((csr_addr_v(1 downto 0) = csr_instret_c(1 downto 0)) and (csr.mcounteren_ir = '0'))) then
+  740 |       csr_valid(0) <= '0';
+  741 |     elsif (csr_addr_v(9 downto 8) /= "00") and (csr.prv_level_eff = '0') then
+  742 |       csr_valid(0) <= '0';
+  743 |     else
+  744 |       csr_valid(0) <= '1';
+  745 |     end if;
+  747 |   end process csr_check;
+  752 |   illegal_check: process(exe_engine, csr, csr_valid, debug_ctrl)
+  753 |   begin
+  754 |     illegal_cmd <= '1';
+  755 |     case exe_engine.ir(instr_opcode_msb_c downto instr_opcode_lsb_c) is
+  757 |       when opcode_lui_c | opcode_auipc_c | opcode_jal_c =>
+  758 |         illegal_cmd <= '0';
+  760 |       when opcode_jalr_c =>
+  761 |         if (exe_engine.ir(instr_funct3_msb_c downto instr_funct3_lsb_c) = "000") then
+  762 |           illegal_cmd <= '0';
+  763 |         end if;
+  765 |       when opcode_branch_c =>
+  766 |         case exe_engine.ir(instr_funct3_msb_c downto instr_funct3_lsb_c) is
+  767 |           when funct3_beq_c | funct3_bne_c | funct3_blt_c | funct3_bge_c | funct3_bltu_c | funct3_bgeu_c => illegal_cmd <= '0';
+  768 |           when others => illegal_cmd <= '1';
+  769 |         end case;
+  771 |       when opcode_load_c =>
+  772 |         case exe_engine.ir(instr_funct3_msb_c downto instr_funct3_lsb_c) is
+  773 |           when funct3_lb_c | funct3_lh_c | funct3_lw_c | funct3_lbu_c | funct3_lhu_c => illegal_cmd <= '0';
+  774 |           when others => illegal_cmd <= '1';
+  775 |         end case;
+  777 |       when opcode_store_c =>
+  778 |         case exe_engine.ir(instr_funct3_msb_c downto instr_funct3_lsb_c) is
+  779 |           when funct3_sb_c | funct3_sh_c | funct3_sw_c => illegal_cmd <= '0';
+  780 |           when others => illegal_cmd <= '1';
+  781 |         end case;
+  783 |       when opcode_amo_c =>
+  784 |         if (exe_engine.ir(instr_funct3_msb_c downto instr_funct3_lsb_c) = "010") then
+  785 |           case exe_engine.ir(instr_funct5_msb_c downto instr_funct5_lsb_c) is
+  786 |             when "00001" | "00000" | "00100" | "01100" | "01000" | "10000" | "10100" | "11000" | "11100" => illegal_cmd <= not bool_to_ulogic_f(RISCV_ISA_Zaamo);
+  787 |             when "00010" | "00011" => illegal_cmd <= not bool_to_ulogic_f(RISCV_ISA_Zalrsc);
+  788 |             when others => illegal_cmd <= '1';
+  789 |           end case;
+  790 |         end if;
+  792 |       when opcode_alu_c | opcode_alui_c | opcode_fop_c | opcode_cust0_c | opcode_cust1_c =>
+  793 |         illegal_cmd <= '0';
+  795 |       when opcode_fence_c =>
+  796 |         if (exe_engine.ir(instr_funct3_msb_c downto instr_funct3_lsb_c+1) = funct3_fence_c(2 downto 1)) then
+  797 |           illegal_cmd <= '0';
+  798 |         end if;
+  800 |       when opcode_system_c =>
+  801 |         if (exe_engine.ir(instr_funct3_msb_c downto instr_funct3_lsb_c) = funct3_env_c) then
+  802 |           if (exe_engine.ir(instr_rs1_msb_c downto instr_rs1_lsb_c) = "00000") and (exe_engine.ir(instr_rd_msb_c downto instr_rd_lsb_c) = "00000") then
+  803 |             case exe_engine.ir(instr_funct12_msb_c downto instr_funct12_lsb_c) is
+  804 |               when funct12_ecall_c  => illegal_cmd <= '0';
+  805 |               when funct12_ebreak_c => illegal_cmd <= '0';
+  806 |               when funct12_mret_c   => illegal_cmd <= (not csr.prv_level) or debug_ctrl.run;
+  807 |               when funct12_dret_c   => illegal_cmd <= not debug_ctrl.run;
+  808 |               when funct12_wfi_c    => illegal_cmd <= (not csr.prv_level) and csr.mstatus_tw;
+  809 |               when others           => illegal_cmd <= '1';
+  810 |             end case;
+  811 |           end if;
+  812 |         elsif (csr_valid = "111") and (exe_engine.ir(instr_funct3_msb_c downto instr_funct3_lsb_c) /= funct3_csril_c) then
+  813 |           illegal_cmd <= '0';
+  814 |         end if;
+  816 |       when others =>
+  817 |         illegal_cmd <= '1';
+  819 |     end case;
+  820 |   end process illegal_check;
+  825 |   trap_ctrl.instr_il <= '1' when ((exe_engine.state = EX_EXECUTE) or (exe_engine.state = EX_ALU_WAIT)) and
+  826 |                                  ((monitor_exc = '1') or (illegal_cmd = '1')) else '0';
+  835 |   trap_buffer: process(rstn_i, clk_i)
+  836 |   begin
+  837 |     if (rstn_i = '0') then
+  838 |       trap_ctrl.irq_pnd <= (others => '0');
+  839 |       trap_ctrl.irq_buf <= (others => '0');
+  840 |       trap_ctrl.exc_buf <= (others => '0');
+  841 |     elsif rising_edge(clk_i) then
+  849 |       trap_ctrl.irq_pnd(irq_msi_irq_c) <= irq_machine_i(0);
+  850 |       trap_ctrl.irq_pnd(irq_mei_irq_c) <= irq_machine_i(1);
+  851 |       trap_ctrl.irq_pnd(irq_mti_irq_c) <= irq_machine_i(2);
+  854 |       trap_ctrl.irq_pnd(irq_firq_15_c downto irq_firq_0_c) <= irq_fast_i(15 downto 0);
+  857 |       trap_ctrl.irq_pnd(irq_db_halt_c) <= '0';
+  858 |       trap_ctrl.irq_pnd(irq_db_step_c) <= '0';
+  867 |       trap_ctrl.irq_buf(irq_msi_irq_c) <= (trap_ctrl.irq_pnd(irq_msi_irq_c) and csr.mie_msi) or (trap_ctrl.env_pending and trap_ctrl.irq_buf(irq_msi_irq_c));
+  868 |       trap_ctrl.irq_buf(irq_mei_irq_c) <= (trap_ctrl.irq_pnd(irq_mei_irq_c) and csr.mie_mei) or (trap_ctrl.env_pending and trap_ctrl.irq_buf(irq_mei_irq_c));
+  869 |       trap_ctrl.irq_buf(irq_mti_irq_c) <= (trap_ctrl.irq_pnd(irq_mti_irq_c) and csr.mie_mti) or (trap_ctrl.env_pending and trap_ctrl.irq_buf(irq_mti_irq_c));
+  872 |       for i in 0 to 15 loop
+  873 |         trap_ctrl.irq_buf(irq_firq_0_c+i) <= (trap_ctrl.irq_pnd(irq_firq_0_c+i) and csr.mie_firq(i)) or (trap_ctrl.env_pending and trap_ctrl.irq_buf(irq_firq_0_c+i));
+  874 |       end loop;
+  877 |       trap_ctrl.irq_buf(irq_db_halt_c) <= debug_ctrl.trig_halt or (trap_ctrl.env_pending and trap_ctrl.irq_buf(irq_db_halt_c));
+  878 |       trap_ctrl.irq_buf(irq_db_step_c) <= debug_ctrl.trig_step or (trap_ctrl.env_pending and trap_ctrl.irq_buf(irq_db_step_c));
+  888 |       trap_ctrl.exc_buf(exc_lalign_c) <= (trap_ctrl.exc_buf(exc_lalign_c) or lsu_err_i(0))       and (not trap_ctrl.env_enter);
+  889 |       trap_ctrl.exc_buf(exc_salign_c) <= (trap_ctrl.exc_buf(exc_salign_c) or lsu_err_i(2))       and (not trap_ctrl.env_enter);
+  890 |       trap_ctrl.exc_buf(exc_ialign_c) <= (trap_ctrl.exc_buf(exc_ialign_c) or trap_ctrl.instr_ma) and (not trap_ctrl.env_enter);
+  893 |       trap_ctrl.exc_buf(exc_laccess_c) <= (trap_ctrl.exc_buf(exc_laccess_c) or lsu_err_i(1))       and (not trap_ctrl.env_enter);
+  894 |       trap_ctrl.exc_buf(exc_saccess_c) <= (trap_ctrl.exc_buf(exc_saccess_c) or lsu_err_i(3))       and (not trap_ctrl.env_enter);
+  895 |       trap_ctrl.exc_buf(exc_iaccess_c) <= (trap_ctrl.exc_buf(exc_iaccess_c) or trap_ctrl.instr_be) and (not trap_ctrl.env_enter);
+  898 |       trap_ctrl.exc_buf(exc_ecall_c)   <= (trap_ctrl.exc_buf(exc_ecall_c)   or trap_ctrl.ecall)    and (not trap_ctrl.env_enter);
+  899 |       trap_ctrl.exc_buf(exc_illegal_c) <= (trap_ctrl.exc_buf(exc_illegal_c) or trap_ctrl.instr_il) and (not trap_ctrl.env_enter);
+  902 |       if RISCV_ISA_Sdext then
+  903 |         trap_ctrl.exc_buf(exc_ebreak_c) <= (not trap_ctrl.env_enter) and (trap_ctrl.exc_buf(exc_ebreak_c) or
+  904 |           (trap_ctrl.ebreak and (    csr.prv_level) and (not csr.dcsr_ebreakm) and (not debug_ctrl.run)) or
+  905 |           (trap_ctrl.ebreak and (not csr.prv_level) and (not csr.dcsr_ebreaku) and (not debug_ctrl.run)));
+  906 |       else
+  907 |         trap_ctrl.exc_buf(exc_ebreak_c) <= (trap_ctrl.exc_buf(exc_ebreak_c) or trap_ctrl.ebreak) and (not trap_ctrl.env_enter);
+  908 |       end if;
+  911 |       trap_ctrl.exc_buf(exc_db_break_c) <= (trap_ctrl.exc_buf(exc_db_break_c) or debug_ctrl.trig_break) and (not trap_ctrl.env_enter);
+  912 |       trap_ctrl.exc_buf(exc_db_hw_c)    <= (trap_ctrl.exc_buf(exc_db_hw_c)    or debug_ctrl.trig_hw)    and (not trap_ctrl.env_enter);
+  913 |     end if;
+  914 |   end process trap_buffer;
+  919 |   trap_priority: process(rstn_i, clk_i)
+  920 |   begin
+  921 |     if (rstn_i = '0') then
+  922 |       trap_ctrl.cause <= (others => '0');
+  923 |     elsif rising_edge(clk_i) then
+  924 |       trap_ctrl.cause <= (others => '0');
+  926 |       if    (trap_ctrl.exc_buf(exc_iaccess_c)  = '1') then trap_ctrl.cause <= trap_iaf_c;
+  927 |       elsif (trap_ctrl.exc_buf(exc_illegal_c)  = '1') then trap_ctrl.cause <= trap_iil_c;
+  928 |       elsif (trap_ctrl.exc_buf(exc_ialign_c)   = '1') then trap_ctrl.cause <= trap_ima_c;
+  929 |       elsif (trap_ctrl.exc_buf(exc_ecall_c)    = '1') then trap_ctrl.cause <= trap_env_c(6 downto 2) & replicate_f(csr.prv_level, 2);
+  930 |       elsif (trap_ctrl.exc_buf(exc_ebreak_c)   = '1') then trap_ctrl.cause <= trap_brk_c;
+  931 |       elsif (trap_ctrl.exc_buf(exc_salign_c)   = '1') then trap_ctrl.cause <= trap_sma_c;
+  932 |       elsif (trap_ctrl.exc_buf(exc_lalign_c)   = '1') then trap_ctrl.cause <= trap_lma_c;
+  933 |       elsif (trap_ctrl.exc_buf(exc_saccess_c)  = '1') then trap_ctrl.cause <= trap_saf_c;
+  934 |       elsif (trap_ctrl.exc_buf(exc_laccess_c)  = '1') then trap_ctrl.cause <= trap_laf_c;
+  936 |       elsif (trap_ctrl.irq_buf(irq_db_halt_c)  = '1') then trap_ctrl.cause <= trap_db_halt_c;
+  937 |       elsif (trap_ctrl.exc_buf(exc_db_hw_c)    = '1') then trap_ctrl.cause <= trap_db_trig_c;
+  938 |       elsif (trap_ctrl.exc_buf(exc_db_break_c) = '1') then trap_ctrl.cause <= trap_db_break_c;
+  939 |       elsif (trap_ctrl.irq_buf(irq_db_step_c)  = '1') then trap_ctrl.cause <= trap_db_step_c;
+  941 |       elsif (trap_ctrl.irq_buf(irq_firq_0_c)   = '1') then trap_ctrl.cause <= trap_firq0_c;
+  942 |       elsif (trap_ctrl.irq_buf(irq_firq_1_c)   = '1') then trap_ctrl.cause <= trap_firq1_c;
+  943 |       elsif (trap_ctrl.irq_buf(irq_firq_2_c)   = '1') then trap_ctrl.cause <= trap_firq2_c;
+  944 |       elsif (trap_ctrl.irq_buf(irq_firq_3_c)   = '1') then trap_ctrl.cause <= trap_firq3_c;
+  945 |       elsif (trap_ctrl.irq_buf(irq_firq_4_c)   = '1') then trap_ctrl.cause <= trap_firq4_c;
+  946 |       elsif (trap_ctrl.irq_buf(irq_firq_5_c)   = '1') then trap_ctrl.cause <= trap_firq5_c;
+  947 |       elsif (trap_ctrl.irq_buf(irq_firq_6_c)   = '1') then trap_ctrl.cause <= trap_firq6_c;
+  948 |       elsif (trap_ctrl.irq_buf(irq_firq_7_c)   = '1') then trap_ctrl.cause <= trap_firq7_c;
+  949 |       elsif (trap_ctrl.irq_buf(irq_firq_8_c)   = '1') then trap_ctrl.cause <= trap_firq8_c;
+  950 |       elsif (trap_ctrl.irq_buf(irq_firq_9_c)   = '1') then trap_ctrl.cause <= trap_firq9_c;
+  951 |       elsif (trap_ctrl.irq_buf(irq_firq_10_c)  = '1') then trap_ctrl.cause <= trap_firq10_c;
+  952 |       elsif (trap_ctrl.irq_buf(irq_firq_11_c)  = '1') then trap_ctrl.cause <= trap_firq11_c;
+  953 |       elsif (trap_ctrl.irq_buf(irq_firq_12_c)  = '1') then trap_ctrl.cause <= trap_firq12_c;
+  954 |       elsif (trap_ctrl.irq_buf(irq_firq_13_c)  = '1') then trap_ctrl.cause <= trap_firq13_c;
+  955 |       elsif (trap_ctrl.irq_buf(irq_firq_14_c)  = '1') then trap_ctrl.cause <= trap_firq14_c;
+  956 |       elsif (trap_ctrl.irq_buf(irq_firq_15_c)  = '1') then trap_ctrl.cause <= trap_firq15_c;
+  958 |       elsif (trap_ctrl.irq_buf(irq_mei_irq_c)  = '1') then trap_ctrl.cause <= trap_mei_c;
+  959 |       elsif (trap_ctrl.irq_buf(irq_msi_irq_c)  = '1') then trap_ctrl.cause <= trap_msi_c;
+  960 |       elsif (trap_ctrl.irq_buf(irq_mti_irq_c)  = '1') then trap_ctrl.cause <= trap_mti_c;
+  961 |       end if;
+  962 |     end if;
+  963 |   end process trap_priority;
+  966 |   trap_ctrl.epc <= exe_engine.pc2 when (trap_ctrl.cause(trap_ctrl.cause'left) = '1') else exe_engine.pc;
+  971 |   trap_controller: process(rstn_i, clk_i)
+  972 |   begin
+  973 |     if (rstn_i = '0') then
+  974 |       trap_ctrl.env_pending <= '0';
+  975 |       trap_ctrl.env_entered <= '0';
+  976 |     elsif rising_edge(clk_i) then
+  978 |       if (trap_ctrl.env_pending = '0') then
+  979 |         if (trap_ctrl.exc_fire = '1') or (or_reduce_f(trap_ctrl.irq_fire) = '1') then
+  980 |           trap_ctrl.env_pending <= '1';
+  981 |         end if;
+  982 |       else
+  983 |         if (trap_ctrl.env_enter = '1') then
+  984 |           trap_ctrl.env_pending <= '0';
+  985 |         end if;
+  986 |       end if;
+  988 |       if (exe_engine.state = EX_EXECUTE) then
+  989 |         trap_ctrl.env_entered <= '0';
+  990 |       elsif (trap_ctrl.env_enter = '1') then
+  991 |         trap_ctrl.env_entered <= '1';
+  992 |       end if;
+  993 |     end if;
+  994 |   end process trap_controller;
+  997 |   trap_ctrl.exc_fire <= '1' when (or_reduce_f(trap_ctrl.exc_buf) = '1') else '0';
+ 1000 |   trap_ctrl.irq_fire(0) <= '1' when
+ 1001 |     (exe_engine.state = EX_EXECUTE) and
+ 1002 |     (or_reduce_f(trap_ctrl.irq_buf(irq_firq_15_c downto irq_msi_irq_c)) = '1') and
+ 1003 |     ((csr.mstatus_mie = '1') or (csr.prv_level = priv_mode_u_c)) and
+ 1004 |     (debug_ctrl.run = '0') and (csr.dcsr_step = '0') else '0';
+ 1007 |   trap_ctrl.irq_fire(1) <= '1' when
+ 1008 |     ((exe_engine.state = EX_EXECUTE) or (exe_engine.state = EX_BRANCHED)) and
+ 1009 |     (trap_ctrl.irq_buf(irq_db_halt_c) = '1') else '0';
+ 1012 |   trap_ctrl.irq_fire(2) <= '1' when
+ 1013 |     ((exe_engine.state = EX_EXECUTE) or
+ 1014 |      ((trap_ctrl.env_entered = '1') and (exe_engine.state = EX_BRANCHED))) and
+ 1015 |     (trap_ctrl.irq_buf(irq_db_step_c) = '1') else '0';
+ 1020 |   sleep_control: process(rstn_i, clk_i)
+ 1021 |   begin
+ 1022 |     if (rstn_i = '0') then
+ 1023 |       sleep_mode <= '0';
+ 1024 |     elsif rising_edge(clk_i) then
+ 1025 |       if (exe_engine.state = EX_SLEEP) and
+ 1026 |          (frontend_i.halted = '1') and
+ 1027 |          (trap_ctrl.wakeup = '0') then
+ 1028 |         sleep_mode <= '1';
+ 1029 |       else
+ 1030 |         sleep_mode <= '0';
+ 1031 |       end if;
+ 1032 |     end if;
+ 1033 |   end process sleep_control;
+ 1036 |   trap_ctrl.wakeup <= or_reduce_f(trap_ctrl.irq_buf) or debug_ctrl.run or csr.dcsr_step;
+ 1045 |   csr_addr_reg: process(rstn_i, clk_i)
+ 1046 |   begin
+ 1047 |     if (rstn_i = '0') then
+ 1048 |       csr.addr <= (others => '0');
+ 1049 |     elsif rising_edge(clk_i) then
+ 1050 |       if (opcode = opcode_system_c) then
+ 1051 |         csr.addr <= exe_engine.ir(instr_imm12_msb_c downto instr_imm12_lsb_c);
+ 1052 |       end if;
+ 1053 |     end if;
+ 1054 |   end process csr_addr_reg;
+ 1059 |   csr.operand <= rf_rs1_i when (exe_engine.ir(instr_funct3_msb_c) = '0') else (x"000000" & "000" & exe_engine.ir(19 downto 15));
+ 1062 |   with exe_engine.ir(instr_funct3_msb_c-1 downto instr_funct3_lsb_c) select csr.wdata <=
+ 1063 |     csr.rdata or       csr.operand  when "10",
+ 1064 |     csr.rdata and (not csr.operand) when "11",
+ 1065 |     csr.operand                     when others;
+ 1070 |   csr_write_access: process(rstn_i, clk_i)
+ 1071 |   begin
+ 1072 |     if (rstn_i = '0') then
+ 1073 |       csr.we             <= '0';
+ 1074 |       csr.prv_level      <= priv_mode_m_c;
+ 1075 |       csr.mstatus_mie    <= '0';
+ 1076 |       csr.mstatus_mpie   <= '0';
+ 1077 |       csr.mstatus_mpp    <= priv_mode_m_c;
+ 1078 |       csr.mstatus_mprv   <= '0';
+ 1079 |       csr.mstatus_tw     <= '0';
+ 1080 |       csr.mie_msi        <= '0';
+ 1081 |       csr.mie_mei        <= '0';
+ 1082 |       csr.mie_mti        <= '0';
+ 1083 |       csr.mie_firq       <= (others => '0');
+ 1084 |       csr.mtvec          <= (others => '0');
+ 1085 |       csr.mscratch       <= (others => '0');
+ 1086 |       csr.mepc           <= (others => '0');
+ 1087 |       csr.mcause         <= (others => '0');
+ 1088 |       csr.mtval          <= (others => '0');
+ 1089 |       csr.mtinst         <= (others => '0');
+ 1090 |       csr.mcounteren_cy  <= '0';
+ 1091 |       csr.mcounteren_ir  <= '0';
+ 1092 |       csr.mcountinhibit  <= (others => '0');
+ 1093 |       csr.dcsr_ebreakm   <= '0';
+ 1094 |       csr.dcsr_ebreaku   <= '0';
+ 1095 |       csr.dcsr_step      <= '0';
+ 1096 |       csr.dcsr_prv       <= '0';
+ 1097 |       csr.dcsr_cause     <= (others => '0');
+ 1098 |       csr.dpc            <= (others => '0');
+ 1099 |       csr.dscratch0      <= (others => '0');
+ 1100 |       csr.tdata1_execute <= '0';
+ 1101 |       csr.tdata2         <= (others => '0');
+ 1102 |     elsif rising_edge(clk_i) then
+ 1105 |       csr.we <= csr.we_nxt and (not trap_ctrl.exc_buf(exc_illegal_c));
+ 1110 |       if (csr.we = '1') then
+ 1117 |         if (csr.addr = csr_mstatus_c) then
+ 1118 |           csr.mstatus_mie  <= csr.wdata(3);
+ 1119 |           csr.mstatus_mpie <= csr.wdata(7);
+ 1120 |           if RISCV_ISA_U then
+ 1121 |             csr.mstatus_mpp  <= csr.wdata(11) or csr.wdata(12);
+ 1122 |             csr.mstatus_mprv <= csr.wdata(17);
+ 1123 |             csr.mstatus_tw   <= csr.wdata(21);
+ 1124 |           end if;
+ 1125 |         end if;
+ 1128 |         if (csr.addr = csr_mie_c) then
+ 1129 |           csr.mie_msi  <= csr.wdata(3);
+ 1130 |           csr.mie_mti  <= csr.wdata(7);
+ 1131 |           csr.mie_mei  <= csr.wdata(11);
+ 1132 |           csr.mie_firq <= csr.wdata(31 downto 16);
+ 1133 |         end if;
+ 1136 |         if (csr.addr = csr_mtvec_c) then
+ 1137 |           csr.mtvec <= csr.wdata(XLEN-1 downto 2) & '0' & csr.wdata(0);
+ 1138 |         end if;
+ 1141 |         if (csr.addr = csr_mcounteren_c) and RISCV_ISA_U and RISCV_ISA_Zicntr then
+ 1142 |           csr.mcounteren_cy <= csr.wdata(0);
+ 1143 |           csr.mcounteren_ir <= csr.wdata(2);
+ 1144 |         end if;
+ 1151 |         if (csr.addr = csr_mscratch_c) then
+ 1152 |           csr.mscratch <= csr.wdata;
+ 1153 |         end if;
+ 1156 |         if (csr.addr = csr_mepc_c) then
+ 1157 |           csr.mepc <= csr.wdata(XLEN-1 downto 1) & '0';
+ 1158 |           if not RISCV_ISA_C then
+ 1159 |             csr.mepc(1) <= '0';
+ 1160 |           end if;
+ 1161 |         end if;
+ 1164 |         if (csr.addr = csr_mcause_c) then
+ 1165 |           csr.mcause <= csr.wdata(31) & csr.wdata(4 downto 0);
+ 1166 |         end if;
+ 1173 |         if (csr.addr = csr_mcountinhibit_c) then
+ 1174 |           if RISCV_ISA_Zicntr then
+ 1175 |             csr.mcountinhibit(0) <= csr.wdata(0);
+ 1176 |             csr.mcountinhibit(2) <= csr.wdata(2);
+ 1177 |           end if;
+ 1178 |           if RISCV_ISA_Zihpm then
+ 1179 |             csr.mcountinhibit(15 downto 3) <= csr.wdata(15 downto 3);
+ 1180 |           end if;
+ 1181 |         end if;
+ 1188 |         if (csr.addr = csr_dcsr_c) and RISCV_ISA_Sdext then
+ 1189 |           csr.dcsr_ebreakm <= csr.wdata(15);
+ 1190 |           csr.dcsr_step    <= csr.wdata(2);
+ 1191 |           if RISCV_ISA_U then
+ 1192 |             csr.dcsr_ebreaku <= csr.wdata(12);
+ 1193 |             csr.dcsr_prv     <= csr.wdata(1) or csr.wdata(0);
+ 1194 |           end if;
+ 1195 |         end if;
+ 1198 |         if (csr.addr = csr_dpc_c) and RISCV_ISA_Sdext then
+ 1199 |           csr.dpc <= csr.wdata(XLEN-1 downto 1) & '0';
+ 1200 |           if not RISCV_ISA_C then
+ 1201 |             csr.dpc(1) <= '0';
+ 1202 |           end if;
+ 1203 |         end if;
+ 1206 |         if (csr.addr = csr_dscratch0_c) and RISCV_ISA_Sdext then
+ 1207 |           csr.dscratch0 <= csr.wdata;
+ 1208 |         end if;
+ 1215 |         if (csr.addr = csr_tdata1_c) and RISCV_ISA_Sdtrig then
+ 1216 |           if (debug_ctrl.run = '1') then
+ 1217 |             csr.tdata1_execute <= csr.wdata(2);
+ 1218 |           end if;
+ 1219 |         end if;
+ 1222 |         if (csr.addr = csr_tdata2_c) and RISCV_ISA_Sdtrig then
+ 1223 |           if (debug_ctrl.run = '1') then
+ 1224 |             csr.tdata2 <= csr.wdata(XLEN-1 downto 1) & '0';
+ 1225 |           end if;
+ 1226 |         end if;
+ 1231 |       elsif (trap_ctrl.env_enter = '1') then
+ 1234 |         if (not RISCV_ISA_Sdext) or ((trap_ctrl.cause(5) = '0') and (debug_ctrl.run = '0')) then
+ 1235 |           csr.mcause <= trap_ctrl.cause(trap_ctrl.cause'left) & trap_ctrl.cause(4 downto 0);
+ 1236 |           csr.mepc   <= trap_ctrl.epc(XLEN-1 downto 1) & '0';
+ 1238 |           if (trap_ctrl.cause(6) = '0') and (trap_ctrl.cause(2) = '1') then
+ 1239 |             csr.mtval <= lsu_mar_i;
+ 1240 |           else
+ 1241 |             csr.mtval <= (others => '0');
+ 1242 |           end if;
+ 1244 |           if (trap_ctrl.cause(6) = '0') then
+ 1245 |             csr.mtinst <= exe_engine.ir;
+ 1246 |             if (exe_engine.ci = '1') and RISCV_ISA_C then
+ 1247 |               csr.mtinst(1) <= '0';
+ 1248 |             end if;
+ 1249 |           else
+ 1250 |             csr.mtinst <= (others => '0');
+ 1251 |           end if;
+ 1253 |           csr.prv_level    <= priv_mode_m_c;
+ 1254 |           csr.mstatus_mie  <= '0';
+ 1255 |           csr.mstatus_mpie <= csr.mstatus_mie;
+ 1256 |           csr.mstatus_mpp  <= csr.prv_level;
+ 1257 |         end if;
+ 1260 |         if RISCV_ISA_Sdext and (trap_ctrl.cause(5) = '1') and (debug_ctrl.run = '0') then
+ 1261 |           csr.dcsr_cause <= trap_ctrl.cause(2 downto 0);
+ 1262 |           csr.dcsr_prv   <= csr.prv_level;
+ 1263 |           csr.dpc        <= trap_ctrl.epc(XLEN-1 downto 1) & '0';
+ 1264 |         end if;
+ 1269 |       elsif (trap_ctrl.env_exit = '1') then
+ 1272 |         if RISCV_ISA_Sdext and (debug_ctrl.run = '1') then
+ 1273 |           if RISCV_ISA_U then
+ 1274 |             csr.prv_level <= csr.dcsr_prv;
+ 1275 |             if (csr.dcsr_prv /= priv_mode_m_c) then
+ 1276 |               csr.mstatus_mprv <= '0';
+ 1277 |             end if;
+ 1278 |           end if;
+ 1280 |         else
+ 1281 |           if RISCV_ISA_U then
+ 1282 |             csr.prv_level   <= csr.mstatus_mpp;
+ 1283 |             csr.mstatus_mpp <= priv_mode_u_c;
+ 1284 |             if (csr.mstatus_mpp /= priv_mode_m_c) then
+ 1285 |               csr.mstatus_mprv <= '0';
+ 1286 |             end if;
+ 1287 |           end if;
+ 1288 |           csr.mstatus_mie  <= csr.mstatus_mpie;
+ 1289 |           csr.mstatus_mpie <= '1';
+ 1290 |         end if;
+ 1292 |       end if;
+ 1299 |       csr.mcountinhibit(1) <= '0';
+ 1302 |       if not RISCV_ISA_Zicntr then
+ 1303 |         csr.mcountinhibit(2 downto 0) <= (others => '0');
+ 1304 |       end if;
+ 1307 |       if not RISCV_ISA_Zihpm then
+ 1308 |         csr.mcountinhibit(15 downto 3) <= (others => '0');
+ 1309 |       end if;
+ 1312 |       if not RISCV_ISA_Zicntr then
+ 1313 |         csr.mcounteren_cy <= '0';
+ 1314 |         csr.mcounteren_ir <= '0';
+ 1315 |       end if;
+ 1318 |       if not RISCV_ISA_U then
+ 1319 |         csr.prv_level     <= priv_mode_m_c;
+ 1320 |         csr.mstatus_mpp   <= priv_mode_m_c;
+ 1321 |         csr.mstatus_mprv  <= '0';
+ 1322 |         csr.mstatus_tw    <= '0';
+ 1323 |         csr.dcsr_ebreaku  <= '0';
+ 1324 |         csr.dcsr_prv      <= '0';
+ 1325 |         csr.mcounteren_cy <= '0';
+ 1326 |         csr.mcounteren_ir <= '0';
+ 1327 |       end if;
+ 1330 |       if not RISCV_ISA_Sdext then
+ 1331 |         csr.dcsr_ebreakm <= '0';
+ 1332 |         csr.dcsr_step    <= '0';
+ 1333 |         csr.dcsr_ebreaku <= '0';
+ 1334 |         csr.dcsr_prv     <= priv_mode_m_c;
+ 1335 |         csr.dcsr_cause   <= (others => '0');
+ 1336 |         csr.dpc          <= (others => '0');
+ 1337 |         csr.dscratch0    <= (others => '0');
+ 1338 |       end if;
+ 1341 |       if not RISCV_ISA_Sdtrig then
+ 1342 |         csr.tdata1_execute <= '0';
+ 1343 |         csr.tdata2         <= (others => '0');
+ 1344 |       end if;
+ 1346 |     end if;
+ 1347 |   end process csr_write_access;
+ 1350 |   csr.prv_level_eff <= priv_mode_m_c when (debug_ctrl.run = '1') else csr.prv_level;
+ 1355 |   csr_read_access: process(rstn_i, clk_i)
+ 1356 |   begin
+ 1357 |     if (rstn_i = '0') then
+ 1358 |       csr.re    <= '0';
+ 1359 |       csr.rdata <= (others => '0');
+ 1360 |     elsif rising_edge(clk_i) then
+ 1361 |       csr.re    <= csr.re_nxt and (not trap_ctrl.exc_buf(exc_illegal_c));
+ 1362 |       csr.rdata <= (others => '0');
+ 1363 |       if (csr.re = '1') then
+ 1364 |         case csr.addr is
+ 1369 |           when csr_fflags_c | csr_frm_c | csr_fcsr_c =>
+ 1370 |             if RISCV_ISA_Zfinx then
+ 1371 |               csr.rdata <= xcsr_rdata_i;
+ 1372 |             end if;
+ 1377 |           when csr_cfureg0_c | csr_cfureg1_c | csr_cfureg2_c | csr_cfureg3_c =>
+ 1378 |             if RISCV_ISA_Zxcfu then
+ 1379 |               csr.rdata <= xcsr_rdata_i;
+ 1380 |             end if;
+ 1385 |           when csr_mxiccsreg_c | csr_mxiccdata_c =>
+ 1386 |             csr.rdata <= xcsr_rdata_i;
+ 1391 |           when csr_mstatus_c =>
+ 1392 |             csr.rdata(3)  <= csr.mstatus_mie;
+ 1393 |             csr.rdata(7)  <= csr.mstatus_mpie;
+ 1394 |             csr.rdata(12 downto 11) <= (others => csr.mstatus_mpp);
+ 1395 |             csr.rdata(17) <= csr.mstatus_mprv;
+ 1396 |             csr.rdata(21) <= csr.mstatus_tw and bool_to_ulogic_f(RISCV_ISA_U);
+ 1400 |           when csr_misa_c =>
+ 1401 |             csr.rdata(0)  <= bool_to_ulogic_f(RISCV_ISA_A);
+ 1402 |             csr.rdata(1)  <= bool_to_ulogic_f(RISCV_ISA_B);
+ 1403 |             csr.rdata(2)  <= bool_to_ulogic_f(RISCV_ISA_C);
+ 1404 |             csr.rdata(4)  <= bool_to_ulogic_f(RISCV_ISA_E);
+ 1405 |             csr.rdata(8)  <= bool_to_ulogic_f(not RISCV_ISA_E);
+ 1406 |             csr.rdata(12) <= bool_to_ulogic_f(RISCV_ISA_M);
+ 1407 |             csr.rdata(20) <= bool_to_ulogic_f(RISCV_ISA_U);
+ 1408 |             csr.rdata(23) <= '1';
+ 1409 |             csr.rdata(31 downto 30) <= "01";
+ 1411 |           when csr_mie_c =>
+ 1412 |             csr.rdata(3)  <= csr.mie_msi;
+ 1413 |             csr.rdata(7)  <= csr.mie_mti;
+ 1414 |             csr.rdata(11) <= csr.mie_mei;
+ 1415 |             csr.rdata(31 downto 16) <= csr.mie_firq;
+ 1417 |           when csr_mtvec_c =>
+ 1418 |             csr.rdata <= csr.mtvec;
+ 1420 |           when csr_mcounteren_c =>
+ 1421 |             if RISCV_ISA_U and RISCV_ISA_Zicntr then
+ 1422 |               csr.rdata(0) <= csr.mcounteren_cy;
+ 1423 |               csr.rdata(2) <= csr.mcounteren_ir;
+ 1424 |             end if;
+ 1435 |           when csr_mscratch_c =>
+ 1436 |             csr.rdata <= csr.mscratch;
+ 1438 |           when csr_mepc_c =>
+ 1439 |             csr.rdata <= csr.mepc(XLEN-1 downto 1) & '0';
+ 1441 |           when csr_mcause_c =>
+ 1442 |             csr.rdata(31)         <= csr.mcause(5);
+ 1443 |             csr.rdata(4 downto 0) <= csr.mcause(4 downto 0);
+ 1445 |           when csr_mtval_c =>
+ 1446 |             csr.rdata <= csr.mtval;
+ 1448 |           when csr_mip_c =>
+ 1449 |             csr.rdata(3)            <= trap_ctrl.irq_pnd(irq_msi_irq_c);
+ 1450 |             csr.rdata(7)            <= trap_ctrl.irq_pnd(irq_mti_irq_c);
+ 1451 |             csr.rdata(11)           <= trap_ctrl.irq_pnd(irq_mei_irq_c);
+ 1452 |             csr.rdata(31 downto 16) <= trap_ctrl.irq_pnd(irq_firq_15_c downto irq_firq_0_c);
+ 1454 |           when csr_mtinst_c =>
+ 1455 |             csr.rdata <= csr.mtinst;
+ 1460 |           when csr_pmpcfg0_c   | csr_pmpcfg1_c   | csr_pmpcfg2_c   | csr_pmpcfg3_c   |
+ 1461 |                csr_pmpaddr0_c  | csr_pmpaddr1_c  | csr_pmpaddr2_c  | csr_pmpaddr3_c  |
+ 1462 |                csr_pmpaddr4_c  | csr_pmpaddr5_c  | csr_pmpaddr6_c  | csr_pmpaddr7_c  |
+ 1463 |                csr_pmpaddr8_c  | csr_pmpaddr9_c  | csr_pmpaddr10_c | csr_pmpaddr11_c |
+ 1464 |                csr_pmpaddr12_c | csr_pmpaddr13_c | csr_pmpaddr14_c | csr_pmpaddr15_c =>
+ 1465 |             if RISCV_ISA_Smpmp then
+ 1466 |               csr.rdata <= xcsr_rdata_i;
+ 1467 |             end if;
+ 1472 |           when csr_mcountinhibit_c =>
+ 1473 |             if RISCV_ISA_Zicntr then
+ 1474 |               csr.rdata(0) <= csr.mcountinhibit(0);
+ 1475 |               csr.rdata(2) <= csr.mcountinhibit(2);
+ 1476 |             end if;
+ 1477 |             if RISCV_ISA_Zihpm then
+ 1478 |               csr.rdata(15 downto 3) <= csr.mcountinhibit(15 downto 3);
+ 1479 |             end if;
+ 1482 |           when csr_mhpmevent3_c  | csr_mhpmevent4_c  | csr_mhpmevent5_c  | csr_mhpmevent6_c  |
+ 1483 |                csr_mhpmevent7_c  | csr_mhpmevent8_c  | csr_mhpmevent9_c  | csr_mhpmevent10_c |
+ 1484 |                csr_mhpmevent11_c | csr_mhpmevent12_c | csr_mhpmevent13_c | csr_mhpmevent14_c |
+ 1485 |                csr_mhpmevent15_c =>
+ 1486 |             if RISCV_ISA_Zihpm then
+ 1487 |               csr.rdata <= xcsr_rdata_i;
+ 1488 |             end if;
+ 1494 |           when csr_cycle_c   | csr_cycleh_c   | csr_mcycle_c   | csr_mcycleh_c   |
+ 1495 |                csr_time_c    | csr_timeh_c    | csr_mtime_c    | csr_mtimeh_c    |
+ 1496 |                csr_instret_c | csr_instreth_c | csr_minstret_c | csr_minstreth_c =>
+ 1497 |             if RISCV_ISA_Zicntr then
+ 1498 |               csr.rdata <= xcsr_rdata_i;
+ 1499 |             end if;
+ 1502 |           when csr_hpmcounter3_c  | csr_hpmcounter3h_c  | csr_mhpmcounter3_c  | csr_mhpmcounter3h_c  |
+ 1503 |                csr_hpmcounter4_c  | csr_hpmcounter4h_c  | csr_mhpmcounter4_c  | csr_mhpmcounter4h_c  |
+ 1504 |                csr_hpmcounter5_c  | csr_hpmcounter5h_c  | csr_mhpmcounter5_c  | csr_mhpmcounter5h_c  |
+ 1505 |                csr_hpmcounter6_c  | csr_hpmcounter6h_c  | csr_mhpmcounter6_c  | csr_mhpmcounter6h_c  |
+ 1506 |                csr_hpmcounter7_c  | csr_hpmcounter7h_c  | csr_mhpmcounter7_c  | csr_mhpmcounter7h_c  |
+ 1507 |                csr_hpmcounter8_c  | csr_hpmcounter8h_c  | csr_mhpmcounter8_c  | csr_mhpmcounter8h_c  |
+ 1508 |                csr_hpmcounter9_c  | csr_hpmcounter9h_c  | csr_mhpmcounter9_c  | csr_mhpmcounter9h_c  |
+ 1509 |                csr_hpmcounter10_c | csr_hpmcounter10h_c | csr_mhpmcounter10_c | csr_mhpmcounter10h_c |
+ 1510 |                csr_hpmcounter11_c | csr_hpmcounter11h_c | csr_mhpmcounter11_c | csr_mhpmcounter11h_c |
+ 1511 |                csr_hpmcounter12_c | csr_hpmcounter12h_c | csr_mhpmcounter12_c | csr_mhpmcounter12h_c |
+ 1512 |                csr_hpmcounter13_c | csr_hpmcounter13h_c | csr_mhpmcounter13_c | csr_mhpmcounter13h_c |
+ 1513 |                csr_hpmcounter14_c | csr_hpmcounter14h_c | csr_mhpmcounter14_c | csr_mhpmcounter14h_c |
+ 1514 |                csr_hpmcounter15_c | csr_hpmcounter15h_c | csr_mhpmcounter15_c | csr_mhpmcounter15h_c =>
+ 1515 |             if RISCV_ISA_Zihpm then
+ 1516 |               csr.rdata <= xcsr_rdata_i;
+ 1517 |             end if;
+ 1523 |           when csr_marchid_c    => csr.rdata(4 downto 0) <= "10011";
+ 1524 |           when csr_mimpid_c     => csr.rdata <= hw_version_c;
+ 1525 |           when csr_mhartid_c    => csr.rdata(9 downto 0) <= std_ulogic_vector(to_unsigned(HART_ID, 10));
+ 1531 |           when csr_dcsr_c      => if RISCV_ISA_Sdext then csr.rdata <= csr.dcsr_rd;   end if;
+ 1532 |           when csr_dpc_c       => if RISCV_ISA_Sdext then csr.rdata <= csr.dpc;       end if;
+ 1533 |           when csr_dscratch0_c => if RISCV_ISA_Sdext then csr.rdata <= csr.dscratch0; end if;
+ 1539 |           when csr_tdata1_c  => if RISCV_ISA_Sdtrig then csr.rdata <= csr.tdata1_rd;   end if;
+ 1540 |           when csr_tdata2_c  => if RISCV_ISA_Sdtrig then csr.rdata <= csr.tdata2;      end if;
+ 1541 |           when csr_tinfo_c   => if RISCV_ISA_Sdtrig then csr.rdata <= x"01000006";     end if;
+ 1547 |           when csr_mxisa_c =>
+ 1549 |             csr.rdata(0)  <= '1';
+ 1550 |             csr.rdata(1)  <= '1';
+ 1551 |             csr.rdata(2)  <= bool_to_ulogic_f(RISCV_ISA_Zmmul);
+ 1552 |             csr.rdata(3)  <= bool_to_ulogic_f(RISCV_ISA_Zxcfu);
+ 1553 |             csr.rdata(4)  <= bool_to_ulogic_f(RISCV_ISA_Zkt);
+ 1554 |             csr.rdata(5)  <= bool_to_ulogic_f(RISCV_ISA_Zfinx);
+ 1555 |             csr.rdata(6)  <= bool_to_ulogic_f(RISCV_ISA_Zicond);
+ 1556 |             csr.rdata(7)  <= bool_to_ulogic_f(RISCV_ISA_Zicntr);
+ 1557 |             csr.rdata(8)  <= bool_to_ulogic_f(RISCV_ISA_Smpmp);
+ 1558 |             csr.rdata(9)  <= bool_to_ulogic_f(RISCV_ISA_Zihpm);
+ 1559 |             csr.rdata(10) <= bool_to_ulogic_f(RISCV_ISA_Sdext);
+ 1560 |             csr.rdata(11) <= bool_to_ulogic_f(RISCV_ISA_Sdtrig);
+ 1561 |             csr.rdata(12) <= bool_to_ulogic_f(RISCV_ISA_Zbkx);
+ 1562 |             csr.rdata(13) <= bool_to_ulogic_f(RISCV_ISA_Zknd);
+ 1563 |             csr.rdata(14) <= bool_to_ulogic_f(RISCV_ISA_Zkne);
+ 1564 |             csr.rdata(15) <= bool_to_ulogic_f(RISCV_ISA_Zknh);
+ 1565 |             csr.rdata(16) <= bool_to_ulogic_f(RISCV_ISA_Zbkb);
+ 1566 |             csr.rdata(17) <= bool_to_ulogic_f(RISCV_ISA_Zbkc);
+ 1567 |             csr.rdata(18) <= bool_to_ulogic_f(RISCV_ISA_Zkn);
+ 1568 |             csr.rdata(19) <= bool_to_ulogic_f(RISCV_ISA_Zksh);
+ 1569 |             csr.rdata(20) <= bool_to_ulogic_f(RISCV_ISA_Zksed);
+ 1570 |             csr.rdata(21) <= bool_to_ulogic_f(RISCV_ISA_Zks);
+ 1571 |             csr.rdata(22) <= bool_to_ulogic_f(RISCV_ISA_Zba);
+ 1572 |             csr.rdata(23) <= bool_to_ulogic_f(RISCV_ISA_Zbb);
+ 1573 |             csr.rdata(24) <= bool_to_ulogic_f(RISCV_ISA_Zbs);
+ 1574 |             csr.rdata(25) <= bool_to_ulogic_f(RISCV_ISA_Zaamo);
+ 1575 |             csr.rdata(26) <= bool_to_ulogic_f(RISCV_ISA_Zalrsc);
+ 1576 |             csr.rdata(27) <= '0';
+ 1578 |             csr.rdata(28) <= bool_to_ulogic_f(CPU_RF_HW_RST_EN);
+ 1579 |             csr.rdata(29) <= bool_to_ulogic_f(CPU_FAST_MUL_EN);
+ 1580 |             csr.rdata(30) <= bool_to_ulogic_f(CPU_FAST_SHIFT_EN);
+ 1582 |             csr.rdata(31) <= bool_to_ulogic_f(is_simulation_c);
+ 1587 |           when others => NULL;
+ 1589 |         end case;
+ 1590 |       end if;
+ 1591 |     end if;
+ 1592 |   end process csr_read_access;
+ 1595 |   csr_rdata_o <= csr.rdata;
+ 1603 |   cnt_event(cnt_event_cy_c) <= '1' when (sleep_mode = '0') else '0';
+ 1604 |   cnt_event(cnt_event_tm_c) <= '0';
+ 1605 |   cnt_event(cnt_event_ir_c) <= '1' when (exe_engine.state = EX_EXECUTE) else '0';
+ 1608 |   cnt_event(cnt_event_compr_c)    <= '1' when (exe_engine.state = EX_EXECUTE)  and (exe_engine.ci = '1')        else '0';
+ 1609 |   cnt_event(cnt_event_wait_dis_c) <= '1' when (exe_engine.state = EX_DISPATCH) and (frontend_i.valid = '0')     else '0';
+ 1610 |   cnt_event(cnt_event_wait_alu_c) <= '1' when (exe_engine.state = EX_ALU_WAIT)                                  else '0';
+ 1611 |   cnt_event(cnt_event_branch_c)   <= '1' when (exe_engine.state = EX_BRANCH)                                    else '0';
+ 1612 |   cnt_event(cnt_event_branched_c) <= '1' when (exe_engine.state = EX_BRANCHED)                                  else '0';
+ 1613 |   cnt_event(cnt_event_load_c)     <= '1' when (ctrl.lsu_req = '1') and ((opcode(5) = '0') or (opcode(2) = '1')) else '0';
+ 1614 |   cnt_event(cnt_event_store_c)    <= '1' when (ctrl.lsu_req = '1') and ((opcode(5) = '1') or (opcode(2) = '1')) else '0';
+ 1615 |   cnt_event(cnt_event_wait_lsu_c) <= '1' when (ctrl.lsu_req = '0') and (exe_engine.state = EX_MEM_RSP)          else '0';
+ 1616 |   cnt_event(cnt_event_trap_c)     <= '1' when (trap_ctrl.env_enter = '1')                                       else '0';
+ 1625 |   debug_mode_enable:
+ 1626 |   if RISCV_ISA_Sdext generate
+ 1628 |     debug_control: process(rstn_i, clk_i)
+ 1629 |     begin
+ 1630 |       if (rstn_i = '0') then
+ 1631 |         debug_ctrl.run <= '0';
+ 1632 |       elsif rising_edge(clk_i) then
+ 1633 |         if (debug_ctrl.run = '0') then
+ 1634 |           if (trap_ctrl.env_enter = '1') and (trap_ctrl.cause(5) = '1') then
+ 1635 |             debug_ctrl.run <= '1';
+ 1636 |           end if;
+ 1637 |         else
+ 1638 |           if (trap_ctrl.env_exit = '1') then
+ 1639 |             debug_ctrl.run <= '0';
+ 1640 |           end if;
+ 1641 |         end if;
+ 1642 |       end if;
+ 1643 |     end process debug_control;
+ 1646 |     debug_ctrl.trig_hw    <= hwtrig_start and (not debug_ctrl.run);
+ 1647 |     debug_ctrl.trig_break <= trap_ctrl.ebreak and (debug_ctrl.run or
+ 1648 |                              ((    csr.prv_level) and csr.dcsr_ebreakm) or
+ 1649 |                              ((not csr.prv_level) and csr.dcsr_ebreaku));
+ 1650 |     debug_ctrl.trig_halt  <= irq_dbg_i     and (not debug_ctrl.run);
+ 1651 |     debug_ctrl.trig_step  <= csr.dcsr_step and (not debug_ctrl.run);
+ 1653 |   end generate;
+ 1656 |   debug_mode_disable:
+ 1657 |   if not RISCV_ISA_Sdext generate
+ 1658 |     debug_ctrl.run        <= '0';
+ 1659 |     debug_ctrl.trig_hw    <= '0';
+ 1660 |     debug_ctrl.trig_break <= '0';
+ 1661 |     debug_ctrl.trig_halt  <= '0';
+ 1662 |     debug_ctrl.trig_step  <= '0';
+ 1663 |   end generate;
+ 1668 |   csr.dcsr_rd(31 downto 28) <= "0100";
+ 1669 |   csr.dcsr_rd(27 downto 16) <= (others => '0');
+ 1670 |   csr.dcsr_rd(15)           <= csr.dcsr_ebreakm;
+ 1671 |   csr.dcsr_rd(14)           <= '0';
+ 1672 |   csr.dcsr_rd(13)           <= '0';
+ 1673 |   csr.dcsr_rd(12)           <= csr.dcsr_ebreaku when RISCV_ISA_U else '0';
+ 1674 |   csr.dcsr_rd(11)           <= '0';
+ 1675 |   csr.dcsr_rd(10)           <= '1';
+ 1676 |   csr.dcsr_rd(9)            <= '0';
+ 1677 |   csr.dcsr_rd(8 downto 6)   <= csr.dcsr_cause;
+ 1678 |   csr.dcsr_rd(5)            <= '0';
+ 1679 |   csr.dcsr_rd(4)            <= '1';
+ 1680 |   csr.dcsr_rd(3)            <= '0';
+ 1681 |   csr.dcsr_rd(2)            <= csr.dcsr_step;
+ 1682 |   csr.dcsr_rd(1 downto 0)   <= (others => csr.dcsr_prv);
+ 1689 |   trigger_module_enable:
+ 1690 |   if RISCV_ISA_Sdtrig generate
+ 1693 |     hwtrig_match <= '1' when (csr.tdata1_execute = '1') and
+ 1694 |                              (hwtrig_fired = '0') and
+ 1695 |                              (csr.tdata2(XLEN-1 downto 1) = exe_engine.pc2(XLEN-1 downto 1))
+ 1696 |                              else '0';
+ 1699 |     hwtrig_exception: process(rstn_i, clk_i)
+ 1700 |     begin
+ 1701 |       if (rstn_i = '0') then
+ 1702 |         hwtrig_fired <= '0';
+ 1703 |       elsif rising_edge(clk_i) then
+ 1704 |         if (hwtrig_fired = '0') then
+ 1705 |           hwtrig_fired <= hwtrig_match and trap_ctrl.exc_buf(exc_ebreak_c);
+ 1706 |         elsif (csr.we = '1') and (csr.addr = csr_tdata1_c) and (csr.wdata(22) = '0') then
+ 1707 |           hwtrig_fired <= '0';
+ 1708 |         end if;
+ 1709 |       end if;
+ 1710 |     end process hwtrig_exception;
+ 1712 |   end generate;
+ 1715 |   trigger_module_disable:
+ 1716 |   if not RISCV_ISA_Sdtrig generate
+ 1717 |     hwtrig_match <= '0';
+ 1718 |     hwtrig_fired <= '0';
+ 1719 |   end generate;
+ 1724 |   csr.tdata1_rd(31 downto 28) <= x"6";
+ 1725 |   csr.tdata1_rd(27)           <= '1';
+ 1726 |   csr.tdata1_rd(26)           <= '0';
+ 1727 |   csr.tdata1_rd(25)           <= '0';
+ 1728 |   csr.tdata1_rd(24)           <= '0';
+ 1729 |   csr.tdata1_rd(23)           <= '0';
+ 1730 |   csr.tdata1_rd(22)           <= hwtrig_fired;
+ 1731 |   csr.tdata1_rd(21)           <= '0';
+ 1732 |   csr.tdata1_rd(20 downto 19) <= "00";
+ 1733 |   csr.tdata1_rd(18 downto 16) <= "000";
+ 1734 |   csr.tdata1_rd(15 downto 12) <= x"1";
+ 1735 |   csr.tdata1_rd(11)           <= '0';
+ 1736 |   csr.tdata1_rd(10 downto 7)  <= "0000";
+ 1737 |   csr.tdata1_rd(6)            <= '1';
+ 1738 |   csr.tdata1_rd(5)            <= '0';
+ 1739 |   csr.tdata1_rd(4)            <= '0';
+ 1740 |   csr.tdata1_rd(3)            <= bool_to_ulogic_f(RISCV_ISA_U);
+ 1741 |   csr.tdata1_rd(2)            <= csr.tdata1_execute;
+ 1742 |   csr.tdata1_rd(1)            <= '0';
+ 1743 |   csr.tdata1_rd(0)            <= '0';
+ 1746 | end neorv32_cpu_control_rtl;

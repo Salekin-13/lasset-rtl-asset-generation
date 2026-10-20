@@ -1,0 +1,227 @@
+   23 | entity neorv32_cpu_cp_muldiv is
+   24 |   generic (
+   25 |     FAST_MUL_EN : boolean;
+   26 |     DIVISION_EN : boolean
+   27 |   );
+   28 |   port (
+   30 |     clk_i   : in  std_ulogic;
+   31 |     rstn_i  : in  std_ulogic;
+   32 |     ctrl_i  : in  ctrl_bus_t;
+   34 |     rs1_i   : in  std_ulogic_vector(XLEN-1 downto 0);
+   35 |     rs2_i   : in  std_ulogic_vector(XLEN-1 downto 0);
+   37 |     res_o   : out std_ulogic_vector(XLEN-1 downto 0);
+   38 |     valid_o : out std_ulogic
+   39 |   );
+   40 | end neorv32_cpu_cp_muldiv;
+
+   42 | architecture neorv32_cpu_cp_muldiv_rtl of neorv32_cpu_cp_muldiv is
+   45 |   constant op_mul_c    : std_ulogic_vector(2 downto 0) := "000";
+   46 |   constant op_mulh_c   : std_ulogic_vector(2 downto 0) := "001";
+   47 |   constant op_mulhsu_c : std_ulogic_vector(2 downto 0) := "010";
+   48 |   constant op_mulhu_c  : std_ulogic_vector(2 downto 0) := "011";
+   49 |   constant op_div_c    : std_ulogic_vector(2 downto 0) := "100";
+   50 |   constant op_divu_c   : std_ulogic_vector(2 downto 0) := "101";
+   51 |   constant op_rem_c    : std_ulogic_vector(2 downto 0) := "110";
+   52 |   constant op_remu_c   : std_ulogic_vector(2 downto 0) := "111";
+   55 |   signal valid_cmd : std_ulogic;
+   58 |   type state_t is (S_IDLE, S_BUSY, S_DONE);
+   59 |   type ctrl_t is record
+   60 |     state         : state_t;
+   61 |     cnt           : std_ulogic_vector(index_size_f(XLEN)-1 downto 0);
+   62 |     rs1_is_signed : std_ulogic;
+   63 |     rs2_is_signed : std_ulogic;
+   64 |     out_en        : std_ulogic;
+   65 |   end record;
+   66 |   signal ctrl : ctrl_t;
+   69 |   type div_t is record
+   70 |     start     : std_ulogic;
+   71 |     sign_mod  : std_ulogic;
+   72 |     rs2_abs   : std_ulogic_vector(XLEN-1 downto 0);
+   73 |     remainder : std_ulogic_vector(XLEN-1 downto 0);
+   74 |     quotient  : std_ulogic_vector(XLEN-1 downto 0);
+   75 |     sub       : std_ulogic_vector(XLEN   downto 0);
+   76 |     res_u     : std_ulogic_vector(XLEN-1 downto 0);
+   77 |     res       : std_ulogic_vector(XLEN-1 downto 0);
+   78 |   end record;
+   79 |   signal div : div_t;
+   82 |   type mul_t is record
+   83 |     start  : std_ulogic;
+   84 |     prod   : std_ulogic_vector((2*XLEN)-1 downto 0);
+   85 |     add    : std_ulogic_vector(XLEN downto 0);
+   86 |     p_sext : std_ulogic;
+   87 |     dsp_x  : signed(XLEN downto 0);
+   88 |     dsp_y  : signed(XLEN downto 0);
+   89 |     dsp_z  : signed(2*XLEN+1 downto 0);
+   90 |   end record;
+   91 |   signal mul : mul_t;
+   93 | begin
+   97 |   valid_cmd <= '1' when (ctrl_i.alu_cp_alu = '1') and (ctrl_i.ir_opcode(5) = '1') and
+   98 |                         (ctrl_i.ir_funct12(11 downto 5) = "0000001") and
+   99 |                         ((ctrl_i.ir_funct3(2) = '0') or ((ctrl_i.ir_funct3(2) = '1') and DIVISION_EN)) else '0';
+  104 |   control: process(rstn_i, clk_i)
+  105 |   begin
+  106 |     if (rstn_i = '0') then
+  107 |       ctrl.state  <= S_IDLE;
+  108 |       ctrl.cnt    <= (others => '0');
+  109 |       ctrl.out_en <= '0';
+  110 |     elsif rising_edge(clk_i) then
+  112 |       ctrl.out_en <= '0';
+  113 |       ctrl.cnt    <= std_ulogic_vector(to_unsigned(XLEN-2, ctrl.cnt'length));
+  116 |       case ctrl.state is
+  118 |         when S_IDLE =>
+  120 |           if (valid_cmd = '1') then
+  121 |             if (ctrl_i.ir_funct3(2) = '0') and FAST_MUL_EN then
+  122 |               ctrl.state <= S_DONE;
+  123 |             else
+  124 |               ctrl.state <= S_BUSY;
+  125 |             end if;
+  126 |           end if;
+  128 |         when S_BUSY =>
+  130 |           ctrl.cnt <= std_ulogic_vector(unsigned(ctrl.cnt) - 1);
+  131 |           if (or_reduce_f(ctrl.cnt) = '0') or (ctrl_i.cpu_trap = '1') then
+  132 |             ctrl.state <= S_DONE;
+  133 |           end if;
+  135 |         when others =>
+  137 |           ctrl.out_en <= '1';
+  138 |           ctrl.state  <= S_IDLE;
+  140 |       end case;
+  141 |     end if;
+  142 |   end process control;
+  145 |   valid_o <= '1' when (ctrl.state = S_DONE) else '0';
+  148 |   ctrl.rs1_is_signed <= '1' when (ctrl_i.ir_funct3 = op_mulh_c) or (ctrl_i.ir_funct3 = op_mulhsu_c) or
+  149 |                                  (ctrl_i.ir_funct3 = op_div_c)  or (ctrl_i.ir_funct3 = op_rem_c) else '0';
+  150 |   ctrl.rs2_is_signed <= '1' when (ctrl_i.ir_funct3 = op_mulh_c) or
+  151 |                                  (ctrl_i.ir_funct3 = op_div_c)  or (ctrl_i.ir_funct3 = op_rem_c) else '0';
+  154 |   mul.start <= '1' when (valid_cmd = '1') and (ctrl_i.ir_funct3(2) = '0') else '0';
+  155 |   div.start <= '1' when (valid_cmd = '1') and (ctrl_i.ir_funct3(2) = '1') else '0';
+  160 |   multiplier_core_parallel:
+  161 |   if FAST_MUL_EN generate
+  164 |     multiplier_core_in_reg: process(rstn_i, clk_i)
+  165 |     begin
+  166 |       if (rstn_i = '0') then
+  167 |         mul.dsp_x <= (others => '0');
+  168 |         mul.dsp_y <= (others => '0');
+  169 |       elsif rising_edge(clk_i) then
+  170 |         if (mul.start = '1') then
+  171 |           mul.dsp_x <= signed((rs1_i(rs1_i'left) and ctrl.rs1_is_signed) & rs1_i);
+  172 |           mul.dsp_y <= signed((rs2_i(rs2_i'left) and ctrl.rs2_is_signed) & rs2_i);
+  173 |         end if;
+  174 |       end if;
+  175 |     end process multiplier_core_in_reg;
+  178 |     mul.dsp_z <= mul.dsp_x * mul.dsp_y;
+  181 |     multiplier_core_out_reg: process(clk_i)
+  182 |     begin
+  183 |       if rising_edge(clk_i) then
+  184 |         mul.prod <= std_ulogic_vector(mul.dsp_z(63 downto 0));
+  185 |       end if;
+  186 |     end process multiplier_core_out_reg;
+  188 |   end generate;
+  191 |   multiplier_core_parallel_none:
+  192 |   if not FAST_MUL_EN generate
+  193 |     mul.dsp_x <= (others => '0');
+  194 |     mul.dsp_y <= (others => '0');
+  195 |     mul.dsp_z <= (others => '0');
+  196 |   end generate;
+  201 |   multiplier_core_serial:
+  202 |   if not FAST_MUL_EN generate
+  205 |     multiplier_core: process(rstn_i, clk_i)
+  206 |     begin
+  207 |       if (rstn_i = '0') then
+  208 |         mul.prod <= (others => '0');
+  209 |       elsif rising_edge(clk_i) then
+  210 |         if (mul.start = '1') then
+  211 |           mul.prod(63 downto 32) <= (others => '0');
+  212 |           mul.prod(31 downto 0)  <= rs1_i;
+  213 |         elsif (ctrl.state /= S_IDLE) then
+  214 |           mul.prod(63 downto 31) <= mul.add(32 downto 0);
+  215 |           mul.prod(30 downto 0)  <= mul.prod(31 downto 1);
+  216 |         end if;
+  217 |       end if;
+  218 |     end process multiplier_core;
+  221 |     mul_update: process(mul, ctrl, rs2_i)
+  222 |     begin
+  223 |       if (mul.prod(0) = '1') then
+  224 |         if (ctrl.state = S_DONE) and (ctrl.rs1_is_signed = '1') then
+  225 |           mul.add <= std_ulogic_vector(unsigned(mul.p_sext & mul.prod(63 downto 32)) - unsigned((rs2_i(rs2_i'left) and ctrl.rs2_is_signed) & rs2_i));
+  226 |         else
+  227 |           mul.add <= std_ulogic_vector(unsigned(mul.p_sext & mul.prod(63 downto 32)) + unsigned((rs2_i(rs2_i'left) and ctrl.rs2_is_signed) & rs2_i));
+  228 |         end if;
+  229 |       else
+  230 |         mul.add <= mul.p_sext & mul.prod(63 downto 32);
+  231 |       end if;
+  232 |     end process mul_update;
+  235 |     mul.p_sext <= mul.prod(mul.prod'left) and ctrl.rs2_is_signed;
+  237 |   end generate;
+  240 |   multiplier_core_serial_none:
+  241 |   if FAST_MUL_EN generate
+  242 |     mul.add    <= (others => '0');
+  243 |     mul.p_sext <= '0';
+  244 |   end generate;
+  249 |   divider_core_serial:
+  250 |   if DIVISION_EN generate
+  253 |     divider_core: process(rstn_i, clk_i)
+  254 |     begin
+  255 |       if (rstn_i = '0') then
+  256 |         div.quotient  <= (others => '0');
+  257 |         div.rs2_abs   <= (others => '0');
+  258 |         div.sign_mod  <= '0';
+  259 |         div.remainder <= (others => '0');
+  260 |       elsif rising_edge(clk_i) then
+  261 |         if (div.start = '1') then
+  263 |           if ((rs1_i(rs1_i'left) and ctrl.rs1_is_signed) = '1') then
+  264 |             div.quotient <= std_ulogic_vector(0 - unsigned(rs1_i));
+  265 |           else
+  266 |             div.quotient <= rs1_i;
+  267 |           end if;
+  269 |           if ((rs2_i(rs2_i'left) and ctrl.rs2_is_signed) = '1') then
+  270 |             div.rs2_abs <= std_ulogic_vector(0 - unsigned(rs2_i));
+  271 |           else
+  272 |             div.rs2_abs <= rs2_i;
+  273 |           end if;
+  275 |           if (ctrl_i.ir_funct3(1 downto 0) = op_div_c(1 downto 0)) then
+  276 |             div.sign_mod <= (rs1_i(rs1_i'left) xor rs2_i(rs2_i'left)) and or_reduce_f(rs2_i);
+  277 |           elsif (ctrl_i.ir_funct3(1 downto 0) = op_rem_c(1 downto 0)) then
+  278 |             div.sign_mod <= rs1_i(rs1_i'left);
+  279 |           else
+  280 |             div.sign_mod <= '0';
+  281 |           end if;
+  283 |           div.remainder <= (others => '0');
+  284 |         elsif (ctrl.state = S_BUSY) or (ctrl.state = S_DONE) then
+  285 |           div.quotient <= div.quotient(30 downto 0) & (not div.sub(32));
+  286 |           if (div.sub(32) = '0') then
+  287 |             div.remainder <= div.sub(31 downto 0);
+  288 |           else
+  289 |             div.remainder <= div.remainder(30 downto 0) & div.quotient(31);
+  290 |           end if;
+  291 |         end if;
+  292 |       end if;
+  293 |     end process divider_core;
+  296 |     div.sub <= std_ulogic_vector(unsigned('0' & div.remainder(30 downto 0) & div.quotient(31)) - unsigned('0' & div.rs2_abs));
+  299 |     div.res_u <= div.quotient when (ctrl_i.ir_funct3(2 downto 1) = op_div_c(2 downto 1)) else div.remainder;
+  300 |     div.res   <= std_ulogic_vector(0 - unsigned(div.res_u)) when (div.sign_mod = '1') else div.res_u;
+  302 |   end generate;
+  305 |   divider_core_serial_none:
+  306 |   if not DIVISION_EN generate
+  307 |     div.quotient  <= (others => '0');
+  308 |     div.sign_mod  <= '0';
+  309 |     div.rs2_abs   <= (others => '0');
+  310 |     div.remainder <= (others => '0');
+  311 |     div.sub       <= (others => '0');
+  312 |     div.res_u     <= (others => '0');
+  313 |     div.res       <= (others => '0');
+  314 |   end generate;
+  319 |   operation_result: process(ctrl, ctrl_i.ir_funct3, mul.prod, div.res)
+  320 |   begin
+  321 |     res_o <= (others => '0');
+  322 |     if (ctrl.out_en = '1') then
+  323 |       case ctrl_i.ir_funct3 is
+  324 |         when op_mul_c =>
+  325 |           res_o <= mul.prod(31 downto 0);
+  326 |         when op_mulh_c | op_mulhsu_c | op_mulhu_c =>
+  327 |           res_o <= mul.prod(63 downto 32);
+  328 |         when others =>
+  329 |           res_o <= div.res;
+  330 |       end case;
+  331 |     end if;
+  332 |   end process operation_result;
+  335 | end neorv32_cpu_cp_muldiv_rtl;

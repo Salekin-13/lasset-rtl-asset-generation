@@ -1,0 +1,41 @@
+UNIT neorv32_neoled
+  INPUTS: bus_req_i, clk_i, clkgen_i, rstn_i
+  OUTPUTS: bus_rsp_o, clkgen_en_o, irq_o, neoled_o
+  BLOCKS
+    [inst] data_buffer (neorv32_fifo, another IP): tx_fifo.avail, tx_fifo.free, tx_fifo.half, tx_fifo.rdata
+    [logic] serial.busy: serial.busy
+    [logic] serial.next_bit: serial.next_bit
+    [logic] tx_fifo.clear: tx_fifo.clear
+    [logic] tx_fifo.re: tx_fifo.re
+    [logic] tx_fifo.wdata: tx_fifo.wdata
+    [logic] tx_fifo.we: tx_fifo.we
+    [process] bus_access: ctrl.clk_prsc, ctrl.enable, ctrl.irq_conf, ctrl.mode, ctrl.strobe, ctrl.t0_high, ctrl.t1_high, ctrl.t_total; clocked by clk_i; reset by rstn_i
+    [process] irq_generator: -; clocked by clk_i; reset by rstn_i
+    [process] serial_engine: serial.bit_cnt, serial.done, serial.mode, serial.pulse_clk, serial.pulse_cnt, serial.sreg, serial.state, serial.strobe_cnt, serial.t_high; clocked by clk_i; reset by rstn_i
+  ARROWS (==> a value moves; --> only decides; [the elements the arrow carries])
+    bus_req_i ==> tx_fifo.wdata   [bus_req_i.data]
+    bus_req_i --> tx_fifo.we   [bus_req_i.{addr,rw,stb}]
+    bus_req_i ==> bus_access   [bus_req_i.{addr,data,rw,stb}]
+    clk_i ==> data_buffer   [clk_i]
+    clkgen_i ==> serial_engine   [clkgen_i]
+    rstn_i ==> data_buffer   [rstn_i]
+    data_buffer ==> bus_access   [tx_fifo.{avail,free,half}]
+    data_buffer ==> irq_generator   [tx_fifo.{avail,half}]
+    data_buffer ==> serial_engine   [tx_fifo.{avail,rdata}]
+    serial.busy ==> bus_access   [serial.busy]
+    serial.next_bit --> serial_engine   [serial.next_bit]
+    tx_fifo.clear ==> data_buffer   [tx_fifo.clear]
+    tx_fifo.re ==> data_buffer   [tx_fifo.re]
+    tx_fifo.wdata ==> data_buffer   [tx_fifo.wdata]
+    tx_fifo.we ==> data_buffer   [tx_fifo.we]
+    bus_access ==> tx_fifo.clear   [ctrl.enable]
+    bus_access ==> tx_fifo.wdata   [ctrl.{mode,strobe}]
+    bus_access ==> bus_rsp_o
+    bus_access ==> clkgen_en_o   [ctrl.enable]
+    bus_access ==> irq_generator   [ctrl.{enable,irq_conf}]
+    bus_access ==> serial_engine   [ctrl.{clk_prsc,enable,t0_high,t1_high,t_total}]
+    irq_generator ==> irq_o
+    serial_engine --> serial.busy   [serial.state]
+    serial_engine ==> serial.next_bit   [serial.{mode,sreg}]
+    serial_engine --> tx_fifo.re   [serial.state]
+    serial_engine ==> neoled_o

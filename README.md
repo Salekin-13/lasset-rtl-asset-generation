@@ -1,28 +1,80 @@
-# Security assets from VHDL, with an audit trail
+# LLM-Assisted Security Asset Identification from RTL
 
-This work, from July to October 2026, replicates part of LAsset (arXiv:2601.02624, DATE 2026), which uses an LLM to find the security assets of RTL modules. It was replicated up to the list of primary assets (Algorithm 1, lines 3-5). Those lines are the spec summary, the list of ports and signals, and asset generation. I ran it on NEORV32, a RISC-V processor written in VHDL. The final pipeline drops the spec summary and reads only the RTL. I did not replicate the secondary assets (line 6) or the refinement stage (lines 7-9).
+Exploring how RTL element relationships, structure, information-flow diagrams and different prompting techniques influence an LLM's identification of security-relevant assets from RTL.
 
-**[`FINAL_NOTEBOOK.ipynb`](FINAL_NOTEBOOK.ipynb)** runs the final pipeline on the 41 NEORV32 modules that have a manual reference, without an API key: occurrence profiles, the relationship map, checks of both, asset generation, the audit trail of every listed asset, and the comparison with LAsset.
+This repository explores the research question, "*Can an LLM locate the security-relevant assets of an IP from the RTL file and inputs derived from it by code, with no specification document?*" by studying the **`Asset Generation` phase of the LAsset framework** (arXiv:2601.02624, DATE 2026).
 
-## The question asked
+During replication, these prompting effects were explored:
 
-The reference is LAsset's manual list of assets: the sheet "Assets (Manual)" in the LAsset repository ([Ajoad/LAsset-Security-Assets](https://github.com/Ajoad/LAsset-Security-Assets), `SoC/Asset_Dataset_Statistics_NEORV32.xlsx`). LAsset's authors wrote it by hand from their hardware-security knowledge and cross-checked it with LLM chatbots (paper, p.5). It covers 41 NEORV32 modules with 302 entries, as the paper counts them. Two of them are repeats (`twi_sda_i` and `twi_sda_o` each appear twice in the TWI module), so 300 are scored here. A listed element that is in the reference is a hit (a true positive); one that is not is a false positive. **Precision** is the share of listed elements that are hits; **recall** is the share of reference entries found. The prompts were developed on 15 modules (the tuning set, 111 entries), and 26 others were kept aside for testing (the held-out set, 189 entries).
+* whether RTL-derived structural information can improve identification
+* whether separating the asset identification problem into two tasks, first identifying the conceptual assets and then finding the structural assets under them, can improve identification
+* whether P3164's Conceptual and Structural Analysis (CSA) and Points of Influence and Observation (PIO) provide useful reasoning frameworks
+* whether the structure of the prompt, and where a rule appears in it, affects a model's performance and its inclination to follow the rule
 
-The paper reports no precision or recall for its initial lists: it counts hits and false positives only after refinement. So LAsset's initial lists, published in the same repository, were scored here against the reference with the same scorer. On the 15 tuning modules, its spec+RTL list (137 elements) scores precision 0.737 and recall 0.910, and its RTL-only list scores 0.680 and 0.748. (For its final NEORV32 lists, after refinement, the paper's Table III gives recall 0.901, 272 of 302, from which precision 0.822 follows.)
+### The framework I arrived at
 
-The prompts (gpt-5-mini, RTL only) reached recall 0.886, close to LAsset's spec+RTL list and above its RTL-only list, but only by listing about three times as many elements: 404 per run against 137. So their precision was much lower: 0.243, against 0.737 (spec+RTL) and 0.680 (RTL-only). (Log: `logs/V02_HANDOFF.md`; LAsset's lists re-scored with `src/eval_assets.py`.)
+![The two-phase pipeline: three code-built inputs per module, Phase 1 (conceptual assets), checks, Phase 2 (structural assets), converter, scorer](figures/pipeline_diagram.png)
 
-Nath & Tan (ISQED 2025, arXiv:2502.04648) find likely primary assets in Verilog designs from patterns in the RTL. From their work came the idea that a signal's role can be read from where it appears in the code. In August this was tried with a parsed file written by an LLM, plus instructions on how to read it, and it made things worse: precision went from 0.251 to 0.240 and recall from 0.925 to 0.847 (gpt-5-mini, 15 modules, 3 runs).
+## Key Findings
+On all 41 modules (300 reference entries, 296 findable under the exact scorer, primary assets only). Precision and recall are the mean of the three per-run values; sd is across the three runs. The pooled ratios in Table 4 agree to three decimals.
 
-So the question asked was:
+| Method | Precision (sd) | Recall (sd) | runs |
+|---|---|---|---|
+| LAsset, RTL-only initial list (published) | 0.704 | 0.757  | one list |
+| Two-phase prompt (working version) | 0.708 (0.037) | 0.845 (0.018)  | 3 |
 
-> **If the LLM also gets a file that shows where each signal appears and how the signals relate to each other, will it find the true positive assets while listing fewer false positives?**
+Caveat: the held-out 26 modules later helped tune the working prompt from v9j onwards. This then stops being a blind test.
 
-## What was built
+The final two-phase approach achieved **0.708 precision / 0.845 recall** over all 41 modules, compared with **0.704 / 0.757** for LAsset's RTL-only initial list under the same exact scorer.
+More importantly, the experiments showed that better RTL grounding does not automatically solve asset identification: the remaining false positives often have the same RTL behaviour as reference assets.
 
-An LLM (gpt-5-mini) could not build that file reliably. In a test on two modules, its first pass gave the right surrounding `if` / `case` structure for only 476 of 661 occurrences, and even after a second pass that checked the first, 22 were still wrong. So the file was built with code, in two parts:
+## Related works & their contribution
 
-- **Occurrence profile:** every place a signal's name appears, with an occurrence ID, its line, what the signal does on that line (declared, assigned, read in a condition, ...) and the surrounding context to that occurrence. What each field of an entry holds (the entries are in `final/occurrence_profiles/<module>.json`):
+### How the literature was used
+
+LAsset shaped the pipeline; P3164 gave the prompt its frame.
+Every prompt rule needed a basis: a published source, the prompt's own definitions (which trace to the six sources below), or a logged user decision where the rule follows the reference's convention.
+Rules drawn from a failure analysis went through the same check before they entered the prompt.
+
+
+- **LAsset** (Hasan et al., DATE 2026): the task, Algorithm 1 lines 3–5, the manual list as the reference and the published lists as the comparison rows. Not replicated: secondary assets, the refinement stage, Degree of Influence.
+- **IEEE P3164 white paper** (2024): the conceptual vs structural split, the four CSA questions for Phase 1, the PIO questions for Phase 2. Kept out: "ports are attack surface, not assets"; memory arrays as assets stay a reference convention.
+- **Accellera SA-EDI** (2021): the asset types, and the basis for treating state, setting and decision elements as primary. Kept out: its Secret / Sensitive / Critical labels (judgements, so banned in prompts); lock bits as primary.
+- **SAIF** (Farzana et al., VTS 2021): the primary/secondary split; carriers, transit registers and bus ports as secondary. Rejected: its demotion step as a prompt arm (recall 0.925 → 0.628); its FSM-state convention, which conflicts with the reference.
+- **Nath & Tan** (ISQED 2025): reading a signal's role from where it appears in the code; the four behavioural patterns. Rejected: the August parser readings taken from them, which made results worse.
+- **Hu, Ardeshiricham & Kastner** (ACM CSUR 2021): explicit vs implicit flow, for the diagram's arrows. Not used: the tracking machinery itself.
+- **CWE** (MITRE): CWE-1206 as the clock and reset exception; four CWEs that showed "transaction ports are never assets" was too absolute. Not built: LAsset's CWE-gated refinement.
+
+What each source gave to each prompt version, and what was tried and dropped, is in the ablation logs (table under Metrics).
+
+
+## Overview
+### Reproducing LAsset's Asset Generation stage
+
+The replication's prompt followed LAsset: Retrieval Augmented Generation (a datasheet summary from LAsset's SpecRAG), prompt chaining (the parsers, then asset generation) and few-shot prompting (two worked examples).
+
+*Problem:* The paper's description of modular RTL parsing is ambiguous. It does not specify how the two LLM-based parsers separate the elements. Section III-A says, *"implement two LLM-based parsers: one for I/O ports and another for internal signals/registers,"* but in the algorithm's line 4, `MOD RTLPARSE {Prmm, Secm}` indicates that the parser separates the primary and secondary asset candidates, which should be assetgen's decision, which is a later stage.
+
+I designed the parsing stage like this:
+
+* A regex extractor, `rtl_parse.py`, reads each entity's port list and each architecture's signal declarations. This creates a `closed set`; the prompt specifies that every asset the model names must be from this list. The elements were extracted by code and not by the LLM, to avoid hallucinations.
+* The LLM is only used to annotate. Two prompts, one for ports and one for signals, receive the RTL plus the list and must return exactly those names with a short function each.
+* Record-typed ports and signals were expanded into their fields using a registry built from the package file, so a bus-request port became the port plus 12 fields.
+
+*Limitations:* Arm P-2 on 8 August removed the parsed blocks and let the model read the declarations itself: recall moved by -0.020 (interval includes zero), precision +0.017. The model produced 187 names outside the list and invented none; all were real identifiers the regex had ignored, nearly all in the package file, which has no entity. (Log: `logs/RECALL_ABLATION_LOG.md`, arm P-2; re-scored in `experiments/01_prompt_baselines/notebooks/recall_ablation_log.ipynb`.)
+
+*Decision:* Instead of only *"types and functions at the module level"* in the parsed json, I decided to include `roles` and `relationships` of the elements in relation to other elements in the closed set. (The arms that tested this, RP and C1, are in `logs/PRECISION_ABLATION_LOG.md`; re-scored in `experiments/01_prompt_baselines/notebooks/precision_ablation_log.ipynb`.)
+
+**Final working prompt of this study:** the `v2` baseline, `ASSET_V2_BASE` in `src/prompts_v2.py`, with the two worked examples from `src/icl_examples_*.py`. No precision arm beat it, so it stayed the baseline. The recall round's last promoted version, `v01c6p1p2`, is in `src/prompts.py`.
+
+*Problem:* How to derive relationships between elements in an entity?
+
+**The question.** Can certain patterns in where an element appears in the code, and how it relates to other elements, help identify potential assets, as a complement to the CSA questions?
+
+Nath & Tan (ISQED 2025, arXiv:2502.04648) find primary assets in Verilog from behavioural patterns. A signal's role can be read from where it appears: in a condition, on which side of an assignment, through an instantiation. From that idea I built two structures per module:
+
+- **Occurrence profile:** one entry for every place a signal's name appears. What each field holds (the entries are in
+  `map_pipeline/occurrence_profiles/<module>.json`):
 
   ```json
   {
@@ -36,9 +88,12 @@ An LLM (gpt-5-mini) could not build that file reliably. In a test on two modules
   }
   ```
 
-- **Relationship map:** typed records between signals: one signal feeds, guards, selects, clocks or resets another. Each record is tied to the occurrence IDs where it holds.
+- **Relationship map:** The relationship map uses seven pairs of relationship tags, one on each side of an assignment:  
 
-Both are checked against the source code (notebook section 4).
+  * two value tags (CARRIES/COPIES for an exact copy, SOURCES/DERIVES_FROM for any other read)  
+  * five control tags (SEQUENCES/CLOCKED_BY for the clock, RESETS/RESET_BY, SELECTS/SELECTED_BY for a case selector or index, CONSTRAINS/CONSTRAINED_BY for a comparison between elements, GATES/GATED_BY for an enable or condition).
+
+  Wiring through an instance port is recorded separately, as a connection to the sub-unit's port. Each record cites the occurrence IDs where it holds, and code adds per-element facts such as storage, port boundary, record-field handling, constant drivers and configuration.
 
 ```mermaid
 flowchart LR
@@ -50,224 +105,278 @@ flowchart LR
     map --> check
 ```
 
-Where the files are:
+*Failure:* The relations did not answer the CSA questions, which ask whether a value could be changed, observed or blocked. For an RTL element the map always supplies a writer, a reader and often an output path, so the honest answer is "yes" nearly every time.
 
-- occurrence profiles in `final/occurrence_profiles/`;
-- relationship maps in `step1/lasset_step1/relation_map_code_tuning/b0e767000ec2_codetags/` and `.../relation_map_code_heldout/...`.
+What decides membership is not in the map. Hits and false positives have the same relationship profiles: all 13 classes occur on both, 23.8% of false positives match a hit's profile exactly, and 97% of false-positive citations verify. 
 
-### What the LLM gets
+What separates them is a convention about which point along a flow the reference names (the stored register, the boundary pin, the decision bit, not the carrier), applied unevenly across modules. (Log: `logs/MAP_ABLATION_LOG.md`; re-scored in `experiments/02_rtl_structural_analysis/notebooks/map_ablation_log.ipynb`.)
 
-For each module, code writes one text file (`assetgen_meta/traced_inputs_v2/<tuning or heldout>/<module>.txt`) with three parts:
+**Final working prompt of this study:** `assetgen_meta/prompt_opt/v1/exec_prompt.txt`, run on gpt-5.4 with the inputs in `assetgen_meta/traced_inputs_v2/` (RTL, map and flow graph per module). `FINAL_NOTEBOOK.ipynb` runs it end to end.
 
-1. the RTL, with comments removed and each line starting with its line number;
-2. the relationship map: one line per port or signal, then its occurrences and its records;
-3. a flow graph, computed by code from the records: where the value of each input goes.
+*Decision:* Separate conceptual asset finding and structural asset identification into two tasks. The PIO method is better suited to finding the points along the flow of information where the structural assets sit.
 
-The prompt (`assetgen_meta/prompt_opt/v1/exec_prompt.txt`, section 1) explains each part. For every asset, it asks the LLM to cite one of the signal's occurrence IDs and one record that holds there. If the map has no fitting record, the LLM sets the record to null and names the statement the map missed.
+**The question.** Can a two-phase prompt be used to check both conceptual assets and structural assets? 
+
+Each phase was checked on its own: Phase 1 for the conceptual assets it named, Phase 2 for the structural assets it listed.
+
+**Prompt technique.** Prompt chaining: two calls per module. Phase 1 finds the conceptual assets with the CSA questions.
+Phase 2 finds the structural assets of each concept with the points of influence and observation (PIO) method. 
+
+The idea to split them into two calls came from the DVCon Europe 2024 talk
+"A Detailed Tour of IEEE standard P3164" (Grammatikakis, presented by Bormann). Of the replication's three techniques, the
+two-phase prompt keeps only the chaining. The datasheet summary went in August (arm P-1: removing it changed nothing),
+the worked examples went with the two-phase design, and code-built inputs (the closed set and a block diagram) took
+the place of the parsed lists. The prompt has definitions, a rubric and rules.
+
+**How the diagram for PIO was built.** Code built
+(`src/pio_diagram/`: `pio_graph.py`, `pio_blocks.py`, `pio_inputs.py`; `msim_check.py` validates the blocks with ModelSim):
+
+![How the diagram is built: occurrence profiles and the relationship map feed the flow graph, blocks and arrows; ModelSim validates block members and block-to-block pairs](figures/flow_diagram.png)
+
+1. the closed set: every port, signal and record field;
+2. the module hierarchy: every instance and its child entity;
+3. a flow graph: explicit flows (B is assigned from A) and implicit flows (A decides whether, or which, B is assigned),
+   after Hu, Ardeshiricham and Kastner's information-flow survey (ACM CSUR 2021, section 2.4). Clocks and resets are
+   kept apart; they are not flows;
+4. blocks: the graph grouped into processes, generate blocks, concurrent assignments and instances. Arrows carry values
+   (`==>`) or decisions (`-->`) and are labelled with the signals they carry.
+
+The watchdog's diagram as the model sees it is `experiments/03_two_phase_csa_pio/lab/inputs/v1/tuning/neorv32_wdt/diagram.txt`, next to its `rtl.txt` and `closed_set.json`.
+
+**Final working prompt of this study:** `experiments/03_two_phase_csa_pio/lab/prompts/two_phase_p1o_first/` (`common.md`, `phase1.md`, `phase2.md`; contents in Table 5), run on gpt-5.6-luna with the inputs in `experiments/03_two_phase_csa_pio/lab/inputs/v1/`.
+
+## Debugging the two-phase prompt design
+
+- Phase 1 alone: Phase 1-only runs, scored by the share of reference entries whose concept Phase 1 located.
+- Phase 2 alone: Phase 2 re-run on stored Phase 1 replies, so the two phases' run-to-run variation is separated.
+- One rule alone: a new rule tested on its target modules before it enters the full prompt.
+- Blind boundary test: a new rule applied to stored replies, to check it removes no hit.
+- Position tests with a sham block of the same length as the control.
+
+*Limitations:* Three decisions were taken from the reference, not from theory. Each is labelled "user decision: reference convention" in its version's README. A change in the reference voids them. 
+
+1. Clocks and resets are not conceptual assets (12 Oct). The reference lists none.
+2. Prompt lines that only produced extra concepts, with no hit under them, were removed or restricted (12 Oct).
+3. Exclusion rules for groups the reference never lists: stored-word memory arrays and processor control-unit state
+   (18 Oct), and debug-module registers (19 Oct).
+
+> From v9g on, the held-out 26 were also used to tune the phase 1 & 2 prompts to choose between versions. So the held-out numbers from there on are not a blind test anymore.
+
+
+## Experimental Design
+### Data
+
+The asset generation pipeline was tested on NEORV32, a RISC-V processor written in VHDL. I used the 41 modules selected
+by the input preprocessing stage of the LAsset framework. These are the modules for which LAsset published a manual
+asset list. The RTL is LAsset's own copy of NEORV32, in `data/RTL_data/` and `data/RTL_heldout/`.
+
+The 41 modules were split once:
+
+- 15 tuning modules (111 reference entries). I developed the prompts on these.
+- 26 held-out modules (189 reference entries). Kept aside for testing. In the third study they were also used to choose between prompt versions. 
+
+From 14 October, the 12 held-out modules that caused v7's drop joined the tuning set as `tuning_v2` (27 modules); v10 to v12 had their gates read there.
+
+### Ground Truth
+The sheet "Assets (Manual)" in LAsset's repository
+([Ajoad/LAsset-Security-Assets](https://github.com/Ajoad/LAsset-Security-Assets),
+`SoC/Asset_Dataset_Statistics_NEORV32.xlsx`). LAsset's authors wrote it by hand and cross-checked it with LLM chatbots
+(paper, p.5). It has 302 entries over the 41 modules. Two are repeats, so 300 are scored. It lists primary assets only.
+
+### Metrics
+
+**Precision and recall.** Only primary assets are scored. The reference lists no secondary assets. A listed element that is in the reference is a hit. One that is not is a false positive, including elements LAsset would call secondary.
+
+`Precision = hits / model-emitted assets`
+
+`Recall = hits / findable reference entries`
+
+Under the exact scorer, 296 of the 300 reference entries are findable in the corresponding module's element list (109 of 111 tuning, 187 of 189 held-out). For three runs, this gives 888 findable entry-runs.
+
+A false positive only means the reference does not list the element. It does not prove the element is not an asset.
+
+**The exact scorer** in `experiments/03_two_phase_csa_pio/lab/analysis/two_phase_v8__gpt-5.6-luna__high__r0-r2/compare_v8.py`: names must be
+equal, each reference entry counts once, and only findable entries count. In Tables 1 to 4 the three runs are pooled
+(hits and listed elements summed over the runs); the Key Findings table gives the mean of the per-run values.
+
+**Comparison rows.** LAsset's published initial lists, scored with the same scorers. The RTL-only list is the fair
+comparison, since my pipelines read RTL only. The spec+RTL list is shown beside it.
+
+
+Scripts: `experiments/03_two_phase_csa_pio/lab/analysis/score_lasset_exact.py`.
+
+**Ablation method.** One change per version, paired against its own baseline. A pass rule was written before each run, three runs per version (five to promote in August), and the verdict was read from pooled counts and module-level sign tests, never from one run. The short-form logs, one per study, give one line per arm (what changed, the rule before the run, the result, the decision), and each has a notebook that re-scores every stored run:
+
+| study | log | notebook |
+|---|---|---|
+| recall round, 2 to 8 Aug | `logs/RECALL_ABLATION_LOG.md` | `experiments/01_prompt_baselines/notebooks/recall_ablation_log.ipynb` |
+| precision round, 8 to 18 Aug | `logs/PRECISION_ABLATION_LOG.md` | `experiments/01_prompt_baselines/notebooks/precision_ablation_log.ipynb` |
+| relationship map, 20 Sep to 3 Oct | `logs/MAP_ABLATION_LOG.md` | `experiments/02_rtl_structural_analysis/notebooks/map_ablation_log.ipynb` |
+| two-phase prompt, 10 to 19 Oct | `logs/TWO_PHASE_ABLATION_LOG.md` | `experiments/03_two_phase_csa_pio/two_phase_ablation_log.ipynb` |
+| the whole prompt line, July to Oct | `logs/ABLATION_LOG_JUL_OCT.md` | the scripts named in the log |
+
+
+
+
+## Results
+
+**Why gpt-5.6-luna.** The first version ran once on three models. On the 15 tuning modules, luna came close to gpt-5.4
+at a small fraction of the cost, so every later version ran on luna (one run each, exact scorer; cost from the stored
+token counts at the list prices in `experiments/03_two_phase_csa_pio/lab/cost_estimate.py`):
+
+| model | P / R | listed | cost of the run |
+|---|---|---|---|
+| gpt-5.4 | 0.187 / 0.771 | 449 | USD 27.35 |
+| gpt-5.4-mini | 0.268 / 0.523 | 213 | USD 13.43 |
+| gpt-5.6-luna | 0.183 / 0.807 | 480 | USD 0.77 |
+
 
 <details>
-<summary>Example: the watchdog's lock bit, from the input file to the audit trail</summary>
+<summary><b>Version-by-version results: Tables 1 to 3</b> (how each prompt change moved precision and recall; wording and length; rule order and position)</summary>
 
-Input, RTL part (`assetgen_meta/traced_inputs_v2/tuning/neorv32_wdt.txt`):
+**Table 1. How P and R changed with each debug decision** (gpt-5.6-luna, exact scorer, 3 runs unless noted; per-run
+counts in `experiments/03_two_phase_csa_pio/lab/analysis/score_versions.py`; one line per version, with the rule set before the run, in
+`logs/TWO_PHASE_ABLATION_LOG.md`, re-scored in `experiments/03_two_phase_csa_pio/two_phase_ablation_log.ipynb`)
 
-```
-   93 |             if (ctrl.lock = '0') then
-   94 |               ctrl.enable  <= bus_req_i.data(ctrl_enable_c);
-   95 |               ctrl.lock    <= bus_req_i.data(ctrl_lock_c) and ctrl.enable;
-```
+| version | what changed | tuning P / R | held-out P / R |
+|---|---|---|---|
+| v1 | the method as written | 0.179 / 0.804 | 0.239 / 0.822 |
+| v2 | Phase 1 exclusions: clocks and resets, build-time values, pacing pulses, forwarded transactions, bus handshake copies, working values | 0.228 / 0.786 | 0.244 / 0.779 |
+| v3 | more specific Phase 1 steps at the same length | 0.235 / 0.841 | |
+| v4 | bus request and response record ports are never primary | 0.295 / 0.826 | |
+| v4a | v4 in shorter wording | 0.300 / 0.832 | 0.275 / 0.788 |
+| v5 | more exclusions; 13 conflicts between rules fixed | 0.383 / 0.792 | 0.318 / 0.740 |
+| v5f | readable reply format: each key once, rows grouped by concept, primary or secondary as a label | 0.416 / 0.827 (6 runs) | |
+| v5g | Phase 1 rules copied into Phase 2, because Phase 2 never reads Phase 1's rules | 0.430 / 0.813 | |
+| v6 | 24 paired rules (one copy per phase) from the v5g failure analysis | 0.620 / 0.780 | 0.426 / 0.652 |
+| v7 | each rule's exceptions moved inside its main sentence | 0.614 / 0.817 | 0.375 / 0.697 |
+| v8 | seven rules from the v7 failure analysis | 0.664 / 0.841 | 0.400 / 0.688 |
+| v9 | one rule narrowed | 0.660 / 0.850 | 0.401 / 0.713 |
+| v10 | the 17 hardest rules rewritten as blocks (scope, criteria, exceptions, outcome, evidence) | 0.647 / 0.826 | 0.403 / 0.679 |
+| v9g | v9 + five keep rules for groups the exclusions had removed | 0.687 / 0.844 (1 run) | 0.509 / 0.824 |
+| v9h | three more keep rules | 0.617 / 0.872 (2 runs) | 0.506 / 0.848 (2 runs) |
+| v9i | five exclusions for stable false positives | 0.660 / 0.872 (1 run) | 0.602 / 0.818 (1 run) |
+| v9j | the control-unit exclusion spares the unit's ports; keep rules placed last in their step | 0.697 / 0.865 | 0.569 / 0.848 |
+| v9n_place | one primary per place where the information is (one sentence in Phase 2 step 4) | not run | 0.662 / 0.843 |
+| p1o_first | v9n_place + the debug-register exclusion as the first Phase 1 block | 0.741 / 0.856 | 0.689 / 0.838 |
 
-Input, map part (two of its records):
+v10 failed its gate: recall fell on `tuning_v2` (0.739 to 0.709). A rule that passes alone can still break inside the full prompt. So the line continued from v9.
 
-```
-SIGNAL {"name":"ctrl.lock","entity":"neorv32_wdt","kind":"register","handling":["ORIGINATES","CONSUMES"],"storage":"edge"}
-    {"occurrences":[{"id":1,"line":54},{"id":2,"line":76},{"id":3,"line":93},{"id":4,"line":95},{"id":5,"line":110}]}
-    {"type":"GATES","at":[3],"guard":"ctrl.lock = '0'","lines":[93],"targets":["ctrl.enable","ctrl.lock","ctrl.strict","ctrl.timeout"]}
-    {"type":"CLOCKED_BY","at":[4],"lines":[95],"targets":["clk_i"]}
-```
+**Table 2. Brevity and wording** (tuning modules, exact scorer, 3 runs)
 
-Section 1 of the prompt explains the whole input: 
+| comparison | words: common / phase 1 / phase 2 | P / R before → after | what it says |
+|---|---|---|---|
+| v2 → v2a: same meaning, shorter | 4,874 / 1,433 / 2,079 → 4,057 / 1,288 / 2,079 | 0.228 / 0.786 → 0.210 / 0.798 | shorter alone gave nothing |
+| v2 → v3: more specific steps, same length | 4,874 / 1,433 / 2,079 → 4,874 / 1,506 / 2,079 | 0.228 / 0.786 → 0.235 / 0.841 | specific wording raised recall |
+| v4 → v4a: same content, shorter | 4,926 / 1,506 / 2,079 → 4,109 / 1,448 / 2,079 | 0.295 / 0.826 → 0.300 / 0.832 | shorter did no harm |
+| v6 → v6d: condensed by 5% | 4,265 / 6,200 / 7,863 → 4,265 / 5,866 / 7,451 | 0.620 / 0.780 → 0.617 / 0.774 | inside noise |
+| v6d → v7: exceptions inside the rule's sentence | 4,265 / 5,866 / 7,451 → 4,265 / 5,963 / 7,573 | 0.617 / 0.774 → 0.614 / 0.817 | where an exception sits matters more than length |
 
-      (b) RELATIONSHIP MAP. A static analyser (a program, not a model) wrote it from that RTL. It records how values move and are controlled. It makes no judgement about meaning, importance or security. It has two parts.
+Phase 2 alone varies by 0 to 5 hits per run on the same Phase 1 input (v6abc, six Phase 2 draws). Differences smaller
+than that are noise.
 
-      ELEMENTS AND RECORDS. One element per line that starts with PORT or SIGNAL, followed by a JSON object:
-      - "name": a declared element: a port, an internal signal, or a field of a record, written <record>.<field>. A whole record and each of its fields are separate elements: a record port has its own PORT line and so does each of its fields, and likewise for internal record signals. A whole record's own "storage" and records are not informative; its relationships sit on its fields.
-      - "entity": the entity that declares the element.
-      - "boundary" (ports only): "mode" is in, out or inout; for an output, "drive" is driven (assigned from elements), tied (only constants) or undriven (never assigned as a whole; its fields may be).
-      - "kind" (signals only): register (assigned on a clock edge somewhere) or signal.
-      - "storage": edge (every assignment is on a clock edge, so the element holds its value between edges), none (combinational), mixed (both), or not assigned (never assigned in this file: an input, an element driven only by a sub-unit, or unused).
-      - "handling" (record fields): ORIGINATES (this module creates the value), CONSUMES (this module reads it), FORWARDS (this module passes it on unchanged).
+**Table 3. Order and position of rules**
 
-      The indented lines under an element belong to it:
-      - {"occurrences": [{"id": N, "line": L}, ...]}: every place the element's name appears, with its occurrence ID and RTL line. Occurrence IDs are numbered per element, starting at 1.
-      - {"constant_drivers": [...]}: assignments that give the element a literal or a named constant, with their lines.
-      - {"configuration": [...]}: build-time conditions (generics, constants) under which the element exists or is driven.
-      - {"connections": [...]}: the element is wired to port "formal" of the instantiated sub-unit "instance"; "at" is the occurrence ID of the wiring. "mode" is that sub-unit port's direction, read from the sub-unit's own declaration: in means this element's value goes into the sub-unit; out means the sub-unit drives this element.
-      - relationship records: {"type": ..., "targets": [...], "at": [occurrence IDs of THIS element where the record holds], "lines": [their RTL lines], "guard": the condition text, for control types}.
-
-
-Output (gpt-5.4, run 0, `runs/assets_tuning18_m7e194es0opt1_g54_r0/_nested/neorv32_wdt.json`):
-
-```json
-{"asset rtl": "ctrl.lock", "entity": "neorv32_wdt", "realization": "stores",
- "occurrence": 4, "edge": {"type": "CLOCKED_BY", "partner": "clk_i"}}
-```
-
-(`realization` is the role the LLM gives the signal: here, that it stores a value. For `stores`, the prompt asks for the clock-edge record, so `CLOCKED_BY clk_i` is the expected citation.)
-
-Audit trail (`final/fp_trace41/gpt54/ledger.csv`): occurrence 4 of `ctrl.lock` is line 95, and the record `CLOCKED_BY clk_i` holds there, so the citation is verified. `ctrl.lock` is in LAsset's reference, so it is a hit.
+| test | what moved | result |
+|---|---|---|
+| v9i vs v9i_orderB (7 held-out modules, 3 runs) | each keep rule right after the exclusion it overrides, vs all keep rules last | 122 / 258 vs 132 / 249 hits / listed; no difference by the pre-set cut |
+| v9k | the "walk-found internals" rule as the last exclusion of Phase 2 step 4 | ignored: tuning 0.692 / 0.899 vs v9j's 0.697 / 0.865; held-out 0.570 / 0.850 vs 0.569 / 0.848 |
+| v9l | the same rule inside step 4's core sentence | followed, but the false positives moved to other elements: tuning 0.694 / 0.865; held-out 0.569 / 0.827 |
+| v9m | a code-built list of located elements given to Phase 2 as input | followed exactly, and worse: tuning 0.682 / 0.832; held-out 0.540 / 0.831. The list became a menu |
+| one Phase 1 block, five positions (held-out, Phase 1 only, 3 runs; share of reference entries located) | absent 0.836; first 0.825 (p 0.49); after the control-unit rule 0.807 (p 0.035); last 0.811 (p 0.011); sham text at the same place 0.834 | first is the only position that keeps Phase 1's recall |
+| the same block, both phases (held-out) | after the control-unit rule: 0.670 / 0.802; first: 0.689 / 0.838 | the same text, 0.036 recall apart, by position alone |
+| five orders of all 46 Phase 1 blocks (held-out, Phase 1 only, 3 runs) | easy-to-hard 0.829, rules after the output section 0.832, vs 0.825 | inside noise; no order adopted |
 
 </details>
 
-Code checks every citation: the occurrence ID must belong to that signal, the cited record must hold at that occurrence, and the record type must fit the role the LLM gives the signal. On all 41 modules, gpt-5.4's citations pass for 1,915 of its 1,953 listings over three runs (98%; an asset listed in all three runs counts three times). So the LLM can read the map: almost every citation points to a record that really holds. It does not show that the listed signal is an asset.
+**Table 4. Final working prompt against LAsset's initial lists** (exact scorer)
 
-## Findings from trial
-
-The answer was no. Each result is followed by the pass rule written before the run, and the log it is in.
-
-- **20 Sep, baseline** (`ism`, gpt-5-mini, RTL only): precision 0.344, recall 0.847 on the 15 tuning modules. (Log: `logs/ABLATION_LOG_V2.md`.)
-- **21 Sep, fixed rules over the map, after generation:** precision 0.344 to 0.433, recall 0.847 to 0.802. Rule: precision up by 0.10 with recall down by no more than 0.03. Not met. (Rules: `step2/RULES.md`; result re-derived later, in `docs/TIMELINE.md`.)
-- **30 Sep, map in the LLM's input** (`ismc`): precision 0.346, recall 0.787. Rule: precision at least 0.374 with recall at least 0.83. Not met. (Log: `notebooks/assetgen_meta.ipynb`; `assetgen_meta/contribution_assessment/1_evidence_ledger.md`.)
-- **1 Oct, filter after generation** (vote over runs, drop signals with no evidence, add back inputs), 26 held-out modules: precision +0.049 over the vote alone (95% interval 0.025 to 0.080), recall 0.884. Rule: the interval above zero and recall at least 0.83. Met. (Log: `step1/lasset_step1/RELATION_EXPERIMENTS_LOG.md`; rule in `assetgen_meta/HELDOUT_PREREG.md`.)
-- **1 Oct, traced prompt** (`ist`: map in the input, a citation per asset, four questions per concept: confidentiality, integrity, availability, undermined behaviour): precision 0.359, recall 0.691. Rule: at least 80% of citations verified, and precision at least 0.374 with recall at least 0.83. Citations met (81%); precision and recall not met. The four questions did not tell concepts apart: integrity "yes" on 274 of 276, confidentiality "no" on 276 of 276. (Log: `step1/lasset_step1/RELATION_EXPERIMENTS_LOG.md`.)
-- **2 Oct, `ist2`** (the four questions moved to a separate call): precision 0.343, recall 0.733, citations verified 82%. Rule: at least 90% verified, recall at least 0.817 and precision at least 0.344. Not met. (Log: `notebooks/assetgen_meta.ipynb`.)
-- **2 Oct, final prompt** (`ist2` plus three edits) on gpt-5.4: precision 0.407, recall 0.820 on the tuning modules. Rule: precision up by at least 0.03 with recall down by no more than 0.03, against `ist2` on the same model. That baseline lost a run when the API credits ran out; on its 2 complete runs it also scores 0.407, so the gain over gpt-5-mini (0.343) comes from the model, not the edits. (Log: `assetgen_meta/prompt_opt/OPTIMIZATION_LOG.md`.)
-- **3 Oct, the 1 Oct filter on the final gpt-5.4 runs:** held-out precision +0.011 (95% interval -0.004 to +0.029), recall down 0.037. Same rule as on 1 Oct, applied after the fact: not met, so the final pipeline does not use it. (Log: `FINAL_NOTEBOOK.ipynb`, section 6; `docs/TIMELINE.md`.)
-
-## Next question
-
-> **What causes the cap on how far prompting can reduce false positives?**
-
-Many false positives behave in the code like hits do. On all 41 modules (gpt-5.4, 3 runs), by the role the LLM gives each listed signal:
-
-| role | hits | false positives | hit share |
+| | held-out 26 P / R | tuning 15 P / R | all 41 P / R |
 |---|---|---|---|
-| stores (cites the clock edge) | 245 | 724 | 25% |
-| computes | 86 | 306 | 22% |
-| exit port | 228 | 73 | 76% |
-| sets | 211 | 80 | 73% |
+| `two_phase_p1o_first` (3 runs) | 0.689 / 0.838 | 0.741 / 0.856 | 0.708 / 0.845 |
+| `two_phase_v9j` (3 runs) | 0.569 / 0.848 | 0.697 / 0.865 | 0.611 / 0.855 |
+| LAsset RTL only | 0.724 / 0.759 | 0.672 / 0.752 | 0.704 / 0.757 |
+| LAsset spec+RTL | 0.730 / 0.866 | 0.730 / 0.917 | 0.730 / 0.885 |
 
-So a stored register that the LLM lists is a hit about 1 time in 4: the same behaviour (being stored on a clock edge) is a hit a quarter of the time and a false positive the rest. A rule against that behaviour loses hits; a rule for it adds false positives.
+The all-41 column pools the two splits (296 findable entries per run). The working version's tuning runs were made after it was chosen on the held-out set.
 
-Two tests show this. Dropping every listing whose cited record is a clock edge (`CLOCKED_BY`; 948 of 1,953 listings) raises precision from 0.394 to 0.524 but drops recall from 0.856 to 0.586 (pooled over the three runs like the headline numbers; checked on the same runs, after seeing these counts). Rules found on the 15 tuning modules raise precision on the 26 held-out modules from 0.388 to 0.545, but recall falls from 0.877 to 0.598.
+**Table 5. The final working prompt** (`experiments/03_two_phase_csa_pio/lab/prompts/two_phase_p1o_first/`)
 
-The reference itself treats the same kind of element differently across modules: for example, it lists state-machine state for the bus and the multiplier/divider but never for the cache, the debug transport module, SPI or TWI.
+| file | words | what is in it |
+|---|---|---|
+| `common.md` (sent with both calls) | 4,265 | 1 what you are given: RTL, closed set, diagram. 2 definitions 2.1 to 2.9: objectives, information flow, asset, conceptual, structural, primary, secondary, how they relate, points. 3 assume the security objectives. 4 indicators: asset types, primaries named in published work, behavioural patterns, high-risk structures |
+| `phase1.md` | 11,729 | steps: 1 interface, 2 inside, 3 merge and split, 4 rubric (the CSA questions), 5 keep, 6 anchor. Then the rules: exclusions with their exceptions inside, keep rules after the exclusion they override. Then the output format |
+| `phase2.md` | 12,830 | steps: 1 walk the diagram, 2 the four PIO questions per point, 3 structural assets at each point with a "yes", 4 primary (one per place), 5 secondary. Then the rules and the output format |
 
-This is also why the citations do not help: false positives cite real code almost as often as hits do (see the audit trail under "What the work shows"). The gap is a choice among real signals, not a misreading of the code (notebook section 10).
+**Table 6. Remaining weakness**
 
-## The final question
+| weakness | evidence |
+|---|---|
+| the held-out numbers from v9g on are not a blind test | this README |
+| the false positives left are internal registers under a right concept | v9j, all 41, 3 runs: 88% of false positives are internal registers or wires; 78% sit under a concept that also has a correct primary; 85 elements are false in all three runs |
+| whole control-record ports are missed while their fields get listed | v9f, held-out: 30 of 30 entry-runs for such ports missed; the reference never lists a port field |
+| the debug module's reset-request output is never found when the exclusion is the first block | 0 of 3 runs; a wording fix was run once, Phase 1 only, and did not recover it; the output is found whenever the exclusion is not the first block |
+| three rules rest on the reference's conventions, not on theory | the three decisions above |
+| one model, three runs | gpt-5.6-luna only; run spread about 10 hits on the held-out modules |
 
-> **When an LLM lists a security asset in an RTL module, can that decision be checked against the code: which line, which signal, which relationship made it an asset?**
-
-Yes, for each listing: see the citation check above. This question was first noted in September, while the prompt was being rebuilt, and set aside until that step was done.
-
-LAsset does not answer it. Each LAsset asset comes with written fields (Fig. 5, p.5): structural name, security objective, secondary asset, linkage path, Degree of Influence, entity, functionality, attack scenario, CWEs and CWE reasoning. None of them gives a line number, and nothing checks by code that a quoted line exists or supports the claim. The paper sets out to give verifiable justifications (p.3), but it does not measure this.
-
-What this work adds: every listed asset cites an occurrence ID and a relationship record (or names the statement the map missed), and code checks the citation. Where to find it:
-
-- the LLM's answers: `runs/assets_tuning18_m7e194es0opt1_g54_r0/` to `_r2/` and `runs/assets_heldout26_m7e194es0opt1_g54_r0/` to `_r2/`;
-- in each, `<module>.json` is the asset list and `_nested/<module>.json` is the full answer with its citations;
-- the checked trail of every listed asset: `final/fp_trace41/gpt54/ledger.csv`.
-
-## What the work shows
-
-- **The profile and map match the source code.** Rebuilt from the raw VHDL, the 43 maps (the 41 modules plus two control modules) and the 41 LLM inputs come out the same, byte for byte, and all 17,757 occurrences sit on a line that names their signal. The relationship records match a gold sample (an answer set) at 0.988 precision and recall (95% interval 0.969 to 1.0; 212 records, tuning modules only). gpt-6-astra wrote both that sample and the code that builds the records (from separate examples), so this is a consistency check, not human ground truth.
-- **Precision is far below LAsset's; recall is higher than its RTL-only list.** Final prompt on gpt-5.4, three runs, all 41 modules: precision 0.394, recall 0.856.
-  - Against LAsset's RTL-only list (the fair comparison, since this pipeline reads only RTL: precision 0.711, recall 0.753), precision is lower by 0.316 and recall higher by 0.102 (95% intervals from resampling modules: 0.232 to 0.392, and 0.037 to 0.167). Against its spec+RTL list (0.735, 0.880), recall is level.
-  - Held-out precision (0.388) is close to tuning precision (0.406), so tuning did not cause the gap.
-  - A Claude agent (Opus 5.5) running the same prompt, as a check: precision 0.343, recall 0.932.
-  - The final runs moved from gpt-5-mini to gpt-5.4 to see whether the precision ceiling came from the model's ability to reason: ten gpt-5-mini prompt versions had stayed between 0.336 and 0.360. The stronger model helped (findings, 2 Oct) but closed only part of the gap.
-- **The audit trail explains why the false positives do not go down** (gpt-5.4, all 41 modules, 1,183 false-positive listings over three runs):
-  - 97.1% of false positives and 99.5% of hits pass the citation check, so the false positives are not misreadings of the code.
-  - All 13 relationship classes (such as "controlled by an input port") appear on both, and 23.8% of false positives have exactly the profile of some hit.
-  - So a score built from these profiles separates them only partly on a module it was not trained on: AUC 0.678 on the tuning modules, 0.875 on the held-out modules (the chance that a random hit scores above a random false positive; 0.5 is chance).
-  - The reference rarely lists internal state registers (stored signals that no input writes in one step and whose value never reaches an output): 15.9% of the model's list, but 8.2% of the reference on the tuning modules and 1.1% on the held-out modules.
-  - 44.4% of the false positives belong only to concepts (the security functions the LLM names) for which the reference lists nothing.
-- **The two structures also describe each module:** which registers an input writes (192; 116 from a write-data port), which signals guard those writes (such as `ctrl.lock`), which registers have a reset, and which values reach an output.
-- **On LAsset's own list, the map is an audit trail, not a filter.** A test whose pass rule was written before the run could not tell LAsset's held-out hits from its false positives: AUC 0.639 (97.5% interval 0.495 to 0.768, which includes chance).
-- **LAsset's precision comes mostly from its generation step.** Its 0.737 (spec+RTL, tuning) is before refinement, which is not replicated here; refinement raises it to 0.800 (held-out 0.734 to 0.791). Its spec adds mostly recall over RTL-only (+0.162 tuning, +0.105 held-out) and little precision (+0.057, +0.004). The August log credited refinement for its precision; that reading was wrong.
-
-## What this does not show
-
-- A false positive only means LAsset's reference does not list the element. It is not proof that the element is not an asset. The reference is one hand-made list, by LAsset's authors.
-- The final gpt-5.4 results use only three runs per module.
-- The held-out set is not fully blind. Before its runs, all 41 modules were checked to confirm that the reference lists almost no clock or reset inputs and no ports that carry a whole bus request or response as one VHDL record, and the prompt states both rules.
-- The LAsset numbers come from its published lists, scored with this project's scorer; LAsset itself was not rerun.
-- The models and the scorer changed over time; compare numbers within one study.
-
-## Next steps
-
-1. **Check the map by hand.** write the records for sampled held-out occurrences, without seeing the map. If agreement with the map is below the LLM gold sample's (the 95% intervals do not overlap), the 0.988 overstates the map. The audit trail rests on this.
-2. **Use the checked map to test security properties.** The map records write guards (signals that decide whether a register can be written): in the watchdog, software can rewrite the control fields only while `ctrl.lock` is '0', and only a reset clears it. Each guard can become a check tied to a known hardware weakness (CWE) and an assertion ("once `ctrl.lock` is set, the settings hold until reset"). Bugs would be planted in simulation; a check that misses one fails.
-
-Longer term: trace secondary assets across modules, and port the tools to Verilog.
-
-## Credits
-
-- **LAsset** (Hasan et al., DATE 2026): the task, the method, the reference and the comparison lists.
-- **SAIF** (Farzana et al., VTS 2021): the primary/secondary split. It was tested as a prompt variant in August: precision rose, but recall fell from 0.925 to 0.628 (gpt-5-mini, tuning modules), so it was rejected.
-- **IEEE P3164 white paper** (2024): the method the prompt follows: conceptual assets first, then their RTL elements.
-- **Nath & Tan** (ISQED 2025): the idea of reading a signal's role from where it appears in the code (see the top). The August instructions for the LLM parser (commit `9dc383d`) took four readings from them: the side of an assignment, links through instantiation, width as a weak hint, and their worked example.
-
-## Timeline
-
-[`docs/TIMELINE.md`](docs/TIMELINE.md) has the full story and every number's source.
-
-| when | what | where |
-| --- | --- | --- |
-| July | LAsset replication; ports and signals listed by code; first run's false positives | `notebooks/finetuning_assetgen.ipynb` |
-| 2-8 Aug | first prompt study: raise recall | `logs/ABLATION_LOG.md` |
-| 8-18 Aug | second prompt study: raise precision, keep recall | `logs/ABLATION_LOG_V2.md` |
-| 17 Aug - 6 Sep | LLM parser and its checker; relationship types defined | `bahavioral_patterns_of_assets/PARSER_ABLATION_LOG.md` |
-| 9-29 Sep | occurrence profiles: LLM versions, then code | `bahavioral_patterns_of_assets/notebooks/occurrence_profiles_v3b.ipynb` |
-| 19-30 Sep | rebuilt prompt; relationship map built by code, tried in the prompt | `notebooks/assetgen_meta.ipynb`, `step1/lasset_step1/RELATION_EXPERIMENTS_LOG.md` |
-| 1-2 Oct | held-out pass rules written before the runs, traced prompts, prompt-optimization loop (Claude agents revised the prompt on the tuning modules), the map on LAsset's lists | `assetgen_meta/HELDOUT_PREREG.md` |
-| 2-3 Oct | final prompt on gpt-5.4 for all 41 modules, false-positive trace, 1 Oct filter re-checked | `FINAL_NOTEBOOK.ipynb` |
-
-Key decisions:
-
-- Pass rules written before each run, from the first study on. Wrong predictions were kept, and corrections were written beside the registered text, never inside it.
-- No answers in prompts. A leaked reference name was removed, and code now enforces the rule.
-- Code where there is one right answer. Structure and relationships moved from the LLM to code after its errors were measured.
-- No prompt rules fitted to the reference alone; such rules run as code after generation and are reported separately. One that failed on the held-out modules was rejected.
-- Earlier wrong claims were corrected in the logs.
-
-## Repository map
-
-| path | what it holds |
-| --- | --- |
-| `FINAL_NOTEBOOK.ipynb` | the final pipeline, its checks and results (start here) |
-| `final/` | the notebook's helper code, scoring and false-positive scripts, occurrence profiles |
-| `runs/` | the saved LLM answers, for re-scoring without an API key |
-| `data/` | NEORV32 VHDL, LAsset's reference and lists, closed sets (each module's ports and signals, by regex) |
-| `step1/` | code that builds the profiles and maps, the stored maps, the gold sample |
-| `assetgen_meta/` | prompts, traced inputs, the citation checker, pre-registrations |
-| `notebooks/` | earlier study notebooks |
-| `logs/` | logs of the August prompt studies |
-| `docs/` | the full timeline (`TIMELINE.md`) and folder layout (`LAYOUT.md`) |
-| `src/` | earlier study code: parser, scorer (`eval_assets.py`), the check that pre-registered files are unchanged |
-| `step2/` | the fixed rules over the map (21 Sep), the held-out closed-set builder |
-| `bahavioral_patterns_of_assets/` | parser and checker logs, occurrence-profile notebooks and prompts |
-| `blind_agent/` | side study: prompts written from theory only |
-| `third_party/` | the NEORV32 license |
-
-Logs and outputs written before 2 Oct 2026 use the old root paths (for example `RTL_data/` for `data/RTL_data/`). [`docs/LAYOUT.md`](docs/LAYOUT.md) maps them.
-
-## Running it
+## Running it, and where things are
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Open `FINAL_NOTEBOOK.ipynb` and run all cells. It needs no API key: the gpt-5.4 answers it scores are already in `runs/`. If the VHDL grammar for tree-sitter (a parser library) is missing, the first code cell stops and gives the one-line command that fetches it.
+Two notebooks, one per final pipeline:
 
-To generate missing held-out gpt-5.4 runs, put `OPENAI_API_KEY=...` in a file named `API.env` in the repo root and set `RUN_API = True` in the first code cell. Modules already on disk are skipped. Git ignores `API.env`, so the key is never committed.
+- `FINAL_NOTEBOOK.ipynb` (study 2): open it and run all cells. It needs no API key: the gpt-5.4 answers it scores are in
+  `runs/`. If the VHDL grammar for tree-sitter is missing, the first cell stops and prints the one-line command that
+  fetches it. To generate missing runs, put `OPENAI_API_KEY=...` in `API.env` in the repo root and set `RUN_API = True`
+  in the first cell. Git ignores `API.env`.
+- `experiments/03_two_phase_csa_pio/two_phase_asset_identification.ipynb` (study 3): the working version
+  `two_phase_p1o_first` on all 41 modules. Its run cells are off (`RUN_* = False`); the checks, the cost estimate and
+  the scoring cells run without a key. `python experiments/03_two_phase_csa_pio/lab/chain_tests.py` tests the runner
+  with a fake client; nothing is sent. The replies are not published; the scoring reads
+  `experiments/03_two_phase_csa_pio/lab/analysis/score_versions.json`.
+
+The folders were grouped by study on 20 October 2026. Older logs and notebook outputs use the old names;
+`logs/LAYOUT.md` maps them.
+
+| path | what it holds |
+|---|---|
+| `FINAL_NOTEBOOK.ipynb` | the second study end to end: structures, checks, results, audit trail |
+| `map_pipeline/` | that notebook's code (`final_pipeline.py`, `results41.py`, `levers41.py`, `fp_trace41.py`), the occurrence profiles, the audit trail and the false-positive analyses |
+| `experiments/01_prompt_baselines/` | the August notebooks of the first study and the re-scoring notebooks of its recall and precision rounds |
+| `experiments/02_rtl_structural_analysis/` | the second study's notebooks: meta prompts and hand arms, occurrence profiles and maps, the evidence layer, the re-scoring notebook |
+| `experiments/03_two_phase_csa_pio/` | the third study: the final notebook, the re-scoring notebook, and `lab/` (prompts, one folder per version with its README; runner, checks, splits, built inputs v1, analysis scripts) |
+| `runs/` | the saved LLM answers of the second study |
+| `data/` | NEORV32 VHDL (all 41 modules), LAsset's reference and published lists, closed sets; `data/README.md` says which module is where |
+| `src/` | first-study code: parser, prompts, scorer (`eval_assets.py`); `src/pio_diagram/` builds the flow graph and block diagram |
+| `logs/` | every log: the August logs, the five short-form ablation logs with the notebooks named above, the timeline with every number's source (`TIMELINE.md`), the folder layout and its two moves (`LAYOUT.md`) |
+| `figures/` | the two diagrams above |
+| `assetgen_meta/`, `step1/`, `step2/`, `blind_agent/`, `bahavioral_patterns_of_assets/` | the second study's working folders, kept at the root because their scripts and the pre-registrations pin files under these names: prompts, traced inputs, the citation checker and pre-registrations; the profile and map builders; the fixed rules over the map; the theory-only prompts; the parser and verifier logs |
 
 Some paths are long. On Windows, clone into a short folder or run `git config --global core.longpaths true`.
 
-`FINAL_NOTEBOOK.ipynb` and `notebooks/lasset_evidence_layer.ipynb` re-run in full on a fresh clone. The other notebooks are records of earlier runs; some files they read are not published. [`docs/LAYOUT.md`](docs/LAYOUT.md) explains how to run their code in the old layout, and how to check that the files named in the pre-registrations are unchanged: `python src/verify_layout_move.py`.
+**Navigation by study.** Where each study's pieces sit today.
 
-## Third-party material
+| | study 1: LAsset replication (Jul to Aug) | study 2: occurrence profiles and relationship map (Sep to 3 Oct) | study 3: two-phase CSA to PIO prompt (10 to 19 Oct) |
+|---|---|---|---|
+| prompts | `src/prompts.py`, `src/prompts_v2.py`, examples `src/icl_examples_*.py` | `assetgen_meta/prompt_opt/v1/exec_prompt.txt` (final); hand arms in `assetgen_meta/hand_arms/`; meta prompts `assetgen_meta/meta_prompt_*.txt` | `experiments/03_two_phase_csa_pio/lab/prompts/two_phase_<version>/`, one README each; final `two_phase_p1o_first` |
+| inputs | RTL in `data/RTL_data/` and `data/RTL_heldout/`; closed sets in `data/parsed_*/` | `assetgen_meta/traced_inputs_v2/`; profiles `map_pipeline/occurrence_profiles/`; maps `step1/lasset_step1/relation_map_code_*/` | `experiments/03_two_phase_csa_pio/lab/inputs/v1/` (RTL, closed set, diagram per module) |
+| runs | not published | `runs/assets_*` (gpt-5-mini winner, gpt-5.4 baseline and final, the Claude loop) | not published; per-run counts in `experiments/03_two_phase_csa_pio/lab/analysis/score_versions.json` |
+| logs | `logs/ABLATION_LOG.md`, `logs/ABLATION_LOG_V2.md`, `logs/V02_HANDOFF.md`; short forms `logs/RECALL_ABLATION_LOG.md`, `logs/PRECISION_ABLATION_LOG.md`; parser `bahavioral_patterns_of_assets/PARSER_ABLATION_LOG.md` | `step1/lasset_step1/RELATION_EXPERIMENTS_LOG.md`, `assetgen_meta/prompt_opt/OPTIMIZATION_LOG.md`, pre-registrations `assetgen_meta/HELDOUT_PREREG.md`; short form `logs/MAP_ABLATION_LOG.md` | short form `logs/TWO_PHASE_ABLATION_LOG.md`; the per-version READMEs |
+| notebooks | `experiments/01_prompt_baselines/notebooks/finetuning_assetgen.ipynb`, `experiments/01_prompt_baselines/notebooks/finetuning_assetgen_v2.ipynb`; re-scoring `experiments/01_prompt_baselines/notebooks/recall_ablation_log.ipynb`, `experiments/01_prompt_baselines/notebooks/precision_ablation_log.ipynb` | `FINAL_NOTEBOOK.ipynb`; `experiments/02_rtl_structural_analysis/notebooks/assetgen_meta.ipynb`, `experiments/02_rtl_structural_analysis/notebooks/lasset_step1.ipynb`, `experiments/02_rtl_structural_analysis/notebooks/lasset_evidence_layer.ipynb`; re-scoring `experiments/02_rtl_structural_analysis/notebooks/map_ablation_log.ipynb` | re-scoring `experiments/03_two_phase_csa_pio/two_phase_ablation_log.ipynb` |
+| scoring and analysis | `src/eval_assets.py` (strict scorer), `map_pipeline/score_august.py` | `map_pipeline/results41.py`, `map_pipeline/levers41.py`, `map_pipeline/fp_trace41.py`; audit trail `map_pipeline/fp_trace41/gpt54/ledger.csv`; code filters `step2/`; side study `blind_agent/` | `experiments/03_two_phase_csa_pio/lab/analysis/.../compare_v8.py` (exact scorer), `score_versions.py`, `score_lasset_exact.py`; runner and checks `experiments/03_two_phase_csa_pio/lab/chain.py`, `labkit.py`, `check_lab_prompt.py` |
 
-The NEORV32 RTL (BSD 3-Clause), LAsset's reference lists (no upstream license; included for scoring, with
-attribution) and two open IPs used as worked examples in prompts are described in
-[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+The whole line from July to October, one row per arm, is `logs/ABLATION_LOG_JUL_OCT.md`; every number's source is `logs/TIMELINE.md`.
+
+## Credits
+
+- **LAsset** (Hasan et al., DATE 2026): the task, the method, the reference and the comparison lists.
+- **IEEE P3164 white paper** (2024) and the DVCon Europe 2024 talk on it: the CSA rubric and the PIO method.
+- **Accellera SA-EDI** (2021): asset types and naming.
+- **SAIF** (Farzana et al., VTS 2021): the primary/secondary split.
+- **Nath & Tan** (ISQED 2025): reading a signal's role from where it appears in the code.
+- **Hu, Ardeshiricham and Kastner** (ACM CSUR 2021): explicit and implicit information flows.
+
+The NEORV32 RTL (BSD 3-Clause), LAsset's reference lists (included for scoring, with attribution) and the two open IPs
+used as worked examples are described in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).

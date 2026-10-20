@@ -1,0 +1,279 @@
+   18 | entity neorv32_cpu_alu is
+   19 |   generic (
+   21 |     RISCV_ISA_M      : boolean;
+   22 |     RISCV_ISA_Zba    : boolean;
+   23 |     RISCV_ISA_Zbb    : boolean;
+   24 |     RISCV_ISA_Zbkb   : boolean;
+   25 |     RISCV_ISA_Zbkc   : boolean;
+   26 |     RISCV_ISA_Zbkx   : boolean;
+   27 |     RISCV_ISA_Zbs    : boolean;
+   28 |     RISCV_ISA_Zfinx  : boolean;
+   29 |     RISCV_ISA_Zicond : boolean;
+   30 |     RISCV_ISA_Zknd   : boolean;
+   31 |     RISCV_ISA_Zkne   : boolean;
+   32 |     RISCV_ISA_Zknh   : boolean;
+   33 |     RISCV_ISA_Zksed  : boolean;
+   34 |     RISCV_ISA_Zksh   : boolean;
+   35 |     RISCV_ISA_Zmmul  : boolean;
+   36 |     RISCV_ISA_Zxcfu  : boolean;
+   38 |     FAST_MUL_EN      : boolean;
+   39 |     FAST_SHIFT_EN    : boolean
+   40 |   );
+   41 |   port (
+   43 |     clk_i  : in  std_ulogic;
+   44 |     rstn_i : in  std_ulogic;
+   45 |     ctrl_i : in  ctrl_bus_t;
+   47 |     rs1_i  : in  std_ulogic_vector(XLEN-1 downto 0);
+   48 |     rs2_i  : in  std_ulogic_vector(XLEN-1 downto 0);
+   49 |     rs3_i  : in  std_ulogic_vector(XLEN-1 downto 0);
+   51 |     cmp_o  : out std_ulogic_vector(1 downto 0);
+   52 |     res_o  : out std_ulogic_vector(XLEN-1 downto 0);
+   53 |     add_o  : out std_ulogic_vector(XLEN-1 downto 0);
+   54 |     csr_o  : out std_ulogic_vector(XLEN-1 downto 0);
+   56 |     done_o : out std_ulogic
+   57 |   );
+   58 | end neorv32_cpu_alu;
+
+   60 | architecture neorv32_cpu_alu_rtl of neorv32_cpu_alu is
+   63 |   signal cmp_rs1 : std_ulogic_vector(XLEN downto 0);
+   64 |   signal cmp_rs2 : std_ulogic_vector(XLEN downto 0);
+   65 |   signal cmp     : std_ulogic_vector(1 downto 0);
+   68 |   signal opa,   opb   : std_ulogic_vector(XLEN-1 downto 0);
+   69 |   signal opa_x, opb_x : std_ulogic_vector(XLEN downto 0);
+   72 |   signal addsub_res : std_ulogic_vector(XLEN downto 0);
+   73 |   signal cp_res     : std_ulogic_vector(XLEN-1 downto 0);
+   76 |   type cp_data_t  is array (0 to 6) of std_ulogic_vector(XLEN-1 downto 0);
+   77 |   signal cp_result : cp_data_t;
+   78 |   signal cp_valid  : std_ulogic_vector(6 downto 0);
+   79 |   signal cp_shamt  : std_ulogic_vector(index_size_f(XLEN)-1 downto 0);
+   82 |   signal fpu_csr_en, cfu_csr_en : std_ulogic;
+   83 |   signal fpu_csr_we, cfu_csr_we : std_ulogic;
+   84 |   signal fpu_csr_rd, cfu_csr_rd : std_ulogic_vector(XLEN-1 downto 0);
+   87 |   signal cfu_active, cfu_done, cfu_busy : std_ulogic;
+   88 |   signal cfu_res : std_ulogic_vector(XLEN-1 downto 0);
+   91 |   signal csr_rdata_fpu, csr_rdata_cfu : std_ulogic_vector(XLEN-1 downto 0);
+   93 | begin
+   97 |   cmp_rs1 <= (rs1_i(rs1_i'left) and (not ctrl_i.alu_unsigned)) & rs1_i;
+   98 |   cmp_rs2 <= (rs2_i(rs2_i'left) and (not ctrl_i.alu_unsigned)) & rs2_i;
+  100 |   cmp(cmp_equal_c) <= '1' when (rs1_i = rs2_i) else '0';
+  101 |   cmp(cmp_less_c)  <= '1' when (signed(cmp_rs1) < signed(cmp_rs2)) else '0';
+  102 |   cmp_o            <= cmp;
+  107 |   opa <= ctrl_i.pc_cur  when (ctrl_i.alu_opa_mux = '1') else rs1_i;
+  108 |   opb <= ctrl_i.alu_imm when (ctrl_i.alu_opb_mux = '1') else rs2_i;
+  113 |   opa_x <= (opa(opa'left) and (not ctrl_i.alu_unsigned)) & opa;
+  114 |   opb_x <= (opb(opb'left) and (not ctrl_i.alu_unsigned)) & opb;
+  116 |   addsub_res <= std_ulogic_vector(unsigned(opa_x) - unsigned(opb_x)) when (ctrl_i.alu_sub = '1') else
+  117 |                 std_ulogic_vector(unsigned(opa_x) + unsigned(opb_x));
+  119 |   add_o <= addsub_res(XLEN-1 downto 0);
+  124 |   alu_core: process(ctrl_i, addsub_res, cp_res, rs1_i, opb)
+  125 |   begin
+  126 |     res_o <= (others => '0');
+  127 |     case ctrl_i.alu_op is
+  128 |       when alu_op_zero_c => res_o <= (others => '0');
+  129 |       when alu_op_add_c  => res_o <= addsub_res(XLEN-1 downto 0);
+  130 |       when alu_op_cp_c   => res_o <= cp_res;
+  131 |       when alu_op_slt_c  => res_o(0) <= addsub_res(addsub_res'left);
+  132 |       when alu_op_movb_c => res_o <= opb;
+  133 |       when alu_op_xor_c  => res_o <= opb xor rs1_i;
+  134 |       when alu_op_or_c   => res_o <= opb or  rs1_i;
+  135 |       when alu_op_and_c  => res_o <= opb and rs1_i;
+  136 |       when others        => res_o <= (others => '0');
+  137 |     end case;
+  138 |   end process alu_core;
+  147 |   done_o <= cp_valid(0) or cp_valid(1) or cp_valid(2) or cp_valid(3) or cp_valid(4) or cp_valid(5) or cp_valid(6);
+  151 |   cp_res <= cp_result(0) or cp_result(1) or cp_result(2) or cp_result(3) or cp_result(4) or cp_result(5) or cp_result(6);
+  155 |   csr_o <= csr_rdata_fpu or csr_rdata_cfu;
+  158 |   cp_shamt <= opb(cp_shamt'left downto 0);
+  163 |   neorv32_cpu_cp_shifter_inst: entity neorv32.neorv32_cpu_cp_shifter
+  164 |   generic map (
+  165 |     FAST_SHIFT_EN => FAST_SHIFT_EN
+  166 |   )
+  167 |   port map (
+  169 |     clk_i   => clk_i,
+  170 |     rstn_i  => rstn_i,
+  171 |     ctrl_i  => ctrl_i,
+  173 |     rs1_i   => rs1_i,
+  174 |     shamt_i => cp_shamt,
+  176 |     res_o   => cp_result(0),
+  177 |     valid_o => cp_valid(0)
+  178 |   );
+  183 |   neorv32_cpu_cp_muldiv_inst_true:
+  184 |   if RISCV_ISA_M or RISCV_ISA_Zmmul generate
+  185 |     neorv32_cpu_cp_muldiv_inst: entity neorv32.neorv32_cpu_cp_muldiv
+  186 |     generic map (
+  187 |       FAST_MUL_EN => FAST_MUL_EN,
+  188 |       DIVISION_EN => RISCV_ISA_M
+  189 |     )
+  190 |     port map (
+  192 |       clk_i   => clk_i,
+  193 |       rstn_i  => rstn_i,
+  194 |       ctrl_i  => ctrl_i,
+  196 |       rs1_i   => rs1_i,
+  197 |       rs2_i   => rs2_i,
+  199 |       res_o   => cp_result(1),
+  200 |       valid_o => cp_valid(1)
+  201 |     );
+  202 |   end generate;
+  204 |   neorv32_cpu_cp_muldiv_inst_false:
+  205 |   if (not RISCV_ISA_M) and (not RISCV_ISA_Zmmul) generate
+  206 |     cp_result(1) <= (others => '0');
+  207 |     cp_valid(1)  <= '0';
+  208 |   end generate;
+  213 |   neorv32_cpu_cp_bitmanip_inst_true:
+  214 |   if RISCV_ISA_Zba or RISCV_ISA_Zbb or RISCV_ISA_Zbkb or RISCV_ISA_Zbs or RISCV_ISA_Zbkc generate
+  215 |     neorv32_cpu_cp_bitmanip_inst: entity neorv32.neorv32_cpu_cp_bitmanip
+  216 |     generic map (
+  217 |       EN_FAST_SHIFT => FAST_SHIFT_EN,
+  218 |       EN_ZBA        => RISCV_ISA_Zba,
+  219 |       EN_ZBB        => RISCV_ISA_Zbb,
+  220 |       EN_ZBKB       => RISCV_ISA_Zbkb,
+  221 |       EN_ZBKC       => RISCV_ISA_Zbkc,
+  222 |       EN_ZBS        => RISCV_ISA_Zbs
+  223 |     )
+  224 |     port map (
+  226 |       clk_i   => clk_i,
+  227 |       rstn_i  => rstn_i,
+  228 |       ctrl_i  => ctrl_i,
+  230 |       cmp_i   => cmp,
+  231 |       rs1_i   => rs1_i,
+  232 |       rs2_i   => rs2_i,
+  233 |       shamt_i => cp_shamt,
+  235 |       res_o   => cp_result(2),
+  236 |       valid_o => cp_valid(2)
+  237 |     );
+  238 |   end generate;
+  240 |   neorv32_cpu_cp_bitmanip_inst_false:
+  241 |   if not (RISCV_ISA_Zba or RISCV_ISA_Zbb or RISCV_ISA_Zbkb or RISCV_ISA_Zbs or RISCV_ISA_Zbkc) generate
+  242 |     cp_result(2) <= (others => '0');
+  243 |     cp_valid(2)  <= '0';
+  244 |   end generate;
+  249 |   neorv32_cpu_cp_fpu_inst_true:
+  250 |   if RISCV_ISA_Zfinx generate
+  251 |     neorv32_cpu_cp_fpu_inst: entity neorv32.neorv32_cpu_cp_fpu
+  252 |     port map (
+  254 |       clk_i       => clk_i,
+  255 |       rstn_i      => rstn_i,
+  256 |       ctrl_i      => ctrl_i,
+  258 |       csr_we_i    => fpu_csr_we,
+  259 |       csr_addr_i  => ctrl_i.csr_addr(1 downto 0),
+  260 |       csr_wdata_i => ctrl_i.csr_wdata,
+  261 |       csr_rdata_o => fpu_csr_rd,
+  263 |       cmp_i       => cmp,
+  264 |       rs1_i       => rs1_i,
+  265 |       rs2_i       => rs2_i,
+  266 |       rs3_i       => rs3_i,
+  268 |       res_o       => cp_result(3),
+  269 |       valid_o     => cp_valid(3)
+  270 |     );
+  273 |     fpu_csr_en    <= '1' when (ctrl_i.csr_addr(11 downto 2) = csr_fflags_c(11 downto 2)) else '0';
+  274 |     fpu_csr_we    <= fpu_csr_en and ctrl_i.csr_we;
+  275 |     csr_rdata_fpu <= fpu_csr_rd when (fpu_csr_en = '1') else (others => '0');
+  276 |   end generate;
+  278 |   neorv32_cpu_cp_fpu_inst_false:
+  279 |   if not RISCV_ISA_Zfinx generate
+  280 |     fpu_csr_en    <= '0';
+  281 |     fpu_csr_we    <= '0';
+  282 |     csr_rdata_fpu <= (others => '0');
+  283 |     cp_result(3)  <= (others => '0');
+  284 |     cp_valid(3)   <= '0';
+  285 |   end generate;
+  290 |   neorv32_cpu_cp_cfu_inst_true:
+  291 |   if RISCV_ISA_Zxcfu generate
+  292 |     neorv32_cpu_cp_cfu_inst: entity neorv32.neorv32_cpu_cp_cfu
+  293 |     port map (
+  295 |       clk_i       => clk_i,
+  296 |       rstn_i      => rstn_i,
+  298 |       start_i     => ctrl_i.alu_cp_cfu,
+  299 |       active_i    => cfu_active,
+  301 |       csr_we_i    => cfu_csr_we,
+  302 |       csr_addr_i  => ctrl_i.csr_addr(1 downto 0),
+  303 |       csr_wdata_i => ctrl_i.csr_wdata,
+  304 |       csr_rdata_o => cfu_csr_rd,
+  306 |       rtype_i     => ctrl_i.ir_opcode(5),
+  307 |       funct3_i    => ctrl_i.ir_funct3,
+  308 |       funct7_i    => ctrl_i.ir_funct12(11 downto 5),
+  309 |       rs1_i       => rs1_i,
+  310 |       rs2_i       => rs2_i,
+  311 |       rs3_i       => rs3_i,
+  313 |       result_o    => cfu_res,
+  314 |       valid_o     => cfu_done
+  315 |     );
+  318 |     cfu_csr_en    <= '1' when (ctrl_i.csr_addr(11 downto 2) = csr_cfureg0_c(11 downto 2)) else '0';
+  319 |     cfu_csr_we    <= cfu_csr_en and ctrl_i.csr_we;
+  320 |     csr_rdata_cfu <= cfu_csr_rd when (cfu_csr_en = '1') else (others => '0');
+  323 |     cfu_arbiter: process(rstn_i, clk_i)
+  324 |     begin
+  325 |       if (rstn_i = '0') then
+  326 |         cfu_busy     <= '0';
+  327 |         cp_result(4) <= (others => '0');
+  328 |       elsif rising_edge(clk_i) then
+  329 |         if (cfu_done = '1') or (ctrl_i.cpu_trap = '1') then
+  330 |           cfu_busy <= '0';
+  331 |         elsif (ctrl_i.alu_cp_cfu = '1') then
+  332 |           cfu_busy <= '1';
+  333 |         end if;
+  334 |         if (cfu_done = '1') and ((ctrl_i.alu_cp_cfu = '1') or (cfu_busy = '1')) then
+  335 |           cp_result(4) <= cfu_res;
+  336 |         else
+  337 |           cp_result(4) <= (others => '0');
+  338 |         end if;
+  339 |       end if;
+  340 |     end process cfu_arbiter;
+  342 |     cfu_active  <= ctrl_i.alu_cp_cfu or cfu_busy;
+  343 |     cp_valid(4) <= cfu_done and (ctrl_i.alu_cp_cfu or cfu_busy);
+  344 |   end generate;
+  346 |   neorv32_cpu_cp_cfu_inst_false:
+  347 |   if not RISCV_ISA_Zxcfu generate
+  348 |     cfu_csr_en    <= '0';
+  349 |     cfu_csr_we    <= '0';
+  350 |     csr_rdata_cfu <= (others => '0');
+  351 |     cfu_busy      <= '0';
+  352 |     cfu_active    <= '0';
+  353 |     cp_result(4)  <= (others => '0');
+  354 |     cp_valid(4)   <= '0';
+  355 |   end generate;
+  360 |   neorv32_cpu_cp_cond_inst_true:
+  361 |   if RISCV_ISA_Zicond generate
+  362 |     neorv32_cpu_cp_cond_inst: entity neorv32.neorv32_cpu_cp_cond
+  363 |     port map (
+  365 |       clk_i   => clk_i,
+  366 |       rstn_i  => rstn_i,
+  367 |       ctrl_i  => ctrl_i,
+  369 |       rs1_i   => rs1_i,
+  370 |       rs2_i   => rs2_i,
+  372 |       res_o   => cp_result(5),
+  373 |       valid_o => cp_valid(5)
+  374 |     );
+  375 |   end generate;
+  377 |   neorv32_cpu_cp_cond_inst_false:
+  378 |   if not RISCV_ISA_Zicond generate
+  379 |     cp_result(5) <= (others => '0');
+  380 |     cp_valid(5)  <= '0';
+  381 |   end generate;
+  386 |   neorv32_cpu_cp_crypto_inst_true:
+  387 |   if RISCV_ISA_Zbkx or RISCV_ISA_Zknh or RISCV_ISA_Zkne or RISCV_ISA_Zknd or RISCV_ISA_Zksh or RISCV_ISA_Zksed generate
+  388 |     neorv32_cpu_cp_crypto_inst: entity neorv32.neorv32_cpu_cp_crypto
+  389 |     generic map (
+  390 |       EN_ZBKX  => RISCV_ISA_Zbkx,
+  391 |       EN_ZKNH  => RISCV_ISA_Zknh,
+  392 |       EN_ZKNE  => RISCV_ISA_Zkne,
+  393 |       EN_ZKND  => RISCV_ISA_Zknd,
+  394 |       EN_ZKSED => RISCV_ISA_Zksed,
+  395 |       EN_ZKSH  => RISCV_ISA_Zksh
+  396 |     )
+  397 |     port map (
+  399 |       clk_i   => clk_i,
+  400 |       rstn_i  => rstn_i,
+  401 |       ctrl_i  => ctrl_i,
+  403 |       rs1_i   => rs1_i,
+  404 |       rs2_i   => rs2_i,
+  406 |       res_o   => cp_result(6),
+  407 |       valid_o => cp_valid(6)
+  408 |     );
+  409 |   end generate;
+  411 |   neorv32_cpu_cp_crypto_inst_false:
+  412 |   if not (RISCV_ISA_Zbkx or RISCV_ISA_Zknh or RISCV_ISA_Zkne or RISCV_ISA_Zknd or RISCV_ISA_Zksh or RISCV_ISA_Zksed) generate
+  413 |     cp_result(6) <= (others => '0');
+  414 |     cp_valid(6)  <= '0';
+  415 |   end generate;
+  418 | end neorv32_cpu_alu_rtl;

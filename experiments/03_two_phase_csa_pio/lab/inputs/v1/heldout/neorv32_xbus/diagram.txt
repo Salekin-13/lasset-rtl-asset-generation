@@ -1,0 +1,44 @@
+UNIT neorv32_xbus
+  INPUTS: bus_req_i, clk_i, rstn_i, xbus_ack_i, xbus_dat_i, xbus_err_i
+  OUTPUTS: bus_rsp_o, xbus_adr_o, xbus_cyc_o, xbus_dat_o, xbus_sel_o, xbus_stb_o, xbus_tag_o, xbus_we_o
+  BLOCKS
+    [generate] timeout_disabled: timecnt, timeout
+    [inst] reg_stage_inst (neorv32_bus_reg, another IP): bus_req, bus_req.addr, bus_req.amo, bus_req.amoop, bus_req.ben, bus_req.data, bus_req.debug, bus_req.fence, bus_req.lock, bus_req.priv, bus_req.rw, bus_req.src, bus_req.stb
+    [logic] bus_rsp.ack: bus_rsp.ack
+    [logic] bus_rsp.data: bus_rsp.data
+    [logic] bus_rsp.err: bus_rsp.err
+    [process] arbiter: locked, pending; clocked by clk_i; reset by rstn_i
+    [process] timeout_counter: timecnt, timeout; clocked by clk_i; reset by rstn_i
+  ARROWS (==> a value moves; --> only decides; [the elements the arrow carries])
+    timeout_disabled ==> bus_rsp.ack   [timeout]
+    timeout_disabled ==> bus_rsp.err   [timeout]
+    timeout_disabled --> arbiter   [timeout]
+    bus_req_i ==> reg_stage_inst   [bus_req_i.{addr,amo,amoop,ben,data,debug,fence,lock,priv,rw,src,stb}]
+    clk_i ==> reg_stage_inst   [clk_i]
+    rstn_i ==> reg_stage_inst   [rstn_i]
+    xbus_ack_i ==> bus_rsp.ack   [xbus_ack_i]
+    xbus_ack_i --> arbiter   [xbus_ack_i]
+    xbus_dat_i ==> bus_rsp.data   [xbus_dat_i]
+    xbus_err_i ==> bus_rsp.ack   [xbus_err_i]
+    xbus_err_i ==> bus_rsp.err   [xbus_err_i]
+    xbus_err_i --> arbiter   [xbus_err_i]
+    reg_stage_inst ==> bus_rsp_o   [host_rsp_o.{ack,data,err}]
+    reg_stage_inst ==> xbus_adr_o   [bus_req.addr]
+    reg_stage_inst ==> xbus_cyc_o   [bus_req.stb]
+    reg_stage_inst ==> xbus_dat_o   [bus_req.data]
+    reg_stage_inst ==> xbus_sel_o   [bus_req.ben]
+    reg_stage_inst ==> xbus_stb_o   [bus_req.stb]
+    reg_stage_inst ==> xbus_tag_o   [bus_req.{debug,priv,src}]
+    reg_stage_inst ==> xbus_we_o   [bus_req.rw]
+    reg_stage_inst ==> arbiter   [bus_req.{lock,stb}]
+    bus_rsp.ack ==> reg_stage_inst   [bus_rsp.ack]
+    bus_rsp.data ==> reg_stage_inst   [bus_rsp.data]
+    bus_rsp.err ==> reg_stage_inst   [bus_rsp.err]
+    arbiter ==> bus_rsp.ack   [pending]
+    arbiter --> bus_rsp.data   [pending]
+    arbiter ==> bus_rsp.err   [pending]
+    arbiter ==> xbus_cyc_o   [pending]
+    arbiter --> timeout_counter   [pending]
+    timeout_counter ==> bus_rsp.ack   [timeout]
+    timeout_counter ==> bus_rsp.err   [timeout]
+    timeout_counter --> arbiter   [timeout]

@@ -1,0 +1,108 @@
+   18 | entity neorv32_gptmr is
+   19 |   port (
+   20 |     clk_i       : in  std_ulogic;
+   21 |     rstn_i      : in  std_ulogic;
+   22 |     bus_req_i   : in  bus_req_t;
+   23 |     bus_rsp_o   : out bus_rsp_t;
+   24 |     clkgen_en_o : out std_ulogic;
+   25 |     clkgen_i    : in  std_ulogic_vector(7 downto 0);
+   26 |     irq_o       : out std_ulogic
+   27 |   );
+   28 | end neorv32_gptmr;
+
+   30 | architecture neorv32_gptmr_rtl of neorv32_gptmr is
+   33 |   constant ctrl_en_c      : natural := 0;
+   34 |   constant ctrl_prsc0_c   : natural := 1;
+   35 |   constant ctrl_prsc1_c   : natural := 2;
+   36 |   constant ctrl_prsc2_c   : natural := 3;
+   38 |   constant ctrl_irq_clr_c : natural := 30;
+   39 |   constant ctrl_irq_c     : natural := 31;
+   41 |   signal ctrl : std_ulogic_vector(3 downto 0);
+   44 |   type timer_t is record
+   45 |     tick  : std_ulogic;
+   46 |     thres : std_ulogic_vector(31 downto 0);
+   47 |     count : std_ulogic_vector(31 downto 0);
+   48 |     match : std_ulogic;
+   49 |   end record;
+   50 |   signal timer : timer_t;
+   53 |   signal irq_pnd, irq_clr : std_ulogic;
+   55 | begin
+   59 |   bus_access: process(rstn_i, clk_i)
+   60 |   begin
+   61 |     if (rstn_i = '0') then
+   62 |       bus_rsp_o   <= rsp_terminate_c;
+   63 |       ctrl        <= (others => '0');
+   64 |       timer.thres <= (others => '0');
+   65 |       irq_clr     <= '0';
+   66 |     elsif rising_edge(clk_i) then
+   68 |       bus_rsp_o.ack  <= bus_req_i.stb;
+   69 |       bus_rsp_o.err  <= '0';
+   70 |       bus_rsp_o.data <= (others => '0');
+   71 |       irq_clr        <= '0';
+   73 |       if (bus_req_i.stb = '1') then
+   74 |         if (bus_req_i.rw = '1') then
+   75 |           if (bus_req_i.addr(3 downto 2) = "00") then
+   76 |             ctrl(ctrl_en_c)    <= bus_req_i.data(ctrl_en_c);
+   77 |             ctrl(ctrl_prsc0_c) <= bus_req_i.data(ctrl_prsc0_c);
+   78 |             ctrl(ctrl_prsc1_c) <= bus_req_i.data(ctrl_prsc1_c);
+   79 |             ctrl(ctrl_prsc2_c) <= bus_req_i.data(ctrl_prsc2_c);
+   81 |             irq_clr <= bus_req_i.data(ctrl_irq_clr_c);
+   82 |           end if;
+   83 |           if (bus_req_i.addr(3 downto 2) = "01") then
+   84 |             timer.thres <= bus_req_i.data;
+   85 |           end if;
+   86 |         else
+   87 |           case bus_req_i.addr(3 downto 2) is
+   88 |             when "00" =>
+   89 |               bus_rsp_o.data(ctrl_en_c)    <= ctrl(ctrl_en_c);
+   90 |               bus_rsp_o.data(ctrl_prsc0_c) <= ctrl(ctrl_prsc0_c);
+   91 |               bus_rsp_o.data(ctrl_prsc1_c) <= ctrl(ctrl_prsc1_c);
+   92 |               bus_rsp_o.data(ctrl_prsc2_c) <= ctrl(ctrl_prsc2_c);
+   94 |               bus_rsp_o.data(ctrl_irq_c) <= irq_pnd;
+   95 |             when "01" =>
+   96 |               bus_rsp_o.data <= timer.thres;
+   97 |             when others =>
+   98 |               bus_rsp_o.data <= timer.count;
+   99 |           end case;
+  100 |         end if;
+  101 |       end if;
+  102 |     end if;
+  103 |   end process bus_access;
+  106 |   clkgen_en_o <= ctrl(ctrl_en_c);
+  111 |   timer_core: process(rstn_i, clk_i)
+  112 |   begin
+  113 |     if (rstn_i = '0') then
+  114 |       timer.tick  <= '0';
+  115 |       timer.count <= (others => '0');
+  116 |     elsif rising_edge(clk_i) then
+  117 |       timer.tick <= clkgen_i(to_integer(unsigned(ctrl(ctrl_prsc2_c downto ctrl_prsc0_c))));
+  118 |       if (ctrl(ctrl_en_c) = '0') then
+  119 |         timer.count <= (others => '0');
+  120 |       elsif (timer.tick = '1') then
+  121 |         if (timer.match = '1') then
+  122 |           timer.count <= (others => '0');
+  123 |         else
+  124 |           timer.count <= std_ulogic_vector(unsigned(timer.count) + 1);
+  125 |         end if;
+  126 |       end if;
+  127 |     end if;
+  128 |   end process timer_core;
+  131 |   timer.match <= '1' when (timer.count = timer.thres) else '0';
+  136 |   irq_generator: process(rstn_i, clk_i)
+  137 |   begin
+  138 |     if (rstn_i = '0') then
+  139 |       irq_pnd <= '0';
+  140 |     elsif rising_edge(clk_i) then
+  141 |       if (ctrl(ctrl_en_c) = '1') then
+  142 |         if (timer.match = '1') then
+  143 |           irq_pnd <= '1';
+  144 |         elsif (irq_clr = '1') then
+  145 |           irq_pnd <= '0';
+  146 |         end if;
+  147 |       else
+  148 |         irq_pnd <= '0';
+  149 |       end if;
+  150 |     end if;
+  151 |   end process irq_generator;
+  154 |   irq_o <= irq_pnd;
+  157 | end neorv32_gptmr_rtl;

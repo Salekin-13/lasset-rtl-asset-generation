@@ -1,0 +1,88 @@
+   21 | entity neorv32_dmem is
+   22 |   generic (
+   23 |     DMEM_SIZE : natural
+   24 |   );
+   25 |   port (
+   26 |     clk_i     : in  std_ulogic;
+   27 |     rstn_i    : in  std_ulogic;
+   28 |     bus_req_i : in  bus_req_t;
+   29 |     bus_rsp_o : out bus_rsp_t
+   30 |   );
+   31 | end neorv32_dmem;
+
+   33 | architecture neorv32_dmem_rtl of neorv32_dmem is
+   36 |   constant alt_style_c : boolean := false;
+   39 |   constant addr_hi_c : natural := index_size_f(DMEM_SIZE/4)+1;
+   42 |   signal rdata         : std_ulogic_vector(31 downto 0);
+   43 |   signal rden          : std_ulogic;
+   44 |   signal addr, addr_ff : unsigned(index_size_f(DMEM_SIZE/4)-1 downto 0);
+   50 |   signal mem_ram_b0, mem_ram_b1, mem_ram_b2, mem_ram_b3 : mem8_t(0 to DMEM_SIZE/4-1);
+   52 | begin
+   56 |   dmem_ram_default:
+   57 |   if not alt_style_c generate
+   58 |     mem_access: process(clk_i)
+   59 |     begin
+   60 |       if rising_edge(clk_i) then
+   61 |         if (bus_req_i.stb = '1') and (bus_req_i.rw = '1') then
+   62 |           if (bus_req_i.ben(0) = '1') then
+   63 |             mem_ram_b0(to_integer(addr)) <= bus_req_i.data(7 downto 0);
+   64 |           end if;
+   65 |           if (bus_req_i.ben(1) = '1') then
+   66 |             mem_ram_b1(to_integer(addr)) <= bus_req_i.data(15 downto 8);
+   67 |           end if;
+   68 |           if (bus_req_i.ben(2) = '1') then
+   69 |             mem_ram_b2(to_integer(addr)) <= bus_req_i.data(23 downto 16);
+   70 |           end if;
+   71 |           if (bus_req_i.ben(3) = '1') then
+   72 |             mem_ram_b3(to_integer(addr)) <= bus_req_i.data(31 downto 24);
+   73 |           end if;
+   74 |         end if;
+   75 |         rdata(7  downto 0)  <= mem_ram_b0(to_integer(addr));
+   76 |         rdata(15 downto 8)  <= mem_ram_b1(to_integer(addr));
+   77 |         rdata(23 downto 16) <= mem_ram_b2(to_integer(addr));
+   78 |         rdata(31 downto 24) <= mem_ram_b3(to_integer(addr));
+   79 |       end if;
+   80 |     end process mem_access;
+   81 |     addr_ff <= (others => '0');
+   82 |   end generate;
+   84 |   dmem_ram_alternative:
+   85 |   if alt_style_c generate
+   86 |     mem_access: process(clk_i)
+   87 |     begin
+   88 |       if rising_edge(clk_i) then
+   89 |         addr_ff <= addr;
+   90 |         if (bus_req_i.stb = '1') and (bus_req_i.rw = '1') then
+   91 |           if (bus_req_i.ben(0) = '1') then
+   92 |             mem_ram_b0(to_integer(addr)) <= bus_req_i.data(7 downto 0);
+   93 |           end if;
+   94 |           if (bus_req_i.ben(1) = '1') then
+   95 |             mem_ram_b1(to_integer(addr)) <= bus_req_i.data(15 downto 8);
+   96 |           end if;
+   97 |           if (bus_req_i.ben(2) = '1') then
+   98 |             mem_ram_b2(to_integer(addr)) <= bus_req_i.data(23 downto 16);
+   99 |           end if;
+  100 |           if (bus_req_i.ben(3) = '1') then
+  101 |             mem_ram_b3(to_integer(addr)) <= bus_req_i.data(31 downto 24);
+  102 |           end if;
+  103 |         end if;
+  104 |       end if;
+  105 |     end process mem_access;
+  106 |     rdata(7  downto 0)  <= mem_ram_b0(to_integer(addr_ff));
+  107 |     rdata(15 downto 8)  <= mem_ram_b1(to_integer(addr_ff));
+  108 |     rdata(23 downto 16) <= mem_ram_b2(to_integer(addr_ff));
+  109 |     rdata(31 downto 24) <= mem_ram_b3(to_integer(addr_ff));
+  110 |   end generate;
+  113 |   addr <= unsigned(bus_req_i.addr(addr_hi_c downto 2));
+  118 |   bus_feedback: process(rstn_i, clk_i)
+  119 |   begin
+  120 |     if (rstn_i = '0') then
+  121 |       rden          <= '0';
+  122 |       bus_rsp_o.ack <= '0';
+  123 |     elsif rising_edge(clk_i) then
+  124 |       rden          <= bus_req_i.stb and (not bus_req_i.rw);
+  125 |       bus_rsp_o.ack <= bus_req_i.stb;
+  126 |     end if;
+  127 |   end process bus_feedback;
+  129 |   bus_rsp_o.data <= rdata when (rden = '1') else (others => '0');
+  130 |   bus_rsp_o.err  <= '0';
+  133 | end neorv32_dmem_rtl;

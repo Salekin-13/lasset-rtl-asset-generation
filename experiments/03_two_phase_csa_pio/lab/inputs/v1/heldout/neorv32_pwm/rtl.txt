@@ -1,0 +1,165 @@
+   22 | entity neorv32_pwm is
+   23 |   generic (
+   24 |     NUM_CHANNELS : natural range 0 to 16
+   25 |   );
+   26 |   port (
+   27 |     clk_i       : in  std_ulogic;
+   28 |     rstn_i      : in  std_ulogic;
+   29 |     bus_req_i   : in  bus_req_t;
+   30 |     bus_rsp_o   : out bus_rsp_t;
+   31 |     clkgen_en_o : out std_ulogic;
+   32 |     clkgen_i    : in  std_ulogic_vector(7 downto 0);
+   33 |     pwm_o       : out std_ulogic_vector(15 downto 0)
+   34 |   );
+   35 | end neorv32_pwm;
+
+   37 | architecture neorv32_pwm_rtl of neorv32_pwm is
+   40 |   component neorv32_pwm_channel
+   41 |   port (
+   42 |     clk_i       : in  std_ulogic;
+   43 |     rstn_i      : in  std_ulogic;
+   44 |     we_i        : in  std_ulogic;
+   45 |     re_i        : in  std_ulogic;
+   46 |     wdata_i     : in  std_ulogic_vector(31 downto 0);
+   47 |     rdata_o     : out std_ulogic_vector(31 downto 0);
+   48 |     clkgen_i    : in  std_ulogic_vector(7 downto 0);
+   49 |     clkgen_en_o : out std_ulogic;
+   50 |     pwm_o       : out std_ulogic
+   51 |   );
+   52 |   end component;
+   55 |   type rdata_t is array (0 to NUM_CHANNELS-1) of std_ulogic_vector(31 downto 0);
+   56 |   signal rdata : rdata_t;
+   57 |   signal rdata_sum : std_ulogic_vector(31 downto 0);
+   58 |   signal sel, we, re, ce, pwm : std_ulogic_vector(NUM_CHANNELS-1 downto 0);
+   60 | begin
+   64 |   bus_access: process(rstn_i, clk_i)
+   65 |   begin
+   66 |     if (rstn_i = '0') then
+   67 |       bus_rsp_o <= rsp_terminate_c;
+   68 |     elsif rising_edge(clk_i) then
+   69 |       if (bus_req_i.stb = '1') then
+   70 |         bus_rsp_o.data <= rdata_sum;
+   71 |         bus_rsp_o.ack  <= '1';
+   72 |       else
+   73 |         bus_rsp_o.data <= (others => '0');
+   74 |         bus_rsp_o.ack  <= '0';
+   75 |       end if;
+   76 |       bus_rsp_o.err <= '0';
+   77 |     end if;
+   78 |   end process bus_access;
+   81 |   read_back: process(rdata)
+   82 |     variable tmp_v : std_ulogic_vector(31 downto 0);
+   83 |   begin
+   84 |     tmp_v := (others => '0');
+   85 |     for i in 0 to NUM_CHANNELS-1 loop
+   86 |       tmp_v := tmp_v or rdata(i);
+   87 |     end loop;
+   88 |     rdata_sum <= tmp_v;
+   89 |   end process read_back;
+   93 |   pwm_channel_gen:
+   94 |   for i in 0 to NUM_CHANNELS-1 generate
+   95 |     neorv32_pwm_channel_inst: neorv32_pwm_channel
+   96 |     port map (
+   97 |       clk_i       => clk_i,
+   98 |       rstn_i      => rstn_i,
+   99 |       we_i        => we(i),
+  100 |       re_i        => re(i),
+  101 |       wdata_i     => bus_req_i.data,
+  102 |       rdata_o     => rdata(i),
+  103 |       clkgen_i    => clkgen_i,
+  104 |       clkgen_en_o => ce(i),
+  105 |       pwm_o       => pwm(i)
+  106 |     );
+  109 |     sel(i) <= '1' when (bus_req_i.addr(5 downto 2) = std_ulogic_vector(to_unsigned(i, 4))) else '0';
+  110 |     we(i)  <= sel(i) and bus_req_i.stb and (    bus_req_i.rw);
+  111 |     re(i)  <= sel(i) and bus_req_i.stb and (not bus_req_i.rw);
+  112 |   end generate;
+  114 |   pwm_channel_connect: process(pwm)
+  115 |   begin
+  116 |     pwm_o <= (others => '0');
+  117 |     pwm_o(pwm'range) <= pwm(pwm'range);
+  118 |   end process pwm_channel_connect;
+  121 |   clkgen_en_o <= or_reduce_f(ce);
+  123 | end neorv32_pwm_rtl;
+  135 | library ieee;
+  136 | use ieee.std_logic_1164.all;
+  137 | use ieee.numeric_std.all;
+  139 | library neorv32;
+  140 | use neorv32.neorv32_package.all;
+
+  142 | entity neorv32_pwm_channel is
+  143 |   port (
+  144 |     clk_i       : in  std_ulogic;
+  145 |     rstn_i      : in  std_ulogic;
+  146 |     we_i        : in  std_ulogic;
+  147 |     re_i        : in  std_ulogic;
+  148 |     wdata_i     : in  std_ulogic_vector(31 downto 0);
+  149 |     rdata_o     : out std_ulogic_vector(31 downto 0);
+  150 |     clkgen_i    : in  std_ulogic_vector(7 downto 0);
+  151 |     clkgen_en_o : out std_ulogic;
+  152 |     pwm_o       : out std_ulogic
+  153 |   );
+  154 | end neorv32_pwm_channel;
+
+  156 | architecture neorv32_pwm_channel_rtl of neorv32_pwm_channel is
+  159 |   signal cfg_en   : std_ulogic;
+  160 |   signal cfg_prsc : std_ulogic_vector(2 downto 0);
+  161 |   signal cfg_pol  : std_ulogic;
+  162 |   signal cfg_cdiv : std_ulogic_vector(9 downto 0);
+  163 |   signal cfg_duty : std_ulogic_vector(7 downto 0);
+  166 |   signal cnt_cdiv : std_ulogic_vector(9 downto 0);
+  167 |   signal cnt_tick : std_ulogic;
+  168 |   signal cnt_duty : std_ulogic_vector(7 downto 0);
+  170 | begin
+  174 |   config_write: process(rstn_i, clk_i)
+  175 |   begin
+  176 |     if (rstn_i = '0') then
+  177 |       cfg_en   <= '0';
+  178 |       cfg_prsc <= (others => '0');
+  179 |       cfg_pol <= '0';
+  180 |       cfg_cdiv <= (others => '0');
+  181 |       cfg_duty <= (others => '0');
+  182 |     elsif rising_edge(clk_i) then
+  183 |       if (we_i = '1') then
+  184 |         cfg_en   <= wdata_i(31);
+  185 |         cfg_prsc <= wdata_i(30 downto 28);
+  186 |         cfg_pol  <= wdata_i(27);
+  187 |         cfg_cdiv <= wdata_i(17 downto 8);
+  188 |         cfg_duty <= wdata_i(7 downto 0);
+  189 |       end if;
+  190 |     end if;
+  191 |   end process config_write;
+  194 |   rdata_o <= cfg_en & cfg_prsc & cfg_pol & "000000000" & cfg_cdiv & cfg_duty when (re_i = '1') else (others => '0');
+  197 |   clkgen_en_o <= cfg_en;
+  201 |   pwm_core: process(rstn_i, clk_i)
+  202 |   begin
+  203 |     if (rstn_i = '0') then
+  204 |       cnt_tick <= '0';
+  205 |       cnt_cdiv <= (others => '0');
+  206 |       cnt_duty <= (others => '0');
+  207 |       pwm_o    <= '0';
+  208 |     elsif rising_edge(clk_i) then
+  211 |       cnt_tick <= '0';
+  212 |       if (cfg_en = '0') then
+  213 |         cnt_cdiv <= (others => '0');
+  214 |       elsif (clkgen_i(to_integer(unsigned(cfg_prsc))) = '1') then
+  215 |         if (cnt_cdiv = cfg_cdiv) then
+  216 |           cnt_cdiv <= (others => '0');
+  217 |           cnt_tick <= '1';
+  218 |         else
+  219 |           cnt_cdiv <= std_ulogic_vector(unsigned(cnt_cdiv) + 1);
+  220 |         end if;
+  221 |       end if;
+  224 |       if (cfg_en = '0') then
+  225 |         cnt_duty <= (others => '0');
+  226 |       elsif (cnt_tick = '1') then
+  227 |         cnt_duty <= std_ulogic_vector(unsigned(cnt_duty) + 1);
+  228 |       end if;
+  231 |       if (cfg_en = '0') or (unsigned(cnt_duty) >= unsigned(cfg_duty)) then
+  232 |         pwm_o <= cfg_pol;
+  233 |       else
+  234 |         pwm_o <= not cfg_pol;
+  235 |       end if;
+  237 |     end if;
+  238 |   end process pwm_core;
+  240 | end neorv32_pwm_channel_rtl;

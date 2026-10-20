@@ -1,0 +1,61 @@
+UNIT neorv32_slink
+  INPUTS: bus_req_i, clk_i, rstn_i, slink_rx_data_i, slink_rx_last_i, slink_rx_src_i, slink_rx_valid_i, slink_tx_ready_i
+  OUTPUTS: bus_rsp_o, rx_irq_o, slink_rx_ready_o, slink_tx_data_o, slink_tx_dst_o, slink_tx_last_o, slink_tx_valid_o, tx_irq_o
+  BLOCKS
+    [inst] rx_fifo_inst (neorv32_fifo, another IP): rx_fifo.avail, rx_fifo.free, rx_fifo.half, rx_fifo.rdata
+    [inst] tx_fifo_inst (neorv32_fifo, another IP): tx_fifo.avail, tx_fifo.free, tx_fifo.half, tx_fifo.rdata
+    [logic] rx_fifo.clear: rx_fifo.clear
+    [logic] rx_fifo.re: rx_fifo.re
+    [logic] rx_fifo.wdata: rx_fifo.wdata
+    [logic] rx_fifo.we: rx_fifo.we
+    [logic] tx_fifo.clear: tx_fifo.clear
+    [logic] tx_fifo.re: tx_fifo.re
+    [logic] tx_fifo.wdata: tx_fifo.wdata
+    [logic] tx_fifo.we: tx_fifo.we
+    [process] bus_access: ctrl.enable, ctrl.irq_rx_full, ctrl.irq_rx_half, ctrl.irq_rx_nempty, ctrl.irq_tx_empty, ctrl.irq_tx_nfull, ctrl.irq_tx_nhalf, ctrl.rx_clr, ctrl.tx_clr, route_dst; clocked by clk_i; reset by rstn_i
+    [process] rx_attributes: route_src, rx_last; clocked by clk_i; reset by rstn_i
+    [process] rx_interrupt: -; clocked by clk_i; reset by rstn_i
+    [process] tx_interrupt: -; clocked by clk_i; reset by rstn_i
+  ARROWS (==> a value moves; --> only decides; [the elements the arrow carries])
+    bus_req_i --> rx_fifo.re   [bus_req_i.{addr,rw,stb}]
+    bus_req_i ==> tx_fifo.wdata   [bus_req_i.{addr,data}]
+    bus_req_i --> tx_fifo.we   [bus_req_i.{addr,rw,stb}]
+    bus_req_i ==> bus_access   [bus_req_i.{addr,data,rw,stb}]
+    clk_i ==> rx_fifo_inst   [clk_i]
+    clk_i ==> tx_fifo_inst   [clk_i]
+    rstn_i ==> rx_fifo_inst   [rstn_i]
+    rstn_i ==> tx_fifo_inst   [rstn_i]
+    slink_rx_data_i ==> rx_fifo.wdata   [slink_rx_data_i]
+    slink_rx_last_i ==> rx_fifo.wdata   [slink_rx_last_i]
+    slink_rx_src_i ==> rx_fifo.wdata   [slink_rx_src_i]
+    slink_rx_valid_i ==> rx_fifo.we   [slink_rx_valid_i]
+    slink_tx_ready_i ==> tx_fifo.re   [slink_tx_ready_i]
+    rx_fifo_inst ==> slink_rx_ready_o   [rx_fifo.free]
+    rx_fifo_inst ==> bus_access   [rx_fifo.{avail,free,half,rdata}]
+    rx_fifo_inst ==> rx_attributes   [rx_fifo.rdata]
+    rx_fifo_inst ==> rx_interrupt   [rx_fifo.{avail,free,half}]
+    tx_fifo_inst ==> slink_tx_data_o   [tx_fifo.rdata]
+    tx_fifo_inst ==> slink_tx_dst_o   [tx_fifo.rdata]
+    tx_fifo_inst ==> slink_tx_last_o   [tx_fifo.rdata]
+    tx_fifo_inst ==> slink_tx_valid_o   [tx_fifo.avail]
+    tx_fifo_inst ==> bus_access   [tx_fifo.{avail,free,half}]
+    tx_fifo_inst ==> tx_interrupt   [tx_fifo.{avail,free,half}]
+    rx_fifo.clear ==> rx_fifo_inst   [rx_fifo.clear]
+    rx_fifo.clear --> rx_attributes   [rx_fifo.clear]
+    rx_fifo.re ==> rx_fifo_inst   [rx_fifo.re]
+    rx_fifo.re --> rx_attributes   [rx_fifo.re]
+    rx_fifo.wdata ==> rx_fifo_inst   [rx_fifo.wdata]
+    rx_fifo.we ==> rx_fifo_inst   [rx_fifo.we]
+    tx_fifo.clear ==> tx_fifo_inst   [tx_fifo.clear]
+    tx_fifo.re ==> tx_fifo_inst   [tx_fifo.re]
+    tx_fifo.wdata ==> tx_fifo_inst   [tx_fifo.wdata]
+    tx_fifo.we ==> tx_fifo_inst   [tx_fifo.we]
+    bus_access ==> rx_fifo.clear   [ctrl.{enable,rx_clr}]
+    bus_access ==> tx_fifo.clear   [ctrl.{enable,tx_clr}]
+    bus_access ==> tx_fifo.wdata   [route_dst]
+    bus_access ==> bus_rsp_o
+    bus_access ==> rx_interrupt   [ctrl.{enable,irq_rx_full,irq_rx_half,irq_rx_nempty}]
+    bus_access ==> tx_interrupt   [ctrl.{enable,irq_tx_empty,irq_tx_nfull,irq_tx_nhalf}]
+    rx_attributes ==> bus_access   [route_src, rx_last]
+    rx_interrupt ==> rx_irq_o
+    tx_interrupt ==> tx_irq_o

@@ -1,0 +1,305 @@
+   27 | entity neorv32_cache is
+   28 |   generic (
+   29 |     NUM_BLOCKS : natural range 2 to 1024;
+   30 |     BLOCK_SIZE : natural range 4 to 32768;
+   31 |     UC_BEGIN   : std_ulogic_vector(3 downto 0);
+   32 |     READ_ONLY  : boolean
+   33 |   );
+   34 |   port (
+   35 |     clk_i      : in  std_ulogic;
+   36 |     rstn_i     : in  std_ulogic;
+   37 |     host_req_i : in  bus_req_t;
+   38 |     host_rsp_o : out bus_rsp_t;
+   39 |     bus_req_o  : out bus_req_t;
+   40 |     bus_rsp_i  : in  bus_rsp_t
+   41 |   );
+   42 | end neorv32_cache;
+
+   44 | architecture neorv32_cache_rtl of neorv32_cache is
+   47 |   constant block_num_c  : natural := 2**index_size_f(NUM_BLOCKS);
+   48 |   constant block_size_c : natural := 2**index_size_f(BLOCK_SIZE);
+   51 |   constant offset_size_c : natural := index_size_f(block_size_c/4);
+   52 |   constant index_size_c  : natural := index_size_f(block_num_c);
+   53 |   constant tag_size_c    : natural := 32 - (offset_size_c + index_size_c + 2);
+   56 |   component neorv32_cache_memory
+   57 |     generic (
+   58 |       NUM_BLOCKS : natural;
+   59 |       BLOCK_SIZE : natural
+   60 |     );
+   61 |     port (
+   62 |       rstn_i  : in  std_ulogic;
+   63 |       clk_i   : in  std_ulogic;
+   64 |       clr_i   : in  std_ulogic;
+   65 |       inv_i   : in  std_ulogic;
+   66 |       new_i   : in  std_ulogic;
+   67 |       hit_o   : out std_ulogic;
+   68 |       addr_i  : in  std_ulogic_vector(31 downto 0);
+   69 |       we_i    : in  std_ulogic_vector(3 downto 0);
+   70 |       wdata_i : in  std_ulogic_vector(31 downto 0);
+   71 |       rdata_o : out std_ulogic_vector(31 downto 0)
+   72 |     );
+   73 |   end component;
+   76 |   type cache_o_t is record
+   77 |     cmd_clr : std_ulogic;
+   78 |     cmd_inv : std_ulogic;
+   79 |     cmd_new : std_ulogic;
+   80 |     addr    : std_ulogic_vector(31 downto 0);
+   81 |     data    : std_ulogic_vector(31 downto 0);
+   82 |     we      : std_ulogic_vector(3 downto 0);
+   83 |   end record;
+   84 |   signal cache_o : cache_o_t;
+   87 |   type cache_i_t is record
+   88 |     sta_hit : std_ulogic;
+   89 |     data    : std_ulogic_vector(31 downto 0);
+   90 |   end record;
+   91 |   signal cache_i : cache_i_t;
+   94 |   type state_t is (
+   95 |     S_IDLE, S_LOOKUP, S_DIRECT_RSP, S_CLEAR,
+   96 |     S_DOWNLOAD_REQ, S_DOWNLOAD_RSP, S_DOWNLOAD_DONE
+   97 |   );
+   98 |   type ctrl_t is record
+   99 |     state    : state_t;
+  100 |     buf_req  : std_ulogic;
+  101 |     buf_sync : std_ulogic;
+  102 |     buf_err  : std_ulogic;
+  103 |     buf_dir  : std_ulogic;
+  104 |     tag      : std_ulogic_vector(tag_size_c-1 downto 0);
+  105 |     idx      : std_ulogic_vector(index_size_c-1 downto 0);
+  106 |     ofs      : std_ulogic_vector(offset_size_c-1 downto 0);
+  107 |   end record;
+  108 |   signal ctrl, ctrl_nxt : ctrl_t;
+  110 | begin
+  114 |   ctrl_engine_sync: process(rstn_i, clk_i)
+  115 |   begin
+  116 |     if (rstn_i = '0') then
+  117 |       ctrl.state    <= S_IDLE;
+  118 |       ctrl.buf_req  <= '0';
+  119 |       ctrl.buf_sync <= '0';
+  120 |       ctrl.buf_err  <= '0';
+  121 |       ctrl.buf_dir  <= '0';
+  122 |       ctrl.tag      <= (others => '0');
+  123 |       ctrl.idx      <= (others => '0');
+  124 |       ctrl.ofs      <= (others => '0');
+  125 |     elsif rising_edge(clk_i) then
+  126 |       ctrl <= ctrl_nxt;
+  127 |     end if;
+  128 |   end process ctrl_engine_sync;
+  133 |   ctrl_engine_comb: process(ctrl, host_req_i, cache_i, bus_rsp_i)
+  134 |   begin
+  136 |     ctrl_nxt.state    <= ctrl.state;
+  137 |     ctrl_nxt.buf_req  <= ctrl.buf_req or host_req_i.stb;
+  138 |     ctrl_nxt.buf_sync <= ctrl.buf_sync or host_req_i.fence;
+  139 |     ctrl_nxt.buf_err  <= ctrl.buf_err;
+  140 |     ctrl_nxt.buf_dir  <= '0';
+  141 |     ctrl_nxt.tag      <= ctrl.tag;
+  142 |     ctrl_nxt.idx      <= ctrl.idx;
+  143 |     ctrl_nxt.ofs      <= ctrl.ofs;
+  146 |     cache_o.cmd_clr <= '0';
+  147 |     cache_o.cmd_inv <= '0';
+  148 |     cache_o.cmd_new <= '0';
+  149 |     cache_o.addr    <= host_req_i.addr;
+  150 |     cache_o.we      <= (others => '0');
+  151 |     cache_o.data    <= host_req_i.data;
+  154 |     host_rsp_o.ack  <= '0';
+  155 |     host_rsp_o.err  <= '0';
+  156 |     host_rsp_o.data <= cache_i.data;
+  159 |     bus_req_o       <= host_req_i;
+  160 |     bus_req_o.stb   <= '0';
+  161 |     bus_req_o.fence <= '0';
+  164 |     case ctrl.state is
+  166 |       when S_IDLE =>
+  168 |         if (host_req_i.fence = '1') or (ctrl.buf_sync = '1') then
+  169 |           ctrl_nxt.state <= S_CLEAR;
+  170 |         elsif (host_req_i.stb = '1') or (ctrl.buf_req = '1') then
+  171 |           if (unsigned(host_req_i.addr(31 downto 28)) >= unsigned(UC_BEGIN)) or
+  172 |              (host_req_i.amo = '1') or (host_req_i.debug = '1') then
+  173 |             ctrl_nxt.buf_dir <= '1';
+  174 |           end if;
+  175 |           ctrl_nxt.state <= S_LOOKUP;
+  176 |         end if;
+  178 |       when S_LOOKUP =>
+  180 |         ctrl_nxt.tag     <= host_req_i.addr(31 downto 32-tag_size_c);
+  181 |         ctrl_nxt.idx     <= host_req_i.addr((offset_size_c+2+index_size_c)-1 downto offset_size_c+2);
+  182 |         ctrl_nxt.ofs     <= (others => '0');
+  183 |         ctrl_nxt.buf_err <= '0';
+  184 |         ctrl_nxt.buf_req <= '0';
+  186 |         if (ctrl.buf_dir = '1') then
+  187 |           bus_req_o.stb  <= '1';
+  188 |           ctrl_nxt.state <= S_DIRECT_RSP;
+  189 |         elsif (cache_i.sta_hit = '1') then
+  190 |           if (host_req_i.rw = '0') or (READ_ONLY = true) then
+  191 |             host_rsp_o.ack <= '1';
+  192 |             ctrl_nxt.state <= S_IDLE;
+  193 |           else
+  194 |             cache_o.we     <= host_req_i.ben;
+  195 |             bus_req_o.stb  <= '1';
+  196 |             ctrl_nxt.state <= S_DIRECT_RSP;
+  197 |           end if;
+  198 |         else
+  199 |           if (host_req_i.rw = '0') or (READ_ONLY = true) then
+  200 |             ctrl_nxt.state <= S_DOWNLOAD_REQ;
+  201 |           else
+  202 |             bus_req_o.stb  <= '1';
+  203 |             ctrl_nxt.state <= S_DIRECT_RSP;
+  204 |           end if;
+  205 |         end if;
+  207 |       when S_DIRECT_RSP =>
+  209 |         host_rsp_o <= bus_rsp_i;
+  210 |         if (bus_rsp_i.ack = '1') then
+  211 |           ctrl_nxt.state <= S_IDLE;
+  212 |         end if;
+  214 |       when S_CLEAR =>
+  216 |         if (READ_ONLY = false) then
+  217 |           bus_req_o.fence <= '1';
+  218 |         end if;
+  219 |         cache_o.cmd_clr   <= '1';
+  220 |         ctrl_nxt.buf_sync <= '0';
+  221 |         ctrl_nxt.state    <= S_IDLE;
+  223 |       when S_DOWNLOAD_REQ =>
+  225 |         cache_o.addr    <= ctrl.tag & ctrl.idx & ctrl.ofs & "00";
+  226 |         cache_o.cmd_new <= '1';
+  227 |         bus_req_o.addr  <= ctrl.tag & ctrl.idx & ctrl.ofs & "00";
+  228 |         bus_req_o.rw    <= '0';
+  229 |         bus_req_o.stb   <= '1';
+  230 |         bus_req_o.lock  <= '1';
+  231 |         ctrl_nxt.state  <= S_DOWNLOAD_RSP;
+  233 |       when S_DOWNLOAD_RSP =>
+  235 |         cache_o.addr   <= ctrl.tag & ctrl.idx & ctrl.ofs & "00";
+  236 |         cache_o.data   <= bus_rsp_i.data;
+  237 |         cache_o.we     <= (others => '1');
+  238 |         bus_req_o.addr <= ctrl.tag & ctrl.idx & ctrl.ofs & "00";
+  239 |         bus_req_o.rw   <= '0';
+  240 |         bus_req_o.lock <= '1';
+  242 |         ctrl_nxt.buf_err <= ctrl.buf_err or bus_rsp_i.err;
+  243 |         if (bus_rsp_i.ack = '1') then
+  244 |           ctrl_nxt.ofs <= std_ulogic_vector(unsigned(ctrl.ofs) + 1);
+  245 |           if (and_reduce_f(ctrl.ofs) = '1') then
+  246 |             ctrl_nxt.state <= S_DOWNLOAD_DONE;
+  247 |           else
+  248 |             ctrl_nxt.state <= S_DOWNLOAD_REQ;
+  249 |           end if;
+  250 |         end if;
+  252 |       when S_DOWNLOAD_DONE =>
+  254 |         if (ctrl.buf_err = '1') then
+  255 |           cache_o.cmd_inv <= '1';
+  256 |           host_rsp_o.ack  <= '1';
+  257 |           host_rsp_o.err  <= '1';
+  258 |           ctrl_nxt.state  <= S_IDLE;
+  259 |         else
+  260 |           ctrl_nxt.state <= S_LOOKUP;
+  261 |         end if;
+  263 |       when others =>
+  265 |         ctrl_nxt.state <= S_IDLE;
+  267 |     end case;
+  268 |   end process ctrl_engine_comb;
+  273 |   neorv32_cache_memory_inst: neorv32_cache_memory
+  274 |   generic map (
+  275 |     NUM_BLOCKS => block_num_c,
+  276 |     BLOCK_SIZE => block_size_c
+  277 |   )
+  278 |   port map (
+  280 |     rstn_i  => rstn_i,
+  281 |     clk_i   => clk_i,
+  283 |     clr_i   => cache_o.cmd_clr,
+  284 |     inv_i   => cache_o.cmd_inv,
+  285 |     new_i   => cache_o.cmd_new,
+  286 |     hit_o   => cache_i.sta_hit,
+  288 |     addr_i  => cache_o.addr,
+  289 |     we_i    => cache_o.we,
+  290 |     wdata_i => cache_o.data,
+  291 |     rdata_o => cache_i.data
+  292 |   );
+  294 | end neorv32_cache_rtl;
+  307 | library ieee;
+  308 | use ieee.std_logic_1164.all;
+  309 | use ieee.numeric_std.all;
+  311 | library neorv32;
+  312 | use neorv32.neorv32_package.all;
+
+  314 | entity neorv32_cache_memory is
+  315 |   generic (
+  316 |     NUM_BLOCKS : natural;
+  317 |     BLOCK_SIZE : natural
+  318 |   );
+  319 |   port (
+  321 |     rstn_i  : in  std_ulogic;
+  322 |     clk_i   : in  std_ulogic;
+  324 |     clr_i   : in  std_ulogic;
+  325 |     inv_i   : in  std_ulogic;
+  326 |     new_i   : in  std_ulogic;
+  327 |     hit_o   : out std_ulogic;
+  329 |     addr_i  : in  std_ulogic_vector(31 downto 0);
+  330 |     we_i    : in  std_ulogic_vector(3 downto 0);
+  331 |     wdata_i : in  std_ulogic_vector(31 downto 0);
+  332 |     rdata_o : out std_ulogic_vector(31 downto 0)
+  333 |   );
+  334 | end neorv32_cache_memory;
+
+  336 | architecture neorv32_cache_memory_rtl of neorv32_cache_memory is
+  339 |   constant offset_size_c : natural := index_size_f(BLOCK_SIZE/4);
+  340 |   constant index_size_c  : natural := index_size_f(NUM_BLOCKS);
+  341 |   constant tag_size_c    : natural := 32 - (offset_size_c + index_size_c + 2);
+  344 |   signal valid_mem : std_ulogic_vector(NUM_BLOCKS-1 downto 0);
+  345 |   signal valid_mem_rd : std_ulogic;
+  348 |   type tag_mem_t is array (0 to NUM_BLOCKS-1) of std_ulogic_vector(tag_size_c-1 downto 0);
+  349 |   signal tag_mem : tag_mem_t;
+  350 |   signal tag_mem_rd : std_ulogic_vector(tag_size_c-1 downto 0);
+  353 |   type data_mem_t is array (0 to (NUM_BLOCKS * (BLOCK_SIZE/4))-1) of std_ulogic_vector(7 downto 0);
+  354 |   signal data_mem_b0, data_mem_b1, data_mem_b2, data_mem_b3 : data_mem_t;
+  357 |   signal acc_tag : std_ulogic_vector(tag_size_c-1 downto 0);
+  358 |   signal acc_idx : std_ulogic_vector(index_size_c-1 downto 0);
+  359 |   signal acc_off : std_ulogic_vector(offset_size_c-1 downto 0);
+  360 |   signal acc_adr : std_ulogic_vector((index_size_c+offset_size_c)-1 downto 0);
+  362 | begin
+  366 |   acc_tag <= addr_i(31 downto 31-(tag_size_c-1));
+  367 |   acc_idx <= addr_i(31-tag_size_c downto 2+offset_size_c);
+  368 |   acc_off <= addr_i(2+(offset_size_c-1) downto 2);
+  369 |   acc_adr <= acc_idx & acc_off;
+  374 |   status_memory: process(rstn_i, clk_i)
+  375 |   begin
+  376 |     if (rstn_i = '0') then
+  377 |       valid_mem    <= (others => '0');
+  378 |       valid_mem_rd <= '0';
+  379 |     elsif rising_edge(clk_i) then
+  380 |       if (clr_i = '1') then
+  381 |         valid_mem <= (others => '0');
+  382 |       elsif (inv_i = '1') then
+  383 |         valid_mem(to_integer(unsigned(acc_idx))) <= '0';
+  384 |       elsif (new_i = '1') then
+  385 |         valid_mem(to_integer(unsigned(acc_idx))) <= '1';
+  386 |       end if;
+  387 |       valid_mem_rd <= valid_mem(to_integer(unsigned(acc_idx)));
+  388 |     end if;
+  389 |   end process status_memory;
+  394 |   tag_memory: process(clk_i)
+  395 |   begin
+  396 |     if rising_edge(clk_i) then
+  397 |       if (new_i = '1') then
+  398 |         tag_mem(to_integer(unsigned(acc_idx))) <= acc_tag;
+  399 |       end if;
+  400 |       tag_mem_rd <= tag_mem(to_integer(unsigned(acc_idx)));
+  401 |     end if;
+  402 |   end process tag_memory;
+  405 |   hit_o <= '1' when (valid_mem_rd = '1') and (tag_mem_rd = acc_tag) else '0';
+  410 |   data_memory: process(clk_i)
+  411 |   begin
+  412 |     if rising_edge(clk_i) then
+  413 |       if (we_i(0) = '1') then
+  414 |         data_mem_b0(to_integer(unsigned(acc_adr))) <= wdata_i(7 downto 0);
+  415 |       end if;
+  416 |       if (we_i(1) = '1') then
+  417 |         data_mem_b1(to_integer(unsigned(acc_adr))) <= wdata_i(15 downto 8);
+  418 |       end if;
+  419 |       if (we_i(2) = '1') then
+  420 |         data_mem_b2(to_integer(unsigned(acc_adr))) <= wdata_i(23 downto 16);
+  421 |       end if;
+  422 |       if (we_i(3) = '1') then
+  423 |         data_mem_b3(to_integer(unsigned(acc_adr))) <= wdata_i(31 downto 24);
+  424 |       end if;
+  425 |       rdata_o( 7 downto  0) <= data_mem_b0(to_integer(unsigned(acc_adr)));
+  426 |       rdata_o(15 downto  8) <= data_mem_b1(to_integer(unsigned(acc_adr)));
+  427 |       rdata_o(23 downto 16) <= data_mem_b2(to_integer(unsigned(acc_adr)));
+  428 |       rdata_o(31 downto 24) <= data_mem_b3(to_integer(unsigned(acc_adr)));
+  429 |     end if;
+  430 |   end process data_memory;
+  433 | end neorv32_cache_memory_rtl;

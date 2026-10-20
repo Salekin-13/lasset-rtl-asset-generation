@@ -1,0 +1,69 @@
+UNIT neorv32_cpu_cp_muldiv
+  INPUTS: clk_i, ctrl_i, rs1_i, rs2_i, rstn_i
+  OUTPUTS: res_o, valid_o
+  BLOCKS
+    [generate] divider_core_serial: div.res, div.res_u, div.sub
+    [generate] divider_core_serial_none: div.quotient, div.remainder, div.res, div.res_u, div.rs2_abs, div.sign_mod, div.sub
+    [generate] multiplier_core_parallel: mul.dsp_z
+    [generate] multiplier_core_parallel_none: mul.dsp_x, mul.dsp_y, mul.dsp_z
+    [generate] multiplier_core_serial: mul.p_sext
+    [generate] multiplier_core_serial_none: mul.add, mul.p_sext
+    [logic] ctrl.rs1_is_signed: ctrl.rs1_is_signed
+    [logic] ctrl.rs2_is_signed: ctrl.rs2_is_signed
+    [logic] div.start: div.start
+    [logic] mul.start: mul.start
+    [logic] valid_cmd: valid_cmd
+    [process] control: ctrl.cnt, ctrl.out_en, ctrl.state; clocked by clk_i; reset by rstn_i
+    [process] divider_core: div.quotient, div.remainder, div.rs2_abs, div.sign_mod; clocked by clk_i; reset by rstn_i
+    [process] mul_update: mul.add
+    [process] multiplier_core: mul.prod; clocked by clk_i; reset by rstn_i
+    [process] multiplier_core_in_reg: mul.dsp_x, mul.dsp_y; clocked by clk_i; reset by rstn_i
+    [process] multiplier_core_out_reg: mul.prod; clocked by clk_i
+    [process] operation_result: -
+  ARROWS (==> a value moves; --> only decides; [the elements the arrow carries])
+    divider_core_serial ==> divider_core   [div.sub]
+    divider_core_serial ==> operation_result   [div.res]
+    divider_core_serial_none ==> operation_result   [div.res]
+    multiplier_core_parallel ==> multiplier_core_out_reg   [mul.dsp_z]
+    multiplier_core_serial ==> mul_update   [mul.p_sext]
+    ctrl_i --> divider_core_serial   [ctrl_i.ir_funct3]
+    ctrl_i --> ctrl.rs1_is_signed   [ctrl_i.ir_funct3]
+    ctrl_i --> ctrl.rs2_is_signed   [ctrl_i.ir_funct3]
+    ctrl_i --> div.start   [ctrl_i.ir_funct3]
+    ctrl_i --> mul.start   [ctrl_i.ir_funct3]
+    ctrl_i --> valid_cmd   [ctrl_i.{alu_cp_alu,ir_funct12,ir_funct3,ir_opcode}]
+    ctrl_i --> control   [ctrl_i.{cpu_trap,ir_funct3}]
+    ctrl_i --> divider_core   [ctrl_i.ir_funct3]
+    ctrl_i --> operation_result   [ctrl_i.ir_funct3]
+    rs1_i ==> divider_core   [rs1_i]
+    rs1_i ==> multiplier_core   [rs1_i]
+    rs1_i ==> multiplier_core_in_reg   [rs1_i]
+    rs2_i ==> divider_core   [rs2_i]
+    rs2_i ==> mul_update   [rs2_i]
+    rs2_i ==> multiplier_core_in_reg   [rs2_i]
+    ctrl.rs1_is_signed --> divider_core   [ctrl.rs1_is_signed]
+    ctrl.rs1_is_signed --> mul_update   [ctrl.rs1_is_signed]
+    ctrl.rs1_is_signed ==> multiplier_core_in_reg   [ctrl.rs1_is_signed]
+    ctrl.rs2_is_signed ==> multiplier_core_serial   [ctrl.rs2_is_signed]
+    ctrl.rs2_is_signed --> divider_core   [ctrl.rs2_is_signed]
+    ctrl.rs2_is_signed ==> mul_update   [ctrl.rs2_is_signed]
+    ctrl.rs2_is_signed ==> multiplier_core_in_reg   [ctrl.rs2_is_signed]
+    div.start --> divider_core   [div.start]
+    mul.start --> multiplier_core   [mul.start]
+    mul.start --> multiplier_core_in_reg   [mul.start]
+    valid_cmd --> div.start   [valid_cmd]
+    valid_cmd --> mul.start   [valid_cmd]
+    valid_cmd --> control   [valid_cmd]
+    control --> valid_o   [ctrl.state]
+    control --> divider_core   [ctrl.state]
+    control --> mul_update   [ctrl.state]
+    control --> multiplier_core   [ctrl.state]
+    control --> operation_result   [ctrl.out_en]
+    divider_core ==> divider_core_serial   [div.{quotient,remainder,rs2_abs,sign_mod}]
+    mul_update ==> multiplier_core   [mul.add]
+    multiplier_core ==> multiplier_core_serial   [mul.prod]
+    multiplier_core ==> mul_update   [mul.prod]
+    multiplier_core ==> operation_result   [mul.prod]
+    multiplier_core_in_reg ==> multiplier_core_parallel   [mul.{dsp_x,dsp_y}]
+    multiplier_core_out_reg ==> operation_result   [mul.prod]
+    operation_result ==> res_o

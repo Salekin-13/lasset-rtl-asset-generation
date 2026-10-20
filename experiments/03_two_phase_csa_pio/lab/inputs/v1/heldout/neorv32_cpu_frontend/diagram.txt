@@ -1,0 +1,47 @@
+UNIT neorv32_cpu_frontend
+  INPUTS: clk_i, ctrl_i, ibus_rsp_i, rstn_i
+  OUTPUTS: frontend_o, ibus_req_o
+  BLOCKS
+    [generate] issue_disabled: ipb.re, issue.aclr, issue.algn, issue.aset, issue.cmd16, issue.cmd32
+    [generate] issue_enabled: ipb.re, issue.cmd16
+    [inst] neorv32_cpu_decompressor_inst (neorv32_cpu_decompressor, another IP): issue.cmd32
+    [inst] prefetch_buffer_inst (neorv32_fifo, another IP): ipb.avail, ipb.free, ipb.rdata
+    [logic] ipb.wdata: ipb.wdata
+    [logic] ipb.we: ipb.we
+    [process] fetch_fsm: fetch.pc, fetch.priv, fetch.restart, fetch.state; clocked by clk_i; reset by rstn_i
+    [process] issue_fsm_comb: issue.ack, issue.aclr, issue.aset
+    [process] issue_fsm_sync: issue.algn; clocked by clk_i; reset by rstn_i
+  ARROWS (==> a value moves; --> only decides; [the elements the arrow carries])
+    issue_disabled ==> prefetch_buffer_inst   [ipb.re]
+    issue_disabled ==> frontend_o
+    issue_enabled ==> neorv32_cpu_decompressor_inst   [issue.cmd16]
+    issue_enabled ==> prefetch_buffer_inst   [ipb.re]
+    clk_i ==> prefetch_buffer_inst   [clk_i]
+    ctrl_i ==> issue_disabled   [ctrl_i.if_ack]
+    ctrl_i ==> issue_enabled   [ctrl_i.if_ack]
+    ctrl_i ==> ibus_req_o   [ctrl_i.{cpu_debug,if_fence}]
+    ctrl_i ==> fetch_fsm   [ctrl_i.{cpu_priv,if_reset,pc_nxt}]
+    ctrl_i ==> issue_fsm_sync   [ctrl_i.{if_ack,pc_nxt}]
+    ibus_rsp_i ==> ipb.wdata   [ibus_rsp_i.{data,err}]
+    ibus_rsp_i --> ipb.we   [ibus_rsp_i.ack]
+    ibus_rsp_i --> fetch_fsm   [ibus_rsp_i.ack]
+    rstn_i ==> prefetch_buffer_inst   [rstn_i]
+    neorv32_cpu_decompressor_inst ==> issue_fsm_comb   [issue.cmd32]
+    prefetch_buffer_inst ==> issue_disabled   [ipb.{avail,rdata}]
+    prefetch_buffer_inst ==> issue_enabled   [ipb.rdata]
+    prefetch_buffer_inst --> frontend_o   [ipb.free]
+    prefetch_buffer_inst --> ibus_req_o   [ipb.free]
+    prefetch_buffer_inst --> fetch_fsm   [ipb.free]
+    prefetch_buffer_inst ==> issue_fsm_comb   [ipb.{avail,rdata}]
+    ipb.wdata ==> prefetch_buffer_inst   [ipb.wdata]
+    ipb.we ==> prefetch_buffer_inst   [ipb.we]
+    fetch_fsm ==> prefetch_buffer_inst   [fetch.restart]
+    fetch_fsm --> ipb.we   [fetch.{pc,state}]
+    fetch_fsm --> frontend_o   [fetch.state]
+    fetch_fsm ==> ibus_req_o   [fetch.{pc,priv,state}]
+    fetch_fsm --> issue_fsm_sync   [fetch.restart]
+    issue_fsm_comb ==> issue_enabled   [issue.ack]
+    issue_fsm_comb ==> frontend_o
+    issue_fsm_comb ==> issue_fsm_sync   [issue.{aclr,aset}]
+    issue_fsm_sync --> issue_enabled   [issue.algn]
+    issue_fsm_sync --> issue_fsm_comb   [issue.algn]
