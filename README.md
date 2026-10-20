@@ -23,7 +23,7 @@ On all 41 modules (300 reference entries, 296 findable under the exact scorer, p
 | LAsset, RTL-only initial list (published) | 0.704 | 0.757  | one list |
 | Two-phase prompt (working version) | 0.708 (0.037) | 0.845 (0.018)  | 3 |
 
-Caveat: the held-out 26 modules later helped tune the working prompt from v9j onwards. This then stops being a blind test.
+Caveat: from v9 (14 Oct) on, the held-out 26 modules also helped write rules and choose between versions. From there the held-out numbers are not a blind test.
 
 The final two-phase approach achieved **0.708 precision / 0.845 recall** over all 41 modules, compared with **0.704 / 0.757** for LAsset's RTL-only initial list under the same exact scorer.
 More importantly, the experiments showed that better RTL grounding does not automatically solve asset identification: the remaining false positives often have the same RTL behaviour as reference assets.
@@ -33,8 +33,7 @@ More importantly, the experiments showed that better RTL grounding does not auto
 ### How the literature was used
 
 LAsset shaped the pipeline; P3164 gave the prompt its frame.
-Every prompt rule needed a basis: a published source, the prompt's own definitions (which trace to the six sources below), or a logged user decision where the rule follows the reference's convention.
-Rules drawn from a failure analysis went through the same check before they entered the prompt.
+The prompt's definitions, steps and rubric come from the sources below. Its rules came the other way round: each was written from a failure analysis of the model's output against the reference, and then had to be given a basis before it entered the prompt: a published source, the prompt's own definitions (which trace to the six sources below), or a logged user decision where the rule follows the reference's convention.
 
 
 - **LAsset** (Hasan et al., DATE 2026): the task, Algorithm 1 lines 3–5, the manual list as the reference and the published lists as the comparison rows. Not replicated: secondary assets, the refinement stage, Degree of Influence.
@@ -153,14 +152,14 @@ The watchdog's diagram as the model sees it is `experiments/03_two_phase_csa_pio
 - Blind boundary test: a new rule applied to stored replies, to check it removes no hit.
 - Position tests with a sham block of the same length as the control.
 
-*Limitations:* Three decisions were taken from the reference, not from theory. Each is labelled "user decision: reference convention" in its version's README. A change in the reference voids them. 
+*Limitations:* Of the 45 content rules in the final prompt, 24 encode the reference's annotation conventions rather than a published basis. The three logged decisions below cover 21 of them, each labelled "user decision: reference convention" in its version's README; the seven keep rules added in v9g and v9h carry no such label. The rule-by-rule audit (`experiments/03_two_phase_csa_pio/lab/analysis/RULE_BASIS_AUDIT_2026-10-20.md`) lists every rule. A change in the reference voids all 24.
 
 1. Clocks and resets are not conceptual assets (12 Oct). The reference lists none.
 2. Prompt lines that only produced extra concepts, with no hit under them, were removed or restricted (12 Oct).
 3. Exclusion rules for groups the reference never lists: stored-word memory arrays and processor control-unit state
    (18 Oct), and debug-module registers (19 Oct).
 
-> From v9g on, the held-out 26 were also used to tune the phase 1 & 2 prompts to choose between versions. So the held-out numbers from there on are not a blind test anymore.
+> From v9 (14 Oct) on, the held-out 26 were also used to write rules and to choose between versions. So the held-out numbers from there on are not a blind test anymore.
 
 *Risk of Overtuning:* The prompt was written for VHDL and for LAsset's annotation conventions. Its narrow bars and keep rules came from analysing the model's failures on these 41 modules; on another IP module they may or may not fire. The broad convention rules (clocks and resets, access command fields, sequencing state, port buffers, control record ports, boundary outputs) would keep firing, and whether they help depends on whether the new annotator shares LAsset's conventions. A second set of annotated VHDL modules, from a different annotator, is needed to measure this. Rule-by-rule table: `experiments/03_two_phase_csa_pio/lab/analysis/RULE_BASIS_AUDIT_2026-10-20.md`.
 
@@ -314,11 +313,11 @@ The all-41 column pools the two splits (296 findable entries per run). The worki
 
 | weakness | evidence |
 |---|---|
-| the held-out numbers from v9g on are not a blind test | this README |
+| the held-out numbers from v9 (14 Oct) on are not a blind test | this README |
 | the false positives left are internal registers under a right concept | v9j, all 41, 3 runs: 88% of false positives are internal registers or wires; 78% sit under a concept that also has a correct primary; 85 elements are false in all three runs |
 | whole control-record ports are missed while their fields get listed | v9f, held-out: 30 of 30 entry-runs for such ports missed; the reference never lists a port field |
 | the debug module's reset-request output is never found when the exclusion is the first block | 0 of 3 runs; a wording fix was run once, Phase 1 only, and did not recover it; the output is found whenever the exclusion is not the first block |
-| three rules rest on the reference's conventions, not on theory | the three decisions above |
+| 24 of 45 content rules rest on the reference's conventions, not on a published basis | rule-basis audit, 2026-10-20 |
 | one model, three runs | gpt-5.6-luna only; run spread about 10 hits on the held-out modules |
 
 ## Running it, and where things are
