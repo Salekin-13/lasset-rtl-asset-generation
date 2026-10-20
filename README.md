@@ -304,9 +304,9 @@ The all-41 column pools the two splits (296 findable entries per run). The worki
 
 | file | words | what is in it |
 |---|---|---|
-| `common.md` (sent with both calls) | 4,265 | 1 what you are given: RTL, closed set, diagram. 2 definitions 2.1 to 2.9: objectives, information flow, asset, conceptual, structural, primary, secondary, how they relate, points. 3 assume the security objectives. 4 indicators: asset types, primaries named in published work, behavioural patterns, high-risk structures |
-| `phase1.md` | 11,729 | steps: 1 interface, 2 inside, 3 merge and split, 4 rubric (the CSA questions), 5 keep, 6 anchor. Then the rules: exclusions with their exceptions inside, keep rules after the exclusion they override. Then the output format |
-| `phase2.md` | 12,830 | steps: 1 walk the diagram, 2 the four PIO questions per point, 3 structural assets at each point with a "yes", 4 primary (one per place), 5 secondary. Then the rules and the output format |
+| `common.md` (sent with both calls) | 4,265 | 1) what you are given: RTL, closed set, diagram. 2) definitions 2.1 to 2.9: objectives, information flow, asset, conceptual, structural, primary, secondary, how they relate, points. 3) assume the security objectives. 4) indicators: asset types, primaries named in published work, behavioural patterns, high-risk structures |
+| `phase1.md` | 11,729 | steps: 1) interface, 2) inside, 3) merge and split, 4) rubric (the CSA questions), 5) keep, 6) anchor. Then the rules: exclusions with their exceptions inside, keep rules after the exclusion they override. Then the output format |
+| `phase2.md` | 12,830 | steps: 1) walk the diagram, 2) the four PIO questions per point, 3) structural assets at each point with a "yes", 4) primary (one per place), 5) secondary. Then the rules and the output format |
 
 **Table 6. Remaining weakness**
 
